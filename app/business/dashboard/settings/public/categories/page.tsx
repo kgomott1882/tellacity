@@ -242,7 +242,7 @@ export default function CategoriesPage() {
     };
     if (primaryGroupSlug != null) payload.primary_group_slug = primaryGroupSlug;
     if (primaryCategoryId != null) payload.primary_category_id = primaryCategoryId;
-    const { error } = await supabase
+    const { error } = await supabaseBrowser
       .from("businesses")
       .update(payload)
       .eq("id", businessId);
