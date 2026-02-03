@@ -59,13 +59,9 @@ type ReviewReply = {
   createdAt: string;
 };
 
-type RatingCounts = {
-  1: number;
-  2: number;
-  3: number;
-  4: number;
-  5: number;
-};
+type Star = 1 | 2 | 3 | 4 | 5;
+
+type RatingCounts = Record<Star, number>;
 
 type CategoryTrail = {
   groupName: string | null;
@@ -404,7 +400,8 @@ export default function BusinessProfilePage() {
       (data ?? []).forEach((row) => {
         const value = Math.round(Number(row.rating ?? 0));
         if (value >= 1 && value <= 5) {
-          counts[value as 1 | 2 | 3 | 4 | 5] += 1;
+          const star = value as Star;
+          counts[star] += 1;
           totalRatings += 1;
           sum += value;
         }
@@ -414,16 +411,10 @@ export default function BusinessProfilePage() {
       const average = totalRatings > 0 ? sum / totalRatings : 0;
 
       setReviewStats({
-        total,
-        average,
-        counts: {
-          1: counts[1],
-          2: counts[2],
-          3: counts[3],
-          4: counts[4],
-          5: counts[5],
-        },
-      });
+  total,
+  average,
+  counts: counts as RatingCounts,
+});
     };
 
     fetchReviewStats();
@@ -568,7 +559,8 @@ export default function BusinessProfilePage() {
       (acc, review) => {
         const rounded = Math.round(review.rating);
         if (rounded >= 1 && rounded <= 5) {
-          acc[rounded] += 1;
+          const star = rounded as Star;
+          acc[star] += 1;
           acc.total += 1;
         }
         return acc;
