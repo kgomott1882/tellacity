@@ -389,7 +389,13 @@ export default function BusinessProfilePage() {
         return;
       }
 
-      const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      const counts: Record<number, number> = {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+      };
       let totalRatings = 0;
       let sum = 0;
 
