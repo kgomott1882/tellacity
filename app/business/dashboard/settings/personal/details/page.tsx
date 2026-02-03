@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 const COUNTRY_OPTIONS = [
   "South Africa",
@@ -76,7 +76,7 @@ export default function MyDetailsPage() {
       }
       let sessionData: { session: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } } | null } | null = null;
       try {
-        const result = await supabase.auth.getSession();
+        const result = await supabaseBrowser.auth.getSession();
         sessionData = result.data;
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") {
@@ -98,7 +98,7 @@ export default function MyDetailsPage() {
       // Fallback: business_profiles may have business_name for this user
       let nameValue = displayName;
       if (!nameValue) {
-        const { data: bp } = await supabase.from("business_profiles").select("business_name").eq("id", u.id).maybeSingle();
+        const { data: bp } = await supabaseBrowser.from("business_profiles").select("business_name").eq("id", u.id).maybeSingle();
         if (mounted && bp && (bp as { business_name?: string }).business_name) {
           nameValue = (bp as { business_name: string }).business_name.trim();
         }
@@ -120,7 +120,7 @@ export default function MyDetailsPage() {
     setMessage(null);
     setSaving(true);
     const nameTrim = form.name.trim();
-    const { error } = await supabase.auth.updateUser({
+    const { error } = await supabaseBrowser.auth.updateUser({
       data: {
         display_name: nameTrim || null,
         country: form.country || null,
@@ -134,7 +134,7 @@ export default function MyDetailsPage() {
     }
     // Keep business_profiles.business_name in sync for business users
     if (user?.id) {
-      const { error: bpError } = await supabase.from("business_profiles").update({ business_name: nameTrim || null }).eq("id", user.id);
+      const { error: bpError } = await supabaseBrowser.from("business_profiles").update({ business_name: nameTrim || null }).eq("id", user.id);
       setSaving(false);
       if (bpError) {
         setMessage({ type: "success", text: "Profile saved." });
@@ -152,7 +152,7 @@ export default function MyDetailsPage() {
   };
 
   const handleChangePassword = () => {
-    supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset-password` }).then(({ error }) => {
+    supabaseBrowser.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset-password` }).then(({ error }) => {
       if (error) setMessage({ type: "error", text: error.message });
       else setMessage({ type: "success", text: "Check your email for a password reset link." });
     });

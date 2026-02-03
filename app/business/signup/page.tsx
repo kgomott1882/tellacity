@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import PasswordSetupPopup from "./_components/PasswordSetupPopup";
 
 const COUNTRIES = [

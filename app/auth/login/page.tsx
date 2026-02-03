@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabaseBrowser.auth.signInWithPassword({
       email,
       password,
     });
@@ -31,7 +31,7 @@ export default function LoginPage() {
     }
     // Redirect by account type: business users → business dashboard, consumers → consumer dashboard
     if (signInData?.user) {
-      const { data: businessProfile } = await supabase
+      const { data: businessProfile } = await supabaseBrowser
         .from("business_profiles")
         .select("id")
         .eq("id", signInData.user.id)
@@ -73,7 +73,7 @@ export default function LoginPage() {
                       "true"
                     );
                   }
-                  const { error: oauthError } = await supabase.auth.signInWithOAuth(
+                  const { error: oauthError } = await supabaseBrowser.auth.signInWithOAuth(
                     {
                       provider: "google",
                       options: {

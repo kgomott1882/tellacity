@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type ReviewItem = {
@@ -53,7 +53,7 @@ export default function ConsumerDashboard() {
     const loadUser = async () => {
       let data: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null } | null = null;
       try {
-        const result = await supabase.auth.getUser();
+        const result = await supabaseBrowser.auth.getUser();
         data = result.data;
       } catch (e) {
         if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
@@ -119,7 +119,7 @@ export default function ConsumerDashboard() {
       if (!userEmail) return;
       setLoadingReviews(true);
       setReviewsError("");
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBrowser
         .from("reviews")
         .select(
           "id, title, body, created_at, rating, status, business:businesses(name, slug, logo_url, website, website_display)"
@@ -144,7 +144,7 @@ export default function ConsumerDashboard() {
   const handleSaveProfile = async () => {
     setProfileMessage("");
     setSavingProfile(true);
-    const { error } = await supabase.auth.updateUser({
+      const { error } = await supabaseBrowser.auth.updateUser({
       data: {
         display_name: displayName,
         country,

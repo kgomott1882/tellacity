@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import type { DashboardBusiness } from "../_context/BusinessContext";
 
 function cleanDomain(url: string) {
@@ -31,7 +31,7 @@ export function useBusinesses(userId: string | null) {
 
       try {
         // 1) Try direct ownership first (owner_id on businesses)
-        const { data: owned, error: ownedErr } = await supabase
+        const { data: owned, error: ownedErr } = await supabaseBrowser
           .from("businesses")
           .select("id, name, slug, website")
           .eq("owner_id", userId)
@@ -48,7 +48,7 @@ export function useBusinesses(userId: string | null) {
 
         // 2) Fallback: business_owners join (if table exists)
         try {
-          const { data: links, error: linksErr } = await supabase
+          const { data: links, error: linksErr } = await supabaseBrowser
             .from("business_owners")
             .select("business_id")
             .eq("owner_user_id", userId);
@@ -68,7 +68,7 @@ export function useBusinesses(userId: string | null) {
             return;
           }
 
-          const { data: joined, error: joinedErr } = await supabase
+          const { data: joined, error: joinedErr } = await supabaseBrowser
             .from("businesses")
             .select("id, name, slug, website")
             .in("id", ids)

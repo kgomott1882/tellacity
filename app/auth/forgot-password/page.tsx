@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    const { error: invokeError } = await supabase.functions.invoke(
+    const { error: invokeError } = await supabaseBrowser.functions.invoke(
       "send-password-reset",
       { body: { email } }
     );

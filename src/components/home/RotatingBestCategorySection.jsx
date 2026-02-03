@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import {
   normalizeLogoUrl,
   resolveBusinessLogoViaClient,
@@ -77,13 +77,13 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
       }
 
       setIsLoading(true);
-      const { data: categoryData } = await supabase
+      const { data: categoryData } = await supabaseBrowser
         .from("categories")
         .select("name")
         .eq("slug", categorySlug)
         .single();
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
+      const { data: rpcData, error: rpcError } = await supabaseBrowser.rpc(
         "get_top_businesses_for_category_global",
         {
           p_category_slug: categorySlug,
@@ -113,7 +113,7 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
               if (!url) {
                 const domain = domainFromWebsite(row.website_display ?? row.website);
                 if (domain) {
-                  const fromEdge = await resolveBusinessLogoViaClient(supabase, domain);
+                  const fromEdge = await resolveBusinessLogoViaClient(supabaseBrowser, domain);
                   if (fromEdge) url = fromEdge;
                 }
               }

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Search, Plus, X, ExternalLink } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type SubItem = { label: string; slug: string };
 type CategoryOption = { label: string; slug: string; mainSlug: string; categoryId?: string | null; groupSlug?: string | null };
@@ -61,7 +61,7 @@ export default function CategoriesPage() {
     (async () => {
       setCategoriesLoading(true);
       setCategoriesError(null);
-      const { data: groupsData, error: groupsError } = await supabase
+      const { data: groupsData, error: groupsError } = await supabaseBrowser
         .from("category_groups")
         .select("id, name, slug")
         .order("name", { ascending: true });
@@ -77,7 +77,7 @@ export default function CategoriesPage() {
       const groups = (groupsData ?? []) as { id: string; name: string; slug: string }[];
       setCategoryGroups(groups);
 
-      const { data: categoriesData, error: categoriesError } = await supabase
+      const { data: categoriesData, error: categoriesError } = await supabaseBrowser
         .from("categories")
         .select("id, name, slug, group")
         .order("name", { ascending: true });
@@ -123,14 +123,14 @@ export default function CategoriesPage() {
     }
     (async () => {
       let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
-      let { data, error } = await supabase
+      let { data, error } = await supabaseBrowser
         .from("businesses")
         .select(selectCols)
         .eq("id", businessId)
         .single();
       if (error && (String((error as { code?: string }).code) === "PGRST204" || String((error as { code?: string }).code) === "42703")) {
         selectCols = "category_slug, secondary_category_slugs";
-        const fallback = await supabase.from("businesses").select(selectCols).eq("id", businessId).single();
+        const fallback = await supabaseBrowser.from("businesses").select(selectCols).eq("id", businessId).single();
         data = fallback.data;
         error = fallback.error;
       }

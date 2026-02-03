@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Info, LogOut, Settings, CreditCard, ChevronDown, X } from "lucide-react";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function TopBar() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function TopBar() {
     const loadUser = async () => {
       let data: { user: typeof user } | null = null;
       try {
-        const result = await supabase.auth.getUser();
+        const result = await supabaseBrowser.auth.getUser();
         data = result.data;
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
@@ -47,7 +47,7 @@ export default function TopBar() {
     };
     loadUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
       const sessionUser = session?.user ?? null;
       if (sessionUser) {
         setUser({
@@ -94,7 +94,7 @@ export default function TopBar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabaseBrowser.auth.signOut();
     router.push("/business/login");
   };
 

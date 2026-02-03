@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Search, Building2, Shield, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type LocationRow = {
   id: string;
@@ -51,7 +51,7 @@ export default function LocationsPage() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBrowser
         .from("business_locations")
         .select("id, name, address, city, postcode, country_code, external_id, street_address_2, state_region, phone, website, headline, description")
         .eq("business_id", businessId)
@@ -171,7 +171,7 @@ export default function LocationsPage() {
                       onClick={() => {
                         if (window.confirm("Delete this location? This cannot be undone.")) {
                           setDeletingId(loc.id);
-                          supabase
+                          supabaseBrowser
                             .from("business_locations")
                             .delete()
                             .eq("id", loc.id)

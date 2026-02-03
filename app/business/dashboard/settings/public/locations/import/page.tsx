@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CloudUpload, Lightbulb, ChevronRight } from "lucide-react";
 import { useBusinessContext } from "../../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 const MAX_LOCATIONS = 2000;
 
@@ -191,7 +191,7 @@ export default function ImportLocationsPage() {
         website: row.website.trim() || null,
       };
     });
-    const { error } = await supabase.from("business_locations").insert(rows);
+    const { error } = await supabaseBrowser.from("business_locations").insert(rows);
     setImporting(false);
     if (error) {
       setMessage({ type: "error", text: error.message });

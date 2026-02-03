@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RatingStars from "@/components/RatingStars";
 import { Pencil, HelpCircle } from "lucide-react";
 
@@ -42,7 +42,7 @@ export default function ReferenceNumberPage() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBrowser
         .from("businesses")
         .select("reference_number_enabled, reference_number_type, reference_number_label_custom")
         .eq("id", businessId)
@@ -73,7 +73,7 @@ export default function ReferenceNumberPage() {
     if (!businessId) return;
     setMessage(null);
     setSaving(true);
-    const { error } = await supabase
+    const { error } = await supabaseBrowser
       .from("businesses")
       .update({
         reference_number_enabled: referenceEnabled,

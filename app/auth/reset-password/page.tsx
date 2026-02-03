@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function ResetPasswordPage() {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
         if (code) {
-          await supabase.auth.exchangeCodeForSession(code);
+          await supabaseBrowser.auth.exchangeCodeForSession(code);
           window.history.replaceState({}, "", url.pathname);
         }
 
@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
-          await supabase.auth.setSession({
+          await supabaseBrowser.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
@@ -39,7 +39,7 @@ export default function ResetPasswordPage() {
 
       let sessionData: { session: unknown } | null = null;
       try {
-        const result = await supabase.auth.getSession();
+        const result = await supabaseBrowser.auth.getSession();
         sessionData = result.data;
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") {
@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+    const { data: updateData, error: updateError } = await supabaseBrowser.auth.updateUser({
       password,
     });
     setLoading(false);
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
     }
     const user = updateData?.user;
     if (user) {
-      const { data: businessProfile } = await supabase
+      const { data: businessProfile } = await supabaseBrowser
         .from("business_profiles")
         .select("id")
         .eq("id", user.id)

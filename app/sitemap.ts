@@ -1,11 +1,9 @@
 import type { MetadataRoute } from "next";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { supabase } from "@/lib/supabaseClient";
 
 const BASE_URL = "https://tellacity.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createSupabaseServerClient();
-
   const [categoriesResult, businessesResult] = await Promise.all([
     supabase.from("categories").select("slug"),
     supabase

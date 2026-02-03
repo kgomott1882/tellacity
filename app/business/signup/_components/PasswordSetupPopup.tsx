@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type PasswordSetupPopupProps = {
   isOpen: boolean;
@@ -118,13 +118,13 @@ export default function PasswordSetupPopup({
       });
       setLoading(false);
       if (payload?.session?.access_token && payload?.session?.refresh_token) {
-        await supabase.auth.setSession({
+        await supabaseBrowser.auth.setSession({
           access_token: payload.session.access_token,
           refresh_token: payload.session.refresh_token,
         });
         
         // Update user metadata with display name
-        const { error: updateUserError } = await supabase.auth.updateUser({
+        const { error: updateUserError } = await supabaseBrowser.auth.updateUser({
           data: { display_name: fullName.trim() },
         });
         if (updateUserError) {
@@ -134,7 +134,7 @@ export default function PasswordSetupPopup({
 
         // Create business profile - handle duplicate email by updating existing profile
         // First check if profile exists with this email but different ID
-        const { data: existingByEmail } = await supabase
+        const { data: existingByEmail } = await supabaseBrowser
           .from("business_profiles")
           .select("id")
           .eq("email", email.trim())
@@ -143,14 +143,14 @@ export default function PasswordSetupPopup({
         if (existingByEmail && existingByEmail.id !== payload.session.user.id) {
           // Profile exists with different ID - migrate it
           const tempEmail = `${email.trim()}.old.${Date.now()}`;
-          await supabase
+          await supabaseBrowser
             .from("business_profiles")
             .update({ email: tempEmail })
             .eq("id", existingByEmail.id);
         }
 
         // Now create/update profile for current user
-        const { error: profileUpsertError } = await supabase
+        const { error: profileUpsertError } = await supabaseBrowser
           .from("business_profiles")
           .upsert({
             id: payload.session.user.id,
@@ -162,7 +162,7 @@ export default function PasswordSetupPopup({
 
         // If still error, try update by id
         if (profileUpsertError && profileUpsertError.code === "23505") {
-          await supabase
+          await supabaseBrowser
             .from("business_profiles")
             .update({
               business_name: businessData.companyName.trim(),
@@ -171,7 +171,7 @@ export default function PasswordSetupPopup({
         }
 
         // Create business record
-        const { data: businessRecord, error: businessError } = await supabase
+        const { data: businessRecord, error: businessError } = await supabaseBrowser
           .from("businesses")
           .insert({
             name: businessData.companyName.trim(),

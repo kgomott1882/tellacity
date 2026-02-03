@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 const COUNTRY_OPTIONS = [
@@ -111,7 +111,7 @@ export default function PublicProfileSetupPage() {
     (async () => {
       // 1) Try: name, website, website_display, description, address, city, country_code, phone, email, logo_url
       let selectCols = "id, name, website, website_display, description, address, city, country_code, phone, email, logo_url";
-      let { data, error } = await supabase
+      let { data, error } = await supabaseBrowser
         .from("businesses")
         .select(selectCols)
         .eq("id", businessId)
@@ -126,7 +126,7 @@ export default function PublicProfileSetupPage() {
       if (colMissing) {
         // 2) Fallback: only columns that almost always exist (omit website_display if missing)
         selectCols = "id, name, website, description, address, city, country_code";
-        const fallback = await supabase
+        const fallback = await supabaseBrowser
           .from("businesses")
           .select(selectCols)
           .eq("id", businessId)
@@ -229,7 +229,7 @@ export default function PublicProfileSetupPage() {
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
     };
-    let updateResult = await supabase
+    let updateResult = await supabaseBrowser
       .from("businesses")
       .update(payload)
       .eq("id", businessId)
@@ -253,7 +253,7 @@ export default function PublicProfileSetupPage() {
         country_code: countryCode,
         description: form.description.trim() || null,
       };
-      const res = await supabase
+      const res = await supabaseBrowser
         .from("businesses")
         .update(minimalPayload)
         .eq("id", businessId)

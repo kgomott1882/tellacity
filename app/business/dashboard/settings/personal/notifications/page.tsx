@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { useBusinessContext } from "../../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Prefs = {
   newsletter: boolean;
@@ -52,7 +52,7 @@ export default function EmailNotificationsPage() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBrowser
         .from("user_notification_preferences")
         .select("*")
         .eq("user_id", user.id)
@@ -96,7 +96,7 @@ export default function EmailNotificationsPage() {
       ...prefs,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase
+    const { error } = await supabaseBrowser
       .from("user_notification_preferences")
       .upsert(payload, { onConflict: "user_id" });
     setSaving(false);

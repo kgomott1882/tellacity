@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useBusinessContext } from "../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RatingStars from "@/components/RatingStars";
 import { MessageCircle, Share2, Flag } from "lucide-react";
 
@@ -46,7 +46,7 @@ export default function ManageReviewsPage() {
       }
       setLoading(true);
       setError(null);
-      const { data, error: err } = await supabase
+      const { data, error: err } = await supabaseBrowser
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, reference_number")
         .eq("business_id", businessId)

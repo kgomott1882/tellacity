@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
 
@@ -213,7 +213,7 @@ export default function HomePage() {
           return [];
         }
 
-        const { data: businessRows } = await supabase
+        const { data: businessRows } = await supabaseBrowser
           .from("businesses")
           .select("slug, country_code")
           .in("slug", slugs);
@@ -232,7 +232,7 @@ export default function HomePage() {
       };
 
       if (!selectedCountry) {
-        const { data: reviewData, error: reviewError } = await supabase
+        const { data: reviewData, error: reviewError } = await supabaseBrowser
           .from("home_feed_v1")
           .select("*")
           .order("created_at", { ascending: false })
@@ -257,7 +257,7 @@ export default function HomePage() {
       let hasMore = true;
 
       while (hasMore && collected.length < reviewsTarget) {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseBrowser
           .from("home_feed_v1")
           .select("*")
           .order("created_at", { ascending: false })
@@ -316,7 +316,7 @@ export default function HomePage() {
     let isMounted = true;
 
     const fetchCategories = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBrowser
         .from("categories")
         .select("id, name, slug")
         .order("name", { ascending: true });
@@ -335,7 +335,7 @@ export default function HomePage() {
         ) ?? [];
 
       if (selectedCountry) {
-        const { data: countryBusinesses } = await supabase
+        const { data: countryBusinesses } = await supabaseBrowser
           .from("businesses")
           .select("category_slug")
           .eq("country_code", selectedCountry)
