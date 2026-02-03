@@ -53,7 +53,7 @@ export default function ResetPasswordPage() {
       }
     };
     checkSession();
-    const { data: subscription } = supabase.auth.onAuthStateChange(
+    const { data: subscription } = supabaseBrowser.auth.onAuthStateChange(
       (_event, session) => {
         if (isMounted) {
           setReady(Boolean(session));

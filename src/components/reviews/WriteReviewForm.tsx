@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase as supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RatingStars from "@/components/RatingStars";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";

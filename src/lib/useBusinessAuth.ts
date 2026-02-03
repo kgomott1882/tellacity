@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase as supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 /** Supabase auth can throw AbortError when the Navigator Lock times out (e.g. multiple tabs). May be Error or DOMException. */
 function isAbortError(e: unknown): boolean {
