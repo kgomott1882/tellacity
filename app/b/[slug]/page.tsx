@@ -1124,6 +1124,7 @@ export default function BusinessProfilePage() {
                             title: review.title ?? "",
                             body: review.body ?? "",
                             createdAt: formatDate(review.created_at),
+                            createdAtRaw: review.created_at ?? null,
                           }));
                           setReviews((prevReviews) => [
                             ...prevReviews,
