@@ -1,0 +1,25 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useBusinessContext } from "../../_context/BusinessContext";
+
+export default function GoToPublicPage() {
+  const router = useRouter();
+  const { selectedBusiness } = useBusinessContext();
+
+  useEffect(() => {
+    if (selectedBusiness?.slug) {
+      window.open(`/b/${selectedBusiness.slug}`, "_blank", "noopener,noreferrer");
+      router.replace("/business/dashboard/settings/public/profile");
+    } else {
+      router.replace("/business/dashboard/settings/public/profile");
+    }
+  }, [router, selectedBusiness?.slug]);
+
+  return (
+    <div className="flex items-center justify-center py-12">
+      <p className="text-sm text-gray-600">Opening public profile…</p>
+    </div>
+  );
+}
