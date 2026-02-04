@@ -354,9 +354,7 @@ export default function Navbar() {
       <header className="w-full">
         <div
           className={`sticky top-0 z-40 w-full ${
-            isHomeNav
-              ? "bg-black/5 backdrop-blur-xl border-b border-white/10"
-              : "bg-[#0E0E0E]"
+            isHomeNav ? "bg-black" : "bg-[#0E0E0E]"
           }`}
         >
           <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-6 px-6">

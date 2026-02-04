@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
+import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 
 type HomeReview = {
   review_id: string;
@@ -47,7 +48,6 @@ export default function HomePage() {
   const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [heroQuery, setHeroQuery] = useState("");
   const [reviewPage, setReviewPage] = useState(0);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
@@ -775,47 +775,24 @@ export default function HomePage() {
           <p className="mt-4 text-base text-[#E5E7EB] sm:text-lg">
             Business insights built for a community that values transparency.
           </p>
-          <form
-            className="mx-auto mt-10 flex w-full max-w-2xl items-center overflow-hidden rounded-full border border-[#0B3B36] bg-white shadow-md"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const trimmed = heroQuery.trim();
-              if (!trimmed) {
-                return;
-              }
-              router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Search for a company or category..."
-              value={heroQuery}
-              onChange={(event) => setHeroQuery(event.target.value)}
-              className="w-full border-0 bg-transparent px-6 py-4 text-sm text-[#111827] placeholder:text-[#6B7280] focus:outline-none"
+          <div className="mx-auto mt-10 w-full max-w-3xl">
+            <BusinessSearchInput
+              placeholder="Find businesses you can trust..."
+              heroLayout
+              heroButtonLabel="Find a business"
+              onSelect={(business) => {
+                router.push(`/b/${business.slug}`);
+              }}
+              onSubmitQuery={(query) => {
+                if (!query.trim()) return;
+                router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+              }}
             />
-            <button
-              type="submit"
-              className="m-1 inline-flex h-11 w-11 items-center justify-center rounded-full border-l border-[#1FAF9E] bg-[#0B3B36] text-white"
-              aria-label="Search"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-            </button>
-          </form>
+          </div>
           <div className="mt-6">
             <Link
               href="/write-review"
-              className="inline-flex items-center gap-2 rounded-full bg-[#0B3B36] px-6 py-3 text-sm font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-full bg-[#124541] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(18,69,65,0.55)]"
             >
               <svg
                 viewBox="0 0 24 24"

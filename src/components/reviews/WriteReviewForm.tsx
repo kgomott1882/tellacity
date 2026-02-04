@@ -6,6 +6,9 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RatingStars from "@/components/RatingStars";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
+import BusinessSearchInput, {
+  BusinessSearchResult,
+} from "@/components/search/BusinessSearchInput";
 
 type WriteReviewFormProps = {
   initialBusinessId?: string | null;
@@ -42,13 +45,6 @@ type Business = {
   reference_number_enabled?: boolean;
   reference_number_type?: ReferenceType | null;
   reference_number_label_custom?: string | null;
-};
-
-type BusinessSearchResult = {
-  id: string;
-  name: string;
-  slug: string;
-  website: string | null;
 };
 
 type PendingReviewDraft = {
@@ -129,10 +125,6 @@ export default function WriteReviewForm({
   const [business, setBusiness] = useState<Business | null>(null);
   const [businessLoading, setBusinessLoading] = useState(false);
   const [businessError, setBusinessError] = useState<string | null>(null);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<BusinessSearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
 
   const [rating, setRating] = useState(0);
   const [dateOfExperience, setDateOfExperience] = useState(todayIsoDate());
@@ -340,46 +332,6 @@ export default function WriteReviewForm({
     initialBusinessName,
     initialBusinessSlug,
   ]);
-
-  // Business search
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-    setSearchLoading(true);
-
-    const timeout = setTimeout(async () => {
-      const { data, error } = await supabaseBrowser
-        .from("businesses")
-        .select("id, name, slug, website, website_display, status")
-        .eq("status", "active")
-        .ilike("name", `%${searchTerm.trim()}%`)
-        .limit(6);
-
-      if (!isMounted) return;
-      if (error || !data) {
-        setSearchResults([]);
-      } else {
-        const results: BusinessSearchResult[] = (data as any[]).map((row) => ({
-          id: row.id,
-          name: row.name ?? "Business",
-          slug: row.slug,
-          website: row.website_display ?? row.website ?? null,
-        }));
-        setSearchResults(results);
-      }
-      setSearchLoading(false);
-    }, 350);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeout);
-    };
-  }, [searchTerm]);
 
   const isGuest = !userId && authChecked;
 
@@ -615,7 +567,6 @@ export default function WriteReviewForm({
                   onClick={() => {
                     setBusiness(null);
                     setBusinessError(null);
-                    setSearchResults([]);
                   }}
                 >
                   Change
@@ -625,60 +576,20 @@ export default function WriteReviewForm({
 
             {showBusinessSearch && (
               <div className="mt-4">
-                <label
-                  htmlFor="business-search"
-                  className="text-xs font-medium text-[#111827]"
-                >
-                  Search for a business
-                </label>
-                <input
-                  id="business-search"
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                <BusinessSearchInput
                   placeholder="Start typing the business name…"
-                  className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                  label="Search for a business"
+                  externalError={businessError}
+                  onSelect={(item: BusinessSearchResult) => {
+                    setBusiness({
+                      id: item.id,
+                      name: item.name,
+                      slug: item.slug,
+                      website: item.website,
+                    });
+                    setBusinessError(null);
+                  }}
                 />
-                {businessError && (
-                  <p className="mt-2 text-xs text-red-600">{businessError}</p>
-                )}
-                {searchLoading && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Searching businesses…
-                  </p>
-                )}
-                {!searchLoading && searchResults.length > 0 && (
-                  <ul className="mt-2 space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-sm shadow-sm">
-                    {searchResults.map((item) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          className="flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-gray-50"
-                          onClick={() => {
-                            setBusiness({
-                              id: item.id,
-                              name: item.name,
-                              slug: item.slug,
-                              website: item.website,
-                            });
-                            setSearchResults([]);
-                            setSearchTerm("");
-                            setBusinessError(null);
-                          }}
-                        >
-                          <span className="text-sm font-semibold text-[#0E0E0E]">
-                            {item.name}
-                          </span>
-                          {item.website ? (
-                            <span className="mt-1 text-xs text-gray-500">
-                              {item.website}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             )}
           </div>
