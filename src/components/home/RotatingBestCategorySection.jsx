@@ -83,18 +83,21 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         .eq("slug", categorySlug)
         .single();
 
-      // 1) Load top businesses for this category from the businesses table
+      // 1) Load top businesses for this category from the precomputed view
       let query = supabaseBrowser
-        .from("businesses")
-        .select(
-          "id, slug, name, website, website_display, country_code, category_slug, resolved_logo_url:logo_url"
-        )
-        .eq("category_slug", categorySlug)
+        .from("businesses_with_resolved_logo")
+        .select(`
+          id,
+          slug,
+          name,
+          website,
+          logo_url,
+          resolved_logo_url
+        `)
         .limit(8);
 
-      if (selectedCountry) {
-        query = query.eq("country_code", selectedCountry);
-      }
+      // NOTE: businesses_with_resolved_logo view does not expose country_code,
+      // so country filtering must be handled in the backend definition.
 
       const { data: businessRows, error: businessError } = await query;
 
@@ -155,35 +158,16 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         return (a.name || "").localeCompare(b.name || ""); // stable fallback
       });
 
-      // Logo: primary from businesses table (manual), secondary = edge function resolve-business-logo
-      let enriched = sortedBusinesses;
-      try {
-        enriched = await Promise.all(
-          sortedBusinesses.map(async (row) => {
-            const ratingAgg = ratingsById.get(row.id) || { sum: 0, count: 0 };
-            const avg =
-              ratingAgg.count > 0 ? ratingAgg.sum / ratingAgg.count : 0;
-            const reviewCount = ratingAgg.count;
+      const enriched = sortedBusinesses.map((row) => {
+        const ratingAgg = ratingsById.get(row.id) || { sum: 0, count: 0 };
 
-            let url = (row.resolved_logo_url ?? "").toString().trim() || null;
-            if (!url) {
-              const domain = domainFromWebsite(row.website_display ?? row.website);
-              if (domain) {
-                const fromEdge = await resolveBusinessLogoViaClient(supabaseBrowser, domain);
-                if (fromEdge) url = fromEdge;
-              }
-            }
-            return {
-              ...row,
-              resolved_logo_url: url,
-              avg_rating: avg,
-              review_count: reviewCount,
-            };
-          })
-        );
-      } catch {
-        // Enrichment failed; use base business data only
-      }
+        return {
+          ...row,
+          avg_rating:
+            ratingAgg.count > 0 ? ratingAgg.sum / ratingAgg.count : 0,
+          review_count: ratingAgg.count,
+        };
+      });
       if (!isMounted) return;
       setBusinesses(enriched);
       setIsLoading(false);
@@ -228,9 +212,7 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
             const ratingValue =
               averageRating != null && averageRating > 0 ? averageRating : 0;
 
-            const logoUrl =
-              normalizeLogoUrl(business.resolved_logo_url) ??
-              getLogoDevUrl(domainFromWebsite(business.website_display ?? business.website));
+            const logoUrl = business.resolved_logo_url;
 
             return (
               <Link
