@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 import PasswordSetupPopup from "./_components/PasswordSetupPopup";
 
 const COUNTRIES = [

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 
 const COUNTRIES = [
   {
@@ -76,6 +77,7 @@ export default function Navbar() {
     pathname?.startsWith("/solution") ||
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
+  const isHomeNav = pathname === "/";
 
   useEffect(() => {
     const stored = window.localStorage.getItem("tellacity_country");
@@ -125,12 +127,16 @@ export default function Navbar() {
       } else {
         setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
       }
-      const { data: businessProfile } = await supabaseBrowser
+
+      if (!user) return;
+
+      const { data: byId } = await supabase
         .from("business_profiles")
         .select("id")
         .eq("id", user.id)
         .maybeSingle();
-      setDashboardHref(businessProfile ? "/business/dashboard" : "/dashboard");
+
+      setDashboardHref(byId ? "/business/dashboard" : "/dashboard");
     };
     loadUser();
   }, []);
@@ -206,29 +212,18 @@ export default function Navbar() {
           setIsSignupOpen(false);
           
           // Redirect by account type: business (by id or email) → business dashboard, else consumer
+          if (!user) return;
+
           (async () => {
-            const { data: byId } = await supabaseBrowser
+            const { data: byId } = await supabase
               .from("business_profiles")
               .select("id")
               .eq("id", user.id)
               .maybeSingle();
+
             if (byId) {
               router.push("/business/dashboard");
-              return;
             }
-            const emailNorm = user.email?.trim().toLowerCase();
-            if (emailNorm) {
-              const { data: byEmail } = await supabaseBrowser
-                .from("business_profiles")
-                .select("id")
-                .eq("email", emailNorm)
-                .maybeSingle();
-              if (byEmail) {
-                router.push("/business/dashboard");
-                return;
-              }
-            }
-            router.push("/dashboard");
           })();
         }
       }
@@ -357,7 +352,13 @@ export default function Navbar() {
   return (
     <>
       <header className="w-full">
-        <div className="sticky top-0 z-40 w-full bg-[#0E0E0E]">
+        <div
+          className={`sticky top-0 z-40 w-full ${
+            isHomeNav
+              ? "bg-black/5 backdrop-blur-xl border-b border-white/10"
+              : "bg-[#0E0E0E]"
+          }`}
+        >
           <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-6 px-6">
           <Link href="/" className="flex items-center">
             <img

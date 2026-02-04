@@ -1,21 +1,15 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import WriteReviewForm from "@/components/reviews/WriteReviewForm";
+import { Suspense } from "react";
+import WriteReviewPageInner from "./WriteReviewPageInner";
 
-export default function WriteReviewLandingPage() {
-  const searchParams = useSearchParams();
+export const dynamic = "force-dynamic";
 
-  const businessId =
-    searchParams.get("businessId") || searchParams.get("business_id");
-  const businessName = searchParams.get("businessName");
-
+export default function WriteReviewPage() {
   return (
-    <WriteReviewForm
-      initialBusinessId={businessId}
-      initialBusinessSlug={null}
-      initialBusinessName={businessName}
-    />
+    <Suspense fallback={null}>
+      <WriteReviewPageInner />
+    </Suspense>
   );
 }
 

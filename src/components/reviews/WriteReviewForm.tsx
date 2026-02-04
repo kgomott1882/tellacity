@@ -11,6 +11,7 @@ type WriteReviewFormProps = {
   initialBusinessId?: string | null;
   initialBusinessSlug?: string | null;
   initialBusinessName?: string | null;
+  businessSlug: string;
 };
 
 const REFERENCE_TYPES = ["order", "invoice", "booking", "customer", "generic", "custom"] as const;
@@ -765,7 +766,10 @@ export default function WriteReviewForm({
                     htmlFor="reference-number"
                     className="flex items-center gap-1.5 text-sm font-medium text-[#0E0E0E]"
                   >
-                    {referenceFieldLabel(business.reference_number_type, business.reference_number_label_custom)}{" "}
+                    {referenceFieldLabel(
+                      business.reference_number_type,
+                      business.reference_number_label_custom ?? null
+                    )}{" "}
                     <span className="text-gray-400">(optional)</span>
                     <span
                       className="inline-flex cursor-help rounded-full text-gray-400 hover:text-gray-600"

@@ -5,6 +5,22 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
+type CategoryBusiness = {
+  id: string;
+  name: string;
+  slug: string;
+  website: string | null;
+  trust_score?: number | null;
+  average_rating?: number | null;
+  avg_rating?: number | null;
+  country_code?: string | null;
+  display_location?: string | null;
+  location?: string | null;
+  address?: string | null;
+  review_count?: number | null;
+  resolved_logo_url?: string | null;
+};
+
 export default function CategoryDetailPage() {
   const params = useParams();
   const slug =
@@ -105,7 +121,7 @@ export default function CategoryDetailPage() {
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <img
-                    src={b.resolved_logo_url}
+                    src={b.resolved_logo_url ?? undefined}
                     alt={b.name}
                     className="h-10 w-10 object-contain"
                   />

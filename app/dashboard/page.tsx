@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type ReviewItem = {
@@ -132,7 +133,7 @@ export default function ConsumerDashboard() {
         setLoadingReviews(false);
         return;
       }
-      setReviews((data as ReviewItem[]) ?? []);
+      setReviews(((data as unknown) as ReviewItem[]) ?? []);
       setLoadingReviews(false);
     };
     fetchReviews();

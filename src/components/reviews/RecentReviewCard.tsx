@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,9 +64,14 @@ export default function RecentReviewCard({
   let dateText = "";
   try {
     if (review.created_at) {
+      const date = new Date(review.created_at);
+      const d = date.getDate();
+      const m = date.getMonth() + 1;
+      const y = date.getFullYear();
+      const pad = (n: number) => n.toString().padStart(2, "0");
       dateText = isMobile
-        ? format(new Date(review.created_at), "dd/MM/yy")
-        : format(new Date(review.created_at), "dd/MM/yyyy");
+        ? `${pad(d)}/${pad(m)}/${y.toString().slice(-2)}`
+        : `${pad(d)}/${pad(m)}/${y}`;
     }
   } catch {
     dateText = "";

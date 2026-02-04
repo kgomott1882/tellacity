@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 const COUNTRY_OPTIONS = [
@@ -143,7 +144,7 @@ export default function PublicProfileSetupPage() {
         setLoading(false);
         return;
       }
-      const row = data as Record<string, unknown>;
+      const row = data as unknown as Record<string, unknown>;
       const code = (row.country_code as string) ?? "ZA";
       const countryName =
         code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "South Africa" : code;

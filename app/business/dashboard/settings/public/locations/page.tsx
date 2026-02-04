@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Search, Building2, Shield, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
+import { supabase } from "@/lib/supabaseClient";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type LocationRow = {

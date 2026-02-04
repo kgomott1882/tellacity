@@ -690,7 +690,7 @@ export default function CategoryPage() {
                 ) || business.display_location;
               const logoUrl =
                 normalizeLogoUrl(business.resolved_logo_url) ??
-                getLogoDevUrl(domainFromWebsite(business.website_display ?? business.website));
+                getLogoDevUrl(domainFromWebsite(business.website));
 
               return (
                 <Link
@@ -826,7 +826,7 @@ export default function CategoryPage() {
                 const ratingValue = getDisplayRating(company);
                 const logoUrl =
                   normalizeLogoUrl(company.resolved_logo_url) ??
-                  getLogoDevUrl(domainFromWebsite(company.website_display ?? company.website));
+                  getLogoDevUrl(domainFromWebsite(company.website));
                 return (
                   <Link
                     key={company.id}

@@ -19,7 +19,15 @@ export default function TopBar() {
       let data: { user: typeof user } | null = null;
       try {
         const result = await supabaseBrowser.auth.getUser();
-        data = result.data;
+        data = {
+          user: result.data?.user
+            ? {
+                id: result.data.user.id,
+                email: result.data.user.email ?? null,
+                display_name: null,
+              }
+            : null,
+        };
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         throw e;
@@ -28,9 +36,9 @@ export default function TopBar() {
         setUser({
           id: data.user!.id,
           email: data.user!.email,
-          display_name: data.user!.user_metadata?.display_name || null,
+          display_name: data.user!.display_name,
         });
-        const name = data.user!.user_metadata?.display_name as string | undefined;
+        const name = data.user!.display_name ?? undefined;
         if (name) {
           setUserInitials(
             name
@@ -52,8 +60,8 @@ export default function TopBar() {
       if (sessionUser) {
         setUser({
           id: sessionUser.id,
-          email: sessionUser.email,
-          display_name: sessionUser.user_metadata?.display_name || null,
+          email: sessionUser.email ?? null,
+          display_name: null,
         });
         const name = sessionUser.user_metadata?.display_name as string | undefined;
         if (name) {

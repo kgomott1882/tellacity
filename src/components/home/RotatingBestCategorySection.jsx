@@ -83,49 +83,109 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         .eq("slug", categorySlug)
         .single();
 
-      const { data: rpcData, error: rpcError } = await supabaseBrowser.rpc(
-        "get_top_businesses_for_category_global",
-        {
-          p_category_slug: categorySlug,
-          p_country_code: selectedCountry,
-          p_min_rating: null,
-          p_limit: 8,
-          p_offset: 0,
-        }
-      );
+      // 1) Load top businesses for this category from the businesses table
+      let query = supabaseBrowser
+        .from("businesses")
+        .select(
+          "id, slug, name, website, website_display, country_code, category_slug, resolved_logo_url:logo_url"
+        )
+        .eq("category_slug", categorySlug)
+        .limit(8);
+
+      if (selectedCountry) {
+        query = query.eq("country_code", selectedCountry);
+      }
+
+      const { data: businessRows, error: businessError } = await query;
 
       if (!isMounted) {
         return;
       }
 
-      if (rpcError) {
+      if (businessError || !businessRows || businessRows.length === 0) {
         setCategoryName("");
         setBusinesses([]);
-      } else {
-        setCategoryName(categoryData?.name ?? "");
-        const rows = rpcData ?? [];
-        // Logo: primary from RPC (manual), secondary = edge function resolve-business-logo
-        let enriched = rows;
-        try {
-          enriched = await Promise.all(
-            rows.map(async (row) => {
-              let url = (row.resolved_logo_url ?? "").toString().trim() || null;
-              if (!url) {
-                const domain = domainFromWebsite(row.website_display ?? row.website);
-                if (domain) {
-                  const fromEdge = await resolveBusinessLogoViaClient(supabaseBrowser, domain);
-                  if (fromEdge) url = fromEdge;
-                }
-              }
-              return { ...row, resolved_logo_url: url };
-            })
-          );
-        } catch {
-          // Enrichment failed; use RPC data only
-        }
-        if (!isMounted) return;
-        setBusinesses(enriched);
+        setIsLoading(false);
+        return;
       }
+
+      // 2) Load ratings for just these businesses from reviews and compute
+      //    truthful average rating and review counts.
+      const businessIds = businessRows.map((b) => b.id).filter(Boolean);
+      const ratingsById = new Map();
+
+      if (businessIds.length > 0) {
+        const { data: reviewRows, error: reviewError } = await supabaseBrowser
+          .from("reviews")
+          .select("business_id, rating, status")
+          .in("business_id", businessIds);
+
+        if (!reviewError && reviewRows) {
+          for (const row of reviewRows) {
+            if (row.status && row.status !== "published") continue;
+            const rating =
+              typeof row.rating === "number" ? row.rating : Number(row.rating ?? 0);
+            if (!Number.isFinite(rating) || rating <= 0) continue;
+            const existing = ratingsById.get(row.business_id) || {
+              sum: 0,
+              count: 0,
+            };
+            existing.sum += rating;
+            existing.count += 1;
+            ratingsById.set(row.business_id, existing);
+          }
+        }
+      }
+
+      setCategoryName(categoryData?.name ?? "");
+      // Sort businesses so those with the strongest review signal appear first:
+      // higher average rating first, then higher review count, then name.
+      const sortedBusinesses = [...businessRows].sort((a, b) => {
+        const ra = ratingsById.get(a.id) || { sum: 0, count: 0 };
+        const rb = ratingsById.get(b.id) || { sum: 0, count: 0 };
+        const avgA = ra.count > 0 ? ra.sum / ra.count : 0;
+        const avgB = rb.count > 0 ? rb.sum / rb.count : 0;
+
+        if (avgB !== avgA) {
+          return avgB - avgA; // highest average rating first
+        }
+        if (rb.count !== ra.count) {
+          return rb.count - ra.count; // then highest review count
+        }
+        return (a.name || "").localeCompare(b.name || ""); // stable fallback
+      });
+
+      // Logo: primary from businesses table (manual), secondary = edge function resolve-business-logo
+      let enriched = sortedBusinesses;
+      try {
+        enriched = await Promise.all(
+          sortedBusinesses.map(async (row) => {
+            const ratingAgg = ratingsById.get(row.id) || { sum: 0, count: 0 };
+            const avg =
+              ratingAgg.count > 0 ? ratingAgg.sum / ratingAgg.count : 0;
+            const reviewCount = ratingAgg.count;
+
+            let url = (row.resolved_logo_url ?? "").toString().trim() || null;
+            if (!url) {
+              const domain = domainFromWebsite(row.website_display ?? row.website);
+              if (domain) {
+                const fromEdge = await resolveBusinessLogoViaClient(supabaseBrowser, domain);
+                if (fromEdge) url = fromEdge;
+              }
+            }
+            return {
+              ...row,
+              resolved_logo_url: url,
+              avg_rating: avg,
+              review_count: reviewCount,
+            };
+          })
+        );
+      } catch {
+        // Enrichment failed; use base business data only
+      }
+      if (!isMounted) return;
+      setBusinesses(enriched);
       setIsLoading(false);
     };
 
@@ -161,22 +221,12 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {businesses.map((business) => {
             const reviewCount = Number(business.review_count ?? 0);
-            const trustScore =
-              typeof business.trust_score === "number"
-                ? business.trust_score
-                : null;
             const averageRating =
-              typeof business.average_rating === "number"
-                ? business.average_rating
-                : typeof business.avg_rating === "number"
+              typeof business.avg_rating === "number"
                 ? business.avg_rating
-                : null;
-            const ratingValue =
-              trustScore != null && trustScore > 0
-                ? trustScore
-                : averageRating != null && averageRating > 0
-                ? averageRating
                 : 0;
+            const ratingValue =
+              averageRating != null && averageRating > 0 ? averageRating : 0;
 
             const logoUrl =
               normalizeLogoUrl(business.resolved_logo_url) ??
