@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 type CategoryBusiness = {
   id: string;
@@ -33,6 +34,22 @@ export default function CategoryDetailPage() {
   const [businesses, setBusinesses] = useState<CategoryBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stored = getActiveCountry();
+    setSelectedCountry(stored || null);
+    const handleSync = () => {
+      const updated = getActiveCountry();
+      setSelectedCountry(updated || null);
+    };
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("tellacity-country-change", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("tellacity-country-change", handleSync);
+    };
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -40,7 +57,6 @@ export default function CategoryDetailPage() {
     const run = async () => {
       setIsLoading(true);
       setError(null);
-
       const { data, error } = await supabase.rpc(
         "get_top_businesses_for_category_global",
         {
@@ -63,7 +79,7 @@ export default function CategoryDetailPage() {
     };
 
     run();
-  }, [slug]);
+  }, [slug, selectedCountry]);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-16">

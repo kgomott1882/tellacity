@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 type HomeReview = {
   review_id: string;
@@ -29,7 +30,6 @@ type CategoryCard = {
   slug: string;
 };
 
-const COUNTRY_STORAGE_KEY = "tellacity_country";
 const LOOKING_FOR_CATEGORIES = [
   { label: "Banking", slug: "banking" },
   { label: "Travel Agencies", slug: "travel-agencies" },
@@ -157,16 +157,13 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    const stored =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(COUNTRY_STORAGE_KEY)
-        : null;
+    const stored = getActiveCountry();
     if (stored) {
       setSelectedCountry(stored);
     }
 
     const handleSync = () => {
-      const updated = window.localStorage.getItem(COUNTRY_STORAGE_KEY);
+      const updated = getActiveCountry();
       setSelectedCountry(updated || null);
     };
 
@@ -182,12 +179,13 @@ export default function HomePage() {
     let isMounted = true;
 
     const fetchData = async () => {
+      const country = getActiveCountry();
       const reviewsTarget = 54;
       const batchSize = 60;
       setIsLoading(true);
 
       const filterByCountry = async (items: HomeReview[]) => {
-        if (!selectedCountry) {
+        if (!country) {
           return items;
         }
 
@@ -198,7 +196,7 @@ export default function HomePage() {
             item.country ??
             item.countryCode ??
             null;
-          return code === selectedCountry;
+          return code === country;
         });
 
         if (directFiltered.length > 0) {
@@ -227,11 +225,11 @@ export default function HomePage() {
         return items.filter(
           (item) =>
             item.business_slug &&
-            countryBySlug.get(item.business_slug) === selectedCountry
+            countryBySlug.get(item.business_slug) === country
         );
       };
 
-      if (!selectedCountry) {
+      if (!country) {
         const { data: reviewData, error: reviewError } = await supabaseBrowser
           .from("home_feed_v1")
           .select("*")
@@ -334,11 +332,13 @@ export default function HomePage() {
           (item) => item.slug && item.name
         ) ?? [];
 
-      if (selectedCountry) {
+      // temporarily disable country filtering
+      const countryFilter = null;
+      if (countryFilter) {
         const { data: countryBusinesses } = await supabaseBrowser
           .from("businesses")
           .select("category_slug")
-          .eq("country_code", selectedCountry)
+          .eq("country_code", countryFilter)
           .not("category_slug", "is", null);
 
         if (!isMounted) return;

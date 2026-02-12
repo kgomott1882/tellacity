@@ -6,6 +6,7 @@ import { MapPin, Search, Building2, Shield, TrendingUp, Pencil, Trash2 } from "l
 import { useBusinessContext } from "../../../_context/BusinessContext";
 import { supabase } from "@/lib/supabaseClient";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 type LocationRow = {
   id: string;
@@ -313,7 +314,7 @@ function AddLocationModal({
     city: existing?.city ?? "",
     postcode: existing?.postcode ?? "",
     state_region: existing?.state_region ?? "",
-    country_code: existing?.country_code ?? "ZA",
+    country_code: existing?.country_code ?? getActiveCountry() ?? "",
     phone: existing?.phone ?? "",
     headline: existing?.headline ?? "",
     description: existing?.description ?? "",
@@ -336,7 +337,7 @@ function AddLocationModal({
       city: form.city.trim() || null,
       postcode: form.postcode.trim() || null,
       state_region: form.state_region.trim() || null,
-      country_code: form.country_code || "ZA",
+      country_code: form.country_code || getActiveCountry() || "",
       phone: form.phone.trim() || null,
       headline: form.headline.trim() || null,
       description: form.description.trim() || null,

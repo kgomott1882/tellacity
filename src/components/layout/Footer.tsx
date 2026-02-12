@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const COUNTRIES = [
   {
@@ -43,22 +44,14 @@ const COUNTRIES = [
 
 export default function Footer() {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("ZA");
+  const [countryCode, setCountryCode] = useState("");
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
-    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[2];
+    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("tellacity_country");
-    if (stored) {
-      setCountryCode(stored);
-    }
-    const handleSync = () => {
-      const updated = window.localStorage.getItem("tellacity_country");
-      if (updated) {
-        setCountryCode(updated);
-      }
-    };
+    setCountryCode(getActiveCountry() ?? "");
+    const handleSync = () => setCountryCode(getActiveCountry() ?? "");
     window.addEventListener("storage", handleSync);
     window.addEventListener("tellacity-country-change", handleSync);
     return () => {
@@ -87,8 +80,7 @@ export default function Footer() {
 
   const handleCountrySelect = (code: string) => {
     setCountryCode(code);
-    window.localStorage.setItem("tellacity_country", code);
-    window.dispatchEvent(new Event("tellacity-country-change"));
+    setActiveCountry(code);
     setIsCountryOpen(false);
   };
 

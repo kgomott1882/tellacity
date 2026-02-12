@@ -7,6 +7,7 @@ import { ExternalLink, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { useBusinessContext } from "../../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 const COUNTRY_OPTIONS = [
@@ -145,9 +146,9 @@ export default function PublicProfileSetupPage() {
         return;
       }
       const row = data as unknown as Record<string, unknown>;
-      const code = (row.country_code as string) ?? "ZA";
+      const code = (row.country_code as string) ?? getActiveCountry() ?? "";
       const countryName =
-        code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "South Africa" : code;
+        code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "Other" : code;
       const cityVal = (row.city as string) ?? "";
       const cityDisplay =
         cityVal && cityVal !== "[unknown]" ? cityVal : "";

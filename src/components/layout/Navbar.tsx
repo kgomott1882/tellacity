@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const COUNTRIES = [
   {
@@ -48,7 +49,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("ZA");
+  const [countryCode, setCountryCode] = useState("");
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -70,7 +71,7 @@ export default function Navbar() {
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
-    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[2];
+    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
   const isBusinessNav =
     pathname?.startsWith("/for-business") ||
     pathname?.startsWith("/pricing") ||
@@ -80,16 +81,8 @@ export default function Navbar() {
   const isHomeNav = pathname === "/";
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("tellacity_country");
-    if (stored) {
-      setCountryCode(stored);
-    }
-    const handleSync = () => {
-      const updated = window.localStorage.getItem("tellacity_country");
-      if (updated) {
-        setCountryCode(updated);
-      }
-    };
+    setCountryCode(getActiveCountry() ?? "");
+    const handleSync = () => setCountryCode(getActiveCountry() ?? "");
     window.addEventListener("storage", handleSync);
     window.addEventListener("tellacity-country-change", handleSync);
     return () => {
@@ -404,10 +397,7 @@ export default function Navbar() {
                       className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
                       onClick={() => {
                         setCountryCode(item.code);
-                        window.localStorage.setItem("tellacity_country", item.code);
-                        window.dispatchEvent(
-                          new Event("tellacity-country-change")
-                        );
+                        setActiveCountry(item.code);
                         setIsCountryOpen(false);
                       }}
                     >

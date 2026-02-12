@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 type PasswordSetupPopupProps = {
   isOpen: boolean;
@@ -177,7 +178,7 @@ export default function PasswordSetupPopup({
             name: businessData.companyName.trim(),
             website: businessData.website.trim(),
             owner_id: payload.session.user.id,
-            country_code: businessData.country || "US", // Use country from form or default to US
+            country_code: businessData.country || getActiveCountry() || "",
           })
           .select()
           .single();

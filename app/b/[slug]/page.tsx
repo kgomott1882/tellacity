@@ -4,13 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  normalizeLogoUrl,
-  resolveBusinessLogoViaClient,
-  domainFromWebsite,
-  getLogoDevUrl,
-} from "@/lib/logo";
+import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 
@@ -135,11 +131,23 @@ export default function BusinessProfilePage() {
     average: number;
     counts: RatingCounts;
   } | null>(null);
+  const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [similarBusinesses, setSimilarBusinesses] = useState<SimilarBusiness[]>(
     []
   );
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
+
+  useEffect(() => {
+    setActiveCountry(getActiveCountry());
+    const handleSync = () => setActiveCountry(getActiveCountry());
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("tellacity-country-change", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("tellacity-country-change", handleSync);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -156,17 +164,9 @@ export default function BusinessProfilePage() {
       setNotFound(false);
       setBusiness(null);
 
-      let data: unknown = null;
-      let error: { message: string } | null = null;
-      try {
-        const result = await supabase.rpc("get_business_by_slug", {
-          p_slug: slug,
-        });
-        data = result.data;
-        error = result.error;
-      } catch (err) {
-        error = { message: err instanceof Error ? err.message : "Failed to load business" };
-      }
+      const { data, error } = await supabase.rpc("get_business_by_slug", {
+        p_slug: slug,
+      });
 
       if (!isMounted) return;
 
@@ -185,42 +185,9 @@ export default function BusinessProfilePage() {
       let countryCode = (row.country_code ?? "").toString().trim();
       let email = (row.email ?? "").toString().trim();
       let phone = (row.phone ?? "").toString().trim();
-      let resolvedLogoUrl: string | null = (row.resolved_logo_url ?? "").toString().trim() || null;
-
-      try {
-        const { data: contactRow } = await supabase
-          .from("businesses")
-          .select("address, city, country_code, email, phone, logo_url")
-          .eq("slug", slug)
-          .eq("status", "active")
-          .maybeSingle();
-        if (!isMounted) return;
-        if (contactRow && typeof contactRow === "object") {
-          const r = contactRow as Record<string, unknown>;
-          address = (r.address ?? "").toString().trim() || address;
-          city = (r.city ?? "").toString().trim() || city;
-          countryCode = (r.country_code ?? "").toString().trim() || countryCode;
-          email = (r.email ?? "").toString().trim() || email;
-          phone = (r.phone ?? "").toString().trim() || phone;
-          const directLogo = (r.logo_url ?? "").toString().trim();
-          if (directLogo) resolvedLogoUrl = directLogo;
-        }
-      } catch {
-        // businesses table query failed; use RPC data only
-      }
-
-      if (!resolvedLogoUrl) {
-        try {
-          const websiteRaw = (row.website_display ?? row.website ?? "").toString().trim();
-          const domain = domainFromWebsite(websiteRaw || undefined);
-          if (domain) {
-            const fromEdge = await resolveBusinessLogoViaClient(supabase, domain);
-            if (fromEdge) resolvedLogoUrl = fromEdge;
-          }
-        } catch {
-          // Edge function failed; skip
-        }
-      }
+      const resolvedLogoUrl: string | null = (row.resolved_logo_url ?? "").toString().trim() || null;
+      const reviewCount = Number(row.review_count ?? 0);
+      const averageRating = Number(row.average_rating ?? 0);
 
       if (!isMounted) return;
 
@@ -234,8 +201,8 @@ export default function BusinessProfilePage() {
         logoUrl: normalizeLogoUrl(resolvedLogoUrl),
         trustScore:
           row.trust_score != null ? Number(row.trust_score) : null,
-        reviewCount: Number(row.review_count ?? 0),
-        averageRating: Number(row.average_rating ?? 0),
+        reviewCount,
+        averageRating,
         rating1Count: Number(row.rating_1_count ?? 0),
         rating2Count: Number(row.rating_2_count ?? 0),
         rating3Count: Number(row.rating_3_count ?? 0),
@@ -372,7 +339,7 @@ export default function BusinessProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [business?.categorySlug, business?.id]);
+  }, [business?.categorySlug, business?.id, activeCountry]);
 
   useEffect(() => {
     let isMounted = true;
@@ -387,7 +354,7 @@ export default function BusinessProfilePage() {
         .from("reviews")
         .select("rating", { count: "exact" })
         .eq("business_id", business.id)
-        .eq("status", "published");
+        .or("status.is.null,status.eq.published");
 
       if (!isMounted || error) {
         return;
@@ -474,7 +441,7 @@ export default function BusinessProfilePage() {
           count: "exact",
         })
         .eq("business_id", businessId)
-        .eq("status", "published")
+        .or("status.is.null,status.eq.published")
         .order("created_at", { ascending: false })
         .range(offset, offset + 4);
 
@@ -643,23 +610,8 @@ export default function BusinessProfilePage() {
     );
   }
 
-  if (business && business.status !== "active") {
-    return (
-      <main className="bg-white">
-        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E]">
-            {business.name}
-          </h1>
-          <p className="mt-3 text-sm text-gray-600">
-            This business is not available.
-          </p>
-        </section>
-      </main>
-    );
-  }
-
   const businessJsonLd =
-    business && business.status === "active"
+    business
       ? {
           "@context": "https://schema.org",
           "@type": "LocalBusiness",
@@ -1112,7 +1064,7 @@ export default function BusinessProfilePage() {
                             { count: "exact" }
                           )
                           .eq("business_id", business.id)
-                          .eq("status", "published")
+                          .or("status.is.null,status.eq.published")
                           .order("created_at", { ascending: false })
                           .range(offset, offset + 4);
 

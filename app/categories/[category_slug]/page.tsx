@@ -11,6 +11,7 @@ import {
   getLogoDevUrl,
 } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 import RatingStars from "@/components/RatingStars";
 
 type BusinessRow = {
@@ -41,7 +42,6 @@ type CountryOption = {
 
 const PAGE_SIZE = 10;
 const skeletons = Array.from({ length: PAGE_SIZE });
-const COUNTRY_STORAGE_KEY = "tellacity_country";
 const COUNTRIES: CountryOption[] = [
   {
     code: "US",
@@ -274,11 +274,12 @@ export default function CategoryPage() {
         return;
       }
 
+      const country = getActiveCountry();
       const { data: countData, error: countError } = await supabase.rpc(
         "get_category_business_count",
         {
           p_category_slug: categorySlug,
-          p_country_code: selectedCountry,
+          p_country_code: country ?? null,
           p_min_rating: minRating,
         }
       );
@@ -313,7 +314,7 @@ export default function CategoryPage() {
           "get_top_businesses_for_category_global",
           {
             p_category_slug: categorySlug || null,
-            p_country_code: selectedCountry ?? null,
+            p_country_code: null,
             p_min_rating: minRating ?? null,
             p_limit: fetchLimit,
             p_offset: offset,
@@ -382,16 +383,13 @@ export default function CategoryPage() {
   }, [categorySlug]);
 
   useEffect(() => {
-    const stored =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(COUNTRY_STORAGE_KEY)
-        : null;
+    const stored = getActiveCountry();
     if (stored) {
       setSelectedCountry(stored);
     }
 
     const handleSync = () => {
-      const updated = window.localStorage.getItem(COUNTRY_STORAGE_KEY);
+      const updated = getActiveCountry();
       setSelectedCountry(updated || null);
     };
 
@@ -405,14 +403,7 @@ export default function CategoryPage() {
 
   const updateCountry = (code: string | null) => {
     setSelectedCountry(code);
-    if (typeof window !== "undefined") {
-      if (code) {
-        window.localStorage.setItem(COUNTRY_STORAGE_KEY, code);
-      } else {
-        window.localStorage.removeItem(COUNTRY_STORAGE_KEY);
-      }
-      window.dispatchEvent(new Event("tellacity-country-change"));
-    }
+    setActiveCountry(code);
   };
 
   const resetFilters = () => {

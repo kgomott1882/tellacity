@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CloudUpload, Lightbulb, ChevronRight } from "lucide-react";
 import { useBusinessContext } from "../../../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 const MAX_LOCATIONS = 2000;
 
@@ -186,7 +187,7 @@ export default function ImportLocationsPage() {
         postcode: row.zip_code.trim() || null,
         city: row.city.trim() || null,
         state_region: row.state_region.trim() || null,
-        country_code: row.country_code.trim() || "ZA",
+        country_code: row.country_code.trim() || getActiveCountry() || "",
         phone: row.phone.trim() || null,
         website: row.website.trim() || null,
       };

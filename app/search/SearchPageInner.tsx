@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl, resolveBusinessLogoViaClient, domainFromWebsite } from "@/lib/logo";
 
 type SearchResult = {
@@ -35,6 +36,18 @@ export default function SearchPageInner() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
+  const [activeCountry, setActiveCountry] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveCountry(getActiveCountry());
+    const handleSync = () => setActiveCountry(getActiveCountry());
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("tellacity-country-change", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("tellacity-country-change", handleSync);
+    };
+  }, []);
 
   const trimmedQuery = useMemo(() => query.trim(), [query]);
 
@@ -117,7 +130,7 @@ export default function SearchPageInner() {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, lastQuery]);
+  }, [searchParams, lastQuery, activeCountry]);
 
   return (
     <main className="bg-white">
