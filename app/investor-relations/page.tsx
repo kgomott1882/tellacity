@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const highlights = [
@@ -21,13 +22,6 @@ const highlights = [
     description:
       "The trust economy spans every industry where reputation drives purchase.",
   },
-];
-
-const stats = [
-  { label: "Annual Recurring Revenue", value: "$12.4M" },
-  { label: "Verified Businesses", value: "85,000+" },
-  { label: "Consumer Trust Score", value: "4.9 / 5" },
-  { label: "Monthly Active Users", value: "2.1M" },
 ];
 
 const investmentReasons = [
@@ -63,13 +57,6 @@ const investmentReasons = [
   },
 ];
 
-const team = [
-  { name: "Sarah Mbeki", role: "Chief Executive Officer" },
-  { name: "David Clarke", role: "Chief Financial Officer" },
-  { name: "Elena Rodriguez", role: "Chief Operating Officer" },
-  { name: "Marcus Johnson", role: "Chief Revenue Officer" },
-];
-
 const milestones = [
   "Proof-first verification engine launched",
   "AI fraud detection system deployed",
@@ -82,54 +69,31 @@ export default function InvestorRelationsPage() {
     <main className="bg-white">
       <section className="bg-[#0B3B36]">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 text-white">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs">
-                Q4 2025 Earnings Report Available
-              </div>
-              <h1 className="mt-5 text-4xl font-semibold sm:text-5xl">
-                Powering the Trust Economy.
-              </h1>
-              <p className="mt-4 text-sm text-white/80">
-                We are redefining digital reputation through verified proof.
-                Join us as we build the global standard for consumer transparency.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  className="rounded-full bg-white px-5 py-2 text-xs font-semibold text-[#0B3B36]"
-                >
-                  Download Investor Deck
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full border border-white/40 px-5 py-2 text-xs font-semibold text-white"
-                >
-                  View Annual Report
-                </button>
-              </div>
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1 text-xs">
+              Q4 2025 Earnings Report Available
             </div>
-            <div className="rounded-3xl bg-[#0E4A44] p-6">
-              <div className="h-52 w-full rounded-2xl bg-[#0B2F2B]" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white">
-        <div className="mx-auto w-full max-w-6xl px-6 py-10">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {stats.map((item) => (
-              <div
-                key={item.label}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+            <h1 className="mt-5 text-4xl font-semibold sm:text-5xl">
+              Powering the Trust Economy.
+            </h1>
+            <p className="mt-4 text-sm text-white/80">
+              We are redefining digital reputation through verified proof.
+              Join us as we build the global standard for consumer transparency.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="rounded-full bg-white px-5 py-2 text-xs font-semibold text-[#0B3B36]"
               >
-                <p className="text-xl font-semibold text-[#0E0E0E]">
-                  {item.value}
-                </p>
-                <p className="mt-2 text-xs text-gray-500">{item.label}</p>
-              </div>
-            ))}
+                Download Investor Deck
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-white/40 px-5 py-2 text-xs font-semibold text-white"
+              >
+                View Annual Report
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -163,8 +127,14 @@ export default function InvestorRelationsPage() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-3xl bg-white p-4 shadow-sm">
-              <div className="h-64 w-full rounded-2xl bg-gray-200" />
+            <div className="overflow-hidden rounded-3xl bg-white p-4 shadow-sm">
+              <Image
+                src="/brand/Random numbers.png"
+                alt="Trust and growth metrics"
+                width={600}
+                height={256}
+                className="h-64 w-full rounded-2xl object-cover"
+              />
             </div>
           </div>
         </div>
@@ -196,96 +166,23 @@ export default function InvestorRelationsPage() {
       </section>
 
       <section className="bg-white">
-        <div className="mx-auto w-full max-w-6xl px-6 pb-12">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-              Meet the Team
-            </h2>
-            <button
-              type="button"
-              className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600"
-            >
-              View All Team
-            </button>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {team.map((member) => (
-              <div
-                key={member.name}
-                className="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm"
-              >
-                <div className="mx-auto h-24 w-24 rounded-full bg-gray-200" />
-                <p className="mt-4 text-sm font-semibold text-[#0E0E0E]">
-                  {member.name}
-                </p>
-                <p className="text-xs text-gray-500">{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white">
         <div className="mx-auto w-full max-w-6xl px-6 pb-14">
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-start">
-            <div>
-              <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-                Commitment to Integrity
-              </h2>
-              <p className="mt-3 text-sm text-gray-600">
-                Our verification systems and transparent moderation policies are
-                built to protect trust for consumers and businesses.
-              </p>
-              <ul className="mt-4 space-y-3 text-sm text-gray-600">
-                {milestones.map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-[#1FAF9E]" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#0E0E0E]">Key Reports</h3>
-              <div className="mt-4 space-y-3 text-xs text-gray-600">
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                  <span>Q4 2025 Earnings</span>
-                  <button
-                    type="button"
-                    className="rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-600"
-                  >
-                    Download
-                  </button>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                  <span>2025 Annual Report</span>
-                  <button
-                    type="button"
-                    className="rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-600"
-                  >
-                    Download
-                  </button>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                  <span>Trust Report</span>
-                  <button
-                    type="button"
-                    className="rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-600"
-                  >
-                    Download
-                  </button>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                  <span>Press Coverage</span>
-                  <button
-                    type="button"
-                    className="rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-600"
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              Commitment to Integrity
+            </h2>
+            <p className="mt-3 text-sm text-gray-600">
+              Our verification systems and transparent moderation policies are
+              built to protect trust for consumers and businesses.
+            </p>
+            <ul className="mt-4 space-y-3 text-sm text-gray-600">
+              {milestones.map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-[#1FAF9E]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
@@ -298,8 +195,8 @@ export default function InvestorRelationsPage() {
             performance, roadmap, and growth strategy.
           </p>
           <Link
-            href="/contact"
-            className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-2 text-sm font-semibold text-[#0B3B36]"
+            href="/investor-relations/contact"
+            className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-6 py-2 text-sm font-semibold text-[#0B3B36] transition-colors hover:bg-white/95"
           >
             Email Investor Relations
           </Link>

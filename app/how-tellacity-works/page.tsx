@@ -93,54 +93,54 @@ const businessSteps = [
 export default function HowTellacityWorksPage() {
   return (
     <main className="bg-white">
-      <section className="bg-gray-50">
-        <div className="mx-auto w-full max-w-5xl px-6 py-16 text-center">
-          <h1 className="text-4xl font-semibold text-[#0E3B36] sm:text-5xl">
-            How Tellacity Works
-          </h1>
-          <p className="mx-auto mt-4 max-w-3xl text-sm text-gray-600">
-            Tellacity makes it easy to share and discover real experiences. Our
-            verification process, transparent policies, and fair moderation keep
-            the platform trustworthy for everyone.
-          </p>
-        </div>
-      </section>
+      {/* HERO: animated steps + hero image */}
+      <section className="bg-[#F9F9F9]">
+        <div className="mx-auto max-w-3xl px-6 py-16">
+          <div>
+            <h1 className="text-4xl font-semibold text-[#0E3B36] sm:text-5xl">
+              How Tellacity Works
+            </h1>
+            <p className="mt-4 max-w-xl text-sm text-gray-600">
+              Tellacity makes it easy to share and discover real experiences. Our
+              verification process, transparent policies, and fair moderation keep
+              the platform trustworthy for everyone.
+            </p>
 
-      <section className="bg-gray-50">
-        <div className="mx-auto w-full max-w-5xl px-6 pb-12">
-          <div className="mx-auto flex max-w-md flex-col gap-3">
-            {[
-              { title: "Search", text: "Find businesses and view verified feedback." },
-              { title: "Read Reviews", text: "Learn from real customer experiences." },
-              { title: "Write a Review", text: "Share honest feedback to help others." },
-              {
-                title: "Review Verification",
-                text: "Reviews are checked for authenticity and compliance.",
-              },
-              {
-                title: "Business Collaboration",
-                text: "Businesses can respond and resolve issues transparently.",
-              },
-              {
-                title: "Community Impact",
-                text: "Trusted feedback helps everyone make better decisions.",
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
-              >
-                <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#CFEAE6] text-xs font-semibold text-[#0E3B36]">
-                  ✓
+            <div className="mt-8 flex max-w-md flex-col gap-3">
+              {[
+                { title: "Search", text: "Find businesses and view verified feedback." },
+                { title: "Read Reviews", text: "Learn from real customer experiences." },
+                { title: "Write a Review", text: "Share honest feedback to help others." },
+                {
+                  title: "Review Verification",
+                  text: "Reviews are checked for authenticity and compliance.",
+                },
+                {
+                  title: "Business Collaboration",
+                  text: "Businesses can respond and resolve issues transparently.",
+                },
+                {
+                  title: "Community Impact",
+                  text: "Trusted feedback helps everyone make better decisions.",
+                },
+              ].map((item, index) => (
+                <div
+                  key={item.title}
+                  className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-transform transition-shadow duration-200 ease-out hover:-translate-y-1 hover:shadow-md"
+                  style={{ transitionDelay: `${index * 60}ms` }}
+                >
+                  <div className="mt-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#CFEAE6] text-xs font-semibold text-[#0E3B36] bg-white">
+                    ✓
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#0E0E0E]">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-gray-600">{item.text}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#0E0E0E]">
-                    {item.title}
-                  </p>
-                  <p className="text-xs text-gray-600">{item.text}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>

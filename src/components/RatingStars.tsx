@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 
 type RatingStarsProps = {
   rating: number;
+  reviewCount?: number;
   size?: number;
   editable?: boolean;
   onChange?: (value: number) => void;
@@ -9,6 +10,7 @@ type RatingStarsProps = {
 
 export default function RatingStars({
   rating,
+  reviewCount, // currently unused: kept for data consistency with callers
   size = 16,
   editable = false,
   onChange,

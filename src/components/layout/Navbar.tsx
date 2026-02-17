@@ -2,52 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
-  {
-    code: "US",
-    name: "United States",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/US.svg",
-  },
-  {
-    code: "UK",
-    name: "United Kingdom",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/GB.svg",
-  },
-  {
-    code: "ZA",
-    name: "South Africa",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/ZA.svg",
-  },
-  {
-    code: "AU",
-    name: "Australia",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/AU.svg",
-  },
-  {
-    code: "CA",
-    name: "Canada",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/CA.svg",
-  },
-  {
-    code: "NZ",
-    name: "New Zealand",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/NZ.svg",
-  },
-  {
-    code: "IE",
-    name: "Ireland",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/IE.svg",
-  },
+  { code: "US", name: "United States", flagUrl: `${FLAG_BASE}/US.svg` },
+  { code: "GB", name: "United Kingdom", flagUrl: `${FLAG_BASE}/GB.svg` },
+  { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
+  { code: "AU", name: "Australia", flagUrl: `${FLAG_BASE}/AU.svg` },
+  { code: "CA", name: "Canada", flagUrl: `${FLAG_BASE}/CA.svg` },
+  { code: "NZ", name: "New Zealand", flagUrl: `${FLAG_BASE}/NZ.svg` },
+  { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [countryCode, setCountryCode] = useState("");
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -70,6 +44,7 @@ export default function Navbar() {
     message: string;
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
   const isBusinessNav =
@@ -81,15 +56,13 @@ export default function Navbar() {
   const isHomeNav = pathname === "/";
 
   useEffect(() => {
+    const fromUrl = searchParams.get("country");
+    if (fromUrl) {
+      setCountryCode(fromUrl);
+      return;
+    }
     setCountryCode(getActiveCountry() ?? "");
-    const handleSync = () => setCountryCode(getActiveCountry() ?? "");
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("tellacity-country-change", handleSync);
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("tellacity-country-change", handleSync);
-    };
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -261,6 +234,17 @@ export default function Navbar() {
     }, 150);
   };
 
+  const handleCountryChange = (code: string) => {
+    // Persist for other UIs that still read local storage,
+    // and broadcast the custom event for listeners.
+    setActiveCountry(code);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", code);
+
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   if (isBusinessNav) {
   return (
     <header className="w-full">
@@ -316,7 +300,7 @@ export default function Navbar() {
                 href="/business/signup"
                 className="hidden rounded-full border border-white/60 px-5 py-2 text-sm font-semibold text-white hover:border-white md:inline-flex"
               >
-                Sign up
+                Get Started
               </Link>
           <button
             type="button"
@@ -373,7 +357,7 @@ export default function Navbar() {
                 <img
                   src={activeCountry.flagUrl}
                   alt={activeCountry.name}
-                  className="h-3.5 w-5 object-cover"
+                  className="h-4 w-6 object-cover"
                 />
                 <span>{activeCountry.name}</span>
                 <svg
@@ -397,14 +381,14 @@ export default function Navbar() {
                       className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
                       onClick={() => {
                         setCountryCode(item.code);
-                        setActiveCountry(item.code);
+                        handleCountryChange(item.code);
                         setIsCountryOpen(false);
                       }}
                     >
                       <img
                         src={item.flagUrl}
                         alt={item.name}
-                        className="h-3.5 w-5 object-cover"
+                        className="h-4 w-6 object-cover"
                       />
                       <span className="flex-1">{item.name}</span>
                       {item.code === activeCountry.code && (
@@ -478,7 +462,7 @@ export default function Navbar() {
                   href="/auth/signup"
                   className="hidden rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
                 >
-                  Sign up
+                  Get Started
                 </Link>
               </>
             )}

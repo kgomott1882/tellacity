@@ -26,35 +26,6 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
       ? categorySlugs[activeIndex % categorySlugs.length]
       : "";
 
-  async function fetchMetricsForBusinesses(businessIds) {
-    let res = await supabaseBrowser
-      .from("business_review_metrics_v")
-      .select("business_id, review_count, average_rating")
-      .in("business_id", businessIds);
-
-    if (res.error && res.error.code === "42703") {
-      res = await supabaseBrowser
-        .from("business_review_metrics_v")
-        .select("business_id, real_review_count, real_trust_score")
-        .in("business_id", businessIds);
-    }
-
-    if (res.error) throw res.error;
-
-    const map = new Map();
-    (res.data || []).forEach((r) => {
-      const reviewCount =
-        Number(r.review_count ?? r.real_review_count ?? 0) || 0;
-      const averageRating =
-        Number(r.average_rating ?? r.real_trust_score ?? 0) || 0;
-      map.set(r.business_id, {
-        review_count: reviewCount,
-        average_rating: averageRating,
-      });
-    });
-    return map;
-  }
-
   useEffect(() => {
     if (!categorySlugs || categorySlugs.length === 0) {
       return;
@@ -108,13 +79,17 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         .eq("slug", categorySlug)
         .single();
 
-      const { data: businessRows, error: businessError } = await supabaseBrowser
-        .from("businesses")
-        .select("id, slug, name, website, website_display, country_code, category_slug, logo_url")
-        .eq("category_slug", categorySlug)
-        .eq("country_code", selectedCountry)
-        .eq("status", "active")
-        .limit(8);
+      // Use canonical RPC for live category rankings and ratings.
+      const { data: businessRows, error: businessError } = await supabaseBrowser.rpc(
+        "get_top_businesses_for_category_global",
+        {
+          p_category_slug: categorySlug,
+          p_country_code: selectedCountry,
+          p_min_rating: null,
+          p_limit: 8,
+          p_offset: 0,
+        }
+      );
 
       if (!isMounted) return;
 
@@ -125,36 +100,32 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
         return;
       }
 
-      const businessIds = businessRows.map((b) => b.id);
-      let metricsMap;
-      try {
-        metricsMap = await fetchMetricsForBusinesses(businessIds);
-      } catch (err) {
-        metricsMap = new Map();
-      }
-
       if (!isMounted) return;
 
       setCategoryName(categoryData?.name ?? "");
       const enriched = businessRows.slice(0, 8).map((row) => {
-        let url = (row.resolved_logo_url ?? row.logo_url ?? "").toString().trim() || null;
-        const metrics = metricsMap.get(row.id) || {
-          review_count: 0,
-          average_rating: 0,
-        };
+        const trustScore =
+          typeof row.trust_score === "number" ? row.trust_score : 0;
+        const reviewCount = Number(row.review_count ?? 0) || 0;
+        const url =
+          (row.resolved_logo_url ?? row.logo_url ?? "").toString().trim() ||
+          null;
+
         return {
           id: row.id,
           name: row.name,
           slug: row.slug,
-          website: row.website_display ?? row.website,
+          website: row.website ?? "",
+          website_display: row.website ?? "",
           resolved_logo_url: url,
-          review_count: metrics.review_count,
-          avg_rating: metrics.average_rating,
+          trust_score: trustScore,
+          review_count: reviewCount,
         };
       });
 
       enriched.sort((a, b) => {
-        if (b.avg_rating !== a.avg_rating) return b.avg_rating - a.avg_rating;
+        if (b.trust_score !== a.trust_score)
+          return b.trust_score - a.trust_score;
         if (b.review_count !== a.review_count) return b.review_count - a.review_count;
         return (a.name ?? "").localeCompare(b.name ?? "");
       });
@@ -194,10 +165,11 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {businesses.map((business) => {
-            const reviewCount = Number(business.review_count ?? 0);
-            const averageRating = Number(business.avg_rating ?? 0);
+            const reviewCount = Number(business.review_count ?? 0) || 0;
             const ratingValue =
-              averageRating != null && averageRating > 0 ? averageRating : 0;
+              typeof business.trust_score === "number" && business.trust_score > 0
+                ? business.trust_score
+                : 0;
 
             const logoUrl =
               normalizeLogoUrl(business.resolved_logo_url) ??
@@ -232,7 +204,11 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
                       {cleanDomain(business.website)}
                     </p>
                     <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                      <RatingStars rating={ratingValue} size={12} />
+                      <RatingStars
+                        rating={ratingValue}
+                        reviewCount={reviewCount}
+                        size={12}
+                      />
                       <span className="text-[#0E0E0E]">
                         {ratingValue.toFixed(1)}
                       </span>
@@ -257,7 +233,7 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
                         business.slug ?? ""
                       )}`;
                     }}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[#EEE9E8] px-4 py-2 text-xs font-semibold text-black"
+                    className="inline-flex w-full items-center justify-center rounded-full border border-black/20 bg-[#F4EFEE] px-4 py-2 text-xs font-semibold text-black shadow-sm hover:shadow-md transition-shadow"
                   >
                     Review this business
                   </button>

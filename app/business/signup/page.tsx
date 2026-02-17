@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
@@ -275,6 +275,10 @@ const REVENUE_RANGES = [
 
 export default function BusinessSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const allowedPlans = ["free", "grow", "premium", "elite"];
+  const paramPlan = searchParams.get("plan");
+  const initialPlan = allowedPlans.includes(paramPlan || "") ? (paramPlan as string) : "free";
   const [website, setWebsite] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -288,6 +292,7 @@ export default function BusinessSignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPasswordPopup, setShowPasswordPopup] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(initialPlan);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -348,6 +353,7 @@ export default function BusinessSignupPage() {
           phoneNumber,
           numberOfEmployees,
           annualRevenue,
+          plan: selectedPlan,
         }}
       />
       <div className="flex min-h-screen">
@@ -429,6 +435,16 @@ export default function BusinessSignupPage() {
               <h1 className="text-2xl font-semibold text-[#0E0E0E] mb-6">
                 Create a free account
               </h1>
+
+              <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm text-neutral-600">Selected Plan:</p>
+                <p className="text-lg font-semibold capitalize">
+                  {selectedPlan}
+                </p>
+                <p className="text-xs text-neutral-500 mt-2">
+                  You can change your plan later inside your dashboard.
+                </p>
+              </div>
 
               <div className="space-y-4">
                 <button

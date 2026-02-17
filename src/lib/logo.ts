@@ -45,23 +45,18 @@ export function domainFromWebsite(website: string | null | undefined): string | 
   }
 }
 
-/**
- * Build Logo.dev image URL for a domain (client-side fallback when edge function is unavailable).
- * Requires NEXT_PUBLIC_LOGO_DEV_TOKEN. Returns null if token missing.
- */
-export function getLogoDevUrl(domain: string | null | undefined): string | null {
-  if (!domain || typeof domain !== "string" || !domain.trim()) return null;
-  const token =
-    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGO_DEV_TOKEN?.trim();
-  if (!token) return null;
-  const normalized = domainFromWebsite(domain) ?? domain.trim().replace(/^www\./, "");
-  if (!normalized) return null;
-  try {
-    const url = `https://img.logo.dev/${encodeURIComponent(normalized)}?token=${encodeURIComponent(token)}&fallback=404`;
-    return normalizeLogoUrl(url) ?? url;
-  } catch {
+export function getLogoDevUrl(domain: string | null) {
+  if (!domain) return null;
+
+  const clean = domain.replace(/^www\./, "").trim();
+  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
+
+  if (!token) {
+    console.warn("NEXT_PUBLIC_LOGO_DEV_TOKEN is missing.");
     return null;
   }
+
+  return `https://img.logo.dev/${clean}?token=${token}`;
 }
 
 /** Supabase client type for invoke (avoid hard dependency on full type). */

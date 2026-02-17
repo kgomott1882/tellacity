@@ -2,6 +2,8 @@ import "./globals.css";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
+import CookieConsentModal from "@/components/common/CookieConsentModal";
+import AnalyticsGate from "@/components/common/AnalyticsGate";
 
 export const metadata = {
   icons: {
@@ -30,6 +32,8 @@ export default function RootLayout({
         <ConditionalNavbar />
         <main>{children}</main>
         <ConditionalFooter />
+        <CookieConsentModal />
+        <AnalyticsGate />
       </body>
     </html>
   );

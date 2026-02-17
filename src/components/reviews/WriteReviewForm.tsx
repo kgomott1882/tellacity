@@ -146,6 +146,8 @@ export default function WriteReviewForm({
     active: boolean;
     email: string;
   }>({ active: false, email: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
 
@@ -480,6 +482,8 @@ export default function WriteReviewForm({
         reference_number: business.reference_number_enabled && referenceNumber.trim() ? referenceNumber.trim() : null,
       });
 
+      setSubmittedEmail(guestEmailTrimmed);
+      setSubmitted(true);
       setCheckEmailState({ active: true, email: guestEmailTrimmed });
     } catch (error) {
       const message =
@@ -528,6 +532,53 @@ export default function WriteReviewForm({
   };
 
   const showBusinessSearch = !business;
+
+  const handleWriteAnotherReview = () => {
+    setSubmitted(false);
+    setSubmittedEmail("");
+    setRating(0);
+    setTitle("");
+    setBody("");
+    setDateOfExperience(todayIsoDate());
+    setReferenceNumber("");
+    setGuestName("");
+    setGuestEmail("");
+    setMarketingOptIn(false);
+    setProofFile(null);
+    setProofError(null);
+    setSubmitError(null);
+    setCheckEmailState({ active: false, email: "" });
+  };
+
+  if (submitted) {
+    return (
+      <main className="bg-white">
+        <div className="max-w-2xl mx-auto py-10">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center shadow-sm">
+            <h2 className="text-lg font-semibold text-green-800 mb-2">
+              Check your email
+            </h2>
+            <p className="text-green-700">
+              We&apos;ve sent a verification link to{" "}
+              <span className="font-medium">{submittedEmail}</span>.
+            </p>
+            <p className="text-green-700 mt-1">
+              Open it to publish your review.
+            </p>
+          </div>
+          <div className="mt-5 flex justify-center">
+            <Button
+              type="button"
+              onClick={handleWriteAnotherReview}
+              className="rounded-full bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold hover:bg-[#169786]"
+            >
+              Write Another Review
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-white">

@@ -180,114 +180,25 @@ export default function HomePage() {
 
     const fetchData = async () => {
       const country = getActiveCountry();
-      const reviewsTarget = 54;
-      const batchSize = 60;
       setIsLoading(true);
 
-      const filterByCountry = async (items: HomeReview[]) => {
-        if (!country) {
-          return items;
-        }
+      let query = supabaseBrowser
+        .from("home_feed_v1")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-        const directFiltered = items.filter((item: any) => {
-          const code =
-            item.country_code ??
-            item.business_country_code ??
-            item.country ??
-            item.countryCode ??
-            null;
-          return code === country;
-        });
-
-        if (directFiltered.length > 0) {
-          return directFiltered;
-        }
-
-        const slugs = Array.from(
-          new Set(items.map((item) => item.business_slug).filter(Boolean))
-        );
-
-        if (slugs.length === 0) {
-          return [];
-        }
-
-        const { data: businessRows } = await supabaseBrowser
-          .from("businesses")
-          .select("slug, country_code")
-          .in("slug", slugs);
-
-        if (!isMounted) return [];
-
-        const countryBySlug = new Map(
-          (businessRows ?? []).map((row) => [row.slug, row.country_code])
-        );
-
-        return items.filter(
-          (item) =>
-            item.business_slug &&
-            countryBySlug.get(item.business_slug) === country
-        );
-      };
-
-      if (!country) {
-        const { data: reviewData, error: reviewError } = await supabaseBrowser
-          .from("home_feed_v1")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(reviewsTarget);
-
-        if (!isMounted) return;
-
-        if (reviewError) {
-          setError(reviewError.message);
-          setReviews([]);
-        } else {
-          setReviews((reviewData as HomeReview[]) ?? []);
-        }
-
-        setIsLoading(false);
-        return;
+      if (country) {
+        query = query.eq("country_code", country);
       }
 
-      let offset = 0;
-      let collected: HomeReview[] = [];
-      let fetchError: string | null = null;
-      let hasMore = true;
-
-      while (hasMore && collected.length < reviewsTarget) {
-        const { data, error } = await supabaseBrowser
-          .from("home_feed_v1")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(offset, offset + batchSize - 1);
-
-        if (error) {
-          fetchError = error.message;
-          break;
-        }
-
-        const batch = (data as HomeReview[]) ?? [];
-        if (batch.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        const filteredBatch = await filterByCountry(batch);
-        collected = collected.concat(filteredBatch);
-
-        offset += batch.length;
-        if (batch.length < batchSize) {
-          hasMore = false;
-        }
-      }
+      const { data, error } = await query.limit(54);
 
       if (!isMounted) return;
 
-      if (fetchError) {
-        setError(fetchError);
-        setReviews([]);
+      if (error) {
+        setError(error.message);
       } else {
-        setReviews(collected.slice(0, reviewsTarget));
+        setReviews(data ?? []);
       }
 
       setIsLoading(false);

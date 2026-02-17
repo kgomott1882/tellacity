@@ -23,46 +23,116 @@ const posts = [
     title: "How the Tellacity Trust Score Works in 2025",
     description:
       "Understand the signals that shape trust scores and how verified reviews improve clarity for everyone.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/Asian Apple.png",
+    postedAt: "2025-02-05",
   },
   {
     category: "For Businesses",
     title: "Why Every Business Should Claim Its Tellacity Profile",
     description:
       "Claiming your profile helps you respond publicly, build credibility, and grow trust over time.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/Astonished woman.png",
+    postedAt: "2025-02-06",
+  },
+  {
+    category: "For Businesses",
+    title: "Bringing Your Reviews to Tellacity: A Complete Import Guide",
+    description:
+      "Import reviews from Google, Facebook, Yelp, or CSV. Consolidate your reputation and boost your Trust Score from day one.",
+    image: "/brand/laptom with review platforms.png",
+    postedAt: "2025-02-07",
   },
   {
     category: "Trust & Safety",
     title: "The Most Common Online Shopping Scams and How to Avoid Them",
     description:
       "Learn the red flags and how verified reviews protect consumers from bad actors.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/woman and scammer.png",
+    postedAt: "2025-02-08",
   },
   {
     category: "Guides & Reports",
     title: "Shopping Online Safely in 2025: A Complete Consumer Guide",
     description:
       "Practical tips for evaluating businesses and making confident online purchases.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/Shopping Safety.png",
+    postedAt: "2025-02-09",
   },
   {
     category: "Platform Updates",
     title: "How to Check If a Business Is Legit Before Buying in 2025",
     description:
       "Use verified signals, transparency markers, and review quality to assess trust.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/woman on laptop.png",
+    postedAt: "2025-02-10",
   },
   {
     category: "For Consumers",
     title: "What Makes a Review Useful? The Complete 2025 Breakdown",
     description:
       "Clear, specific feedback helps others make better decisions and improves trust.",
-    image: "/brand/Block%20Cover.png",
+    image: "/brand/write a review.png",
+    postedAt: "2025-02-12",
+  },
+  {
+    category: "Trust & Safety",
+    title: "What Is a Verified Review? The Complete 2025 Guide",
+    description:
+      "Learn what verification means, how it works, and why verified reviews are the gold standard for trust.",
+    image: "/brand/Izabela.png",
+    postedAt: "2025-02-11",
+  },
+  {
+    category: "Platform Updates",
+    title: "Tellacity 2025 Platform Update: New Dashboards, Analytics & Mobile App Beta",
+    description:
+      "Redesigned dashboards, enhanced analytics, and the Mobile App Beta. Streamline your workflow and connect with customers like never before.",
+    image: "/brand/Tellacity Phone.png",
+    postedAt: "2025-02-13",
+  },
+  {
+    category: "For Consumers",
+    title: "How to Check If a Business Is Legit in 2026 (Before You Spend Your Money)",
+    description:
+      "A simple, practical guide to verifying whether a company is real, trustworthy, and worth your time before you spend.",
+    image: "/brand/first tellacity blog post.png",
+    postedAt: "2026-01-15",
   },
 ];
 
-export default function BlogPage() {
+const sortedPosts = [...posts].sort(
+  (a, b) => (b.postedAt as string).localeCompare(a.postedAt as string)
+);
+
+const POSTS_PER_PAGE = 9;
+
+function getPostHref(title: string): string {
+  const map: Record<string, string> = {
+    "How the Tellacity Trust Score Works in 2025": "/blog/trust-score-2025",
+    "Why Every Business Should Claim Its Tellacity Profile": "/blog/claim-tellacity-profile",
+    "Bringing Your Reviews to Tellacity: A Complete Import Guide": "/blog/import-reviews",
+    "The Most Common Online Shopping Scams and How to Avoid Them": "/blog/online-shopping-scams-2025",
+    "Shopping Online Safely in 2025: A Complete Consumer Guide": "/blog/shopping-online-safely-2025",
+    "How to Check If a Business Is Legit Before Buying in 2025": "/blog/check-business-legit-2025",
+    "What Is a Verified Review? The Complete 2025 Guide": "/blog/verified-review-2025",
+    "What Makes a Review Useful? The Complete 2025 Breakdown": "/blog/what-makes-a-review-useful-2025",
+    "Tellacity 2025 Platform Update: New Dashboards, Analytics & Mobile App Beta": "/blog/platform-update-2025",
+    "How to Check If a Business Is Legit in 2026 (Before You Spend Your Money)": "/blog/check-business-legit-2026",
+  };
+  return map[title] ?? "/blog";
+}
+
+export default async function BlogPage(props: {
+  searchParams?: Promise<{ page?: string }> | { page?: string };
+}) {
+  const searchParams = await (props.searchParams ?? Promise.resolve({}));
+  const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
+  const totalPages = Math.ceil(sortedPosts.length / POSTS_PER_PAGE);
+  const currentPage = Math.min(page, totalPages);
+  const paginatedPosts = sortedPosts.slice(
+    (currentPage - 1) * POSTS_PER_PAGE,
+    currentPage * POSTS_PER_PAGE
+  );
   return (
     <main className="bg-white">
       <section className="bg-gray-50">
@@ -94,8 +164,12 @@ export default function BlogPage() {
                 <path d="M21 21l-4.35-4.35" />
               </svg>
               <input
-                type="text"
+                id="blog-search"
+                type="search"
+                name="q"
                 placeholder="Search articles..."
+                autoComplete="off"
+                aria-label="Search articles"
                 className="w-full border-0 bg-transparent text-sm text-[#0E0E0E] placeholder:text-gray-400 focus:outline-none"
               />
             </div>
@@ -135,7 +209,7 @@ export default function BlogPage() {
                 {featuredPost.description}
               </p>
               <Link
-                href="/blog"
+                href="/blog/trust-score-2025"
                 className="mt-6 inline-flex items-center rounded-lg bg-[#0B3B36] px-4 py-2 text-sm font-semibold text-white"
               >
                 Read More
@@ -151,7 +225,7 @@ export default function BlogPage() {
           </div>
 
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
+            {paginatedPosts.map((post) => (
               <div
                 key={post.title}
                 className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
@@ -172,7 +246,7 @@ export default function BlogPage() {
                   </h3>
                   <p className="mt-2 text-xs text-gray-600">{post.description}</p>
                   <Link
-                    href="/blog"
+                    href={getPostHref(post.title)}
                     className="mt-4 inline-flex items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-gray-300"
                   >
                     Read More
@@ -182,32 +256,50 @@ export default function BlogPage() {
             ))}
           </div>
 
-          <div className="mt-10 flex items-center justify-center gap-3 text-xs text-gray-500">
-            <button
-              type="button"
-              className="rounded-md border border-gray-200 px-3 py-1 text-gray-600"
+          {totalPages > 1 && (
+            <nav
+              className="mt-10 flex items-center justify-center gap-2 text-xs text-gray-500"
+              aria-label="Pagination"
             >
-              Previous
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-[#0B3B36] px-3 py-1 font-semibold text-[#0B3B36]"
-            >
-              1
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-gray-200 px-3 py-1 text-gray-600"
-            >
-              2
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-gray-200 px-3 py-1 text-gray-600"
-            >
-              Next
-            </button>
-          </div>
+              {currentPage > 1 ? (
+                <Link
+                  href={`/blog?page=${currentPage - 1}`}
+                  className="rounded-md border border-gray-200 px-3 py-2 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <span className="rounded-md border border-gray-100 px-3 py-2 text-gray-400">
+                  Previous
+                </span>
+              )}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <Link
+                  key={n}
+                  href={`/blog?page=${n}`}
+                  className={`rounded-md border px-3 py-2 font-semibold ${
+                    n === currentPage
+                      ? "border-[#0B3B36] bg-[#0B3B36] text-white"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {n}
+                </Link>
+              ))}
+              {currentPage < totalPages ? (
+                <Link
+                  href={`/blog?page=${currentPage + 1}`}
+                  className="rounded-md border border-gray-200 px-3 py-2 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                >
+                  Next
+                </Link>
+              ) : (
+                <span className="rounded-md border border-gray-100 px-3 py-2 text-gray-400">
+                  Next
+                </span>
+              )}
+            </nav>
+          )}
         </div>
       </section>
     </main>

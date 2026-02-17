@@ -13,7 +13,7 @@ type SearchResult = {
   slug: string;
   domain: string;
   logoUrl: string | null;
-  rating: number;
+  trustScore: number;
   reviewCount: number;
   location: string;
 };
@@ -75,7 +75,7 @@ export default function SearchPageInner() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, logo_url, trust_score, review_count, average_rating, country_code, city"
+          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city"
         )
         .eq("status", "active")
         .or(
@@ -113,7 +113,7 @@ export default function SearchPageInner() {
             slug: business.slug ?? "",
             domain: cleanDomain(business.website_display ?? business.website ?? ""),
             logoUrl: normalizeLogoUrl(logoUrl),
-            rating: Number(business.average_rating ?? 0),
+            trustScore: Number(business.trust_score ?? 0),
             reviewCount: Number(business.review_count ?? 0),
             location: business.city ?? business.country_code ?? "",
           });
@@ -240,7 +240,7 @@ export default function SearchPageInner() {
                     ))}
                   </div>
                   <span className="font-medium text-[#0E0E0E]">
-                    {business.rating.toFixed(1)}
+                    {business.trustScore.toFixed(1)}
                   </span>
                   <span className="text-gray-500">
                     ({business.reviewCount})

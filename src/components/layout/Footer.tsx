@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 const COUNTRIES = [
   {
@@ -43,6 +44,9 @@ const COUNTRIES = [
 ];
 
 export default function Footer() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [countryCode, setCountryCode] = useState("");
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,15 +54,13 @@ export default function Footer() {
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
 
   useEffect(() => {
+    const fromUrl = searchParams.get("country");
+    if (fromUrl) {
+      setCountryCode(fromUrl);
+      return;
+    }
     setCountryCode(getActiveCountry() ?? "");
-    const handleSync = () => setCountryCode(getActiveCountry() ?? "");
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("tellacity-country-change", handleSync);
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("tellacity-country-change", handleSync);
-    };
-  }, []);
+  }, [searchParams]);
 
   const openCountryMenu = () => {
     if (closeTimeoutRef.current) {
@@ -80,8 +82,18 @@ export default function Footer() {
 
   const handleCountrySelect = (code: string) => {
     setCountryCode(code);
+    // Persist and notify listeners (home sections, etc.)
     setActiveCountry(code);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", code);
+    router.push(`${pathname}?${params.toString()}`);
     setIsCountryOpen(false);
+  };
+
+  const reopenCookies = () => {
+    localStorage.removeItem("tellacity_cookie_consent");
+    window.dispatchEvent(new Event("reopen-cookie-modal"));
   };
 
   return (
@@ -230,7 +242,11 @@ export default function Footer() {
             <div>
               <h3 className="text-sm font-semibold tracking-wide">COMMUNITY</h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
-                <li>Write a Review</li>
+                <li>
+                  <Link href="/write-review" className="hover:text-white">
+                    Write a Review
+                  </Link>
+                </li>
                 <li>
                   <Link href="/categories" className="hover:text-white">
                     Browse Categories
@@ -298,7 +314,11 @@ export default function Footer() {
                     FAQ
                   </Link>
                 </li>
-                <li>Contact Us</li>
+                <li>
+                  <Link href="/contact" className="hover:text-white">
+                    Contact Us
+                  </Link>
+                </li>
                 <li>
                   <Link href="/terms-of-service" className="hover:text-white">
                     Terms of Service
@@ -318,6 +338,15 @@ export default function Footer() {
                   <Link href="/data-protection" className="hover:text-white">
                     Data Protection
                   </Link>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={reopenCookies}
+                    className="text-sm text-gray-500 hover:text-gray-700 transition"
+                  >
+                    Cookie Settings
+                  </button>
                 </li>
               </ul>
             </div>

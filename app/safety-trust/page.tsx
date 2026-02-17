@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default function SafetyTrustPage() {
   return (
     <main className="bg-white">
@@ -14,8 +16,14 @@ export default function SafetyTrustPage() {
             mission is to build verified connections through transparent
             reviews, verified ownership, and AI-backed moderation.
           </p>
-          <div className="mt-8 overflow-hidden rounded-3xl bg-gray-100">
-            <div className="h-56 w-full bg-gray-200 sm:h-72" />
+          <div className="relative mt-8 aspect-[16/9] w-full overflow-hidden rounded-3xl bg-gray-100 sm:max-w-4xl sm:mx-auto">
+            <Image
+              src="/brand/what%20trust.jpg"
+              alt="What verified trust means at Tellacity"
+              fill
+              sizes="(max-width: 768px) 100vw, 896px"
+              className="object-cover object-center"
+            />
           </div>
         </div>
       </section>
@@ -55,8 +63,14 @@ export default function SafetyTrustPage() {
                 </div>
               </div>
             </div>
-            <div className="overflow-hidden rounded-3xl bg-gray-100">
-              <div className="h-64 w-full bg-gray-200" />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
+              <Image
+                src="/brand/world.jpg"
+                alt="Tellacity everywhere — global trust"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover object-center"
+              />
             </div>
           </div>
         </div>
@@ -150,8 +164,14 @@ export default function SafetyTrustPage() {
                 </div>
               ))}
             </div>
-            <div className="overflow-hidden rounded-3xl bg-gray-100">
-              <div className="h-64 w-full bg-gray-200" />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
+              <Image
+                src="/brand/analysis%20trust.jpg"
+                alt="Analysis and trust in the verified review journey"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover object-center"
+              />
             </div>
           </div>
         </div>
@@ -174,8 +194,14 @@ export default function SafetyTrustPage() {
                 <li>Eligibility for &quot;Verified Review&quot; filters</li>
                 <li>Higher visibility in consumer searches</li>
               </ul>
-              <div className="mt-5 overflow-hidden rounded-xl bg-white">
-                <div className="h-36 w-full bg-gray-200" />
+              <div className="relative mt-5 aspect-[16/9] w-full overflow-hidden rounded-xl bg-white">
+                <Image
+                  src="/brand/anly%20white%20board.jpg"
+                  alt="Verified Businesses — analytics and tools"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover object-center"
+                />
               </div>
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -204,8 +230,14 @@ export default function SafetyTrustPage() {
                   <span className="text-gray-500">verification compliance</span>
                 </div>
               </div>
-              <div className="mt-5 overflow-hidden rounded-xl bg-white">
-                <div className="h-36 w-full bg-gray-200" />
+              <div className="relative mt-5 aspect-[16/9] w-full overflow-hidden rounded-xl bg-white">
+                <Image
+                  src="/brand/safe%20gurad.jpg"
+                  alt="Safeguarding trust — AI moderation and human oversight"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover object-center"
+                />
               </div>
             </div>
           </div>
@@ -266,8 +298,14 @@ export default function SafetyTrustPage() {
                 <li>Launch regional Trust Dashboards for transparency</li>
               </ul>
             </div>
-            <div className="overflow-hidden rounded-3xl bg-gray-100">
-              <div className="h-64 w-full bg-gray-200" />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
+              <Image
+                src="/brand/Green%20world.png"
+                alt="The future of verified trust — global impact"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover object-center"
+              />
             </div>
           </div>
         </div>
