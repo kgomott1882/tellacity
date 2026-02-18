@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     await resend.emails.send({
       from: "Tellacity Custom Plan <notifications@tellacity.com>",
       to: ["sales@tellacity.com"],
-      reply_to: email,
+      replyTo: email,
       subject: "New Custom Plan Request — Tellacity",
       html,
     });

@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       from: "Tellacity Partnerships <sales@tellacity.com>",
       to: ["sales@tellacity.com"],
       subject: `New Partnership Inquiry from ${name}`,
-      reply_to: email,
+      replyTo: email,
       html: `
         <h2>New Partnership Inquiry</h2>
         <p><strong>Name:</strong> ${name}</p>
