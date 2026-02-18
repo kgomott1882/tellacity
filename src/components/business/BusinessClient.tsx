@@ -10,6 +10,14 @@ import { getActiveCountry } from "@/lib/getActiveCountry";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 
+interface BusinessRow {
+  address?: string | null;
+  city?: string | null;
+  country_code?: string | null;
+  email?: string | null;
+  [key: string]: unknown;
+}
+
 type Business = {
   id: string;
   name: string;
@@ -108,25 +116,29 @@ const buildWebsiteHref = (value: string | null | undefined) => {
 
 const reviewSkeletons = Array.from({ length: 3 });
 
-export default function BusinessClient({ initialBusiness = null }) {
+type BusinessClientProps = {
+  initialBusiness?: BusinessRow | null;
+};
+
+export default function BusinessClient({ initialBusiness = null }: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
   const [business, setBusiness] = useState<Business | null>(() => {
     if (!initialBusiness || typeof initialBusiness !== "object") return null;
     const row = initialBusiness;
-    const address = (row.address ?? "").toString().trim();
-    const city = (row.city ?? "").toString().trim();
-    const countryCode = (row.country_code ?? "").toString().trim();
-    const email = (row.email ?? "").toString().trim();
-    const phone = (row.phone ?? "").toString().trim();
-    const resolvedLogoUrl = (row.resolved_logo_url ?? "").toString().trim() || null;
+    const address = String(row.address ?? "").trim();
+    const city = String(row.city ?? "").trim();
+    const countryCode = String(row.country_code ?? "").trim();
+    const email = String(row.email ?? "").trim();
+    const phone = String(row.phone ?? "").trim();
+    const resolvedLogoUrl = String(row.resolved_logo_url ?? "").trim() || null;
     const reviewCount = Number(row.review_count ?? 0);
     const averageRating = Number(row.average_rating ?? 0);
     return {
-      id: row.id,
-      name: (row.name ?? "Business").toString(),
-      slug: (row.slug ?? "").toString(),
-      website: cleanDomain((row.website_display ?? row.website ?? "").toString()),
+      id: String(row.id ?? ""),
+      name: String(row.name ?? "Business"),
+      slug: String(row.slug ?? ""),
+      website: cleanDomain(String(row.website_display ?? row.website ?? "")),
       logoUrl: normalizeLogoUrl(resolvedLogoUrl),
       trustScore: row.trust_score != null ? Number(row.trust_score) : null,
       reviewCount,
@@ -136,15 +148,19 @@ export default function BusinessClient({ initialBusiness = null }) {
       rating3Count: Number(row.rating_3_count ?? 0),
       rating4Count: Number(row.rating_4_count ?? 0),
       rating5Count: Number(row.rating_5_count ?? 0),
-      countryCode: countryCode || (row.country_code ?? "").toString(),
+      countryCode: countryCode || String(row.country_code ?? ""),
       address,
-      city: city || (row.city ?? "").toString(),
-      description: (row.description ?? "").toString().trim(),
-      categorySlug: (row.category_slug ?? "").toString(),
-      categoryGroupSlug: (row.primary_group_slug ?? null),
-      categoryGroupName: (row.primary_group_name ?? null),
-      categoryName: (row.category_name ?? null),
-      status: (row.status ?? "active").toString(),
+      city: city || String(row.city ?? ""),
+      description: String(row.description ?? "").trim(),
+      categorySlug: String(row.category_slug ?? ""),
+      categoryGroupSlug: row.primary_group_slug
+        ? String(row.primary_group_slug)
+        : null,
+      categoryGroupName: row.primary_group_name
+        ? String(row.primary_group_name)
+        : null,
+      categoryName: row.category_name ? String(row.category_name) : null,
+      status: String(row.status ?? "active"),
       email,
       phone,
     };

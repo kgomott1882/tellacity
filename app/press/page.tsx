@@ -91,11 +91,13 @@ const gridArticles = sortedItems.slice(1);
 
 const ITEMS_PER_PAGE = 6;
 
-export default async function PressPage(props: {
-  searchParams?: Promise<{ page?: string }> | { page?: string };
+export default async function PressPage({
+  searchParams,
+}: {
+  searchParams?: { page?: string };
 }) {
-  const searchParams = await (props.searchParams ?? Promise.resolve({}));
-  const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
+  const rawPage = searchParams?.page ?? "1";
+  const page = Math.max(1, parseInt(rawPage, 10) || 1);
   const totalPages = Math.ceil(gridArticles.length / ITEMS_PER_PAGE);
   const currentPage = Math.min(page, totalPages);
   const paginatedGrid = gridArticles.slice(

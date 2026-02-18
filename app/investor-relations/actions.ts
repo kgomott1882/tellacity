@@ -3,10 +3,13 @@
 import { Resend } from "resend";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type ActionState = {
-  success: boolean;
-  message: string;
+export type ContactFormState = {
+  success?: boolean;
+  message?: string;
+  error?: string;
 };
+
+type ActionState = ContactFormState;
 
 export async function submitInvestorContactForm(
   _prevState: ActionState,
@@ -39,7 +42,7 @@ export async function submitInvestorContactForm(
           from: "Tellacity <no-reply@tellacity.com>",
           to: "sales@tellacity.com",
           subject: `[Investor Contact] ${subject}`,
-          reply_to: email,
+          replyTo: email,
           html: `
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>

@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Suspense } from "react";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
@@ -29,9 +30,13 @@ export default function RootLayout({
       <body>
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
-        <ConditionalNavbar />
+        <Suspense fallback={null}>
+          <ConditionalNavbar />
+        </Suspense>
         <main>{children}</main>
-        <ConditionalFooter />
+        <Suspense fallback={null}>
+          <ConditionalFooter />
+        </Suspense>
         <CookieConsentModal />
         <AnalyticsGate />
       </body>

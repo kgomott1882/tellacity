@@ -39,7 +39,7 @@ export async function submitGeneralContactForm(
           from: "Tellacity Support <no-reply@tellacity.com>",
           to: "support@tellacity.com",
           subject: `[Contact Us] ${subject}`,
-          reply_to: email,
+          replyTo: email,
           html: `
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>

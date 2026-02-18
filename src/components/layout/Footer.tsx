@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { getActiveCountry } from "@/lib/getActiveCountry";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const COUNTRIES = [
   {

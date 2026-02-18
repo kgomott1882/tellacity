@@ -20,6 +20,7 @@ type PasswordSetupPopupProps = {
     phoneNumber: string;
     numberOfEmployees: string;
     annualRevenue: string;
+    plan?: string;
   };
 };
 
