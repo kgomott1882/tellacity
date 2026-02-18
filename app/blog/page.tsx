@@ -122,11 +122,13 @@ function getPostHref(title: string): string {
   return map[title] ?? "/blog";
 }
 
-export default async function BlogPage(props: {
-  searchParams?: Promise<{ page?: string }> | { page?: string };
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams?: { page?: string };
 }) {
-  const searchParams = await (props.searchParams ?? Promise.resolve({}));
-  const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
+  const rawPage = searchParams?.page ?? "1";
+  const page = Math.max(1, parseInt(rawPage, 10) || 1);
   const totalPages = Math.ceil(sortedPosts.length / POSTS_PER_PAGE);
   const currentPage = Math.min(page, totalPages);
   const paginatedPosts = sortedPosts.slice(
