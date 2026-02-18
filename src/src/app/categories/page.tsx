@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { normalizeLogoUrl } from "@/lib/logo";
 
 type CategoryBusiness = {
   id: string;
@@ -131,7 +132,7 @@ export default function CategoryDetailPage() {
             className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4 hover:bg-gray-50"
           >
             <img
-              src={b.resolved_logo_url}
+              src={normalizeLogoUrl(b.resolved_logo_url) ?? undefined}
               alt={b.name}
               className="h-10 w-10 rounded object-contain"
             />

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getActiveCountry } from "@/lib/getActiveCountry";
+import { normalizeLogoUrl } from "@/lib/logo";
 
 type CategoryBusiness = {
   id: string;
@@ -137,7 +138,7 @@ export default function CategoryDetailPage() {
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <img
-                    src={b.resolved_logo_url ?? undefined}
+                    src={normalizeLogoUrl(b.resolved_logo_url) ?? undefined}
                     alt={b.name}
                     className="h-10 w-10 object-contain"
                   />

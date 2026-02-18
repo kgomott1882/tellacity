@@ -1,23 +1,18 @@
-/**
- * Ensure Logo.dev URLs have token and fallback so they load in <img>.
- * RPC returns https://img.logo.dev/domain without token; Logo.dev requires ?token= for image requests.
- */
-export const normalizeLogoUrl = (
-  rawUrl?: string | null
-): string | null => {
-  if (!rawUrl) {
-    return null;
-  }
+export const normalizeLogoUrl = (rawUrl?: string | null): string | null => {
+  if (!rawUrl) return null;
 
   if (rawUrl.includes("img.logo.dev")) {
+    const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
+
     try {
       const parsed = new URL(rawUrl);
+
       parsed.searchParams.set("fallback", "404");
-      if (!parsed.searchParams.has("token")) {
-        const token =
-          typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGO_DEV_TOKEN?.trim();
-        if (token) parsed.searchParams.set("token", token);
+
+      if (!parsed.searchParams.has("token") && token) {
+        parsed.searchParams.set("token", token);
       }
+
       return parsed.toString();
     } catch {
       return rawUrl;
@@ -56,7 +51,7 @@ export function getLogoDevUrl(domain: string | null) {
     return null;
   }
 
-  return `https://img.logo.dev/${clean}?token=${token}`;
+  return `https://img.logo.dev/${clean}?token=${token}&fallback=404`;
 }
 
 /** Supabase client type for invoke (avoid hard dependency on full type). */
