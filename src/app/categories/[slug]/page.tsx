@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type CategoryBusiness = {
@@ -32,25 +31,14 @@ export default function CategoryDetailPage() {
       ? params.slug[0]
       : null;
 
+  const searchParams = useSearchParams();
+  const country = searchParams.get("country") ?? "ZA";
+
   const [businesses, setBusinesses] = useState<CategoryBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-
-  useEffect(() => {
-    const stored = getActiveCountry();
-    setSelectedCountry(stored || null);
-    const handleSync = () => {
-      const updated = getActiveCountry();
-      setSelectedCountry(updated || null);
-    };
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("tellacity-country-change", handleSync);
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("tellacity-country-change", handleSync);
-    };
-  }, []);
+  const [categoryName, setCategoryName] = useState<string | null>(null);
+  const [groupName, setGroupName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -62,7 +50,7 @@ export default function CategoryDetailPage() {
         "get_top_businesses_for_category_global",
         {
           p_category_slug: slug,
-          p_country_code: null,
+          p_country_code: country,
           p_limit: 20,
           p_offset: 0,
           p_min_rating: null,
@@ -80,13 +68,62 @@ export default function CategoryDetailPage() {
     };
 
     run();
-  }, [slug, selectedCountry]);
+  }, [slug, country]);
+
+  useEffect(() => {
+    if (!slug) return;
+
+    const fetchCategoryAndGroup = async () => {
+      const { data: category } = await supabase
+        .from("categories")
+        .select("name, group_slug")
+        .eq("slug", slug)
+        .single();
+
+      if (!category) return;
+
+      setCategoryName((category as { name?: string }).name ?? null);
+
+      const groupSlug = (category as { group_slug?: string | null }).group_slug;
+      if (!groupSlug) {
+        setGroupName(null);
+        return;
+      }
+
+      const { data: group } = await supabase
+        .from("category_groups")
+        .select("name")
+        .eq("group_slug", groupSlug)
+        .single();
+
+      setGroupName((group as { name?: string } | null)?.name ?? null);
+    };
+
+    fetchCategoryAndGroup();
+  }, [slug]);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-16">
-      <h1 className="text-3xl font-semibold mb-6">
-        {slug?.replace(/-/g, " ")}
-      </h1>
+      <header className="mb-6">
+        <nav className="mb-2 text-xs text-gray-500">
+          <span>Categories</span>
+          {groupName && (
+            <>
+              <span className="mx-1">›</span>
+              <span>{groupName}</span>
+            </>
+          )}
+          {categoryName && (
+            <>
+              <span className="mx-1">›</span>
+              <span>{categoryName}</span>
+            </>
+          )}
+        </nav>
+        <h1 className="text-3xl font-semibold">
+          {categoryName ? `Best in ${categoryName}` : slug?.replace(/-/g, " ")}
+        </h1>
+      </header>
 
       {isLoading && <p className="text-gray-500">Loading businesses...</p>}
 
