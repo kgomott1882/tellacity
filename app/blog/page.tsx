@@ -1,137 +1,39 @@
 import Link from "next/link";
-
-const categories = [
-  "All",
-  "For Consumers",
-  "For Businesses",
-  "Trust & Safety",
-  "Platform Updates",
-  "Guides & Reports",
-];
-
-const featuredPost = {
-  category: "For Businesses",
-  title: "A Business Owner’s Guide to Responding to Negative Reviews (2025 Guide)",
-  description:
-    "Learn how to professionally handle negative reviews, protect your reputation, and turn unhappy customers into loyal fans with clear, respectful responses.",
-  image: "/brand/Block%20Cover.png",
-};
-
-const posts = [
-  {
-    category: "For Consumers",
-    title: "How the Tellacity Trust Score Works in 2025",
-    description:
-      "Understand the signals that shape trust scores and how verified reviews improve clarity for everyone.",
-    image: "/brand/Asian Apple.png",
-    postedAt: "2025-02-05",
-  },
-  {
-    category: "For Businesses",
-    title: "Why Every Business Should Claim Its Tellacity Profile",
-    description:
-      "Claiming your profile helps you respond publicly, build credibility, and grow trust over time.",
-    image: "/brand/Astonished woman.png",
-    postedAt: "2025-02-06",
-  },
-  {
-    category: "For Businesses",
-    title: "Bringing Your Reviews to Tellacity: A Complete Import Guide",
-    description:
-      "Import reviews from Google, Facebook, Yelp, or CSV. Consolidate your reputation and boost your Trust Score from day one.",
-    image: "/brand/laptom with review platforms.png",
-    postedAt: "2025-02-07",
-  },
-  {
-    category: "Trust & Safety",
-    title: "The Most Common Online Shopping Scams and How to Avoid Them",
-    description:
-      "Learn the red flags and how verified reviews protect consumers from bad actors.",
-    image: "/brand/woman and scammer.png",
-    postedAt: "2025-02-08",
-  },
-  {
-    category: "Guides & Reports",
-    title: "Shopping Online Safely in 2025: A Complete Consumer Guide",
-    description:
-      "Practical tips for evaluating businesses and making confident online purchases.",
-    image: "/brand/Shopping Safety.png",
-    postedAt: "2025-02-09",
-  },
-  {
-    category: "Platform Updates",
-    title: "How to Check If a Business Is Legit Before Buying in 2025",
-    description:
-      "Use verified signals, transparency markers, and review quality to assess trust.",
-    image: "/brand/woman on laptop.png",
-    postedAt: "2025-02-10",
-  },
-  {
-    category: "For Consumers",
-    title: "What Makes a Review Useful? The Complete 2025 Breakdown",
-    description:
-      "Clear, specific feedback helps others make better decisions and improves trust.",
-    image: "/brand/write a review.png",
-    postedAt: "2025-02-12",
-  },
-  {
-    category: "Trust & Safety",
-    title: "What Is a Verified Review? The Complete 2025 Guide",
-    description:
-      "Learn what verification means, how it works, and why verified reviews are the gold standard for trust.",
-    image: "/brand/Izabela.png",
-    postedAt: "2025-02-11",
-  },
-  {
-    category: "Platform Updates",
-    title: "Tellacity 2025 Platform Update: New Dashboards, Analytics & Mobile App Beta",
-    description:
-      "Redesigned dashboards, enhanced analytics, and the Mobile App Beta. Streamline your workflow and connect with customers like never before.",
-    image: "/brand/Tellacity Phone.png",
-    postedAt: "2025-02-13",
-  },
-  {
-    category: "For Consumers",
-    title: "How to Check If a Business Is Legit in 2026 (Before You Spend Your Money)",
-    description:
-      "A simple, practical guide to verifying whether a company is real, trustworthy, and worth your time before you spend.",
-    image: "/brand/first tellacity blog post.png",
-    postedAt: "2026-01-15",
-  },
-];
-
-const sortedPosts = [...posts].sort(
-  (a, b) => (b.postedAt as string).localeCompare(a.postedAt as string)
-);
+import {
+  BLOG_CATEGORIES,
+  featuredPost,
+  sortedPosts,
+  getPostHref,
+} from "./data";
 
 const POSTS_PER_PAGE = 9;
 
-function getPostHref(title: string): string {
-  const map: Record<string, string> = {
-    "How the Tellacity Trust Score Works in 2025": "/blog/trust-score-2025",
-    "Why Every Business Should Claim Its Tellacity Profile": "/blog/claim-tellacity-profile",
-    "Bringing Your Reviews to Tellacity: A Complete Import Guide": "/blog/import-reviews",
-    "The Most Common Online Shopping Scams and How to Avoid Them": "/blog/online-shopping-scams-2025",
-    "Shopping Online Safely in 2025: A Complete Consumer Guide": "/blog/shopping-online-safely-2025",
-    "How to Check If a Business Is Legit Before Buying in 2025": "/blog/check-business-legit-2025",
-    "What Is a Verified Review? The Complete 2025 Guide": "/blog/verified-review-2025",
-    "What Makes a Review Useful? The Complete 2025 Breakdown": "/blog/what-makes-a-review-useful-2025",
-    "Tellacity 2025 Platform Update: New Dashboards, Analytics & Mobile App Beta": "/blog/platform-update-2025",
-    "How to Check If a Business Is Legit in 2026 (Before You Spend Your Money)": "/blog/check-business-legit-2026",
-  };
-  return map[title] ?? "/blog";
+function buildBlogUrl(params: { page?: number; category?: string }): string {
+  const search = new URLSearchParams();
+  if (params.category && params.category !== "All")
+    search.set("category", params.category);
+  if (params.page != null && params.page > 1) search.set("page", String(params.page));
+  const q = search.toString();
+  return q ? `/blog?${q}` : "/blog";
 }
 
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams?: { page?: string };
+  searchParams?: { page?: string; category?: string };
 }) {
+  const category = searchParams?.category ?? null;
   const rawPage = searchParams?.page ?? "1";
   const page = Math.max(1, parseInt(rawPage, 10) || 1);
-  const totalPages = Math.ceil(sortedPosts.length / POSTS_PER_PAGE);
-  const currentPage = Math.min(page, totalPages);
-  const paginatedPosts = sortedPosts.slice(
+
+  const filteredPosts =
+    category && category !== "All"
+      ? sortedPosts.filter((post) => post.category === category)
+      : sortedPosts;
+
+  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const currentPage = Math.min(page, Math.max(1, totalPages));
+  const paginatedPosts = filteredPosts.slice(
     (currentPage - 1) * POSTS_PER_PAGE,
     currentPage * POSTS_PER_PAGE
   );
@@ -184,19 +86,23 @@ export default async function BlogPage({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
-            {categories.map((label, index) => (
-              <button
-                key={label}
-                type="button"
-                className={
-                  index === 0
-                    ? "rounded-full bg-[#0B3B36] px-4 py-2 font-semibold text-white"
-                    : "rounded-full border border-gray-200 px-4 py-2 font-semibold text-gray-600 hover:border-gray-300"
-                }
-              >
-                {label}
-              </button>
-            ))}
+            {BLOG_CATEGORIES.map((label) => {
+              const isActive =
+                label === "All" ? !category : category === label;
+              return (
+                <Link
+                  key={label}
+                  href={buildBlogUrl({ page: 1, category: label === "All" ? undefined : label })}
+                  className={`rounded-full border px-4 py-2 font-semibold transition-all duration-200 ${
+                    isActive
+                      ? "border-[#2fb2a8] bg-[#2fb2a8] text-white"
+                      : "border-gray-200 text-gray-600 hover:border-[#2fb2a8] hover:bg-[#2fb2a8]/10 hover:text-[#2fb2a8]"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
 
           <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex">
@@ -211,7 +117,7 @@ export default async function BlogPage({
                 {featuredPost.description}
               </p>
               <Link
-                href="/blog/trust-score-2025"
+                href={featuredPost.href}
                 className="mt-6 inline-flex items-center rounded-lg bg-[#0B3B36] px-4 py-2 text-sm font-semibold text-white"
               >
                 Read More
@@ -265,7 +171,10 @@ export default async function BlogPage({
             >
               {currentPage > 1 ? (
                 <Link
-                  href={`/blog?page=${currentPage - 1}`}
+                  href={buildBlogUrl({
+                    page: currentPage - 1,
+                    category: category ?? undefined,
+                  })}
                   className="rounded-md border border-gray-200 px-3 py-2 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                 >
                   Previous
@@ -278,7 +187,10 @@ export default async function BlogPage({
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <Link
                   key={n}
-                  href={`/blog?page=${n}`}
+                  href={buildBlogUrl({
+                    page: n,
+                    category: category ?? undefined,
+                  })}
                   className={`rounded-md border px-3 py-2 font-semibold ${
                     n === currentPage
                       ? "border-[#0B3B36] bg-[#0B3B36] text-white"
@@ -290,7 +202,10 @@ export default async function BlogPage({
               ))}
               {currentPage < totalPages ? (
                 <Link
-                  href={`/blog?page=${currentPage + 1}`}
+                  href={buildBlogUrl({
+                    page: currentPage + 1,
+                    category: category ?? undefined,
+                  })}
                   className="rounded-md border border-gray-200 px-3 py-2 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                 >
                   Next

@@ -74,15 +74,6 @@ type CategoryTrail = {
   categorySlug: string | null;
 };
 
-type SimilarBusiness = {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-  averageRating: number;
-  reviewCount: number;
-};
-
 const cleanDomain = (value: string | null | undefined) => {
   if (!value) {
     return "";
@@ -185,9 +176,6 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     counts: RatingCounts;
   } | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
-  const [similarBusinesses, setSimilarBusinesses] = useState<SimilarBusiness[]>(
-    []
-  );
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
 
@@ -353,49 +341,6 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       isMounted = false;
     };
   }, [business?.categorySlug, business?.categoryGroupName, business?.categoryName]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchSimilar = async () => {
-      if (!business?.categorySlug || !business?.id) {
-        setSimilarBusinesses([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("businesses")
-        .select(
-          "id, name, slug, logo_url, website_display, website, average_rating, review_count"
-        )
-        .eq("category_slug", business.categorySlug)
-        .neq("id", business.id)
-        .eq("status", "active")
-        .order("trust_score", { ascending: false, nullsFirst: false })
-        .limit(4);
-
-      if (!isMounted || error) {
-        return;
-      }
-
-      const mapped = (data ?? []).map((item) => ({
-        id: item.id,
-        name: item.name ?? "Business",
-        slug: item.slug ?? "",
-        logoUrl: normalizeLogoUrl(item.logo_url ?? null),
-        averageRating: Number(item.average_rating ?? 0),
-        reviewCount: Number(item.review_count ?? 0),
-      }));
-
-      setSimilarBusinesses(mapped);
-    };
-
-    fetchSimilar();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [business?.categorySlug, business?.id, activeCountry]);
 
   useEffect(() => {
     let isMounted = true;
@@ -996,50 +941,6 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                   </div>
                 </div>
               </div>
-
-              {similarBusinesses.length > 0 && (
-                <div className="rounded-2xl border border-gray-200 p-6">
-                  <h3 className="text-base font-semibold text-[#0E0E0E]">
-                    People also looked at
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {similarBusinesses.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/b/${item.slug}`}
-                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 hover:border-[#1FAF9E]"
-                      >
-                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
-                          {item.logoUrl ? (
-                            <img
-                              src={normalizeLogoUrl(item.logoUrl) ?? item.logoUrl}
-                              alt={`${item.name} logo`}
-                              className="h-full w-full object-contain"
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              onError={(event) => {
-                                event.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#0E0E0E]">
-                            {item.name}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <RatingStars rating={item.averageRating} size={10} />
-                            <span>
-                              {item.averageRating.toFixed(1)} •{" "}
-                              {item.reviewCount.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="mt-10">

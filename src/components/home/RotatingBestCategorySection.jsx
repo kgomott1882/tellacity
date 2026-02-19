@@ -179,8 +179,25 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
               <Link
                 key={`${business.slug ?? "business"}-${business.id ?? ""}`}
                 href={`/b/${business.slug}`}
-                className="flex flex-col rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const y = e.clientY - rect.top;
+                  e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+                  e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
+                }}
               >
+                <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <div
+                    className="absolute h-64 w-64 rounded-full bg-[#2fb2a8]/20 blur-3xl"
+                    style={{
+                      top: "var(--mouse-y)",
+                      left: "var(--mouse-x)",
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
+                </div>
                 <div className="flex items-start gap-3">
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#FCF7F6]">
                     {logoUrl && (
@@ -219,7 +236,7 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
                   </div>
                 </div>
                 <div className="mt-4 h-px w-full bg-gray-200" />
-                <div className="mt-4">
+                <div className="mt-4 flex justify-center">
                   <button
                     type="button"
                     onClick={(event) => {
@@ -233,9 +250,9 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
                         business.slug ?? ""
                       )}`;
                     }}
-                    className="inline-flex w-full items-center justify-center rounded-full border border-black/20 bg-[#F4EFEE] px-4 py-2 text-xs font-semibold text-black shadow-sm hover:shadow-md transition-shadow"
+                    className="inline-flex w-auto items-center justify-center rounded-full bg-black px-6 py-2 text-xs font-medium text-white shadow-md transition-all duration-200 hover:bg-[#111111] active:scale-95"
                   >
-                    Review this business
+                    Review
                   </button>
                 </div>
               </Link>

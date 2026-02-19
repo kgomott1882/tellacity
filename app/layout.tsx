@@ -5,6 +5,7 @@ import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
 import CookieConsentModal from "@/components/common/CookieConsentModal";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
+import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
 export const metadata = {
   icons: {
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <ScrollProgress />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
         <Suspense fallback={null}>

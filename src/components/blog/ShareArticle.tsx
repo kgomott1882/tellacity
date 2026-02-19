@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type ShareArticleProps = {
@@ -45,6 +46,7 @@ export default function ShareArticle({ title, path }: ShareArticleProps) {
   }, [path, url]);
 
   return (
+    <>
     <div className="border-t border-b border-gray-200 py-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm font-semibold text-[#0E0E0E]">Share this article</p>
@@ -101,5 +103,18 @@ export default function ShareArticle({ title, path }: ShareArticleProps) {
         </div>
       </div>
     </div>
+    <div className="mt-10 flex justify-center">
+      <Link
+        href="/blog"
+        className="inline-flex items-center gap-2 rounded-full border-2 border-[#2fb2a8] bg-white px-6 py-3 text-sm font-semibold text-[#2fb2a8] transition-colors hover:bg-[#2fb2a8] hover:text-white"
+      >
+        View more blog posts
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h14" />
+          <path d="M12 5l7 7-7 7" />
+        </svg>
+      </Link>
+    </div>
+    </>
   );
 }
