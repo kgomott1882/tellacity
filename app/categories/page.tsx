@@ -283,7 +283,7 @@ export default function CategoriesPage() {
               return (
               <div
                 key={group.id}
-                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+                className="rounded-xl border-2 border-black bg-white p-6 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">

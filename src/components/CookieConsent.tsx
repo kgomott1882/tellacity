@@ -62,7 +62,10 @@ export default function CookieConsent({ onClose }: any) {
           <div className="flex gap-3 pt-6">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                localStorage.setItem("tellacity_cookie_consent", "custom");
+                onClose();
+              }}
               className="flex-1 text-gray-600 hover:underline"
             >
               Reject Non-Essential
@@ -70,7 +73,10 @@ export default function CookieConsent({ onClose }: any) {
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                localStorage.setItem("tellacity_cookie_consent", "custom");
+                onClose();
+              }}
               className="flex-1 bg-[#124541] text-white py-3 rounded-xl shadow-md hover:bg-[#0f3a36] transition"
             >
               Save Preferences

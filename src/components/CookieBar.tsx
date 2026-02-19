@@ -4,8 +4,15 @@ import { useState, useEffect } from "react";
 import CookieConsent from "./CookieConsent";
 
 export default function CookieBar() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem("tellacity_cookie_consent");
+    if (!consent) {
+      setVisible(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (visible || showModal) {
@@ -20,6 +27,7 @@ export default function CookieBar() {
   }, [visible, showModal]);
 
   const closeAll = () => {
+    localStorage.setItem("tellacity_cookie_consent", "accepted");
     setShowModal(false);
     setVisible(false);
   };
