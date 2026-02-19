@@ -7,7 +7,13 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
+import { motion } from "framer-motion";
+import { FadeUp } from "@/components/ui/MotionWrapper";
 import { getActiveCountry } from "@/lib/getActiveCountry";
+import {
+  sortedPosts as blogSortedPosts,
+  getPostHref as getBlogPostHref,
+} from "@/app/blog/data";
 
 type HomeReview = {
   review_id: string;
@@ -50,7 +56,21 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const latestBlogPost = useMemo(() => {
+    const post = blogSortedPosts[0];
+    if (!post) return null;
+    return {
+      title: post.title,
+      description: post.description,
+      category: post.category,
+      href: getBlogPostHref(post.title),
+      imageSrc: post.image,
+      imageAlt: post.title,
+    };
+  }, []);
   const rotatingCategorySlugs = useMemo(
     () => [
       "banking",
@@ -680,12 +700,30 @@ export default function HomePage() {
         }}
       >
         <div className="mx-auto max-w-7xl px-6 py-24 text-center">
-          <h1 className="text-4xl font-semibold text-[#F9FAFB] sm:text-5xl">
+          <motion.h1
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.9,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="text-4xl font-semibold text-[#F9FAFB] md:text-5xl lg:text-[3.25rem]"
+          >
             Customer Feedback & Reviews
-          </h1>
-          <p className="mt-4 text-base text-[#E5E7EB] sm:text-lg">
-            Business insights built for a community that values transparency.
-          </p>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.9,
+              delay: 0.2,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="mt-4 text-base sm:text-lg !text-[#2fb2a8]/90 font-medium tracking-wide"
+          >
+            Business insights. Transparency at scale.
+          </motion.p>
+          <FadeUp delay={0.2}>
           <div className="mx-auto mt-10 w-full max-w-3xl">
             <BusinessSearchInput
               placeholder="Find businesses you can trust..."
@@ -700,10 +738,11 @@ export default function HomePage() {
               }}
             />
           </div>
+          </FadeUp>
           <div className="mt-6">
             <Link
               href="/write-review"
-              className="inline-flex items-center gap-2 rounded-full bg-[#124541] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(18,69,65,0.55)]"
+              className="relative inline-flex items-center gap-2 overflow-visible rounded-full bg-[#124541] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(18,69,65,0.55)] animate-glow-ring transition-all duration-300 hover:shadow-[0_0_25px_rgba(47,178,168,0.4)] active:scale-95"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -785,21 +824,32 @@ export default function HomePage() {
           </div>
         <div
           ref={categoryScrollRef}
-          className="mt-8 flex gap-6 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="mt-8 flex gap-6 overflow-x-hidden overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {visibleCategories.map((category) => (
-            <Link
+          {visibleCategories.map((category, index) => (
+            <motion.div
               key={category.id}
-              href={`/categories/${category.slug}`}
-              className="group flex min-w-[160px] flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center text-gray-600 shadow-sm transition-shadow hover:shadow-md"
+              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.6,
+                delay: index * 0.1,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              viewport={{ once: true, amount: 0.2 }}
             >
-              <span className="flex h-12 w-12 items-center justify-center text-gray-500">
-                {getCategoryIcon(category.name)}
-              </span>
-              <span className="text-sm font-medium text-[#0E0E0E]">
-                {category.name}
-              </span>
-            </Link>
+              <Link
+                href={`/categories/${category.slug}`}
+                className="group relative flex h-[120px] w-[160px] shrink-0 flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center text-gray-600 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] hover:border-[#2fb2a8]/40"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center text-gray-500">
+                  {getCategoryIcon(category.name)}
+                </span>
+                <span className="leading-tight text-sm font-medium text-[#0E0E0E]">
+                  {category.name}
+                </span>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -870,10 +920,11 @@ export default function HomePage() {
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {!isLoading &&
             visibleReviews.map((review) => (
-              <RecentReviewCard
-                key={review.review_id}
-                review={review}
-              />
+              <div key={review.review_id} className="transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl">
+                <RecentReviewCard
+                  review={review}
+                />
+              </div>
             ))}
         </div>
       </section>
@@ -897,33 +948,48 @@ export default function HomePage() {
           <div className="mt-10 grid gap-4 lg:grid-cols-2">
             {faqColumns.map((column, columnIndex) => (
               <div key={`faq-column-${columnIndex}`} className="flex flex-col gap-4">
-                {column.map((item) => (
-                  <details
-                    key={item.question}
-                    className="rounded-md border border-gray-200 bg-white"
-                  >
-                    <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-left text-sm font-medium text-[#0E0E0E] hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
-                      <span>{item.question}</span>
-                          <svg
-                            viewBox="0 0 24 24"
-                        className="h-4 w-4 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                        <path d="M6 9l6 6 6-6" />
-                          </svg>
-                    </summary>
-                    <div className="px-5 pb-4 text-sm text-gray-600">
-                      {item.answer}
+                {column.map((item) => {
+                  const isOpen = openFaqKey === item.question;
+                  return (
+                    <div
+                      key={item.question}
+                      className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#2fb2a8]/5 hover:border-[#2fb2a8] ${isOpen ? "shadow-md border-[#2fb2a8]" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenFaqKey((prev) =>
+                            prev === item.question ? null : item.question
+                          )
+                        }
+                        className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm font-medium text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
+                      >
+                        <span>{item.question}</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180 text-[#2fb2a8]" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </button>
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"}`}
+                      >
+                        <div className="px-5 pb-4 text-sm text-gray-600">
+                          {item.answer}
+                        </div>
+                      </div>
                     </div>
-                  </details>
-                ))}
-                  </div>
+                  );
+                })}
+              </div>
             ))}
-            </div>
+          </div>
 
           <div className="mt-10 flex justify-center">
             <Link
@@ -948,7 +1014,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white">
+      <motion.section
+        className="bg-white"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        viewport={{ once: true, amount: 0.2 }}
+      >
         <div className="mx-auto w-full max-w-7xl px-6 py-16">
           <div>
             <h2 className="text-3xl font-semibold text-[#0E0E0E]">
@@ -961,93 +1033,112 @@ export default function HomePage() {
               Insights, guides, and stories on building trust and growing your
               business.
             </p>
-                  </div>
-
-          <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div className="flex flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-                          <svg
-                            viewBox="0 0 24 24"
-                className="h-4 w-4 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.35-4.35" />
-                          </svg>
-              <input
-                type="text"
-                placeholder="Search articles..."
-                className="w-full border-0 bg-transparent text-sm text-[#0E0E0E] placeholder:text-gray-400 focus:outline-none"
-              />
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-[#0B3B36] px-6 text-sm font-semibold text-white"
+            <Link
+              href="/blog"
+              className="mt-3 inline-block text-sm font-semibold text-[#2fb2a8] hover:underline"
             >
-              Search
-                    </button>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
-            {[
-              "All",
-              "For Consumers",
-              "For Businesses",
-              "Trust & Safety",
-              "Platform Updates",
-              "Guides & Reports",
-            ].map((label, index) => (
-            <button
-                key={label}
-              type="button"
-                className={
-                  index === 0
-                    ? "rounded-full bg-[#0B3B36] px-4 py-2 font-semibold text-white"
-                    : "rounded-full border border-gray-200 px-4 py-2 font-semibold text-gray-600 hover:border-gray-300"
-                }
-              >
-                {label}
-            </button>
-            ))}
+              View all posts →
+            </Link>
           </div>
 
           <div className="mt-8">
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex">
-              <div className="flex-1 p-8">
-                <span className="inline-flex rounded-full bg-[#E6F6F1] px-3 py-1 text-xs font-semibold text-[#0B3B36]">
-                  For Businesses
-                </span>
-                <h3 className="mt-4 text-2xl font-semibold text-[#0E0E0E]">
-                  A Business Owner&apos;s Guide to Responding to Negative Reviews
-                  (2025 Guide)
-                </h3>
-                <p className="mt-3 text-sm text-gray-600">
-                  Learn how to professionally handle negative reviews, protect your
-                  reputation, and turn unhappy customers into loyal fans. This 2025
-                  guide shows business owners the best strategies for responding
-                  with confidence and empathy.
-                </p>
-                <Link
-                  href="/blog"
-                  className="mt-6 inline-flex items-center rounded-lg bg-[#0B3B36] px-4 py-2 text-sm font-semibold text-white"
+            {latestBlogPost && (
+            <div
+              key={latestBlogPost.title}
+              className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex"
+            >
+                <motion.div
+                  className="flex-1 p-8"
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true }}
+                  variants={{
+                    hidden: {},
+                    show: {
+                      transition: {
+                        staggerChildren: 0.12,
+                      },
+                    },
+                  }}
                 >
-                  Read More
-                </Link>
-              </div>
-              <div className="h-64 w-full bg-gray-100 lg:h-auto lg:w-[46%]">
-                <img
-                  src="/brand/Block%20Cover.png"
-                  alt="Blog feature cover"
-                  className="h-full w-full object-cover"
-                />
-              </div>
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6 },
+                      },
+                    }}
+                  >
+                    <span className="inline-flex rounded-full bg-[#E6F6F1] px-3 py-1 text-xs font-semibold text-[#0B3B36]">
+                      {latestBlogPost.category}
+                    </span>
+                  </motion.div>
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6 },
+                      },
+                    }}
+                  >
+                    <h3 className="mt-4 text-2xl font-semibold text-[#0E0E0E]">
+                      {latestBlogPost.title}
+                    </h3>
+                  </motion.div>
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6 },
+                      },
+                    }}
+                  >
+                    <p className="mt-3 text-sm text-gray-600">
+                      {latestBlogPost.description}
+                    </p>
+                  </motion.div>
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6 },
+                      },
+                    }}
+                  >
+                    <Link
+                      href={latestBlogPost.href}
+                      className="mt-6 inline-flex items-center rounded-lg bg-[#0B3B36] px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Read More
+                    </Link>
+                  </motion.div>
+                </motion.div>
+                <motion.div
+                  className="h-64 w-full bg-gray-100 lg:h-auto lg:w-[46%]"
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.9 }}
+                  viewport={{ once: true }}
+                >
+                  <img
+                    src={latestBlogPost.imageSrc}
+                    alt={latestBlogPost.imageAlt}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.div>
             </div>
+            )}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       <section className="bg-white">
         <div className="mx-auto w-full max-w-7xl px-6 pb-16">
@@ -1070,7 +1161,7 @@ export default function HomePage() {
             </div>
               <Link
                 href="/for-business"
-                className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white"
+                className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-1 active:scale-95"
               >
                 Get Started →
               </Link>
