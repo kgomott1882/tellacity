@@ -283,7 +283,8 @@ export default function CategoriesPage() {
               return (
               <div
                 key={group.id}
-                className="rounded-xl border-2 border-black bg-white p-6 shadow-sm"
+                className="rounded-xl border-2 bg-white p-6 shadow-sm"
+                style={{ borderColor: accentColor }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
