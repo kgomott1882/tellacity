@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function CookieConsent() {
+export default function CookieConsent({ onClose }: any) {
   const [open, setOpen] = useState(true);
   const [analytics, setAnalytics] = useState(true);
   const [functionality, setFunctionality] = useState(true);
@@ -17,7 +17,7 @@ export default function CookieConsent() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center"
+        className="fixed inset-0 flex items-end justify-center z-50"
       >
         <motion.div
           initial={{ y: 80 }}
@@ -67,13 +67,13 @@ export default function CookieConsent() {
 
           <div className="flex gap-3 pt-6">
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => onClose && onClose()}
               className="flex-1 text-gray-600 hover:underline"
             >
               Reject Non-Essential
             </button>
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => onClose && onClose()}
               className="flex-1 bg-[#124541] text-white py-3 rounded-xl shadow-md hover:scale-[1.02] transition"
             >
               Save Preferences
