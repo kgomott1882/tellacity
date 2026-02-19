@@ -4,7 +4,7 @@ import {
   featuredPost,
   sortedPosts,
   getPostHref,
-} from "./data";
+} from "@/app/blog/data";
 
 const POSTS_PER_PAGE = 9;
 
