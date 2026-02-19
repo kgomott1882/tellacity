@@ -763,8 +763,8 @@ export default function HomePage() {
 
       <RotatingBestCategorySection categorySlugs={rotatingCategorySlugs} />
 
-      <section className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-6 py-16">
+      <section className="bg-white overflow-visible">
+        <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-20">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-3xl font-semibold text-[#0E0E0E]">
@@ -773,9 +773,6 @@ export default function HomePage() {
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
             </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Browse trusted businesses by category
-              </p>
             </div>
           <div className="flex items-center gap-3">
               <div className="hidden items-center gap-2 sm:flex">
