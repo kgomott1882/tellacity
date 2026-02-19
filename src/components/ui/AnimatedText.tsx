@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 
 const container = {
   hidden: {},
@@ -11,11 +11,11 @@ const container = {
   },
 };
 
-const child = {
+const child: Variants = {
   hidden: {
     opacity: 0,
     y: 20,
-    filter: "blur(6px)",
+    filter: "blur(4px)",
   },
   visible: {
     opacity: 1,
@@ -23,7 +23,7 @@ const child = {
     filter: "blur(0px)",
     transition: {
       duration: 0.6,
-      ease: "easeOut",
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
     },
   },
 };
