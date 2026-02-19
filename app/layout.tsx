@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
-import CookieConsentModal from "@/components/common/CookieConsentModal";
+import CookieConsent from "@/components/CookieConsent";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
@@ -39,7 +39,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <ConditionalFooter />
         </Suspense>
-        <CookieConsentModal />
+        <CookieConsent />
         <AnalyticsGate />
       </body>
     </html>
