@@ -848,7 +848,11 @@ export default function PerformancePage() {
               </div>
               <div className="space-y-3">
                 {[5, 4, 3, 2, 1].map((star) => {
-                  const bucket = (dist[String(star)] ?? { count: 0, percent: 0 }) as { count: number; percent: number };
+                  const raw = dist[String(star)];
+                  const bucket =
+                    typeof raw === "object" && raw !== null
+                      ? (raw as { count: number; percent: number })
+                      : { count: 0, percent: 0 };
                   const count  = Number(bucket.count   ?? 0);
                   const pct    = Number(bucket.percent  ?? 0);
                   return (
