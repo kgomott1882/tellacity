@@ -68,13 +68,16 @@ export async function POST(request: Request) {
     }
 
     // Log event (non-blocking; ignore failures)
-    await supabase
-      .from("review_invite_events")
-      .insert({
-        invite_id: invite.id,
-        event_type: "opened",
-      })
-      .catch(() => {});
+    try {
+      await supabase
+        .from("review_invite_events")
+        .insert({
+          invite_id: invite.id,
+          event_type: "opened",
+        });
+    } catch {
+      // intentionally ignore tracking failure
+    }
 
     const businessName = (invite as { businesses?: { name?: string | null } | null }).businesses?.name ?? null;
     const businessSlug = (invite as { businesses?: { slug?: string | null } | null }).businesses?.slug ?? null;
