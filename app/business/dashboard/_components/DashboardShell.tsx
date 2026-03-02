@@ -12,6 +12,12 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 
 const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[] }> = {
+  "manage-reviews": {
+    title: "MANAGE REVIEWS",
+    items: [
+      { label: "Review Inbox", path: "/business/dashboard/manage-reviews" },
+    ],
+  },
   "get-reviews": {
     title: "GET REVIEWS",
     items: [
@@ -175,7 +181,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     } else if (pathname.includes("/settings")) {
       setActiveSection("settings");
     } else if (pathname.includes("/manage-reviews")) {
-      setActiveSection(null);
+      setActiveSection("manage-reviews");
     } else {
       // Default: highlight Analytics when landing on /business/dashboard
       setActiveSection("analytics");

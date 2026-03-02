@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { isAbortError } from "@/lib/authErrors";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function SignupPage() {
           const { data } = await supabaseBrowser.auth.getUser();
           user = data.user;
         } catch (e) {
-          if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
+          if (isAbortError(e)) {
             router.push("/dashboard");
             return;
           }

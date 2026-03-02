@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { isAbortError } from "@/lib/authErrors";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ResetPasswordPage() {
         const result = await supabaseBrowser.auth.getSession();
         sessionData = result.data;
       } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") {
+        if (isAbortError(e)) {
           if (isMounted) setReady(false);
           return;
         }

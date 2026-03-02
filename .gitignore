@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase temp
+supabase/.temp/
+
+# Cursor
+.cursor/
+
+# Next
+.next/
+.vercel/
+node_modules/
+
+# Env
+.env.local

@@ -32,8 +32,10 @@ const NAV_ITEMS = [
     label: "Manage reviews",
     icon: MessageSquare,
     key: "manage-reviews",
-    path: "/business/dashboard/manage-reviews",
-    items: null,
+    path: null,
+    items: [
+      { label: "Review Inbox", path: "/business/dashboard/manage-reviews" },
+    ],
   },
   {
     label: "Get reviews",
@@ -95,6 +97,7 @@ const NAV_ITEMS = [
 
 function sectionKeyFromPath(pathname: string) {
   if (pathname.includes("/analytics")) return "analytics";
+  if (pathname.includes("/manage-reviews")) return "manage-reviews";
   if (pathname.includes("/get-reviews")) return "get-reviews";
   if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets";
   if (pathname.includes("/share")) return "share";
