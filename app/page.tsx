@@ -10,6 +10,7 @@ import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
 import { getActiveCountry } from "@/lib/getActiveCountry";
+import { isAbortError } from "@/lib/authErrors";
 import {
   sortedPosts as blogSortedPosts,
   getPostHref as getBlogPostHref,
@@ -18,9 +19,11 @@ import {
 type HomeReview = {
   review_id: string;
   rating: number | null;
+  title?: string | null;
   body: string | null;
   created_at: string | null;
   guest_name: string | null;
+  reviewer_name?: string | null;
   business_name: string | null;
   business_slug: string | null;
   website: string | null;
@@ -51,11 +54,18 @@ export default function HomePage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [categoryCards, setCategoryCards] = useState<CategoryCard[]>([]);
-  const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>([]);
+  const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>(() =>
+    LOOKING_FOR_CATEGORIES.map(({ label, slug }) => ({ id: `static-${slug}`, name: label, slug }))
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("tellacity_country") ?? null;
+    }
+    return null;
+  });
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -195,33 +205,91 @@ export default function HomePage() {
     };
   }, []);
 
+  // Reviews: 1) home_feed_v1 view (optional), 2) fallback = reviews table + businesses (join). No RPC.
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
       const country = getActiveCountry();
       setIsLoading(true);
+      setError(null);
 
-      let query = supabaseBrowser
-        .from("home_feed_v1")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const runFallbackReviews = async (): Promise<boolean> => {
+        const { data: fallbackData, error: fallbackError } = await supabaseBrowser
+          .from("reviews")
+          .select(
+            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url)"
+          )
+          .or("status.is.null,status.eq.published")
+          .order("created_at", { ascending: false })
+          .limit(54);
 
-      if (country) {
-        query = query.eq("country_code", country);
+        if (!isMounted) return false;
+        if (fallbackError || !fallbackData || fallbackData.length === 0) return false;
+
+        const mapped: HomeReview[] = fallbackData.map((row: Record<string, unknown>) => {
+          const biz = row.businesses as { name?: string; slug?: string; website?: string; logo_url?: string } | null;
+          const guestName = (row.guest_name as string) ?? null;
+          return {
+            review_id: row.id as string,
+            rating: (row.rating as number) ?? null,
+            title: (row.title as string) ?? null,
+            body: (row.body as string) ?? null,
+            created_at: (row.created_at as string) ?? null,
+            guest_name: guestName,
+            business_name: biz?.name ?? null,
+            business_slug: biz?.slug ?? null,
+            website: biz?.website ?? null,
+            resolved_logo_url: biz?.logo_url ?? null,
+            reviewer_name: guestName,
+          };
+        });
+        setReviews(mapped);
+        return true;
+      };
+
+      try {
+        let data: HomeReview[] | null = null;
+        let err: unknown = null;
+
+        try {
+          let query = supabaseBrowser
+            .from("home_feed_v1")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (country) {
+            query = query.eq("country_code", country);
+          }
+
+          const result = await query.limit(54);
+          if (!isMounted) return;
+          err = result.error;
+          if (!result.error && result.data && result.data.length > 0) {
+            setReviews(result.data as HomeReview[]);
+            return;
+          }
+          data = (result.data ?? null) as HomeReview[] | null;
+        } catch (viewErr) {
+          if (!isMounted) return;
+          if (isAbortError(viewErr)) return;
+          const ok = await runFallbackReviews();
+          if (!ok) setError(viewErr instanceof Error ? viewErr.message : "Failed to load reviews.");
+          return;
+        }
+
+        const ok = await runFallbackReviews();
+        if (!ok && !err) setReviews(data ?? []);
+        if (err && !isAbortError(err)) setError((err as Error).message);
+      } catch (e) {
+        if (!isMounted) return;
+        if (!isAbortError(e)) {
+          const ok = await runFallbackReviews();
+          if (!ok) setError(e instanceof Error ? e.message : "Failed to load reviews.");
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
-
-      const { data, error } = await query.limit(54);
-
-      if (!isMounted) return;
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setReviews(data ?? []);
-      }
-
-      setIsLoading(false);
     };
 
     fetchData();
@@ -243,22 +311,26 @@ export default function HomePage() {
 
   useEffect(() => {
     let isMounted = true;
+    const staticFallback: CategoryCard[] = LOOKING_FOR_CATEGORIES.map(
+      ({ label, slug }) => ({ id: `static-${slug}`, name: label, slug })
+    );
 
     const fetchCategories = async () => {
-      const { data, error } = await supabaseBrowser
-        .from("categories")
-        .select("id, name, slug")
-        .order("name", { ascending: true });
+      try {
+        const { data, error } = await supabaseBrowser
+          .from("categories")
+          .select("id, name, slug")
+          .order("name", { ascending: true });
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      if (error) {
-        setCategoryCards([]);
-        setVisibleCategories([]);
-        return;
-      }
+        if (error) {
+          setCategoryCards(staticFallback);
+          setVisibleCategories(staticFallback);
+          return;
+        }
 
-      const items =
+        const items =
         (data as CategoryCard[] | null | undefined)?.filter(
           (item) => item.slug && item.name
         ) ?? [];
@@ -296,6 +368,12 @@ export default function HomePage() {
 
       setCategoryCards(ordered);
       setVisibleCategories(ordered);
+      } catch {
+        if (isMounted) {
+          setCategoryCards(staticFallback);
+          setVisibleCategories(staticFallback);
+        }
+      }
     };
 
     fetchCategories();
@@ -709,7 +787,14 @@ export default function HomePage() {
             }}
             className="text-4xl font-semibold text-[#F9FAFB] md:text-5xl lg:text-[3.25rem]"
           >
-            Customer Feedback & Reviews
+            Customer{" "}
+            <span className="group relative inline-block cursor-default">
+              <span className="relative z-[1]">Feedback &amp; Reviews</span>
+              <span
+                className="absolute left-0 right-0 bottom-[2px] h-[3px] origin-left scale-x-0 rounded-sm bg-[#5dd4cc] transition-transform duration-300 ease-out group-hover:scale-x-100"
+                aria-hidden
+              />
+            </span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -719,7 +804,7 @@ export default function HomePage() {
               delay: 0.2,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-4 text-base sm:text-lg !text-[#2fb2a8]/90 font-medium tracking-wide"
+            className="mt-4 text-base sm:text-lg text-[#F9FAFB] font-medium tracking-wide"
           >
             Business insights. Transparency at scale.
           </motion.p>
@@ -742,7 +827,7 @@ export default function HomePage() {
           <div className="mt-6">
             <Link
               href="/write-review"
-              className="relative inline-flex items-center gap-2 overflow-visible rounded-full bg-[#124541] px-6 py-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(18,69,65,0.55)] animate-glow-ring transition-all duration-300 hover:shadow-[0_0_25px_rgba(47,178,168,0.4)] active:scale-95"
+              className="relative inline-flex items-center gap-2 overflow-visible rounded-full bg-black px-6 py-3 text-sm font-semibold text-white shadow-[0_0_0_rgba(47,178,168,0)] transition-all duration-300 hover:bg-gray-900 hover:shadow-[0_0_20px_rgba(47,178,168,0.5),0_0_40px_rgba(47,178,168,0.25)] active:scale-95"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -761,7 +846,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <RotatingBestCategorySection categorySlugs={rotatingCategorySlugs} />
+      <RotatingBestCategorySection categorySlugs={rotatingCategorySlugs} selectedCountry={selectedCountry} />
 
       <section className="bg-white overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-20">
@@ -915,14 +1000,27 @@ export default function HomePage() {
                 </div>
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {!isLoading &&
+          {isLoading && (
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-64 rounded-xl border border-gray-200 bg-gray-50 animate-pulse" />
+              ))}
+            </>
+          )}
+          {!isLoading && visibleReviews.length > 0 &&
             visibleReviews.map((review) => (
               <div key={review.review_id} className="transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl">
                 <RecentReviewCard
                   review={review}
+                  showMoreAndReply={false}
                 />
               </div>
             ))}
+          {!isLoading && visibleReviews.length === 0 && !error && (
+            <p className="col-span-full text-center text-sm text-gray-500 py-8">
+              No reviews to show yet. Check back soon.
+            </p>
+          )}
         </div>
       </section>
 

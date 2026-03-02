@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-
-/** Supabase auth can throw AbortError when the Navigator Lock times out (e.g. multiple tabs). May be Error or DOMException. */
-function isAbortError(e: unknown): boolean {
-  if (e == null) return false;
-  const name = typeof (e as { name?: string }).name === "string" ? (e as { name: string }).name : "";
-  return name === "AbortError";
-}
+import { isAbortError } from "@/lib/authErrors";
 
 type BusinessAuthState = {
   user: { id: string; email?: string | null } | null;

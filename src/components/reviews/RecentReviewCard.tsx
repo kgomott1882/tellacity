@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Share2 } from "lucide-react";
+import { ChevronDown, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import RatingStars from "@/components/RatingStars";
@@ -15,8 +16,13 @@ import {
 } from "@/components/ui/popover";
 import ReviewShareMenu from "@/components/ReviewShareMenu";
 
+type BusinessReply = { body: string; createdAt: string };
+
 type RecentReviewCardProps = {
   review: any;
+  businessReplies?: BusinessReply[] | null;
+  /** Set false on landing page so reply/More is only on business profile. Default true. */
+  showMoreAndReply?: boolean;
   className?: string;
   isMobile?: boolean;
   bgColor?: string;
@@ -24,12 +30,19 @@ type RecentReviewCardProps = {
 
 export default function RecentReviewCard({
   review,
+  businessReplies,
+  showMoreAndReply = true,
   className,
   isMobile,
   bgColor,
 }: RecentReviewCardProps) {
   const router = useRouter();
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+
+  const hasReply = businessReplies && businessReplies.length > 0;
+  const firstReply = hasReply ? businessReplies[0] : null;
+  const showMoreSection = showMoreAndReply && (hasReply || review.review_id || review.id);
 
   const rating = review.rating || 0;
   const title = review.title;
@@ -174,11 +187,45 @@ export default function RecentReviewCard({
         <p
           className={cn(
             "text-sm text-slate-600 leading-relaxed",
-            isMobile ? "line-clamp-4" : "line-clamp-5"
+            !showMore && (isMobile ? "line-clamp-4" : "line-clamp-5")
           )}
         >
           {body}
         </p>
+
+        {showMoreSection && (
+          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+            {!showMore ? (
+              <button
+                type="button"
+                onClick={() => setShowMore(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-[#1FAF9E] hover:underline"
+              >
+                More <ChevronDown className="h-3 w-3" />
+              </button>
+            ) : (
+              <div className="space-y-2">
+                {firstReply && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="font-semibold text-sm text-gray-800">
+                      Reply from {businessName}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{firstReply.body}</p>
+                    <p className="mt-1 text-xs text-slate-400">{firstReply.createdAt}</p>
+                  </div>
+                )}
+                {reviewId && (
+                  <Link
+                    href={`/review/${reviewId}`}
+                    className="inline-block text-xs font-medium text-[#1FAF9E] hover:underline"
+                  >
+                    View full review →
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="h-px bg-slate-200" />

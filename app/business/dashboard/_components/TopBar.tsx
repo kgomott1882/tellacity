@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Info, LogOut, Settings, CreditCard, ChevronDown, X } from "lucide-react";
+import { Bell, Info, LogOut, Settings, CreditCard, RefreshCw } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { isAbortError } from "@/lib/authErrors";
 
 export default function TopBar() {
   const router = useRouter();
@@ -11,8 +12,15 @@ export default function TopBar() {
   const [userInitials, setUserInitials] = useState<string>("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const handleHardRefresh = () => {
+    setIsRefreshing(true);
+    // Ctrl+Shift+R equivalent: bypass cache and reload
+    window.location.reload();
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -29,7 +37,7 @@ export default function TopBar() {
             : null,
         };
       } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") return;
+        if (isAbortError(e)) return;
         throw e;
       }
       if (data?.user) {
@@ -109,18 +117,32 @@ export default function TopBar() {
   const displayName = user?.display_name || user?.email?.split("@")[0] || "User";
 
   return (
-    <div className="sticky top-0 z-10 bg-[#F8F4F0] border-b border-black/10">
-      <div className="h-16 flex items-center justify-end px-10 gap-4">
-        <button className="h-9 w-9 rounded-full hover:bg-black/5 flex items-center justify-center">
-          <Info size={18} className="text-black/70" />
+    <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+      <div className="h-16 flex items-center justify-end px-10 gap-3">
+        <button
+          type="button"
+          onClick={handleHardRefresh}
+          disabled={isRefreshing}
+          title="Hard refresh (Ctrl+Shift+R)"
+          className="inline-flex items-center gap-2 rounded-lg border-2 border-[#2fb2a8] bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-[#2fb2a8]/5 disabled:opacity-50 transition"
+        >
+          <RefreshCw
+            size={14}
+            className={`transition-transform duration-500 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </button>
+
+        <button className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center">
+          <Info size={18} className="text-gray-500" />
         </button>
 
         <div className="relative" ref={notificationsRef}>
           <button
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            className="h-9 w-9 rounded-full hover:bg-black/5 flex items-center justify-center relative"
+            className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center relative"
           >
-            <Bell size={18} className="text-black/70" />
+            <Bell size={18} className="text-gray-500" />
             <span className="absolute -top-0.5 -right-0.5 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
               6
             </span>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
+import { isAbortError } from "@/lib/authErrors";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type ReviewItem = {
@@ -57,7 +58,7 @@ export default function ConsumerDashboard() {
         const result = await supabaseBrowser.auth.getUser();
         data = result.data;
       } catch (e) {
-        if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
+        if (isAbortError(e)) {
           if (isMounted) {
             setLoadingUser(false);
             router.push("/auth/login");

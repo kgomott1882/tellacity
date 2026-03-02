@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../../../_components/SimplePage";
-
-export default function TimeDeliveryPage() {
-  return <SimplePage title="Time & delivery" />;
+export default function InviteTimeRedirect() {
+  redirect("/business/dashboard/settings/invite-settings");
 }

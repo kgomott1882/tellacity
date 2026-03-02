@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../../../_components/SimplePage";
-
-export default function BusinessUsersPage() {
-  return <SimplePage title="Users" />;
+export default function UsersRedirect() {
+  redirect("/business/dashboard/settings/team-access");
 }

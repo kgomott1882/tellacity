@@ -1,0 +1,300 @@
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
+import crypto from "crypto";
+import {
+  type PlanKey,
+  PLAN_INVITE_LIMITS,
+  getActivePlanKeyForBusiness,
+} from "@/lib/plans";
+import { getServerEnv } from "@/lib/serverEnv";
+import { renderInviteEmail } from "@/lib/inviteEmail";
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { businessId, recipientEmail, template: templateType } = body;
+
+    if (!businessId || !recipientEmail) {
+      return NextResponse.json(
+        { error: "Missing required fields." },
+        { status: 400 }
+      );
+    }
+
+    if (!/\S+@\S+\.\S+/.test(recipientEmail)) {
+      return NextResponse.json(
+        { error: "Invalid email format." },
+        { status: 400 }
+      );
+    }
+
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // ── Business lookup ──────────────────────────────────────────────────────
+    const { data: bizRecord, error: bizError } = await supabase
+      .from("businesses")
+      .select("id, name, owner_id")
+      .eq("id", businessId)
+      .maybeSingle();
+
+    if (bizError) {
+      console.error("Business lookup error:", bizError);
+      return NextResponse.json(
+        { error: "Failed to load business." },
+        { status: 500 }
+      );
+    }
+    if (!bizRecord) {
+      return NextResponse.json(
+        { error: "Business not found." },
+        { status: 400 }
+      );
+    }
+
+    // ── Plan + monthly limit check ───────────────────────────────────────────
+    const effectivePlan: PlanKey = await getActivePlanKeyForBusiness(
+      businessId,
+      supabase
+    );
+    const limit = PLAN_INVITE_LIMITS[effectivePlan] ?? 25;
+
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+
+    const { count: monthlyCount, error: countError } = await supabase
+      .from("review_invites")
+      .select("*", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .gte("created_at", startOfMonth.toISOString());
+
+    if (countError) {
+      console.error("Invite count error:", countError);
+      return NextResponse.json(
+        { error: "Failed to check invite usage." },
+        { status: 500 }
+      );
+    }
+
+    if ((monthlyCount ?? 0) >= limit) {
+      return NextResponse.json(
+        { error: "Monthly invite limit reached." },
+        { status: 403 }
+      );
+    }
+
+    // ── Load invite settings ─────────────────────────────────────────────────
+    const { data: inviteSettings } = await supabase
+      .from("business_invite_settings")
+      .select(
+        "send_delay_days, reminder_enabled, reminder_delay_days, custom_subject, custom_message, custom_signature, legal_footer_enabled"
+      )
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    const sendDelayDays: number = inviteSettings?.send_delay_days ?? 0;
+    const reminderEnabled: boolean = inviteSettings?.reminder_enabled ?? false;
+    const reminderDelayDays: number = inviteSettings?.reminder_delay_days ?? 3;
+
+    // ── Compute schedule timestamps ──────────────────────────────────────────
+    const now = new Date();
+
+    const sendAt = new Date(now);
+    sendAt.setUTCDate(sendAt.getUTCDate() + sendDelayDays);
+
+    let reminderAt: Date | null = null;
+    if (reminderEnabled) {
+      reminderAt = new Date(sendAt);
+      reminderAt.setUTCDate(reminderAt.getUTCDate() + reminderDelayDays);
+    }
+
+    const sendImmediately = sendDelayDays === 0;
+
+    // ── Insert invite row ────────────────────────────────────────────────────
+    const token = crypto.randomBytes(32).toString("hex");
+
+    const { data: insertedRow, error: insertError } = await supabase
+      .from("review_invites")
+      .insert({
+        business_id: businessId,
+        channel: "email",
+        recipient_email: recipientEmail,
+        token,
+        status: sendImmediately ? "draft" : "scheduled",
+        created_at: now.toISOString(),
+        send_at: sendAt.toISOString(),
+        reminder_at: reminderAt ? reminderAt.toISOString() : null,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (insertError) {
+      console.error("Insert invite error:", insertError);
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          { error: "This email has already been invited." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to create invite." },
+        { status: 500 }
+      );
+    }
+
+    const inviteId = (insertedRow as { id?: string } | null)?.id;
+    if (!inviteId) {
+      console.error("Invite insert returned no id.");
+      return NextResponse.json(
+        { error: "Internal server error." },
+        { status: 500 }
+      );
+    }
+
+    // ── If delayed, return early — cron worker will send later ───────────────
+    if (!sendImmediately) {
+      return NextResponse.json({
+        success: true,
+        scheduled: true,
+        sendAt: sendAt.toISOString(),
+        reminderAt: reminderAt ? reminderAt.toISOString() : null,
+      });
+    }
+
+    // ── Send immediately ─────────────────────────────────────────────────────
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof req.url === "string" ? new URL(req.url).origin : "");
+    const inviteLink = baseUrl
+      ? `${baseUrl.replace(/\/$/, "")}/review/invite?token=${encodeURIComponent(token)}`
+      : "#";
+
+    // Load email template (subject/body overrides from review_invite_email_templates)
+    const templateKey = templateType === "custom" ? "custom" : "standard";
+    const { data: template } = await supabase
+      .from("review_invite_email_templates")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("template_key", templateKey)
+      .maybeSingle();
+
+    let templateSubject: string | null = null;
+    let templateBody: string | null = null;
+
+    if (template?.subject) templateSubject = String(template.subject).trim() || null;
+    if (template?.body != null && String(template.body).trim())
+      templateBody = String(template.body).trim();
+
+    // Fallback to other template type if primary is empty
+    if (!templateSubject || !templateBody) {
+      const { data: fallbackRow } = await supabase
+        .from("review_invite_email_templates")
+        .select("subject, body")
+        .eq("business_id", businessId)
+        .eq("template_key", templateKey === "custom" ? "standard" : "custom")
+        .maybeSingle();
+      if (!templateSubject && fallbackRow?.subject)
+        templateSubject = String(fallbackRow.subject).trim() || null;
+      if (!templateBody && fallbackRow?.body != null && String(fallbackRow.body).trim())
+        templateBody = String(fallbackRow.body).trim();
+    }
+
+    // Build premium/elite signature block from template columns
+    const t = template as Record<string, unknown> | null;
+    const esc = (s: string | null | undefined) =>
+      s == null
+        ? ""
+        : String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+
+    let signatureBlock = "";
+    if (effectivePlan === "premium" || effectivePlan === "elite") {
+      signatureBlock = `
+  <div style="margin-top:32px; border-top:1px solid #eee; padding-top:16px;">
+    ${t?.signature_logo_url ? `<div style="margin-bottom:12px;"><img src="${esc(t.signature_logo_url as string)}" alt="" style="max-height:60px;" /></div>` : ""}
+    ${t?.signature_name ? `<strong>${esc(t.signature_name as string)}</strong><br/>` : ""}
+    ${t?.signature_title ? `${esc(t.signature_title as string)}<br/>` : ""}
+    ${t?.signature_phone ? `${esc(t.signature_phone as string)}<br/>` : ""}
+    ${t?.signature_website ? `<a href="${esc(t.signature_website as string)}" target="_blank" rel="noopener noreferrer">${esc(t.signature_website as string)}</a>` : ""}
+  </div>
+`;
+    }
+
+    // Render final email — invite settings overrides take priority over template
+    const { subject, html } = renderInviteEmail({
+      businessName: bizRecord.name ?? "",
+      inviteLink,
+      customSubject:       inviteSettings?.custom_subject   || templateSubject || null,
+      customMessage:       inviteSettings?.custom_message   || templateBody    || null,
+      customSignature:     inviteSettings?.custom_signature ?? null,
+      legalFooterEnabled:  inviteSettings?.legal_footer_enabled ?? false,
+      signatureBlock,
+      isReminder: false,
+    });
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is missing");
+      return NextResponse.json(
+        { error: "Internal server error." },
+        { status: 500 }
+      );
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    try {
+      const emailResponse = await resend.emails.send({
+        from: "Tellacity <notifications@tellacity.com>",
+        to: recipientEmail,
+        subject,
+        html,
+      });
+      if (emailResponse.error) {
+        console.error("Resend API error:", emailResponse.error);
+        await supabase
+          .from("review_invites")
+          .update({ last_send_error: String(emailResponse.error) })
+          .eq("id", inviteId);
+        return NextResponse.json(
+          { error: "Failed to send invite email." },
+          { status: 500 }
+        );
+      }
+    } catch (err) {
+      console.error("Resend send failed:", err);
+      await supabase
+        .from("review_invites")
+        .update({ last_send_error: String(err) })
+        .eq("id", inviteId);
+      return NextResponse.json(
+        { error: "Failed to send invite email." },
+        { status: 500 }
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from("review_invites")
+      .update({ status: "sent", sent_at: new Date().toISOString(), last_send_error: null })
+      .eq("id", inviteId);
+
+    if (updateError) {
+      console.error("Failed to mark invite as sent:", updateError);
+      // Email was sent; still return success
+    }
+
+    return NextResponse.json({ success: true, scheduled: false });
+  } catch (err: unknown) {
+    console.error("Unhandled invite error:", err);
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
+  }
+}

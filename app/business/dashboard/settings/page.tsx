@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../_components/SimplePage";
-
-export default function SettingsPage() {
-  return <SimplePage title="Settings Overview" />;
+export default function SettingsRoot() {
+  redirect("/business/dashboard/settings/business-profile");
 }

@@ -14,11 +14,23 @@ export const metadata = {
 };
 
 const abortErrorHandlerScript = `
-  window.addEventListener('unhandledrejection', function(e) {
-    if (e && e.reason != null && typeof e.reason === 'object' && e.reason.name === 'AbortError') {
-      e.preventDefault();
+  (function() {
+    function suppress(e) {
+      if (!e || !e.reason) return;
+      var r = e.reason;
+      if (r && typeof r === 'object') {
+        var name = r.name || (r.constructor && r.constructor.name);
+        var msg = typeof r.message === 'string' ? r.message : '';
+        if (name === 'AbortError' || msg.toLowerCase().indexOf('abort') !== -1 || msg === 'signal is aborted without reason') {
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }
+      return false;
     }
-  });
+    window.addEventListener('unhandledrejection', suppress, true);
+  })();
 `;
 
 export default function RootLayout({

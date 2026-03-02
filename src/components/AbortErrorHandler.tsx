@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isAbortError } from "@/lib/authErrors";
 
 /**
  * Catches AbortError from unhandled promise rejections (e.g. Supabase auth lock timeout).
@@ -9,9 +10,10 @@ import { useEffect } from "react";
 export default function AbortErrorHandler() {
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
-      const e = event?.reason;
-      if (e != null && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
+      const reason = event?.reason;
+      if (isAbortError(reason)) {
         event.preventDefault();
+        event.stopPropagation?.();
       }
     };
     window.addEventListener("unhandledrejection", handler);

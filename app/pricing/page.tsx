@@ -89,24 +89,33 @@ const plans: Plan[] = [
 const pricingButtonClass =
   "w-full mt-6 rounded-xl bg-black text-white py-3 font-semibold shadow-lg shadow-black/20 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 active:scale-95";
 
-const comparisonRows = [
-  ["Review invites/month", "25", "100", "500", "3,000"],
-  ["Email invites", "✓", "✓", "✓", "✓"],
-  ["Customisable email templates", "–", "✓", "✓", "✓"],
-  ["QR code reviews", "–", "✓", "✓", "✓"],
-  ["Photo reviews with proof", "–", "✓", "✓", "✓"],
-  ["On-site widget library", "Basic", "Standard", "Expanded", "Full + Custom CSS"],
-  ["Review & invite analytics", "Basic", "Standard", "Advanced", "Advanced + exports"],
-  ["Multi-location management", "–", "–", "✓", "✓"],
-  ["Notifications & alerts", "Basic", "Standard", "Team alerts", "Custom enterprise"],
-  ["Credibility & visibility", "Profile", "Verified Badge", "Premium Badge", "Featured placement"],
-  ["Team access", "1 User", "3 Users", "10 Users", "Unlimited (SSO)"],
-  ["API access", "–", "–", "Read-only", "Full Read/Write"],
-  ["Data exports", "–", "CSV", "CSV + JSON", "Scheduled auto-exports"],
-  ["White-label solution", "–", "–", "–", "✓"],
-  ["Strategic insights", "–", "–", "Sentiment", "Sentiment + Benchmarks"],
-  ["Integration connectors", "–", "3", "Unlimited", "Unlimited"],
-  ["Custom enterprise integrations", "–", "–", "–", "✓"],
+/** Feature row: [Feature label, Free, Grow, Premium, Elite] */
+type FeatureRow = [string, string, string, string, string];
+
+const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "feature"; row: FeatureRow }> = [
+  { type: "section", label: "COLLECT" },
+  { type: "feature", row: ["Review invitations / month", "25", "100", "500", "3,000"] },
+  { type: "feature", row: ["Email invites", "✓", "✓", "✓", "✓"] },
+  { type: "feature", row: ["Customisable email templates", "–", "✓", "✓", "✓"] },
+  { type: "feature", row: ["QR code reviews", "–", "✓", "✓", "✓"] },
+  { type: "feature", row: ["API access", "–", "–", "Read-only", "Full Read/Write"] },
+  { type: "section", label: "VERIFY" },
+  { type: "feature", row: ["Photo reviews with proof", "–", "✓", "✓", "✓"] },
+  { type: "feature", row: ["Credibility & visibility", "Profile", "Verified Badge", "Premium Badge", "Featured placement"] },
+  { type: "section", label: "MANAGE" },
+  { type: "feature", row: ["Multi-location management", "–", "–", "✓", "✓"] },
+  { type: "feature", row: ["Notifications & alerts", "Basic", "Standard", "Team alerts", "Custom enterprise"] },
+  { type: "feature", row: ["Team access", "1 User", "3 Users", "10 Users", "Unlimited (SSO)"] },
+  { type: "section", label: "SHOWCASE" },
+  { type: "feature", row: ["On-site widget library", "Basic", "Standard", "Expanded", "Full + Custom CSS"] },
+  { type: "feature", row: ["White-label solution", "–", "–", "–", "✓"] },
+  { type: "section", label: "UNDERSTAND" },
+  { type: "feature", row: ["Reviews & invite analytics", "Basic", "Standard", "Advanced", "Advanced + exports"] },
+  { type: "feature", row: ["Strategic insights", "–", "–", "Sentiment", "Sentiment + Benchmarks"] },
+  { type: "feature", row: ["Data exports", "–", "CSV", "CSV + JSON", "Scheduled auto-exports"] },
+  { type: "section", label: "INTEGRATE" },
+  { type: "feature", row: ["Integration connectors", "–", "3", "Unlimited", "Unlimited"] },
+  { type: "feature", row: ["Custom enterprise integrations", "–", "–", "–", "✓"] },
 ];
 
 const integrationLogos: Record<string, string> = {
@@ -596,24 +605,38 @@ export default function PricingPage() {
                 </tr>
               </thead>
               <tbody>
-                {comparisonRows.map((row) => (
-                  <motion.tr
-                    key={row[0]}
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.3 }}
-                    className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-[#0E0E0E] md:sticky md:left-0 bg-white">
-                      {row[0]}
-                    </td>
-                    <td className="px-4 py-3">{row[1]}</td>
-                    <td className="px-4 py-3">{row[2]}</td>
-                    <td className="px-4 py-3">{row[3]}</td>
-                    <td className="px-4 py-3">{row[4]}</td>
-                  </motion.tr>
-                ))}
+                {comparisonTableRows.map((item) =>
+                  item.type === "section" ? (
+                    <tr
+                      key={item.label}
+                      className="border-t border-gray-200 bg-gray-50"
+                    >
+                      <td
+                        colSpan={5}
+                        className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600"
+                      >
+                        {item.label}
+                      </td>
+                    </tr>
+                  ) : (
+                    <motion.tr
+                      key={item.row[0]}
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.3 }}
+                      className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-[#0E0E0E] md:sticky md:left-0 bg-white">
+                        {item.row[0]}
+                      </td>
+                      <td className="px-4 py-3">{item.row[1]}</td>
+                      <td className="px-4 py-3">{item.row[2]}</td>
+                      <td className="px-4 py-3">{item.row[3]}</td>
+                      <td className="px-4 py-3">{item.row[4]}</td>
+                    </motion.tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>

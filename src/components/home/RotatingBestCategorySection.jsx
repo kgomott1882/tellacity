@@ -15,12 +15,12 @@ const cleanDomain = (value) =>
 
 const DEFAULT_COUNTRY = "ZA";
 
-export default function RotatingBestCategorySection({ categorySlugs }) {
+export default function RotatingBestCategorySection({ categorySlugs, selectedCountry: selectedCountryProp }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [categoryName, setCategoryName] = useState("");
   const [businesses, setBusinesses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
+  const selectedCountry = selectedCountryProp ?? DEFAULT_COUNTRY;
   const categorySlug =
     categorySlugs && categorySlugs.length > 0
       ? categorySlugs[activeIndex % categorySlugs.length]
@@ -44,24 +44,6 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
   }, [categorySlugs]);
 
   useEffect(() => {
-    const readCountry = () => {
-      if (typeof window === "undefined") return;
-      const stored = window.localStorage.getItem("tellacity_country");
-      setSelectedCountry(stored || DEFAULT_COUNTRY);
-    };
-
-    readCountry();
-
-    window.addEventListener("storage", readCountry);
-    window.addEventListener("tellacity-country-change", readCountry);
-
-    return () => {
-      window.removeEventListener("storage", readCountry);
-      window.removeEventListener("tellacity-country-change", readCountry);
-    };
-  }, []);
-
-  useEffect(() => {
     let isMounted = true;
 
     const fetchCategory = async () => {
@@ -73,14 +55,17 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
       }
 
       setIsLoading(true);
-      const { data: categoryData } = await supabaseBrowser
-        .from("categories")
-        .select("name")
-        .eq("slug", categorySlug)
-        .single();
+      try {
+        const { data: categoryData } = await supabaseBrowser
+          .from("categories")
+          .select("name")
+          .eq("slug", categorySlug)
+          .single();
 
-      // Use canonical RPC for live category rankings and ratings.
-      const { data: businessRows, error: businessError } = await supabaseBrowser.rpc(
+      // Best-in: 1) RPC get_top_businesses_for_category_global (uses business_review_metrics_v), 2) fallback = businesses table by category_slug.
+      let businessRows = null;
+      let businessError = null;
+      const { data: rpcData, error: rpcError } = await supabaseBrowser.rpc(
         "get_top_businesses_for_category_global",
         {
           p_category_slug: categorySlug,
@@ -90,17 +75,44 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
           p_offset: 0,
         }
       );
+      businessRows = rpcData;
+      businessError = rpcError;
+
+      // Fallback: when RPC fails or returns empty, fetch businesses directly by category
+      if ((businessError || !businessRows || businessRows.length === 0) && isMounted) {
+        const { data: directRows } = await supabaseBrowser
+          .from("businesses")
+          .select("id, name, slug, website, website_display, logo_url")
+          .eq("status", "active")
+          .eq("category_slug", categorySlug)
+          .limit(8);
+
+        if (!isMounted) return;
+
+        if (directRows && directRows.length > 0) {
+          const enriched = directRows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            website: row.website ?? "",
+            website_display: row.website_display ?? row.website ?? "",
+            resolved_logo_url: (row.logo_url ?? "").toString().trim() || null,
+            trust_score: 0,
+            review_count: 0,
+          }));
+          setCategoryName(categoryData?.name ?? "");
+          setBusinesses(enriched);
+          return;
+        }
+      }
 
       if (!isMounted) return;
 
       if (businessError || !businessRows || businessRows.length === 0) {
         setCategoryName(categoryData?.name ?? "");
         setBusinesses([]);
-        setIsLoading(false);
         return;
       }
-
-      if (!isMounted) return;
 
       setCategoryName(categoryData?.name ?? "");
       const enriched = businessRows.slice(0, 8).map((row) => {
@@ -131,7 +143,14 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
       });
 
       setBusinesses(enriched);
-      setIsLoading(false);
+      } catch (_) {
+        if (isMounted) {
+          setCategoryName(categorySlug?.replace(/-/g, " ") ?? "");
+          setBusinesses([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
     };
 
     fetchCategory();
@@ -141,7 +160,53 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
     };
   }, [categorySlug, selectedCountry]);
 
-  if (isLoading || businesses.length === 0 || !categoryName) {
+  const categoryDisplayName = categoryName || categorySlug?.replace(/-/g, " ") || "category";
+
+  if (isLoading) {
+    return (
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-16">
+          <div className="flex items-center justify-between">
+            <div className="h-9 w-48 rounded bg-gray-200 animate-pulse" />
+            <div className="h-8 w-24 rounded bg-gray-100 animate-pulse" />
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-40 rounded-2xl border border-gray-100 bg-gray-50 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (businesses.length === 0 && categorySlug) {
+    return (
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-16">
+          <div className="flex items-center justify-between">
+            <h2 className="text-3xl font-semibold text-[#0E0E0E]">
+              <span className="relative inline-block">
+                <span className="relative z-10">Best in {categoryDisplayName}</span>
+                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+              </span>
+            </h2>
+            <Link
+              href={`/categories/${categorySlug}`}
+              className="text-sm font-semibold text-[#1FAF9E]"
+            >
+              View all →
+            </Link>
+          </div>
+          <p className="mt-8 text-sm text-gray-500">
+            No businesses in this category yet. Check back soon.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (businesses.length === 0) {
     return null;
   }
 
@@ -250,7 +315,7 @@ export default function RotatingBestCategorySection({ categorySlugs }) {
                         business.slug ?? ""
                       )}`;
                     }}
-                    className="inline-flex w-auto items-center justify-center rounded-full bg-black px-6 py-2 text-xs font-medium text-white shadow-md transition-all duration-200 hover:bg-[#111111] active:scale-95"
+                    className="inline-flex w-auto items-center justify-center rounded-full bg-black px-6 py-2 text-xs font-medium text-white shadow-[0_0_0_rgba(249,115,22,0)] transition-all duration-200 hover:bg-[#111111] hover:shadow-[0_0_16px_rgba(249,115,22,0.5),0_0_32px_rgba(249,115,22,0.25)] active:scale-95"
                   >
                     Review
                   </button>

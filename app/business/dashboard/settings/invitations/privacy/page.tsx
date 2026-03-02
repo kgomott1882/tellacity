@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../../../_components/SimplePage";
-
-export default function ConsumerPrivacyPage() {
-  return <SimplePage title="Consumer privacy" />;
+export default function InvitePrivacyRedirect() {
+  redirect("/business/dashboard/settings/invite-settings");
 }

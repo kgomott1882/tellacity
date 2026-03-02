@@ -216,6 +216,7 @@ export default function ImportLocationsPage() {
     return (
       <div>
         <h1 className="text-2xl font-semibold text-[#0E0E0E]">Import multiple locations</h1>
+        <p className="mt-2 text-sm text-gray-500">Manage your business profile and trust configuration.</p>
         <p className="mt-2 text-sm text-gray-600">Select a business from the sidebar first.</p>
         <Link href={locationsHref} className="mt-4 inline-block text-sm font-medium text-[#124541] hover:underline">
           Back to Locations
@@ -236,6 +237,7 @@ export default function ImportLocationsPage() {
       </nav>
 
       <h1 className="mt-4 text-2xl font-semibold text-[#0E0E0E]">Import multiple locations</h1>
+      <p className="mt-2 text-sm text-gray-500">Manage your business profile and trust configuration.</p>
 
       {message && (
         <div

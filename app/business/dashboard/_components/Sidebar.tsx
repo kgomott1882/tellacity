@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import {
-  Home,
   MessageSquare,
   Send,
   Share2,
@@ -11,109 +10,96 @@ import {
   Plug,
   Settings,
   ChevronRight,
+  LayoutTemplate,
 } from "lucide-react";
 
 import NavItem from "./NavItem";
 import BusinessSwitcher from "./BusinessSwitcher";
+import { useBusinessContext } from "../_context/BusinessContext";
 
-const NAV = {
-  top: [
-    { label: "Home", icon: Home, path: "/business/dashboard" },
-    { label: "Manage reviews", icon: MessageSquare, path: "/business/dashboard/manage-reviews" },
-  ],
-  sections: [
-    {
-      label: "Get reviews",
-      icon: Send,
-      key: "get-reviews",
-      items: [
-        { label: "Overview", path: "/business/dashboard/get-reviews/overview" },
-        { label: "Invitation methods", path: "/business/dashboard/get-reviews/invitation-methods" },
-        { label: "Email templates", path: "/business/dashboard/get-reviews/email-templates" },
-        { label: "Invitation status", path: "/business/dashboard/get-reviews/invitation-status" },
-      ],
-    },
-    {
-      label: "Share & promote",
-      icon: Share2,
-      key: "share",
-      items: [
-        { label: "Website widgets", path: "/business/dashboard/share/widgets" },
-        { label: "Email widgets", path: "/business/dashboard/share/email" },
-        { label: "Social", path: "/business/dashboard/share/social" },
-        { label: "Marketing assets", path: "/business/dashboard/share/assets" },
-      ],
-    },
-    {
-      label: "Analytics",
-      icon: BarChart2,
-      key: "analytics",
-      items: [
-        { label: "Performance", path: "/business/dashboard/analytics/performance" },
-        { label: "Review insights", path: "/business/dashboard/analytics/reviews" },
-        { label: "Engagement", path: "/business/dashboard/analytics/engagement" },
-      ],
-    },
-    {
-      label: "Integrations",
-      icon: Plug,
-      key: "integrations",
-      items: [
-        { label: "Ecommerce", path: "/business/dashboard/integrations/ecommerce" },
-        { label: "Payment & CRM", path: "/business/dashboard/integrations/payments" },
-        { label: "Developers", path: "/business/dashboard/integrations/dev" },
-        { label: "Marketing", path: "/business/dashboard/integrations/marketing" },
-        { label: "Customer support", path: "/business/dashboard/integrations/support" },
-      ],
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      key: "settings",
-      groups: [
-        {
-          title: "Invitation settings",
-          items: [
-            { label: "Email settings", path: "/business/dashboard/settings/invitations/email" },
-            { label: "Time & delivery", path: "/business/dashboard/settings/invitations/time" },
-            { label: "Legal notice", path: "/business/dashboard/settings/invitations/legal" },
-            { label: "Consumer privacy", path: "/business/dashboard/settings/invitations/privacy" },
-          ],
-        },
-        {
-          title: "Business settings",
-          items: [
-            { label: "Users", path: "/business/dashboard/settings/business/users" },
-            { label: "Data consent", path: "/business/dashboard/settings/business/consent" },
-          ],
-        },
-        {
-          title: "Public profile settings",
-          items: [
-            { label: "Profile page", path: "/business/dashboard/settings/public/profile" },
-            { label: "Categories", path: "/business/dashboard/settings/public/categories" },
-            { label: "Locations", path: "/business/dashboard/settings/public/locations" },
-            { label: "Reference number", path: "/business/dashboard/settings/public/reference" },
-          ],
-        },
-        {
-          title: "Personal settings",
-          items: [
-            { label: "My details", path: "/business/dashboard/settings/personal/details" },
-            { label: "Email notifications", path: "/business/dashboard/settings/personal/notifications" },
-          ],
-        },
-      ],
-    },
-  ],
-};
+// Single flat array — rendered in this exact order, no splits
+const NAV_ITEMS = [
+  {
+    label: "Analytics",
+    icon: BarChart2,
+    key: "analytics",
+    path: null,
+    items: [
+      { label: "Performance", path: "/business/dashboard/analytics/performance" },
+    ],
+  },
+  {
+    label: "Manage reviews",
+    icon: MessageSquare,
+    key: "manage-reviews",
+    path: "/business/dashboard/manage-reviews",
+    items: null,
+  },
+  {
+    label: "Get reviews",
+    icon: Send,
+    key: "get-reviews",
+    path: null,
+    items: [
+      { label: "Overview", path: "/business/dashboard/get-reviews/overview" },
+      { label: "Send Invitations", path: "/business/dashboard/get-reviews/invitation-methods" },
+      { label: "Email templates", path: "/business/dashboard/get-reviews/email-templates" },
+    ],
+  },
+  {
+    label: "Widgets",
+    icon: LayoutTemplate,
+    key: "widgets",
+    path: null,
+    items: [
+      { label: "Website widgets", path: "/business/dashboard/share/widgets" },
+      { label: "Email widgets",   path: "/business/dashboard/share/email" },
+    ],
+  },
+  {
+    label: "Promote Reviews",
+    icon: Share2,
+    key: "share",
+    path: null,
+    items: [
+      { label: "Social", path: "/business/dashboard/share/social" },
+    ],
+  },
+  {
+    label: "Integrations",
+    icon: Plug,
+    key: "integrations",
+    path: null,
+    items: [
+      { label: "Ecommerce", path: "/business/dashboard/integrations/ecommerce" },
+      { label: "Payment & CRM", path: "/business/dashboard/integrations/payments" },
+      { label: "Developers", path: "/business/dashboard/integrations/dev" },
+      { label: "Marketing", path: "/business/dashboard/integrations/marketing" },
+      { label: "Customer support", path: "/business/dashboard/integrations/support" },
+    ],
+  },
+  {
+    label: "Settings",
+    icon: Settings,
+    key: "settings",
+    path: null,
+    items: [
+      { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
+      { label: "Invite Settings",  path: "/business/dashboard/settings/invite-settings" },
+      { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
+      { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
+      { label: "Account",          path: "/business/dashboard/settings/account" },
+    ],
+  },
+];
 
 function sectionKeyFromPath(pathname: string) {
-  if (pathname.includes("/get-reviews/")) return "get-reviews";
-  if (pathname.includes("/share/")) return "share";
-  if (pathname.includes("/analytics/")) return "analytics";
-  if (pathname.includes("/integrations/")) return "integrations";
-  if (pathname.includes("/settings/")) return "settings";
+  if (pathname.includes("/analytics")) return "analytics";
+  if (pathname.includes("/get-reviews")) return "get-reviews";
+  if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets";
+  if (pathname.includes("/share")) return "share";
+  if (pathname.includes("/integrations")) return "integrations";
+  if (pathname.includes("/settings")) return "settings";
   return "";
 }
 
@@ -128,6 +114,8 @@ export default function Sidebar({
   onSectionSelect?: (key: string | null) => void;
   activeSection?: string | null;
 }) {
+  const { bumpNavRefresh, setPageLoading } = useBusinessContext() as any;
+
   useEffect(() => {
     const key = sectionKeyFromPath(pathname);
     if (key && onSectionSelect) {
@@ -141,6 +129,12 @@ export default function Sidebar({
         onSectionSelect(activeSection === key ? null : key);
       }
     }
+  };
+
+  const handleTopNavClick = (itemPath: string) => {
+    setPageLoading(true);
+    bumpNavRefresh();
+    setTimeout(() => setPageLoading(false), 600);
   };
 
   return (
@@ -162,56 +156,41 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 px-3 space-y-1 text-sm overflow-y-auto flex flex-col">
-        {NAV.top.map((item) => {
-          const isActive = pathname === item.path;
-          return (
-            <NavItem
-              key={item.path}
-              href={item.path}
-              icon={<item.icon size={18} />}
-              label={item.label}
-              active={isActive}
-            />
-          );
-        })}
-
-        <div className="h-3" />
-
-        {NAV.sections.map((section: any) => {
-          const isActive = activeSection === section.key;
-          const hasItems = !!(section.items || section.groups);
-
-          // For sections with items, clicking toggles the secondary sidebar
-          if (hasItems) {
+        {NAV_ITEMS.map((item) => {
+          // Direct-link item (no sub-panel)
+          if (item.path) {
+            const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
             return (
-              <button
-                key={section.key}
-                onClick={() => handleSectionClick(section.key, true)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition text-left ${
-                  isActive
-                    ? "bg-[#124541] text-white"
-                    : "text-white/90 hover:bg-white/10"
-                }`}
-              >
-                <section.icon size={18} />
-                <span className="flex-1">{section.label}</span>
-                <ChevronRight
-                  size={16}
-                  className={`transition-transform ${isActive ? "rotate-90" : ""}`}
-                />
-              </button>
+              <NavItem
+                key={item.key}
+                href={item.path}
+                icon={<item.icon size={18} />}
+                label={item.label}
+                active={isActive}
+                onClick={() => handleTopNavClick(item.path!)}
+              />
             );
           }
 
-          // Fallback for sections without items (shouldn't happen in our NAV structure)
+          // Section item — clicking opens secondary sidebar
+          const isActive = activeSection === item.key;
           return (
-            <NavItem
-              key={section.key}
-              href={`/business/dashboard/${section.key}`}
-              icon={<section.icon size={18} />}
-              label={section.label}
-              active={pathname?.includes(`/${section.key}`)}
-            />
+            <button
+              key={item.key}
+              onClick={() => handleSectionClick(item.key, true)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition text-left ${
+                isActive
+                  ? "bg-[#124541] text-white"
+                  : "text-white/90 hover:bg-white/10"
+              }`}
+            >
+              <item.icon size={18} />
+              <span className="flex-1">{item.label}</span>
+              <ChevronRight
+                size={16}
+                className={`transition-transform ${isActive ? "rotate-90" : ""}`}
+              />
+            </button>
           );
         })}
       </nav>

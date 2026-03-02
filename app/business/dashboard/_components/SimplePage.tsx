@@ -10,7 +10,7 @@ export default function SimplePage({
   return (
     <div>
       <h1 className="text-2xl font-semibold">{title}</h1>
-      {subtitle ? <p className="mt-2 text-black/60">{subtitle}</p> : null}
+      {subtitle ? <p className="mt-2 text-sm text-gray-500">{subtitle}</p> : null}
     </div>
   );
 }

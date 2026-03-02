@@ -1,155 +1,184 @@
 import Link from "next/link";
+import ForBusinessMotionSection from "./ForBusinessMotionSection";
+import AnimatedLine from "./AnimatedLine";
+import DashboardMock from "@/components/for-business/DashboardMock";
+import ReviewFlowGraphic from "@/components/for-business/ReviewFlowGraphic";
+import ReviewFlowSteps from "@/components/for-business/ReviewFlowSteps";
 
 export default function ForBusinessPage() {
   return (
     <main className="bg-white">
-      {/* HERO */}
-      <section className="mx-auto w-full max-w-7xl px-6 py-16">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold text-[#0E0E0E] sm:text-5xl">
-            <span className="relative inline-block">
-              <span className="relative z-10">
-                Your Reputation Is Your Strongest Growth Channel
-              </span>
-              <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-            </span>
-          </h1>
-          <p className="mt-4 text-base text-gray-600">
-            Turn authentic customer feedback into trust, credibility, and
-            consistent growth — with a platform built to showcase what customers
-            really think.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/business/signup"
-              className="inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786]"
-            >
-              Get Started for Free
-            </Link>
-            <Link
-              href="/for-business#pricing"
-              className="inline-flex items-center justify-center rounded-full border border-[#1FAF9E] px-6 py-3 text-sm font-semibold text-[#1FAF9E]"
-            >
-              View Pricing
-            </Link>
+      {/* HERO: dark hero, reference structure */}
+      <section className="w-full bg-[#1a1a1a]">
+        <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
+          <div className="grid gap-10 md:grid-cols-2 md:items-center">
+            {/* Left: sub-heading, headline, description, CTA */}
+            <div className="max-w-xl">
+              <p className="text-sm font-medium uppercase tracking-wider text-gray-400">
+                Reputation &amp; Reviews
+              </p>
+              <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                <span className="block text-white">Your Reputation Is</span>
+                <span className="block text-white">Your Strongest</span>
+                <span className="block text-[#1FAF9E]">Growth Channel</span>
+              </h1>
+              <p className="mt-4 text-base leading-relaxed text-gray-300">
+                Turn customer feedback into actionable insights and powerful
+                marketing assets. Join thousands of businesses growing with
+                Tellacity.
+              </p>
+              <div className="mt-8">
+                <Link
+                  href="/business/signup"
+                  className="inline-flex items-center justify-center rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_0_rgba(31,175,158,0)] transition-all duration-300 hover:bg-gray-800 hover:shadow-[0_0_20px_rgba(31,175,158,0.5),0_0_40px_rgba(31,175,158,0.25)] active:scale-[0.98]"
+                >
+                  Claim Free Profile
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: FEATURE HERO image (review card + profile card) */}
+            <div className="relative flex items-center justify-center min-h-[320px] md:min-h-[380px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/FEATURE%20HERO.png"
+                alt="Tellacity review and profile cards"
+                className="max-h-[320px] w-auto object-contain md:max-h-[380px]"
+              />
+            </div>
+          </div>
+        </ForBusinessMotionSection>
+      </section>
+
+      <section className="border-y border-gray-100 bg-[#F8FAFC]">
+        <div className="mx-auto w-full max-w-7xl px-6 py-8">
+          <div className="grid gap-6 text-center md:grid-cols-4 md:text-left">
+            <div>
+              <p className="text-lg font-semibold text-[#0E0E0E]">
+                Verified Reviews Only
+              </p>
+              <p className="text-sm text-gray-500">
+                Real customer experiences. No anonymous noise.
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-[#0E0E0E]">
+                No Pay-to-Hide Reviews
+              </p>
+              <p className="text-sm text-gray-500">
+                Fair for businesses. Fair for customers.
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-[#0E0E0E]">
+                Right of Reply
+              </p>
+              <p className="text-sm text-gray-500">
+                Businesses respond. Reviews aren’t erased.
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-[#0E0E0E]">
+                Built for Long-Term Trust
+              </p>
+              <p className="text-sm text-gray-500">
+                Reputation that compounds over time.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* EVERYTHING YOU NEED */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="grid gap-8 md:grid-cols-2 md:items-center">
-          <div className="max-w-3xl">
-            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-              <span className="relative inline-block">
-                <span className="relative z-10">
-                  Everything You Need to Scale Trust
+      {/* EVERYTHING YOU NEED — single card with border #124541, shadow, luminous animation */}
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
+        <div
+          className="overflow-hidden rounded-3xl border-2 bg-white p-8 shadow-[0_25px_50px_-12px_rgba(18,69,65,0.25)] animate-card-luminate"
+          style={{ borderColor: "#124541" }}
+        >
+          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+            <div className="max-w-3xl">
+              <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+                <span className="relative inline-block">
+                  <span className="relative z-10">
+                    Everything You Need to Scale Trust
+                  </span>
+                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
-                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-              </span>
-            </h2>
-            <p className="mt-3 text-sm text-gray-600">
-              Everything you need to collect, manage, and showcase customer
-              feedback — designed to build trust at every customer touchpoint.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-            <svg
-              viewBox="0 0 640 400"
-              className="h-full w-full"
-              role="img"
-              aria-hidden="true"
-            >
-              <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-              <rect x="48" y="56" width="220" height="120" rx="16" fill="#E5E7EB" />
-              <rect x="292" y="56" width="300" height="120" rx="16" fill="#EEF2F7" />
-              <rect x="48" y="200" width="544" height="144" rx="20" fill="#FFFFFF" />
-              <circle cx="88" cy="92" r="10" fill="#CBD5F5" />
-              <circle cx="120" cy="92" r="10" fill="#C7EFD9" />
-              <circle cx="152" cy="92" r="10" fill="#FADBB4" />
-              <path
-                d="M88 304c44-40 92-52 144-36 52 16 86 14 128-10 42-24 86-28 136-12"
-                fill="none"
-                stroke="#1FAF9E"
-                strokeWidth="8"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-        </div>
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Automated Review Invites",
-              copy: "Send timely invites that make it easy for customers to share feedback.",
-            },
-            {
-              title: "Verified Reviews",
-              copy: "Build credibility with reviews tied to real customer experiences.",
-            },
-            {
-              title: "Review Management",
-              copy: "Keep all feedback organized so you can respond with clarity.",
-            },
-            {
-              title: "Social Proof Widgets",
-              copy: "Show verified feedback where it matters most to shoppers.",
-            },
-            {
-              title: "Insights & Analytics",
-              copy: "Understand trends and improve the moments that shape trust.",
-            },
-            {
-              title: "Business Profiles",
-              copy: "Present a trusted, complete snapshot of your reputation.",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="rounded-2xl border border-gray-200 bg-white p-6"
-            >
-              <p className="text-base font-semibold text-[#0E0E0E]">
-                {item.title}
+              </h2>
+              <p className="mt-3 text-sm text-gray-600">
+                Everything you need to collect, manage, and showcase customer
+                feedback, designed to build trust at every customer touchpoint.
               </p>
-              <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
             </div>
-          ))}
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/TWO%20PPL.png"
+                alt="Scale trust with customer feedback"
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            {[
+              {
+                title: "Automated Review Collection",
+                copy: "Collect verified customer feedback through email, QR codes, and automated workflows.",
+              },
+              {
+                title: "Verified & Credible Feedback",
+                copy: "Ensure feedback is attributable, accountable, and aligned with transparent moderation standards.",
+              },
+              {
+                title: "Reputation Management",
+                copy: "Monitor, respond to, and manage customer reviews across your business.",
+              },
+              {
+                title: "Trust Distribution Widgets",
+                copy: "Showcase verified feedback across your website and marketing channels.",
+              },
+              {
+                title: "Performance & Insight Analytics",
+                copy: "Understand trends, performance, and feedback patterns in one central dashboard.",
+              },
+              {
+                title: "Business Profile Infrastructure",
+                copy: "Maintain a structured public business profile that supports long-term trust.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95"
+              >
+                <p className="text-base font-semibold text-[#0E0E0E]">
+                  {item.title}
+                </p>
+                <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
+      </ForBusinessMotionSection>
 
       {/* DIFFERENT */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div className="order-2 md:order-1">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-                <svg
-                  viewBox="0 0 640 400"
-                  className="h-full w-full"
-                  role="img"
-                  aria-hidden="true"
-                >
-                  <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-                  <rect x="84" y="96" width="120" height="72" rx="16" fill="#E5E7EB" />
-                  <rect x="260" y="96" width="120" height="72" rx="16" fill="#E5E7EB" />
-                  <rect x="436" y="96" width="120" height="72" rx="16" fill="#E5E7EB" />
-                  <circle cx="144" cy="232" r="18" fill="#1FAF9E" opacity="0.7" />
-                  <circle cx="320" cy="232" r="18" fill="#1FAF9E" opacity="0.7" />
-                  <circle cx="496" cy="232" r="18" fill="#1FAF9E" opacity="0.7" />
-                  <path
-                    d="M162 232h140M338 232h140"
-                    stroke="#94A3B8"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                  />
-                </svg>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/Block%20Cover.png"
+                  alt="Fair, transparent feedback"
+                  className="h-full w-full object-contain"
+                />
               </div>
             </div>
             <div className="order-1 md:order-2">
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">
                 <span className="relative inline-block">
                   <span className="relative z-10">
-                    Built for Fair, Transparent Feedback — Not Review Blackmail
+                    Built for Fair, Transparent Feedback, Not Review Blackmail
                   </span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
@@ -172,11 +201,12 @@ export default function ForBusinessPage() {
             </div>
           </div>
         </div>
-      </section>
+      </ForBusinessMotionSection>
 
-      {/* CONVERT */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
+      {/* CONVERT + REVIEW FLOW: combined in one card */}
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
+          {/* Convert Visitors Into Customers */}
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div>
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">
@@ -194,52 +224,21 @@ export default function ForBusinessPage() {
                 <li>Strengthen credibility across every touchpoint</li>
               </ul>
             </div>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-              <svg
-                viewBox="0 0 640 400"
-                className="h-full w-full"
-                role="img"
-                aria-hidden="true"
-              >
-                <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-                <rect x="96" y="80" width="448" height="240" rx="28" fill="#FFFFFF" />
-                <rect x="140" y="120" width="220" height="28" rx="14" fill="#E2E8F0" />
-                <rect x="140" y="168" width="320" height="24" rx="12" fill="#EEF2F7" />
-                <rect x="140" y="214" width="260" height="24" rx="12" fill="#EEF2F7" />
-                <circle cx="480" cy="198" r="42" fill="#1FAF9E" opacity="0.12" />
-                <path
-                  d="M464 204l10 10 20-22"
-                  stroke="#1FAF9E"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/laptom%20with%20review%20platforms.png"
+                alt="Reviews and platforms for converting visitors into customers"
+                className="h-full w-full object-contain"
+              />
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* REVIEW FLOW */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="rounded-3xl border border-gray-200 bg-white p-8">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+          {/* What Happens After a Review Is Posted? */}
+          <div className="mt-10 border-t border-gray-100 pt-10 grid gap-8 md:grid-cols-2 md:items-center">
             <div className="order-2 md:order-1">
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-                <svg
-                  viewBox="0 0 640 400"
-                  className="h-full w-full"
-                  role="img"
-                  aria-hidden="true"
-                >
-                  <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-                  <rect x="216" y="60" width="208" height="280" rx="32" fill="#FFFFFF" />
-                  <rect x="248" y="104" width="144" height="36" rx="18" fill="#E2E8F0" />
-                  <rect x="248" y="160" width="120" height="28" rx="14" fill="#EEF2F7" />
-                  <rect x="248" y="206" width="156" height="28" rx="14" fill="#EEF2F7" />
-                  <rect x="248" y="254" width="100" height="28" rx="14" fill="#DCFCE7" />
-                  <circle cx="320" cy="310" r="10" fill="#CBD5F5" />
-                </svg>
+                <ReviewFlowGraphic />
               </div>
             </div>
             <div className="order-1 md:order-2">
@@ -251,122 +250,14 @@ export default function ForBusinessPage() {
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
               </h2>
-              <div className="mt-6 grid gap-6 md:grid-cols-4">
-                {[
-                  "Customer leaves a verified review",
-                  "Business is notified instantly",
-                  "Business responds publicly or privately",
-                  "Trust indicators update automatically",
-                ].map((item, index) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-gray-200 bg-white p-4"
-                  >
-                    <span className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1FAF9E] text-xs font-semibold text-white">
-                      {index + 1}
-                    </span>
-                    <p className="text-sm font-semibold text-[#0E0E0E]">
-                      {item}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <ReviewFlowSteps />
             </div>
           </div>
         </div>
-      </section>
-
-      {/* WHO FOR */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="max-w-3xl">
-          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-            <span className="relative inline-block">
-              <span className="relative z-10">Who Tellacity Is For</span>
-              <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-            </span>
-          </h2>
-        </div>
-        <div className="mt-6 grid gap-6 md:grid-cols-3">
-          {[
-            "Local & service businesses",
-            "Online brands & e-commerce",
-            "Growing companies",
-          ].map((item) => (
-            <div
-              key={item}
-              className="rounded-2xl border border-gray-200 bg-white p-6"
-            >
-              <p className="text-base font-semibold text-[#0E0E0E]">{item}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="rounded-3xl border border-gray-200 bg-white p-8">
-          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-            <span className="relative inline-block">
-              <span className="relative z-10">Common Questions, Answered</span>
-              <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-            </span>
-          </h2>
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            {[
-              {
-                question: "Can we respond to negative reviews?",
-                answer:
-                  "Yes. Businesses can respond publicly or privately to clarify and resolve issues.",
-              },
-              {
-                question: "Are reviews moderated?",
-                answer:
-                  "Yes. Reviews are reviewed to ensure they meet our fairness and trust guidelines.",
-              },
-              {
-                question: "Can competitors leave fake reviews?",
-                answer:
-                  "We use verification and fraud checks to prevent manipulation and bad actors.",
-              },
-              {
-                question: "Do we need to pay to be listed?",
-                answer:
-                  "No. Businesses can be listed and reviewed without any paid plan.",
-              },
-            ].map((item) => (
-              <div key={item.question}>
-                <p className="text-sm font-semibold text-[#0E0E0E]">
-                  {item.question}
-                </p>
-                <p className="mt-2 text-sm text-gray-600">{item.answer}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* WHY */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="rounded-3xl border border-gray-200 bg-white p-8">
-          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-            <span className="relative inline-block">
-              <span className="relative z-10">
-                Why Industry Leaders Choose Tellacity
-              </span>
-              <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-            </span>
-          </h2>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600">
-            <li>Verified feedback, not anonymous noise</li>
-            <li>Transparent review policies</li>
-            <li>Fair treatment for businesses and customers</li>
-            <li>Designed for long-term trust</li>
-          </ul>
-        </div>
-      </section>
+      </ForBusinessMotionSection>
 
       {/* INTEGRATIONS */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div>
@@ -382,7 +273,7 @@ export default function ForBusinessPage() {
                 <p className="mt-3 text-sm text-gray-600">
                   Tellacity fits seamlessly into your existing workflow so
                   collecting, managing, and showcasing reviews happens
-                  automatically — without changing how your team works.
+                  automatically, without changing how your team works.
                 </p>
               </div>
               <div className="mt-6 space-y-3 text-sm text-gray-600">
@@ -400,74 +291,178 @@ export default function ForBusinessPage() {
                 ))}
               </div>
             </div>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-              <svg
-                viewBox="0 0 640 400"
-                className="h-full w-full"
-                role="img"
-                aria-hidden="true"
-              >
-                <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-                <rect x="80" y="96" width="120" height="80" rx="20" fill="#E5E7EB" />
-                <rect x="240" y="96" width="120" height="80" rx="20" fill="#E5E7EB" />
-                <rect x="400" y="96" width="120" height="80" rx="20" fill="#E5E7EB" />
-                <rect x="140" y="220" width="120" height="80" rx="20" fill="#E5E7EB" />
-                <rect x="300" y="220" width="120" height="80" rx="20" fill="#E5E7EB" />
-                <rect x="460" y="220" width="80" height="80" rx="20" fill="#E5E7EB" />
-              </svg>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/Intergrations.png"
+                alt="Integrations"
+                className="h-full w-full object-contain"
+              />
             </div>
           </div>
-          <div className="mt-8 grid gap-3 text-sm text-gray-500 sm:grid-cols-3 lg:grid-cols-5">
-            {[
-              "Zapier",
-              "Klaviyo",
-              "Twilio",
-              "Shopify",
-              "WooCommerce",
-              "Magento",
-              "HubSpot",
-              "Salesforce",
-              "Slack",
-              "WordPress",
-              "Zendesk",
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-center font-semibold text-gray-500"
-              >
-                {item}
-              </div>
-            ))}
+          <div className="mt-10 border-t border-gray-100 pt-10">
+            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5 items-center">
+              {[
+                { name: "Zapier", logo: "Zapier.jpg" },
+                { name: "Shopify", logo: "shopify.jpg" },
+                { name: "WooCommerce", logo: "woocommerce.jpg" },
+                { name: "HubSpot", logo: "HubSpot.jpg" },
+                { name: "Salesforce", logo: "Salesforce.jpg" },
+                { name: "Slack", logo: "Slack.jpg" },
+                { name: "Klaviyo", logo: "Klaviyo.jpg" },
+                { name: "Zendesk", logo: "Zendesk.jpg" },
+                { name: "Twilio", logo: "Twilio.jpg" },
+                { name: "WordPress", logo: "WordPress.jpg" },
+                { name: "Magento", logo: "Magento.jpg" },
+                { name: "Google Sheets", logo: "Googlesheets.jpg" },
+              ].map((integration) => (
+                <div
+                  key={integration.name}
+                  className="flex items-center justify-center transition-all duration-300 hover:opacity-90"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/brand/${integration.logo}`}
+                    alt={`${integration.name} logo`}
+                    className="max-h-14 w-auto"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             And many more via direct integrations and automation.
           </p>
           <Link
             href="/business/signup"
-            className="mt-6 inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786]"
+            className="mt-6 inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-95 active:shadow-inner"
           >
             Get Started for Free
           </Link>
         </div>
-      </section>
+      </ForBusinessMotionSection>
 
-      {/* SEGMENTATION */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16">
+      <ForBusinessMotionSection className="bg-[#0F1F1E] py-24">
+        <div className="mx-auto w-full max-w-5xl px-6 text-center">
+          <h2 className="text-4xl font-semibold text-white sm:text-5xl">
+            Trust Isn’t Marketing.
+            <br />
+            <span className="text-[#1FAF9E]">It’s Infrastructure.</span>
+          </h2>
+
+          <p className="mx-auto mt-6 max-w-2xl text-base text-gray-300">
+            Reviews aren’t campaigns. They’re signals. 
+            Tellacity helps you build a reputation system that compounds over time.
+          </p>
+
+          <div className="mt-16" aria-hidden="true">
+            <AnimatedLine d="M40 140c80-120 160-140 240-100 80 40 160 30 240-40 80-70 160-80 240-20" />
+          </div>
+        </div>
+      </ForBusinessMotionSection>
+
+      {/* FAQ + WHY + Who Tellacity Is For: combined in one card */}
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
-          <div className="max-w-3xl">
+          {/* Common Questions, Answered */}
+          <section>
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              <span className="relative inline-block">
+                <span className="relative z-10">Common Questions, Answered</span>
+                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+              </span>
+            </h2>
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              {[
+                {
+                  question: "Can we respond to negative reviews?",
+                  answer:
+                    "Yes. Businesses can respond publicly or privately to clarify and resolve issues.",
+                },
+                {
+                  question: "Are reviews moderated?",
+                  answer:
+                    "Yes. Reviews are reviewed to ensure they meet our fairness and trust guidelines.",
+                },
+                {
+                  question: "Can competitors leave fake reviews?",
+                  answer:
+                    "We use verification and fraud checks to prevent manipulation and bad actors.",
+                },
+                {
+                  question: "Do we need to pay to be listed?",
+                  answer:
+                    "No. Businesses can be listed and reviewed without any paid plan.",
+                },
+              ].map((item) => (
+                <div key={item.question}>
+                  <p className="text-sm font-semibold text-[#0E0E0E]">
+                    {item.question}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Why Industry Leaders Choose Tellacity */}
+          <section className="mt-10 border-t border-gray-100 pt-10">
             <h2 className="text-2xl font-semibold text-[#0E0E0E]">
               <span className="relative inline-block">
                 <span className="relative z-10">
-                  Built for Different Goals. Designed for Trust.
+                  Why Industry Leaders Choose Tellacity
                 </span>
                 <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
               </span>
             </h2>
-            <p className="mt-3 text-sm text-gray-600">
-              Tellacity supports businesses at different stages — whether you’re
-              improving feedback, increasing conversions, or scaling credibility.
-            </p>
-          </div>
+            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-600">
+              <li>Verified feedback, not anonymous noise</li>
+              <li>Transparent review policies</li>
+              <li>Fair treatment for businesses and customers</li>
+              <li>Designed for long-term trust</li>
+            </ul>
+          </section>
+
+          {/* Who Tellacity Is For: at bottom of combined card */}
+          <section className="mt-10 border-t border-gray-100 pt-10">
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              <span className="relative inline-block">
+                <span className="relative z-10">Who Tellacity Is For</span>
+                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+              </span>
+            </h2>
+            <div className="mt-6 grid gap-6 md:grid-cols-3">
+              {[
+                "Local & service businesses",
+                "Online brands & e-commerce",
+                "Growing companies",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
+                >
+                  <p className="text-base font-semibold text-[#0E0E0E]">{item}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </ForBusinessMotionSection>
+
+      {/* SEGMENTATION */}
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
+        <div className="rounded-3xl border border-[#1FAF9E]/20 bg-gradient-to-br from-white to-[#F6FBFA] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.08)]">
+          <p className="text-xs font-semibold tracking-wide text-[#1FAF9E] uppercase mb-3">
+            Reputation Infrastructure
+          </p>
+          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+            The Complete Reputation Operating System
+          </h2>
+          <p className="mt-4 text-sm text-gray-600 max-w-2xl">
+            Collect verified feedback. Respond transparently. Showcase credibility.
+            Tellacity connects every part of your reputation into one unified system
+            designed for sustainable growth.
+          </p>
 
           <div className="mt-8">
             <h3 className="text-sm font-semibold text-[#0E0E0E]">
@@ -498,7 +493,7 @@ export default function ForBusinessPage() {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-gray-200 bg-white p-6"
+                  className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
                 >
                   <p className="text-base font-semibold text-[#0E0E0E]">
                     {item.title}
@@ -528,7 +523,7 @@ export default function ForBusinessPage() {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-gray-200 bg-white p-6"
+                  className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
                 >
                   <p className="text-base font-semibold text-[#0E0E0E]">
                     {item.title}
@@ -539,10 +534,13 @@ export default function ForBusinessPage() {
             </div>
           </div>
         </div>
-      </section>
+      </ForBusinessMotionSection>
 
       {/* SIMPLE SETUP */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-16" id="pricing">
+      <ForBusinessMotionSection
+        className="mx-auto w-full max-w-7xl px-6 pb-16"
+        id="pricing"
+      >
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div className="order-2 md:order-1">
@@ -581,7 +579,7 @@ export default function ForBusinessPage() {
                   (item, index) => (
                     <div
                       key={item}
-                      className="rounded-2xl border border-gray-200 bg-white p-6"
+                      className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95 hover:bg-teal-50"
                     >
                       <span className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1FAF9E] text-xs font-semibold text-white">
                         {index + 1}
@@ -596,10 +594,10 @@ export default function ForBusinessPage() {
             </div>
           </div>
         </div>
-      </section>
+      </ForBusinessMotionSection>
 
       {/* FINAL CTA */}
-      <section className="bg-[#F6FBFA]">
+      <ForBusinessMotionSection className="bg-[#F6FBFA]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-14 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-2xl font-semibold text-[#0E0E0E]">
@@ -626,7 +624,7 @@ export default function ForBusinessPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </ForBusinessMotionSection>
     </main>
   );
 }

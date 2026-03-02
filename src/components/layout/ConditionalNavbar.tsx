@@ -6,8 +6,12 @@ import Navbar from "./Navbar";
 export default function ConditionalNavbar() {
   const pathname = usePathname();
   
-  // Hide navbar when in business dashboard
-  if (pathname?.startsWith("/business/dashboard")) {
+  // Hide navbar in business dashboard, widget embeds, and public invite page
+  if (
+    pathname?.startsWith("/business/dashboard") ||
+    pathname?.startsWith("/widgets") ||
+    pathname === "/review/invite"
+  ) {
     return null;
   }
 

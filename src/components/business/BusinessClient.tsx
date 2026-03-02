@@ -989,6 +989,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         key={review.id}
                         review={{
                           review_id: review.id,
+                          id: review.id,
                           rating: review.rating,
                           title: review.title,
                           body: review.body,
@@ -999,6 +1000,12 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           website: business?.website ?? "",
                           resolved_logo_url: business?.logoUrl ?? null,
                         }}
+                        businessReplies={
+                          repliesByReviewId[review.id]?.map((r) => ({
+                            body: r.body,
+                            createdAt: r.createdAt,
+                          })) ?? null
+                        }
                       />
                     ))}
                   </div>

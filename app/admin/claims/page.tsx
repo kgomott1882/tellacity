@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { isAbortError } from "@/lib/authErrors";
 
 type ClaimRequest = {
   id: string;
@@ -80,7 +81,7 @@ export default function AdminClaimsPage() {
         const result = await supabaseBrowser.auth.getSession();
         data = result.data;
       } catch (e) {
-        if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
+        if (isAbortError(e)) {
           if (isMounted) setUserEmail(null);
           return;
         }

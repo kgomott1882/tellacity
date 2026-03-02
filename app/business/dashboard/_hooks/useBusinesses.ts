@@ -33,7 +33,7 @@ export function useBusinesses(userId: string | null) {
         // 1) Try direct ownership first (owner_id on businesses)
         const { data: owned, error: ownedErr } = await supabaseBrowser
           .from("businesses")
-          .select("id, name, slug, website")
+          .select("id, name, slug, website, plan")
           .eq("owner_id", userId)
           .order("name", { ascending: true });
 
@@ -70,7 +70,7 @@ export function useBusinesses(userId: string | null) {
 
           const { data: joined, error: joinedErr } = await supabaseBrowser
             .from("businesses")
-            .select("id, name, slug, website")
+            .select("id, name, slug, website, plan")
             .in("id", ids)
             .order("name", { ascending: true });
 

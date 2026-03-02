@@ -3,5 +3,5 @@
 import SimplePage from "../../_components/SimplePage";
 
 export default function PaymentCRMPage() {
-  return <SimplePage title="Payment & CRM" />;
+  return <SimplePage title="Payment & CRM" subtitle="Connect Tellacity to your business systems." />;
 }

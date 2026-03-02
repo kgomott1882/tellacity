@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { isAbortError } from "@/lib/authErrors";
 import RatingStars from "@/components/RatingStars";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
@@ -11,6 +12,8 @@ import BusinessSearchInput, {
 } from "@/components/search/BusinessSearchInput";
 
 type WriteReviewFormProps = {
+  inviteId?: string | null;
+  inviteToken?: string | null;
   initialBusinessId?: string | null;
   initialBusinessSlug?: string | null;
   initialBusinessName?: string | null;
@@ -111,6 +114,8 @@ const callEdgeFunction = async (name: string, body: Record<string, unknown>) => 
 };
 
 export default function WriteReviewForm({
+  inviteId,
+  inviteToken,
   initialBusinessId,
   initialBusinessSlug,
   initialBusinessName,
@@ -160,11 +165,11 @@ export default function WriteReviewForm({
         const result = await supabaseBrowser.auth.getSession();
         data = result.data;
       } catch (e) {
-        if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") {
-          if (isMounted) setAuthChecked(true);
-          return;
+        if (isAbortError(e)) {
+          // Silently ignore; do not rethrow
+        } else {
+          console.error(e);
         }
-        throw e;
       }
       if (!isMounted) return;
       const sessionUser = data?.session?.user ?? null;
@@ -232,7 +237,7 @@ export default function WriteReviewForm({
         if (prev) return prev;
         return {
           id: initialBusinessId ?? "",
-          name: initialBusinessName ?? "Business",
+          name: inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business"),
           slug: initialBusinessSlug ?? "",
           website: null,
         };
@@ -271,7 +276,7 @@ export default function WriteReviewForm({
           : null;
         setBusiness({
           id: row.id,
-          name: row.name ?? initialBusinessName ?? "Business",
+          name: row.name ?? (inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business")),
           slug: row.slug,
           website: row.website_display ?? row.website ?? null,
           reference_number_enabled: Boolean(row.reference_number_enabled),
@@ -287,7 +292,7 @@ export default function WriteReviewForm({
     return () => {
       isMounted = false;
     };
-  }, [initialBusinessId, initialBusinessSlug, initialBusinessName]);
+  }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId]);
 
   // Restore draft saved before Google sign-in
   useEffect(() => {
@@ -306,7 +311,7 @@ export default function WriteReviewForm({
             if (prev && prev.id === draft.business_id) return prev;
             return {
               id: draft.business_id!,
-              name: draft.business_name ?? initialBusinessName ?? "Business",
+              name: draft.business_name ?? (inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business")),
               slug: draft.business_slug ?? initialBusinessSlug ?? "",
               website: null,
             };
@@ -333,6 +338,7 @@ export default function WriteReviewForm({
     hasRestoredDraft,
     initialBusinessName,
     initialBusinessSlug,
+    inviteId,
   ]);
 
   const isGuest = !userId && authChecked;
@@ -480,6 +486,7 @@ export default function WriteReviewForm({
         date_of_experience: dateOfExperience,
         marketing_opt_in: marketingOptIn,
         reference_number: business.reference_number_enabled && referenceNumber.trim() ? referenceNumber.trim() : null,
+        invite_token: inviteToken ?? null,
       });
 
       setSubmittedEmail(guestEmailTrimmed);
@@ -531,7 +538,7 @@ export default function WriteReviewForm({
     }
   };
 
-  const showBusinessSearch = !business;
+  const showBusinessSearch = !business && !inviteId;
 
   const handleWriteAnotherReview = () => {
     setSubmitted(false);
@@ -612,16 +619,18 @@ export default function WriteReviewForm({
                     </p>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-[#1FAF9E] hover:text-[#169786]"
-                  onClick={() => {
-                    setBusiness(null);
-                    setBusinessError(null);
-                  }}
-                >
-                  Change
-                </button>
+                {!inviteId && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-[#1FAF9E] hover:text-[#169786]"
+                    onClick={() => {
+                      setBusiness(null);
+                      setBusinessError(null);
+                    }}
+                  >
+                    Change
+                  </button>
+                )}
               </div>
             )}
 

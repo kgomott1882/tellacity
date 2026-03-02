@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../../../_components/SimplePage";
-
-export default function LegalNoticePage() {
-  return <SimplePage title="Legal notice" />;
+export default function InviteLegalRedirect() {
+  redirect("/business/dashboard/settings/invite-settings");
 }

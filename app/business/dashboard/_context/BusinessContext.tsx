@@ -7,6 +7,7 @@ export type DashboardBusiness = {
   name: string;
   slug: string | null;
   website: string | null;
+  plan: string | null;
 };
 
 type Ctx = {
@@ -14,6 +15,12 @@ type Ctx = {
   setBusinesses: (b: DashboardBusiness[]) => void;
   selectedBusiness: DashboardBusiness | null;
   setSelectedBusiness: (b: DashboardBusiness | null) => void;
+  isLoading: boolean;
+  setIsLoading: (value: boolean) => void;
+  pageLoading: boolean;
+  setPageLoading: (value: boolean) => void;
+  navRefreshKey: number;
+  bumpNavRefresh: () => void;
 };
 
 const BusinessContext = createContext<Ctx | null>(null);
@@ -21,10 +28,28 @@ const BusinessContext = createContext<Ctx | null>(null);
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [businesses, setBusinesses] = useState<DashboardBusiness[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<DashboardBusiness | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
+  const [navRefreshKey, setNavRefreshKey] = useState(0);
+
+  const bumpNavRefresh = React.useCallback(() => {
+    setNavRefreshKey((k) => k + 1);
+  }, []);
 
   const value = useMemo(
-    () => ({ businesses, setBusinesses, selectedBusiness, setSelectedBusiness }),
-    [businesses, selectedBusiness]
+    () => ({
+      businesses,
+      setBusinesses,
+      selectedBusiness,
+      setSelectedBusiness,
+      isLoading,
+      setIsLoading,
+      pageLoading,
+      setPageLoading,
+      navRefreshKey,
+      bumpNavRefresh,
+    }),
+    [businesses, selectedBusiness, isLoading, pageLoading, navRefreshKey, bumpNavRefresh]
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

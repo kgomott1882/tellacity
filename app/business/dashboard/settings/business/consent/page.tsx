@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import SimplePage from "../../../_components/SimplePage";
-
-export default function DataConsentPage() {
-  return <SimplePage title="Data consent" />;
+export default function ConsentRedirect() {
+  redirect("/business/dashboard/settings/team-access");
 }

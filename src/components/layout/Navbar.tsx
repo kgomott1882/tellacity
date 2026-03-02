@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
+import { isAbortError } from "@/lib/authErrors";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
@@ -64,48 +65,57 @@ export default function Navbar() {
     setCountryCode(getActiveCountry() ?? "");
   }, [searchParams]);
 
+  // Skip auth on landing page to avoid AbortError and keep landing page stable; load user on all other routes.
   useEffect(() => {
+    if (pathname === "/") {
+      setUserInitials(null);
+      setDashboardHref("/dashboard");
+      return;
+    }
     const loadUser = async () => {
-      let data: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getUser();
-        data = result.data;
-      } catch (e) {
-        if (e instanceof Error && e.name === "AbortError") return;
-        throw e;
-      }
-      const user = data?.user ?? null;
-      if (!user) {
+        let data: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null } | null = null;
+        try {
+          const result = await supabaseBrowser.auth.getUser();
+          data = result.data;
+        } catch (e) {
+          if (isAbortError(e)) return;
+          return;
+        }
+        const user = data?.user ?? null;
+        if (!user) {
+          setUserInitials(null);
+          setDashboardHref("/dashboard");
+          return;
+        }
+        const name = user.user_metadata?.display_name as string | undefined;
+        if (name) {
+          setUserInitials(
+            name
+              .split(" ")
+              .map((part: string) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()
+          );
+        } else {
+          setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
+        }
+
+        const { data: byId } = await supabase
+          .from("business_profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        setDashboardHref(byId ? "/business/dashboard" : "/dashboard");
+      } catch (_) {
         setUserInitials(null);
         setDashboardHref("/dashboard");
-        return;
       }
-      const name = user.user_metadata?.display_name as string | undefined;
-      if (name) {
-        setUserInitials(
-          name
-            .split(" ")
-            .map((part: string) => part[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase()
-        );
-      } else {
-        setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
-      }
-
-      if (!user) return;
-
-      const { data: byId } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      setDashboardHref(byId ? "/business/dashboard" : "/dashboard");
     };
     loadUser();
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (isLoginOpen) {

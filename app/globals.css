@@ -71,3 +71,17 @@
   z-index: -1;
   animation: glowPulse 3s ease-in-out infinite;
 }
+
+/* Luminous card glow */
+@keyframes cardLuminate {
+  0%, 100% {
+    box-shadow: 0 25px 50px -12px rgba(18, 69, 65, 0.25), 0 0 0 1px rgb(18 69 65);
+  }
+  50% {
+    box-shadow: 0 25px 50px -12px rgba(18, 69, 65, 0.4), 0 0 30px rgba(18, 69, 65, 0.2), 0 0 0 1px rgb(18 69 65);
+  }
+}
+
+.animate-card-luminate {
+  animation: cardLuminate 4s ease-in-out infinite;
+}
