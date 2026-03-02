@@ -184,7 +184,7 @@ export default function GetReviewsOverviewPage() {
 
     const averageRatingLifetime =
       totalPublishedReviews > 0
-        ? lifetimeReviews.reduce(
+        ? (lifetimeReviews ?? []).reduce(
             (acc: number, r: { rating: number }) => acc + (r.rating ?? 0),
             0
           ) / totalPublishedReviews
