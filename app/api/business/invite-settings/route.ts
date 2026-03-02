@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const DEFAULTS = {
   send_delay_days: 1,
@@ -31,7 +31,7 @@ async function resolveUser(req: Request) {
   return { user, supabase };
 }
 
-async function getOwnedBusiness(supabase: ReturnType<typeof createClient>, userId: string) {
+async function getOwnedBusiness(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
     .from("businesses")
     .select("id")
