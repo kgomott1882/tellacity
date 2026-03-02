@@ -6,6 +6,7 @@ import { ReactNode } from "react";
 interface Props {
   children: ReactNode;
   className?: string;
+  id?: string;
 }
 
 const containerVariants = {
@@ -32,9 +33,11 @@ const itemVariants = {
 export default function ForBusinessMotionSection({
   children,
   className = "",
+  id,
 }: Props) {
   return (
     <motion.section
+      id={id}
       className={className}
       variants={containerVariants}
       initial="hidden"
