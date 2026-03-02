@@ -1,6 +1,8 @@
 import React from "react";
 import type { PlanKey } from "@/lib/plans";
-import SignaturePreview, { SignatureState } from "./SignaturePreview";
+import SignaturePreview from "./SignaturePreview";
+import type { SignatureState } from "./SignaturePreview";
+export type { SignatureState } from "./SignaturePreview";
 import { supabase } from "@/lib/supabaseClient";
 
 type Props = {
