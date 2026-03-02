@@ -114,7 +114,9 @@ export default function BusinessProfilePage() {
     (async () => {
       // Profile columns
       let selectCols = "id,name,website,website_display,description,address,city,country_code,phone,email,logo_url,reference_number_enabled,reference_number_type,reference_number_label_custom";
-      let { data, error } = await supabaseBrowser.from("businesses").select(selectCols).eq("id", businessId).single();
+      let data: any = null;
+      let error: any = null;
+      ({ data, error } = await supabaseBrowser.from("businesses").select(selectCols).eq("id", businessId).single());
 
       const colMissing = error && (
         String((error as any).code) === "PGRST204" ||
