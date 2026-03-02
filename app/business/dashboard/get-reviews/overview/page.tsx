@@ -144,7 +144,7 @@ export default function GetReviewsOverviewPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const normalizedPlan = selectedBusiness.plan as PlanKey;
+  const normalizedPlan = (selectedBusiness?.plan ?? "free") as PlanKey;
   const remainingInvites = Math.max(monthlyLimit - monthlyUsage, 0);
   const isLimitReached = monthlyUsage >= monthlyLimit;
   const canSetUpInvites = !!businessId && !isLimitReached;
