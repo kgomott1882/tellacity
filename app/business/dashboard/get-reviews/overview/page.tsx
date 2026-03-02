@@ -201,7 +201,7 @@ export default function GetReviewsOverviewPage() {
 
     const averageRatingThisMonth =
       reviewsThisMonth > 0
-        ? monthlyReviews.reduce(
+        ? (monthlyReviews ?? []).reduce(
             (acc: number, r: { rating: number }) => acc + (r.rating ?? 0),
             0
           ) / reviewsThisMonth
