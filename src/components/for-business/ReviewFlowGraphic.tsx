@@ -34,9 +34,9 @@ const lineVariants = {
   visible: {
     scaleX: 1,
     opacity: 1,
-    transition: { duration: 0.4, ease: "easeOut" },
+    transition: { duration: 0.4, ease: "easeInOut" },
   },
-};
+} as const;
 
 export default function ReviewFlowGraphic() {
   return (
