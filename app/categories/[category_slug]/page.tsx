@@ -3,10 +3,14 @@ export const revalidate = 60;
 import { createClient } from "@supabase/supabase-js";
 import CategoryClient from "./CategoryClient";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase env missing for category page");
+  }
+  return createClient(url, key);
+}
 
 // ----------------------------
 // METADATA (Next 16 compliant)
@@ -15,6 +19,7 @@ export async function generateMetadata(props: {
   params: Promise<{ category_slug: string }>;
 }) {
   const { category_slug } = await props.params;
+  const supabase = getSupabase();
 
   let categoryName: string | null = null;
 
@@ -50,6 +55,7 @@ export default async function CategoryPage(props: {
 }) {
   const { category_slug } = await props.params;
   const searchParams = await props.searchParams;
+  const supabase = getSupabase();
 
   const countryCode = searchParams?.country ?? "ZA";
 

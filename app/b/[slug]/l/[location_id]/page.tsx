@@ -1,10 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import LocationProfilePage from "./LocationProfilePage";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase env missing for location page");
+  }
+  return createClient(url, key);
+}
 
 export async function generateMetadata({
   params,
@@ -13,6 +17,7 @@ export async function generateMetadata({
 }) {
   const { slug, location_id } = params;
 
+  const supabase = getSupabase();
   const { data: bizData } = await supabase
     .from("businesses")
     .select("id, name, slug")
@@ -64,6 +69,7 @@ export default async function LocationPage({
 }) {
   const { slug, location_id } = params;
 
+  const supabase = getSupabase();
   const { data: bizData } = await supabase
     .from("businesses")
     .select("id, name, slug")

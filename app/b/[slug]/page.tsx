@@ -1,12 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import BusinessClient from "@/components/business/BusinessClient";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase env missing for business page");
+  }
+  return createClient(url, key);
+}
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const supabase = getSupabase();
   const { data } = await supabase.rpc("get_business_by_slug", {
     p_slug: params.slug,
   });
@@ -35,6 +40,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function BusinessPage({ params }: { params: { slug: string } }) {
+  const supabase = getSupabase();
   const { data } = await supabase.rpc("get_business_by_slug", {
     p_slug: params.slug,
   });
