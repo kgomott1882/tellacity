@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, domainFromWebsite, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
 import RatingStars from "@/components/RatingStars";
@@ -161,6 +161,7 @@ export default function CategoryClient({
         return;
       }
 
+      const supabase = supabaseBrowser();
       // categories: slug, name, group_slug
       const { data: categoryData } = await supabase
         .from("categories")
@@ -240,6 +241,7 @@ export default function CategoryClient({
       const countryCode = derivedCountry ?? "ZA";
       const min = typeof minRating === "number" ? minRating : 0;
 
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase.rpc("get_top_businesses_for_category_global", {
         p_category_slug: categorySlug,
         p_country_code: countryCode,
