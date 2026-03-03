@@ -163,6 +163,7 @@ export default function CategoriesPage() {
       return;
     }
     (async () => {
+      const supabase = supabaseBrowser();
       let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
       let { data, error } = await supabase
         .from("businesses")
@@ -304,6 +305,7 @@ export default function CategoriesPage() {
     const primaryGroupSlug = primaryOpt?.groupSlug ?? null;
     const primaryCategoryId = primaryOpt?.categoryId ?? null;
 
+    const supabase = supabaseBrowser();
     const { error } = await supabase
       .from("businesses")
       .update({
