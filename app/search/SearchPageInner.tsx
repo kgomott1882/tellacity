@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl, resolveBusinessLogoViaClient, domainFromWebsite } from "@/lib/logo";
 
@@ -72,6 +72,7 @@ export default function SearchPageInner() {
     setIsLoading(true);
 
     const fetchResults = async () => {
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase
         .from("businesses")
         .select(
