@@ -777,7 +777,7 @@ export default function HomePage() {
             "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
         }}
       >
-        <div className="mx-auto max-w-7xl px-6 py-24 text-center">
+        <div className="mx-auto max-w-7xl px-6 py-28 md:py-32 text-center">
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -788,10 +788,10 @@ export default function HomePage() {
             className="text-4xl font-semibold text-[#F9FAFB] md:text-5xl lg:text-[3.25rem]"
           >
             Customer{" "}
-            <span className="group relative inline-block cursor-default">
+            <span className="relative inline-block cursor-default">
               <span className="relative z-[1]">Feedback &amp; Reviews</span>
               <span
-                className="absolute left-0 right-0 bottom-[2px] h-[3px] origin-left scale-x-0 rounded-sm bg-[#5dd4cc] transition-transform duration-300 ease-out group-hover:scale-x-100"
+                className="absolute left-0 right-0 bottom-[2px] h-[4px] rounded-sm bg-[#5dd4cc]"
                 aria-hidden
               />
             </span>

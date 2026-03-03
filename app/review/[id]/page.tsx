@@ -65,7 +65,14 @@ export default function ReviewPage() {
         return;
       }
 
-      setReview(reviewData as Review);
+      const normalized = {
+        ...reviewData,
+        businesses: Array.isArray((reviewData as any).businesses)
+          ? ((reviewData as any).businesses[0] ?? null)
+          : ((reviewData as any).businesses ?? null),
+      };
+
+      setReview(normalized as unknown as Review);
 
       const { data: replyData } = await supabaseBrowser
         .from("review_replies")
