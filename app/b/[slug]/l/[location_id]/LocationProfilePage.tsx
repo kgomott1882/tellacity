@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RatingStars from "@/components/RatingStars";
 import { MapPin, Phone, Globe } from "lucide-react";
 
@@ -76,6 +76,7 @@ export default function LocationProfilePage({
   useEffect(() => {
     if (initialBusiness && initialLocation) {
       if (locationId) {
+        const supabase = supabaseBrowser();
         supabase
           .from("reviews")
           .select("id, guest_name, rating, title, body, created_at")
@@ -96,6 +97,7 @@ export default function LocationProfilePage({
       }
       setLoading(true);
       setNotFound(false);
+      const supabase = supabaseBrowser();
       const { data: bizData, error: bizError } = await supabase
         .from("businesses")
         .select("id, name, slug")
