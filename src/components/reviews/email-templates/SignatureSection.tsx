@@ -1,3 +1,5 @@
+ "use client";
+
 import React from "react";
 import type { PlanKey } from "@/lib/plans";
 import SignaturePreview from "./SignaturePreview";
