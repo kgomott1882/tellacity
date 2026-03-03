@@ -28,11 +28,25 @@ export type SignatureState = {
 }
 
 type Props = {
-  signature: Signature
+  value: SignatureState
   signatureEnabled?: boolean
 }
 
-export default function SignaturePreview({ signature }: Props) {
+export default function SignaturePreview({ value, signatureEnabled }: Props) {
+  const signature: Signature = {
+    signature_enabled:
+      typeof signatureEnabled === "boolean"
+        ? signatureEnabled
+        : value.signature_enabled,
+    signature_name: value.signature_name || null,
+    signature_title: value.signature_title || null,
+    signature_phone: value.signature_phone || null,
+    signature_website: value.signature_website || null,
+    signature_address: value.signature_address || null,
+    signature_cta_text: value.signature_cta_text || null,
+    signature_cta_url: value.signature_cta_url || null,
+    remove_tellacity_branding: value.remove_tellacity_branding,
+  }
   if (!signature?.signature_enabled) {
     return (
       <div className="mt-4 rounded-lg border bg-gray-50 p-4 text-sm text-gray-500">
