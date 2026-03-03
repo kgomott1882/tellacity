@@ -84,6 +84,8 @@ export default function NotificationsPage() {
     e.preventDefault();
     if (!user?.id) return;
     setMessage(null); setSaving(true);
+
+    const supabase = supabaseBrowser();
     const { error } = await supabase
       .from("user_notification_preferences")
       .upsert({ user_id: user.id, ...prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
