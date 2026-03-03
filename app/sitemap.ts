@@ -1,29 +1,10 @@
 export const dynamic = "force-static";
 
 import type { MetadataRoute } from "next";
-import { supabase } from "@/lib/supabaseClient";
 
-const BASE_URL = "https://tellacity.com";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categoriesResult, businessesResult] = await Promise.all([
-    supabase.from("categories").select("slug"),
-    supabase
-      .from("businesses")
-      .select("slug")
-      .eq("status", "active"),
-  ]);
-
-  const categorySlugs: string[] =
-    (categoriesResult.data ?? [])
-      .map((row: { slug?: string | null }) => row.slug)
-      .filter((slug): slug is string => typeof slug === "string" && !!slug) ?? [];
-
-  const businessSlugs: string[] =
-    (businessesResult.data ?? [])
-      .map((row: { slug?: string | null }) => row.slug)
-      .filter((slug): slug is string => typeof slug === "string" && !!slug) ?? [];
-
   const now = new Date();
 
   const entries: MetadataRoute.Sitemap = [
@@ -39,18 +20,48 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.8,
     },
-    ...categorySlugs.map<MetadataRoute.Sitemap[number]>((slug) => ({
-      url: `${BASE_URL}/categories/${slug}`,
+    {
+      url: `${BASE_URL}/for-business`,
       lastModified: now,
-      changeFrequency: "daily",
+      changeFrequency: "weekly",
       priority: 0.8,
-    })),
-    ...businessSlugs.map<MetadataRoute.Sitemap[number]>((slug) => ({
-      url: `${BASE_URL}/b/${slug}`,
+    },
+    {
+      url: `${BASE_URL}/write-review`,
       lastModified: now,
-      changeFrequency: "daily",
+      changeFrequency: "weekly",
       priority: 0.7,
-    })),
+    },
+    {
+      url: `${BASE_URL}/blog`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${BASE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${BASE_URL}/privacy-policy`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${BASE_URL}/terms-of-service`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
 
   return entries;
