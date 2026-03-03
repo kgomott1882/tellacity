@@ -268,6 +268,7 @@ export default function EmailTemplatesPage() {
           return;
         }
       } else {
+        const supabase = supabaseBrowser();
         const { data, error } = await supabase
           .from("review_invite_email_templates")
           .insert({
@@ -322,6 +323,7 @@ export default function EmailTemplatesPage() {
         reply_to_email: widgetSignature.reply_to_email || null,
       };
       if (widgetRow) {
+        const supabase = supabaseBrowser();
         const { error } = await supabase
           .from("review_invite_email_templates")
           .update(payload)
@@ -331,6 +333,7 @@ export default function EmailTemplatesPage() {
           return;
         }
       } else {
+        const supabase = supabaseBrowser();
         const { error } = await supabase
           .from("review_invite_email_templates")
           .insert({ business_id: businessId, template_key: "widget", ...payload });
