@@ -3,7 +3,7 @@ import type { PlanKey } from "@/lib/plans";
 import SignaturePreview from "./SignaturePreview";
 import type { SignatureState } from "./SignaturePreview";
 export type { SignatureState } from "./SignaturePreview";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Props = {
   plan: PlanKey;
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export function SignatureSection({ plan, value, onChange, businessId }: Props) {
+  const supabase = supabaseBrowser();
   const [isEditing, setIsEditing] = React.useState(false);
   const [logoError, setLogoError] = React.useState<string | null>(null);
   const [logoUploading, setLogoUploading] = React.useState(false);

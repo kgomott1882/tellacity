@@ -20,6 +20,7 @@ const COUNTRIES = [
 ];
 
 export default function Navbar() {
+  const supabase = supabaseBrowser();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -150,7 +151,6 @@ export default function Navbar() {
             setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
           }
           (async () => {
-            const supabase = supabaseBrowser();
             const { data: byId } = await supabase
               .from("business_profiles")
               .select("id")

@@ -120,6 +120,7 @@ export default function WriteReviewForm({
   initialBusinessSlug,
   initialBusinessName,
 }: WriteReviewFormProps) {
+  const supabase = supabaseBrowser();
   const router = useRouter();
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -243,7 +244,6 @@ export default function WriteReviewForm({
         };
       });
 
-      const supabase = supabaseBrowser();
       const query = supabase
         .from("businesses")
         .select("id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom")
@@ -405,7 +405,6 @@ export default function WriteReviewForm({
       .toString(36)
       .slice(2)}_${proofFile.name}`;
 
-    const supabase = supabaseBrowser();
     const { error: uploadError } = await supabase.storage
       .from("receipts")
       .upload(uniqueName, proofFile);
