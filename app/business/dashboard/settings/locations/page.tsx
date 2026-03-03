@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Search, Building2, Shield, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { supabase } from "@/lib/supabaseClient";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 
@@ -173,6 +172,7 @@ export default function LocationsPage() {
                       type="button"
                       onClick={() => {
                         if (window.confirm("Delete this location? This cannot be undone.")) {
+                          const supabase = supabaseBrowser();
                           setDeletingId(loc.id);
                           supabase
                             .from("business_locations")
@@ -343,6 +343,8 @@ function AddLocationModal({
       headline: form.headline.trim() || null,
       description: form.description.trim() || null,
     };
+    const supabase = supabaseBrowser();
+
     if (isEdit && existing) {
       const { data, error: err } = await supabase
         .from("business_locations")
