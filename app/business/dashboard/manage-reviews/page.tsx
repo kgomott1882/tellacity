@@ -64,7 +64,8 @@ export default function ManageReviewsPage() {
 
   const fetchReplies = useCallback(async (reviewIds: string[]) => {
     if (reviewIds.length === 0) return;
-    const { data } = await supabaseBrowser
+    const supabase = supabaseBrowser();
+    const { data } = await supabase
       .from("review_replies")
       .select("id, review_id, body, created_at")
       .in("review_id", reviewIds)
@@ -96,9 +97,9 @@ export default function ManageReviewsPage() {
       setLoading(true);
       setError(null);
 
-      const { data: session } = await supabaseBrowser.auth.getSession();
+      const { data: session } = await supabaseBrowser().auth.getSession();
       if (mounted && session?.session?.user?.id) {
-        const { data: flaggedData, error } = await supabaseBrowser
+        const { data: flaggedData, error } = await supabase
           .from("review_flags")
           .select("review_id, status")
           .eq("user_id", session.session.user.id);
@@ -117,7 +118,7 @@ export default function ManageReviewsPage() {
         setFlaggedReviews({});
       }
 
-      const { data, error: err } = await supabaseBrowser
+      const { data, error: err } = await supabase
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, reference_number")
         .eq("business_id", businessId)
@@ -162,7 +163,7 @@ export default function ManageReviewsPage() {
       setReplySubmitting(true);
       setReplyError(null);
 
-      const { data: session } = await supabaseBrowser.auth.getSession();
+      const { data: session } = await supabaseBrowser().auth.getSession();
       const token = session?.session?.access_token;
 
       const res = await fetch(
@@ -218,7 +219,7 @@ export default function ManageReviewsPage() {
   };
 
   const handleSaveEdit = async (reviewId: string, replyId: string) => {
-    const { data: session } = await supabaseBrowser.auth.getSession();
+    const { data: session } = await supabaseBrowser().auth.getSession();
     const token = session?.session?.access_token;
 
     const res = await fetch(
@@ -245,7 +246,7 @@ export default function ManageReviewsPage() {
   };
 
   const handleDeleteReply = async (reviewId: string, replyId: string) => {
-    const { data: session } = await supabaseBrowser.auth.getSession();
+    const { data: session } = await supabaseBrowser().auth.getSession();
     const token = session?.session?.access_token;
 
     const res = await fetch(
@@ -692,7 +693,7 @@ export default function ManageReviewsPage() {
                     setFlagSubmitting(true);
                     setFlagError(null);
 
-                    const { data: session } = await supabaseBrowser.auth.getSession();
+                    const { data: session } = await supabaseBrowser().auth.getSession();
                     const token = session?.session?.access_token;
 
                     const res = await fetch(

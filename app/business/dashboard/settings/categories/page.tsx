@@ -71,7 +71,8 @@ export default function CategoriesPage() {
       setCategoriesLoading(true);
       setCategoriesError(null);
 
-      const { data: groupsData, error: groupsError } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data: groupsData, error: groupsError } = await supabase
         .from("category_groups")
         .select("id, name, slug")
         .order("name", { ascending: true });
@@ -89,7 +90,7 @@ export default function CategoriesPage() {
       const groups = (groupsData ?? []) as { id: string; name: string; slug: string }[];
       setCategoryGroups(groups);
 
-      const { data: categoriesData, error: categoriesErr } = await supabaseBrowser
+      const { data: categoriesData, error: categoriesErr } = await supabase
         .from("categories")
         .select("id, name, slug, group")
         .order("name", { ascending: true });
@@ -163,7 +164,7 @@ export default function CategoriesPage() {
     }
     (async () => {
       let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
-      let { data, error } = await supabaseBrowser
+      let { data, error } = await supabase
         .from("businesses")
         .select(selectCols)
         .eq("id", businessId)
@@ -176,7 +177,7 @@ export default function CategoriesPage() {
 
       if (colMissing) {
         selectCols = "category_slug, secondary_category_slugs";
-        const fallback = await supabaseBrowser
+        const fallback = await supabase
           .from("businesses")
           .select(selectCols)
           .eq("id", businessId)
@@ -303,7 +304,7 @@ export default function CategoriesPage() {
     const primaryGroupSlug = primaryOpt?.groupSlug ?? null;
     const primaryCategoryId = primaryOpt?.categoryId ?? null;
 
-    const { error } = await supabaseBrowser
+    const { error } = await supabase
       .from("businesses")
       .update({
         category_slug: primarySlug,

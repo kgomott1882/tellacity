@@ -23,7 +23,7 @@ function BusinessLoginInner() {
       return;
     }
     setLoading(true);
-    const { error: signInError } = await supabaseBrowser.auth.signInWithPassword({
+    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({
       email,
       password,
     });

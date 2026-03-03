@@ -88,14 +88,14 @@ function AcceptInviteInner() {
       // 1. Try to sign in — if the account already exists, sign them in
       //    so they can accept with their existing credentials.
       const { data: signInData, error: signInErr } =
-        await supabaseBrowser.auth.signInWithPassword({ email, password });
+        await supabaseBrowser().auth.signInWithPassword({ email, password });
 
       let session = signInData?.session ?? null;
 
       if (signInErr) {
         // Account doesn't exist yet — create it
         const { data: signUpData, error: signUpErr } =
-          await supabaseBrowser.auth.signUp({
+          await supabaseBrowser().auth.signUp({
             email,
             password,
             options: {
@@ -117,7 +117,7 @@ function AcceptInviteInner() {
         // If we have no session yet, sign in immediately (works when email confirm is off).
         if (!session) {
           const { data: retryData, error: retryErr } =
-            await supabaseBrowser.auth.signInWithPassword({ email, password });
+            await supabaseBrowser().auth.signInWithPassword({ email, password });
           if (retryErr || !retryData.session) {
             // Email confirmation is required — tell the user
             setStep("done");

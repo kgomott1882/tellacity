@@ -95,7 +95,7 @@ export default function EmailTemplatesPage() {
     setError(null);
     try {
       const [{ data: rows, error: templatesError }, { data: bizData }] = await Promise.all([
-        supabaseBrowser
+        supabaseBrowser()
         .from("review_invite_email_templates")
         .select(`
           id,
@@ -120,7 +120,7 @@ export default function EmailTemplatesPage() {
         .eq("business_id", businessId)
         .in("template_key", ["standard", "custom", "widget"])
         .order("template_key"),
-        supabaseBrowser
+        supabaseBrowser()
           .from("businesses")
           .select("logo_url")
           .eq("id", businessId)
@@ -255,7 +255,8 @@ export default function EmailTemplatesPage() {
       }
 
       if (customRow) {
-        const { data, error } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data, error } = await supabase
           .from("review_invite_email_templates")
           .update(payload)
           .eq("id", customRow.id)
@@ -267,7 +268,7 @@ export default function EmailTemplatesPage() {
           return;
         }
       } else {
-        const { data, error } = await supabaseBrowser
+        const { data, error } = await supabase
           .from("review_invite_email_templates")
           .insert({
             business_id: businessId,
@@ -321,7 +322,7 @@ export default function EmailTemplatesPage() {
         reply_to_email: widgetSignature.reply_to_email || null,
       };
       if (widgetRow) {
-        const { error } = await supabaseBrowser
+        const { error } = await supabase
           .from("review_invite_email_templates")
           .update(payload)
           .eq("id", widgetRow.id);
@@ -330,7 +331,7 @@ export default function EmailTemplatesPage() {
           return;
         }
       } else {
-        const { error } = await supabaseBrowser
+        const { error } = await supabase
           .from("review_invite_email_templates")
           .insert({ business_id: businessId, template_key: "widget", ...payload });
         if (error) {

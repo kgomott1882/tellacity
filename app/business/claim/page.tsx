@@ -53,7 +53,8 @@ export default function BusinessClaimPage() {
       if (!user) {
         return;
       }
-      const { data } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data } = await supabase
         .from("business_profiles")
         .select("email, business_name")
         .eq("id", user.id)
@@ -86,7 +87,7 @@ export default function BusinessClaimPage() {
 
     setIsSearching(true);
 
-    const { data, error } = await supabaseBrowser
+    const { data, error } = await supabase
       .from("businesses")
       .select(
         "id, name, website, website_display, logo_url, city, country_code"
@@ -120,7 +121,7 @@ export default function BusinessClaimPage() {
       if (!logoUrl) {
         const domain = domainFromWebsite(business.website_display ?? business.website);
         if (domain) {
-          const fromEdge = await resolveBusinessLogoViaClient(supabaseBrowser, domain);
+          const fromEdge = await resolveBusinessLogoViaClient(supabase, domain);
           if (fromEdge) logoUrl = fromEdge;
         }
       }
@@ -147,7 +148,7 @@ export default function BusinessClaimPage() {
       return;
     }
 
-    const { data: existingRequest } = await supabaseBrowser
+    const { data: existingRequest } = await supabase
       .from("business_claim_requests")
       .select("id, status")
       .eq("business_id", business.id)
@@ -164,7 +165,7 @@ export default function BusinessClaimPage() {
     }
 
     const requesterEmail = businessProfile?.email ?? user.email ?? "";
-    const { error } = await supabaseBrowser
+    const { error } = await supabase
       .from("business_claim_requests")
       .insert({
         business_id: business.id,

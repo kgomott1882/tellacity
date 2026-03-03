@@ -31,7 +31,8 @@ export function useBusinesses(userId: string | null) {
 
       try {
         // 1) Try direct ownership first (owner_id on businesses)
-        const { data: owned, error: ownedErr } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data: owned, error: ownedErr } = await supabase
           .from("businesses")
           .select("id, name, slug, website, plan")
           .eq("owner_id", userId)
@@ -48,7 +49,7 @@ export function useBusinesses(userId: string | null) {
 
         // 2) Fallback: business_owners join (if table exists)
         try {
-          const { data: links, error: linksErr } = await supabaseBrowser
+          const { data: links, error: linksErr } = await supabase
             .from("business_owners")
             .select("business_id")
             .eq("owner_user_id", userId);
@@ -68,7 +69,7 @@ export function useBusinesses(userId: string | null) {
             return;
           }
 
-          const { data: joined, error: joinedErr } = await supabaseBrowser
+          const { data: joined, error: joinedErr } = await supabase
             .from("businesses")
             .select("id, name, slug, website, plan")
             .in("id", ids)

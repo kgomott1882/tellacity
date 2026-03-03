@@ -31,7 +31,7 @@ type TeamData = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function getToken(): Promise<string | null> {
-  const { data } = await supabaseBrowser.auth.getSession();
+  const { data } = await supabaseBrowser().auth.getSession();
   return data.session?.access_token ?? null;
 }
 

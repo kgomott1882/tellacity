@@ -192,7 +192,8 @@ export default function ImportLocationsPage() {
         website: row.website.trim() || null,
       };
     });
-    const { error } = await supabaseBrowser.from("business_locations").insert(rows);
+    const supabase = supabaseBrowser();
+    const { error } = await supabase.from("business_locations").insert(rows);
     setImporting(false);
     if (error) {
       setMessage({ type: "error", text: error.message });

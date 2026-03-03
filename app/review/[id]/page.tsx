@@ -51,7 +51,8 @@ export default function ReviewPage() {
     }
     let mounted = true;
     (async () => {
-      const { data: reviewData, error: reviewErr } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data: reviewData, error: reviewErr } = await supabase
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, business_id, businesses(name, slug)")
         .eq("id", id)
@@ -74,7 +75,7 @@ export default function ReviewPage() {
 
       setReview(normalized as unknown as Review);
 
-      const { data: replyData } = await supabaseBrowser
+      const { data: replyData } = await supabase
         .from("review_replies")
         .select("id, body, created_at, author_role")
         .eq("review_id", id)

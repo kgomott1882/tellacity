@@ -93,7 +93,8 @@ export function useBusinessInsights(businessId: string | null) {
     setLoading(true);
     setError(null);
 
-    const { data: row, error: rpcError } = await supabaseBrowser.rpc(
+    const supabase = supabaseBrowser();
+    const { data: row, error: rpcError } = await supabase.rpc(
       "get_business_review_insights",
       { p_business_id: businessId }
     );

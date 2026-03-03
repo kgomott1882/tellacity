@@ -57,7 +57,8 @@ export default function BusinessSearchInput({
     setSearchLoading(true);
 
     const timeout = setTimeout(async () => {
-      const { data, error } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data, error } = await supabase
         .from("businesses")
         .select("id, name, slug, website, website_display, status")
         .eq("status", "active")

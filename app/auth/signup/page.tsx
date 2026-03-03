@@ -95,11 +95,11 @@ export default function SignupPage() {
       });
       setLoading(false);
       if (payload?.session?.access_token && payload?.session?.refresh_token) {
-        await supabaseBrowser.auth.setSession({
+        await supabaseBrowser().auth.setSession({
           access_token: payload.session.access_token,
           refresh_token: payload.session.refresh_token,
         });
-        const { error: profileError } = await supabaseBrowser.auth.updateUser({
+        const { error: profileError } = await supabaseBrowser().auth.updateUser({
           data: { display_name: displayName.trim() },
         });
         if (profileError) {
@@ -109,7 +109,7 @@ export default function SignupPage() {
         // Consumer signup → consumer dashboard; if somehow business profile exists, go to business dashboard
         let user: { id: string } | null = null;
         try {
-          const { data } = await supabaseBrowser.auth.getUser();
+          const { data } = await supabaseBrowser().auth.getUser();
           user = data.user;
         } catch (e) {
           if (isAbortError(e)) {
@@ -119,7 +119,8 @@ export default function SignupPage() {
           throw e;
         }
         if (user) {
-          const { data: businessProfile } = await supabaseBrowser
+          const supabase = supabaseBrowser();
+          const { data: businessProfile } = await supabase
             .from("business_profiles")
             .select("id")
             .eq("id", user.id)
@@ -187,7 +188,7 @@ export default function SignupPage() {
                         );
                       }
                       const { error: oauthError } =
-                        await supabaseBrowser.auth.signInWithOAuth({
+                        await supabaseBrowser().auth.signInWithOAuth({
                           provider: "google",
                           options: {
                             redirectTo:

@@ -83,13 +83,13 @@ export default function EmailWidgetsPage() {
     setTemplateLoading(true);
     try {
       const [{ data: tmplData }, { data: bizData }] = await Promise.all([
-        supabaseBrowser
+        supabaseBrowser()
           .from("review_invite_email_templates")
           .select("subject, intro_message, layout_style, signature_enabled, signature_name")
           .eq("business_id", businessId)
           .eq("template_key", "widget")
           .maybeSingle(),
-        supabaseBrowser
+        supabaseBrowser()
           .from("businesses")
           .select("logo_url")
           .eq("id", businessId)

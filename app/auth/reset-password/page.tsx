@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
         if (code) {
-          await supabaseBrowser.auth.exchangeCodeForSession(code);
+          await supabaseBrowser().auth.exchangeCodeForSession(code);
           window.history.replaceState({}, "", url.pathname);
         }
 
@@ -30,7 +30,7 @@ export default function ResetPasswordPage() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
-          await supabaseBrowser.auth.setSession({
+          await supabaseBrowser().auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
 
       let sessionData: { session: unknown } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getSession();
+        const result = await supabaseBrowser().auth.getSession();
         sessionData = result.data;
       } catch (e) {
         if (isAbortError(e)) {
@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       }
     };
     checkSession();
-    const { data: subscription } = supabaseBrowser.auth.onAuthStateChange(
+    const { data: subscription } = supabaseBrowser().auth.onAuthStateChange(
       (_event, session) => {
         if (isMounted) {
           setReady(Boolean(session));
@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const { data: updateData, error: updateError } = await supabaseBrowser.auth.updateUser({
+    const { data: updateData, error: updateError } = await supabaseBrowser().auth.updateUser({
       password,
     });
     setLoading(false);
@@ -89,7 +89,8 @@ export default function ResetPasswordPage() {
     }
     const user = updateData?.user;
     if (user) {
-      const { data: businessProfile } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data: businessProfile } = await supabase
         .from("business_profiles")
         .select("id")
         .eq("id", user.id)

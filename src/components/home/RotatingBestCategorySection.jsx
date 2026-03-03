@@ -56,7 +56,8 @@ export default function RotatingBestCategorySection({ categorySlugs, selectedCou
 
       setIsLoading(true);
       try {
-        const { data: categoryData } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data: categoryData } = await supabase
           .from("categories")
           .select("name")
           .eq("slug", categorySlug)
@@ -65,7 +66,7 @@ export default function RotatingBestCategorySection({ categorySlugs, selectedCou
       // Best-in: 1) RPC get_top_businesses_for_category_global (uses business_review_metrics_v), 2) fallback = businesses table by category_slug.
       let businessRows = null;
       let businessError = null;
-      const { data: rpcData, error: rpcError } = await supabaseBrowser.rpc(
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
         "get_top_businesses_for_category_global",
         {
           p_category_slug: categorySlug,
@@ -80,7 +81,7 @@ export default function RotatingBestCategorySection({ categorySlugs, selectedCou
 
       // Fallback: when RPC fails or returns empty, fetch businesses directly by category
       if ((businessError || !businessRows || businessRows.length === 0) && isMounted) {
-        const { data: directRows } = await supabaseBrowser
+        const { data: directRows } = await supabase
           .from("businesses")
           .select("id, name, slug, website, website_display, logo_url")
           .eq("status", "active")

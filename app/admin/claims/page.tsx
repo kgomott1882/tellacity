@@ -78,7 +78,7 @@ export default function AdminClaimsPage() {
     const loadSession = async () => {
       let data: { session: { user: { email?: string | null } } | null } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getSession();
+        const result = await supabaseBrowser().auth.getSession();
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
@@ -96,7 +96,7 @@ export default function AdminClaimsPage() {
 
     loadSession();
 
-    const { data: authListener } = supabaseBrowser.auth.onAuthStateChange(
+    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange(
       (_event, session) => {
         if (!isMounted) {
           return;
@@ -121,7 +121,8 @@ export default function AdminClaimsPage() {
       }
 
       setLoading(true);
-      const { data, error } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data, error } = await supabase
         .from("business_claim_requests")
         .select(
           "id, business_id, requester_user_id, requester_email, requester_business_name, status, created_at"
@@ -151,7 +152,7 @@ export default function AdminClaimsPage() {
         return;
       }
 
-      const { data: businessData } = await supabaseBrowser
+      const { data: businessData } = await supabase
         .from("businesses")
         .select("id, name, slug, website, website_display, country_code, city")
         .in("id", businessIds);
@@ -186,7 +187,7 @@ export default function AdminClaimsPage() {
     setActionLoading((prev) => ({ ...prev, [claim.id]: true }));
     setRowError((prev) => ({ ...prev, [claim.id]: "" }));
 
-    const { error } = await supabaseBrowser
+    const { error } = await supabase
       .from("business_claim_requests")
       .update({ status: "rejected" })
       .eq("id", claim.id);
@@ -211,7 +212,7 @@ export default function AdminClaimsPage() {
     setRowError((prev) => ({ ...prev, [claim.id]: "" }));
     setStatusMessage(null);
 
-    const { data: existingOwner } = await supabaseBrowser
+    const { data: existingOwner } = await supabase
       .from("business_owners")
       .select("business_id")
       .eq("business_id", claim.business_id)
@@ -226,7 +227,7 @@ export default function AdminClaimsPage() {
       return;
     }
 
-    const { error: approveError } = await supabaseBrowser
+    const { error: approveError } = await supabase
       .from("business_claim_requests")
       .update({ status: "approved" })
       .eq("id", claim.id);
@@ -240,7 +241,7 @@ export default function AdminClaimsPage() {
       return;
     }
 
-    const { error: ownerError } = await supabaseBrowser
+    const { error: ownerError } = await supabase
       .from("business_owners")
       .insert({
         business_id: claim.business_id,
@@ -248,7 +249,7 @@ export default function AdminClaimsPage() {
       });
 
     if (ownerError) {
-      await supabaseBrowser
+      await supabase
         .from("business_claim_requests")
         .update({ status: "pending" })
         .eq("id", claim.id);

@@ -49,7 +49,8 @@ export default function NotificationsPage() {
     let mounted = true;
     (async () => {
       if (!user?.id) { setLoading(false); return; }
-      const { data, error } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data, error } = await supabase
         .from("user_notification_preferences")
         .select("*")
         .eq("user_id", user.id)
@@ -83,7 +84,7 @@ export default function NotificationsPage() {
     e.preventDefault();
     if (!user?.id) return;
     setMessage(null); setSaving(true);
-    const { error } = await supabaseBrowser
+    const { error } = await supabase
       .from("user_notification_preferences")
       .upsert({ user_id: user.id, ...prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
     setSaving(false);

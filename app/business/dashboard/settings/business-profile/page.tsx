@@ -116,7 +116,8 @@ export default function BusinessProfilePage() {
       let selectCols = "id,name,website,website_display,description,address,city,country_code,phone,email,logo_url,reference_number_enabled,reference_number_type,reference_number_label_custom";
       let data: any = null;
       let error: any = null;
-      ({ data, error } = await supabaseBrowser.from("businesses").select(selectCols).eq("id", businessId).single());
+      const supabase = supabaseBrowser();
+      ({ data, error } = await supabase.from("businesses").select(selectCols).eq("id", businessId).single());
 
       const colMissing = error && (
         String((error as any).code) === "PGRST204" ||
@@ -124,7 +125,7 @@ export default function BusinessProfilePage() {
         (error as any).message?.toLowerCase().includes("does not exist")
       );
       if (colMissing) {
-        const fallback = await supabaseBrowser.from("businesses")
+        const fallback = await supabase.from("businesses")
           .select("id,name,website,description,address,city,country_code")
           .eq("id", businessId).single();
         data = fallback.data; error = fallback.error;
@@ -195,7 +196,8 @@ export default function BusinessProfilePage() {
     const publicUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
 
     if (publicUrl) {
-      await supabaseBrowser.from("businesses").update({ logo_url: publicUrl }).eq("id", businessId);
+      const supabase = supabaseBrowser();
+      await supabase.from("businesses").update({ logo_url: publicUrl }).eq("id", businessId);
       setLogoUrl(publicUrl);
     }
     setLogoUploading(false);
@@ -231,7 +233,8 @@ export default function BusinessProfilePage() {
       reference_number_label_custom: refType === "custom" ? refCustomLabel.trim() || null : null,
     };
 
-    let { error } = await supabaseBrowser.from("businesses").update(payload).eq("id", businessId);
+    const supabase = supabaseBrowser();
+    let { error } = await supabase.from("businesses").update(payload).eq("id", businessId);
 
     const colMissing = error && (
       String((error as any).code) === "PGRST204" ||
@@ -240,7 +243,7 @@ export default function BusinessProfilePage() {
     );
     if (colMissing) {
       const minPayload = { name: payload.name, website: payload.website, website_display: payload.website_display, address: payload.address, city: payload.city, country_code: payload.country_code, description: payload.description };
-      const res = await supabaseBrowser.from("businesses").update(minPayload).eq("id", businessId);
+      const res = await supabase.from("businesses").update(minPayload).eq("id", businessId);
       error = res.error;
     }
 

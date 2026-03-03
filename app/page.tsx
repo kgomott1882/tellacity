@@ -215,7 +215,8 @@ export default function HomePage() {
       setError(null);
 
       const runFallbackReviews = async (): Promise<boolean> => {
-        const { data: fallbackData, error: fallbackError } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data: fallbackData, error: fallbackError } = await supabase
           .from("reviews")
           .select(
             "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url)"
@@ -253,7 +254,8 @@ export default function HomePage() {
         let err: unknown = null;
 
         try {
-          let query = supabaseBrowser
+          const supabase = supabaseBrowser();
+          let query = supabase
             .from("home_feed_v1")
             .select("*")
             .order("created_at", { ascending: false });
@@ -317,7 +319,8 @@ export default function HomePage() {
 
     const fetchCategories = async () => {
       try {
-        const { data, error } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data, error } = await supabase
           .from("categories")
           .select("id, name, slug")
           .order("name", { ascending: true });
@@ -338,7 +341,8 @@ export default function HomePage() {
       // temporarily disable country filtering
       const countryFilter = null;
       if (countryFilter) {
-        const { data: countryBusinesses } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data: countryBusinesses } = await supabase
           .from("businesses")
           .select("category_slug")
           .eq("country_code", countryFilter)

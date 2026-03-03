@@ -55,7 +55,7 @@ export default function ConsumerDashboard() {
     const loadUser = async () => {
       let data: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getUser();
+        const result = await supabaseBrowser().auth.getUser();
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
@@ -121,7 +121,8 @@ export default function ConsumerDashboard() {
       if (!userEmail) return;
       setLoadingReviews(true);
       setReviewsError("");
-      const { data, error } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data, error } = await supabase
         .from("reviews")
         .select(
           "id, title, body, created_at, rating, status, business:businesses(name, slug, logo_url, website, website_display)"
@@ -146,7 +147,7 @@ export default function ConsumerDashboard() {
   const handleSaveProfile = async () => {
     setProfileMessage("");
     setSavingProfile(true);
-      const { error } = await supabaseBrowser.auth.updateUser({
+      const { error } = await supabaseBrowser().auth.updateUser({
       data: {
         display_name: displayName,
         country,

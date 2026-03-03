@@ -162,7 +162,7 @@ export default function WriteReviewForm({
     const loadAuth = async () => {
       let data: { session: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } } | null } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getSession();
+        const result = await supabaseBrowser().auth.getSession();
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
@@ -243,7 +243,8 @@ export default function WriteReviewForm({
         };
       });
 
-      const query = supabaseBrowser
+      const supabase = supabaseBrowser();
+      const query = supabase
         .from("businesses")
         .select("id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom")
         .eq("status", "active")
@@ -404,7 +405,8 @@ export default function WriteReviewForm({
       .toString(36)
       .slice(2)}_${proofFile.name}`;
 
-    const { error: uploadError } = await supabaseBrowser.storage
+    const supabase = supabaseBrowser();
+    const { error: uploadError } = await supabase.storage
       .from("receipts")
       .upload(uniqueName, proofFile);
 
@@ -412,7 +414,7 @@ export default function WriteReviewForm({
       throw new Error("Could not upload your proof. Please try again.");
     }
 
-    const { data } = supabaseBrowser.storage
+    const { data } = supabase.storage
       .from("receipts")
       .getPublicUrl(uniqueName);
 
@@ -444,7 +446,7 @@ export default function WriteReviewForm({
       const receiptUrl = await uploadProofIfNeeded();
 
       if (userId) {
-        const { error } = await supabaseBrowser.from("reviews").insert({
+        const { error } = await supabase.from("reviews").insert({
           business_id: business.id,
           user_id: userId,
           rating: Math.max(1, Math.min(5, Math.round(rating))),
@@ -526,7 +528,7 @@ export default function WriteReviewForm({
 
     window.localStorage.setItem(PENDING_REVIEW_KEY, JSON.stringify(draft));
 
-    const { error } = await supabaseBrowser.auth.signInWithOAuth({
+    const { error } = await supabaseBrowser().auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: window.location.href,

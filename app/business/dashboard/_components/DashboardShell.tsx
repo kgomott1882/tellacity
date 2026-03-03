@@ -128,7 +128,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       }
 
       // 2) Fallback to first business owned by user
-      const { data } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data } = await supabase
         .from("businesses")
         .select("id, name, slug, website, plan")
         .eq("owner_id", user.id)

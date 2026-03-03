@@ -100,7 +100,7 @@ export default function SocialSharePage() {
 
   useEffect(() => {
     if (!slug) { setStats(null); return; }
-    supabaseBrowser
+    supabaseBrowser()
       .rpc("get_widget_payload_v1", { p_business_slug: slug, p_limit: 1 })
       .then(({ data }) => {
         if (data && !data.error) {

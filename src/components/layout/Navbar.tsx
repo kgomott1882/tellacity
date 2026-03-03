@@ -76,7 +76,7 @@ export default function Navbar() {
       try {
         let data: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null } | null = null;
         try {
-          const result = await supabaseBrowser.auth.getUser();
+          const result = await supabaseBrowser().auth.getUser();
           data = result.data;
         } catch (e) {
           if (isAbortError(e)) return;
@@ -132,7 +132,7 @@ export default function Navbar() {
   }, [isSignupOpen]);
 
   useEffect(() => {
-    const { data: authListener } = supabaseBrowser.auth.onAuthStateChange(
+    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange(
       (_event, session) => {
         const user = session?.user ?? null;
         if (user) {
@@ -150,7 +150,8 @@ export default function Navbar() {
             setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
           }
           (async () => {
-            const { data: byId } = await supabaseBrowser
+            const supabase = supabaseBrowser();
+            const { data: byId } = await supabase
               .from("business_profiles")
               .select("id")
               .eq("id", user.id)
@@ -161,7 +162,7 @@ export default function Navbar() {
             }
             const emailNorm = user.email?.trim().toLowerCase();
             if (emailNorm) {
-              const { data: byEmail } = await supabaseBrowser
+              const { data: byEmail } = await supabase
                 .from("business_profiles")
                 .select("id")
                 .eq("email", emailNorm)
@@ -540,7 +541,7 @@ export default function Navbar() {
                         "tellacity_auth_redirect",
                         "true"
                       );
-                      const { error } = await supabaseBrowser.auth.signInWithOAuth({
+                      const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
                           redirectTo: `${window.location.origin}/dashboard`,
@@ -605,7 +606,7 @@ export default function Navbar() {
                       "tellacity_auth_redirect",
                       "true"
                     );
-                    const { error } = await supabaseBrowser.auth.signInWithOtp({
+                    const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
                         emailRedirectTo: `${window.location.origin}/dashboard`,
@@ -654,7 +655,7 @@ export default function Navbar() {
                         }
                         setIsResettingPassword(true);
                         const { error } =
-                          await supabaseBrowser.auth.resetPasswordForEmail(
+                          await supabaseBrowser().auth.resetPasswordForEmail(
                             trimmedEmail
                           );
                         setIsResettingPassword(false);
@@ -768,7 +769,7 @@ export default function Navbar() {
                         "tellacity_auth_redirect",
                         "true"
                       );
-                      const { error } = await supabaseBrowser.auth.signInWithOAuth({
+                      const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
                           redirectTo: `${window.location.origin}/dashboard`,
@@ -833,7 +834,7 @@ export default function Navbar() {
                       "tellacity_auth_redirect",
                       "true"
                     );
-                    const { error } = await supabaseBrowser.auth.signInWithOtp({
+                    const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
                         emailRedirectTo: `${window.location.origin}/dashboard`,

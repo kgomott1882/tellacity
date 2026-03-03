@@ -608,9 +608,11 @@ export default function PerformancePage() {
       )).toISOString();
       const startOf30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+      const supabase = supabaseBrowser();
+
       const [rawReviewsRes, revRes, totalInvRes, inv30Res] = await Promise.all([
         // Fetch created_at for published/approved reviews in last 90 days — aggregated into DailyReview[] below
-        supabaseBrowser
+        supabase
           .from("reviews")
           .select("created_at")
           .eq("business_id", businessId)
@@ -618,7 +620,7 @@ export default function PerformancePage() {
           .gte("created_at", since90dUTC)
           .order("created_at", { ascending: true }),
         // Recent reviews list — published/approved only
-        supabaseBrowser
+        supabase
           .from("reviews")
           .select("id,rating,title,body,created_at,guest_name")
           .eq("business_id", businessId)
@@ -626,12 +628,12 @@ export default function PerformancePage() {
           .order("created_at", { ascending: false })
           .limit(2),
         // Total invites all time
-        supabaseBrowser
+        supabase
           .from("review_invites")
           .select("*", { count: "exact", head: true })
           .eq("business_id", businessId),
         // Invites in last 30 days
-        supabaseBrowser
+        supabase
           .from("review_invites")
           .select("*", { count: "exact", head: true })
           .eq("business_id", businessId)
@@ -666,7 +668,7 @@ export default function PerformancePage() {
         };
       });
       const since3m = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
-      const { data: invRows } = await supabaseBrowser
+      const { data: invRows } = await supabase
         .from("review_invites")
         .select("created_at")
         .eq("business_id", businessId)

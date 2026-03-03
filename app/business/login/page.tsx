@@ -21,7 +21,7 @@ export default function BusinessLoginPage() {
       return;
     }
     setLoading(true);
-    const { data: signInData, error: signInError } = await supabaseBrowser.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
       email,
       password,
     });
@@ -33,7 +33,8 @@ export default function BusinessLoginPage() {
     }
 
     // Business is determined by user id or by email (profile may exist under a different auth user id).
-    let { data: existingProfile } = await supabaseBrowser
+    const supabase = supabaseBrowser();
+    let { data: existingProfile } = await supabase
       .from("business_profiles")
       .select("id")
       .eq("id", signInData.user.id)
@@ -41,7 +42,7 @@ export default function BusinessLoginPage() {
 
     if (!existingProfile) {
       // Check by email: this email may have a business profile under a different user id (e.g. from another signup).
-      const { data: profileByEmail } = await supabaseBrowser
+      const { data: profileByEmail } = await supabase
         .from("business_profiles")
         .select("id, email")
         .eq("email", email.trim().toLowerCase())
@@ -51,12 +52,12 @@ export default function BusinessLoginPage() {
         // Migrate: assign this business profile and its businesses to the currently signed-in user.
         const oldUserId = profileByEmail.id;
         const tempEmail = `${email.trim().toLowerCase()}.old.${Date.now()}`;
-        await supabaseBrowser
+        await supabase
           .from("business_profiles")
           .update({ email: tempEmail })
           .eq("id", oldUserId);
 
-        await supabaseBrowser
+        await supabase
           .from("business_profiles")
           .upsert({
             id: signInData.user.id,
@@ -77,7 +78,7 @@ export default function BusinessLoginPage() {
     setLoading(false);
 
     if (!existingProfile) {
-      await supabaseBrowser.auth.signOut();
+      await supabaseBrowser().auth.signOut();
       setError(
         "No business account found for this email. Sign in on the main site for consumer accounts, or create a business account."
       );

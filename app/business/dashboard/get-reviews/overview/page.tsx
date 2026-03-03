@@ -161,20 +161,22 @@ export default function GetReviewsOverviewPage() {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const { count: sentThisMonth } = await supabaseBrowser
+    const supabase = supabaseBrowser();
+
+    const { count: sentThisMonth } = await supabase
       .from("review_invites")
       .select("*", { count: "exact", head: true })
       .eq("business_id", businessId)
       .gte("created_at", startOfMonth.toISOString());
 
-    const { count: deliveredThisMonth } = await supabaseBrowser
+    const { count: deliveredThisMonth } = await supabase
       .from("review_invites")
       .select("*", { count: "exact", head: true })
       .eq("business_id", businessId)
       .in("status", ["sent", "opened"])
       .gte("created_at", startOfMonth.toISOString());
 
-    const { data: lifetimeReviews } = await supabaseBrowser
+    const { data: lifetimeReviews } = await supabase
       .from("reviews")
       .select("rating")
       .eq("business_id", businessId)
@@ -190,7 +192,7 @@ export default function GetReviewsOverviewPage() {
           ) / totalPublishedReviews
         : 0;
 
-    const { data: monthlyReviews } = await supabaseBrowser
+    const { data: monthlyReviews } = await supabase
       .from("reviews")
       .select("rating")
       .eq("business_id", businessId)
@@ -228,7 +230,8 @@ export default function GetReviewsOverviewPage() {
           return;
         }
 
-        const { data, error } = await supabaseBrowser
+        const supabase = supabaseBrowser();
+        const { data, error } = await supabase
           .from("review_invites")
           .select(
             `
@@ -295,7 +298,8 @@ export default function GetReviewsOverviewPage() {
   useEffect(() => {
     if (!businessId) return;
 
-    const channel = supabaseBrowser
+    const supabase = supabaseBrowser();
+    const channel = supabase
       .channel("review-metrics-live")
       .on(
         "postgres_changes",
@@ -324,7 +328,7 @@ export default function GetReviewsOverviewPage() {
       .subscribe();
 
     return () => {
-      supabaseBrowser.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [businessId]);
 

@@ -51,7 +51,7 @@ export default function AccountPage() {
       if (!user?.id) { setLoading(false); return; }
       let sessionData: any = null;
       try {
-        const result = await supabaseBrowser.auth.getSession();
+        const result = await supabaseBrowser().auth.getSession();
         sessionData = result.data;
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") { if (mounted) setLoading(false); return; }
@@ -64,7 +64,8 @@ export default function AccountPage() {
       const displayName = (u.user_metadata?.display_name as string)?.trim() ?? "";
       let nameValue = displayName;
       if (!nameValue) {
-        const { data: bp } = await supabaseBrowser.from("business_profiles").select("business_name").eq("id", u.id).maybeSingle();
+        const supabase = supabaseBrowser();
+        const { data: bp } = await supabase.from("business_profiles").select("business_name").eq("id", u.id).maybeSingle();
         if (mounted && bp && (bp as any).business_name) nameValue = (bp as any).business_name.trim();
       }
       setForm({
@@ -81,19 +82,20 @@ export default function AccountPage() {
     e.preventDefault();
     setMessage(null); setSaving(true);
     const nameTrim = form.name.trim();
-    const { error } = await supabaseBrowser.auth.updateUser({
+    const { error } = await supabaseBrowser().auth.updateUser({
       data: { display_name: nameTrim || null, country: form.country || null, language: form.language || null },
     });
     if (error) { setSaving(false); setMessage({ type: "error", text: error.message }); return; }
     if (user?.id) {
-      await supabaseBrowser.from("business_profiles").update({ business_name: nameTrim || null }).eq("id", user.id);
+      const supabase = supabaseBrowser();
+      await supabase.from("business_profiles").update({ business_name: nameTrim || null }).eq("id", user.id);
     }
     setSaving(false);
     setMessage({ type: "success", text: "Saved." });
   };
 
   const handleChangePassword = () => {
-    supabaseBrowser.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset-password` })
+    supabaseBrowser().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset-password` })
       .then(({ error }) => {
         if (error) setMessage({ type: "error", text: error.message });
         else setMessage({ type: "success", text: "Check your email for a password reset link." });

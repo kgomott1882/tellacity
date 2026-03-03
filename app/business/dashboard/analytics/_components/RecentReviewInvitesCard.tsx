@@ -67,7 +67,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
 
-    supabaseBrowser
+    supabaseBrowser()
       .from("review_invites")
       .select("recipient_email, channel, status, sent_at, created_at")
       .eq("business_id", businessId)

@@ -1,2 +1,2 @@
-/** Single browser client: re-export to avoid "Multiple GoTrueClient instances" and undefined behavior. */
+/** Single browser client getter to avoid "Multiple GoTrueClient instances". */
 export { supabaseBrowser as supabase } from "@/lib/supabaseBrowser";

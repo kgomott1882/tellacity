@@ -21,7 +21,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
     const loadSessionAndRole = async () => {
       let data: { session: { user: { id: string; email?: string | null } } | null } | null = null;
       try {
-        const result = await supabaseBrowser.auth.getSession();
+        const result = await supabaseBrowser().auth.getSession();
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
@@ -46,7 +46,8 @@ export const useBusinessAuth = (): BusinessAuthState => {
       setUser({ id: sessionUser.id, email: sessionUser.email });
       
       // Business user = has business_profiles by user id or by email (same email may have profile under another auth id)
-      const { data: businessProfileById, error: errById } = await supabaseBrowser
+      const supabase = supabaseBrowser();
+      const { data: businessProfileById, error: errById } = await supabase
         .from("business_profiles")
         .select("id")
         .eq("id", sessionUser.id)
@@ -62,7 +63,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
       const emailNorm = sessionUser.email?.trim().toLowerCase();
       let businessProfileByEmail = null;
       if (emailNorm) {
-        const { data } = await supabaseBrowser
+        const { data } = await supabase
           .from("business_profiles")
           .select("id")
           .eq("email", emailNorm)
@@ -77,7 +78,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
     loadSessionAndRole();
 
-    const { data: authListener } = supabaseBrowser.auth.onAuthStateChange(
+    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange(
       async (_event, session) => {
         const sessionUser = session?.user ?? null;
         if (!isMounted) {
@@ -92,7 +93,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
         
         setUser({ id: sessionUser.id, email: sessionUser.email });
         
-        const { data: byId } = await supabaseBrowser
+        const { data: byId } = await supabase
           .from("business_profiles")
           .select("id")
           .eq("id", sessionUser.id)
@@ -104,7 +105,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
         }
         const emailNorm = sessionUser.email?.trim().toLowerCase();
         if (emailNorm) {
-          const { data: byEmail } = await supabaseBrowser
+          const { data: byEmail } = await supabase
             .from("business_profiles")
             .select("id")
             .eq("email", emailNorm)
