@@ -187,6 +187,7 @@ export default function AdminClaimsPage() {
     setActionLoading((prev) => ({ ...prev, [claim.id]: true }));
     setRowError((prev) => ({ ...prev, [claim.id]: "" }));
 
+    const supabase = supabaseBrowser();
     const { error } = await supabase
       .from("business_claim_requests")
       .update({ status: "rejected" })
@@ -212,6 +213,7 @@ export default function AdminClaimsPage() {
     setRowError((prev) => ({ ...prev, [claim.id]: "" }));
     setStatusMessage(null);
 
+    const supabase = supabaseBrowser();
     const { data: existingOwner } = await supabase
       .from("business_owners")
       .select("business_id")
