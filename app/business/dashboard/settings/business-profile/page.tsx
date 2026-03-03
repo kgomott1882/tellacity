@@ -16,7 +16,6 @@ import Link from "next/link";
 import { ExternalLink, Upload, HelpCircle, Pencil } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { supabase } from "@/lib/supabaseClient";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
@@ -178,6 +177,7 @@ export default function BusinessProfilePage() {
     const ext  = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${businessId}/logo.${ext}`;
 
+    const supabase = supabaseBrowser();
     let uploadError: any = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const { error } = await supabase.storage.from("business_logos").upload(path, file, { upsert: true, contentType: file.type });
