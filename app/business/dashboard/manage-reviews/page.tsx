@@ -97,7 +97,8 @@ export default function ManageReviewsPage() {
       setLoading(true);
       setError(null);
 
-      const { data: session } = await supabaseBrowser().auth.getSession();
+      const supabase = supabaseBrowser();
+      const { data: session } = await supabase.auth.getSession();
       if (mounted && session?.session?.user?.id) {
         const { data: flaggedData, error } = await supabase
           .from("review_flags")
