@@ -29,6 +29,7 @@ export type SignatureState = {
 
 type Props = {
   signature: Signature
+  signatureEnabled?: boolean
 }
 
 export default function SignaturePreview({ signature }: Props) {
