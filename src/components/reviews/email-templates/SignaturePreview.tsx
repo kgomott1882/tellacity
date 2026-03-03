@@ -17,7 +17,7 @@ export type SignatureState = {
   signature_name: string
   signature_title: string
   signature_phone: string
-  signature_email: string
+  signature_email?: string
   signature_website: string
   signature_logo_url: string
   signature_address: string
