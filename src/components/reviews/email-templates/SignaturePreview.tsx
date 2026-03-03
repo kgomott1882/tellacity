@@ -23,6 +23,8 @@ export type SignatureState = {
   signature_address: string
   signature_cta_text: string
   signature_cta_url: string
+  remove_tellacity_branding: boolean
+  reply_to_email: string
 }
 
 type Props = {
