@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type CategoryBusiness = {
@@ -46,6 +46,7 @@ export default function CategoryDetailPage() {
     const run = async () => {
       setIsLoading(true);
       setError(null);
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase.rpc(
         "get_top_businesses_for_category_global",
         {
@@ -74,6 +75,7 @@ export default function CategoryDetailPage() {
     if (!slug) return;
 
     const fetchCategoryAndGroup = async () => {
+      const supabase = supabaseBrowser();
       const { data: category } = await supabase
         .from("categories")
         .select("name, group_slug")
