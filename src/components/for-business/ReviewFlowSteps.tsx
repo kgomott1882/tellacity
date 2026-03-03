@@ -41,7 +41,7 @@ const numberVariants = {
       delay: 0.15,
     },
   },
-};
+} as const;
 
 export default function ReviewFlowSteps() {
   return (
