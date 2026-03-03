@@ -403,6 +403,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase
         .from("review_replies")
         .select("id, review_id, body, created_at, author_role")
