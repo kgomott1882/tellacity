@@ -12,10 +12,14 @@
    remove_tellacity_branding?: boolean
  }
  
- export type SignatureState = {
-   enabled: boolean
-   text: string
- }
+export type SignatureState = {
+  signature_enabled: boolean
+  signature_name: string
+  signature_title: string
+  signature_phone: string
+  signature_email?: string
+  signature_website?: string
+}
 
 type Props = {
   signature: Signature
