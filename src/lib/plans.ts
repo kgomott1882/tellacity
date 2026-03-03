@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabaseClient";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type PlanKey = "free" | "grow" | "premium" | "elite";
@@ -22,13 +21,14 @@ export function getInviteLimitForPlan(plan?: string): number {
  * Source of truth: subscriptions table.
  */
 export async function getActivePlanCodeForBusiness(
-  businessId: string
+  businessId: string,
+  db: SupabaseClient
 ): Promise<string> {
   // Backwards-compatible helper that returns the raw subscription plan_code.
   // Prefer getActivePlanKeyForBusiness when you need a normalized PlanKey.
 
   // Get owner
-  const { data: business } = await supabase
+  const { data: business } = await db
     .from("businesses")
     .select("owner_id")
     .eq("id", businessId)
@@ -38,7 +38,7 @@ export async function getActivePlanCodeForBusiness(
     return "business_free";
   }
 
-  const { data: subscription } = await supabase
+  const { data: subscription } = await db
     .from("subscriptions")
     .select("plan_code, status")
     .eq("user_id", business.owner_id)
@@ -59,10 +59,8 @@ export async function getActivePlanCodeForBusiness(
  */
 export async function getActivePlanKeyForBusiness(
   businessId: string,
-  client?: SupabaseClient
+  db: SupabaseClient
 ): Promise<PlanKey> {
-  const db = client ?? supabase;
-
   // Get owner (and legacy plan, if present)
   const { data: business } = await db
     .from("businesses")
