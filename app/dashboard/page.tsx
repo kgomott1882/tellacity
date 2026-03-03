@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import { normalizeLogoUrl } from "@/lib/logo";
 
@@ -74,6 +73,7 @@ export default function ConsumerDashboard() {
       }
       
       // If this email has a business profile (by id or by email), redirect to business dashboard only.
+      const supabase = supabaseBrowser();
       const { data: businessProfileById } = await supabase
         .from("business_profiles")
         .select("id")
@@ -162,7 +162,7 @@ export default function ConsumerDashboard() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await supabaseBrowser().auth.signOut();
     router.push("/");
   };
 
