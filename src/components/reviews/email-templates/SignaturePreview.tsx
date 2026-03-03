@@ -1,16 +1,21 @@
  "use client"
-
-type Signature = {
-  signature_enabled?: boolean
-  signature_name?: string | null
-  signature_title?: string | null
-  signature_phone?: string | null
-  signature_website?: string | null
-  signature_address?: string | null
-  signature_cta_text?: string | null
-  signature_cta_url?: string | null
-  remove_tellacity_branding?: boolean
-}
+ 
+ type Signature = {
+   signature_enabled?: boolean
+   signature_name?: string | null
+   signature_title?: string | null
+   signature_phone?: string | null
+   signature_website?: string | null
+   signature_address?: string | null
+   signature_cta_text?: string | null
+   signature_cta_url?: string | null
+   remove_tellacity_branding?: boolean
+ }
+ 
+ export type SignatureState = {
+   enabled: boolean
+   text: string
+ }
 
 type Props = {
   signature: Signature
