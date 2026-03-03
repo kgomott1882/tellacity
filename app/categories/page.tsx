@@ -32,7 +32,7 @@ import {
   Building2,
   Trophy,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Category = {
   id: string;
@@ -173,6 +173,7 @@ export default function CategoriesPage() {
     let isMounted = true;
 
     const fetchGroups = async () => {
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase
         .from("category_groups")
         .select(`
