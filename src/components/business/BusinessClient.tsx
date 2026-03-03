@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { getActiveCountry } from "@/lib/getActiveCountry";
@@ -208,6 +208,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       setNotFound(false);
       setBusiness(null);
 
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase.rpc("get_business_by_slug", {
         p_slug: slug,
       });
@@ -317,6 +318,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
+      const supabase = supabaseBrowser();
       const { data } = await supabase
         .from("categories")
         .select("name, slug, group_name, group_slug")
@@ -351,6 +353,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
+      const supabase = supabaseBrowser();
       const { data, error, count } = await supabase
         .from("reviews")
         .select("rating", { count: "exact" })
@@ -436,6 +439,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       offset = 0,
       append = false
     ) => {
+      const supabase = supabaseBrowser();
       const { data, error, count } = await supabase
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, status", {
