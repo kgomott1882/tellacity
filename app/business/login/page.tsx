@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function BusinessLoginPage() {
   const router = useRouter();
@@ -117,6 +116,7 @@ export default function BusinessLoginPage() {
                       "true"
                     );
                   }
+                  const supabase = supabaseBrowser();
                   const { error: oauthError } = await supabase.auth.signInWithOAuth(
                     {
                       provider: "google",
