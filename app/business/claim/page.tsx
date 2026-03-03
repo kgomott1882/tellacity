@@ -87,6 +87,7 @@ export default function BusinessClaimPage() {
 
     setIsSearching(true);
 
+    const supabase = supabaseBrowser();
     const { data, error } = await supabase
       .from("businesses")
       .select(
@@ -148,6 +149,7 @@ export default function BusinessClaimPage() {
       return;
     }
 
+    const supabase = supabaseBrowser();
     const { data: existingRequest } = await supabase
       .from("business_claim_requests")
       .select("id, status")
