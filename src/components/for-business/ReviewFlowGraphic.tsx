@@ -27,7 +27,7 @@ const circleVariants = {
       damping: 20,
     },
   },
-};
+} as const;
 
 const lineVariants = {
   hidden: { scaleX: 0, opacity: 0 },
