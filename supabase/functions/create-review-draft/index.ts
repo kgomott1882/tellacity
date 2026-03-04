@@ -139,6 +139,8 @@ Deno.serve(async (req) => {
     }
 
     try {
+      const draftToken = crypto.randomUUID();
+
       const { data: inserted, error } = await supabase
         .from("reviews")
         .insert({
@@ -149,8 +151,13 @@ Deno.serve(async (req) => {
           date_of_experience,
           guest_email: submittedEmail,
           guest_name: guest_name.trim(),
-          draft: false,
-          status: "published",
+          draft: true,
+          status: "draft",
+          draft_token: draftToken,
+          verification_status: "pending",
+          draft_token_expires_at: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           invite_id: inviteId,
         })
         .select("id")
@@ -191,7 +198,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ ok: true }),
+        JSON.stringify({ ok: true, draft_token: draftToken }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } catch (_err) {
