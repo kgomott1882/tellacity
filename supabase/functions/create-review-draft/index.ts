@@ -1,216 +1,161 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/// <reference deno.ns="deno" />
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-Deno.serve(async (req) => {
+type DraftPayload = {
+  business_id?: string;
+  rating?: number;
+  title?: string | null;
+  body?: string;
+  guest_name?: string;
+  guest_email?: string;
+  date_of_experience?: string; // yyyy-mm-dd
+  marketing_opt_in?: boolean | null;
+  proof_urls?: string[] | null;
+  proof_data?: unknown | null;
+};
+
+function json(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function isUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    v,
+  );
+}
+
+serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { status: 200, headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
+
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ ok: false, message: "Method not allowed." }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json(405, { error: "Method not allowed" });
   }
 
   try {
-    const rawBody = await req.text();
-    if (!rawBody) {
-      return new Response(
-        JSON.stringify({ ok: false, message: "Missing request body." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const SUPABASE_URL =
+      Deno.env.get("SUPABASE_URL") ?? Deno.env.get("NEXT_PUBLIC_SUPABASE_URL");
+    const SERVICE_ROLE =
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+      Deno.env.get("SUPABASE_SERVICE_ROLE");
+
+    if (!SUPABASE_URL || !SERVICE_ROLE) {
+      console.error("Missing Supabase env vars", {
+        hasUrl: !!SUPABASE_URL,
+        hasServiceRole: !!SERVICE_ROLE,
+      });
+      return json(500, {
+        error:
+          "Server misconfigured: missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in Edge Function secrets.",
+      });
     }
 
-    let parsed: {
-      business_id?: string;
-      rating?: number;
-      title?: string | null;
-      body?: string;
-      date_of_experience?: string;
-      guest_email?: string;
-      guest_name?: string;
-      invite_token?: string | null;
-    };
-    try {
-      parsed = JSON.parse(rawBody);
-    } catch (_error) {
-      return new Response(
-        JSON.stringify({ ok: false, message: "Invalid JSON payload." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false },
+    });
+
+    const payload = (await req.json()) as DraftPayload;
+
+    const business_id = (payload.business_id ?? "").trim();
+    const body = (payload.body ?? "").trim();
+    const guest_name = (payload.guest_name ?? "").trim();
+    const guest_email = (payload.guest_email ?? "").trim().toLowerCase();
+    const rating = Number(payload.rating);
+
+    // Required fields
+    if (!business_id || !isUuid(business_id)) {
+      return json(400, {
+        error: "business_id is required and must be a UUID",
+      });
+    }
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return json(400, { error: "rating must be between 1 and 5" });
+    }
+    if (!body || body.length < 10) {
+      return json(400, {
+        error: "body is required (min 10 characters)",
+      });
+    }
+    if (!guest_name) {
+      return json(400, { error: "guest_name is required" });
+    }
+    if (!guest_email || !guest_email.includes("@")) {
+      return json(400, { error: "guest_email is required" });
+    }
+    if (!payload.date_of_experience) {
+      return json(400, {
+        error: "date_of_experience is required",
+      });
     }
 
-    const {
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    const insertRow = {
       business_id,
       rating,
-      title,
+      title: payload.title?.trim() || null,
       body,
-      date_of_experience,
-      guest_email,
       guest_name,
-      invite_token,
-    } = parsed;
+      guest_email,
+      date_of_experience: payload.date_of_experience,
+      marketing_opt_in: payload.marketing_opt_in ?? false,
 
-    if (!business_id || rating == null || !body || !date_of_experience || !guest_email || !guest_name) {
-      return new Response(
-        JSON.stringify({ ok: false, message: "Missing required fields." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Draft mechanics
+      status: "draft",
+      draft: true,
+      draft_token: token,
+      draft_token_expires_at: expiresAt,
+      verification_status: "pending",
+
+      // Optional evidence/proof fields (if your schema supports them)
+      proof_urls: payload.proof_urls ?? null,
+      proof_data: payload.proof_data ?? null,
+
+      source: "guest",
+    };
+
+    const { data, error } = await supabase
+      .from("reviews")
+      .insert(insertRow)
+      .select(
+        "id,business_id,draft_token,draft_token_expires_at,guest_email,status,draft",
+      )
+      .single();
+
+    if (error) {
+      // Clean handling of duplicate review per business/email
+      // Postgres unique violation code
+      // deno-lint-ignore no-explicit-any
+      const code = (error as any)?.code;
+      if (code === "23505") {
+        return json(409, {
+          error: "You have already reviewed this business.",
+        });
+      }
+
+      console.error("create-review-draft insert error", error);
+      return json(500, { error: "Failed to create review draft" });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      return new Response(
-        JSON.stringify({ ok: false, message: "Failed to create review draft." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const nowIso = new Date().toISOString();
-
-    let inviteId: string | null = null;
-
-    const submittedEmail = guest_email.trim().toLowerCase();
-
-    if (invite_token && invite_token.trim()) {
-      const trimmedToken = invite_token.trim();
-
-      const { data: invite, error: inviteError } = await supabase
-        .from("review_invites")
-        .select("id, business_id, used_at, review_id, target_email, recipient_email")
-        .eq("token", trimmedToken)
-        .maybeSingle();
-
-      if (inviteError) {
-        return new Response(
-          JSON.stringify({ ok: false, message: "Invalid invite." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (!invite) {
-        return new Response(
-          JSON.stringify({ ok: false, message: "Invalid invite." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const inviteRow = invite as {
-        id: string;
-        business_id: string;
-        used_at?: string | null;
-        review_id?: string | null;
-        target_email?: string | null;
-        recipient_email?: string | null;
-      };
-
-      if (inviteRow.used_at != null || inviteRow.review_id != null) {
-        return new Response(
-          JSON.stringify({ ok: false, message: "Invite already used." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const targetEmailRaw =
-        inviteRow.target_email != null ? inviteRow.target_email : inviteRow.recipient_email;
-      const targetEmail =
-        typeof targetEmailRaw === "string" ? targetEmailRaw.trim().toLowerCase() : null;
-
-      if (!targetEmail || submittedEmail !== targetEmail) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            message: "This invite is tied to a different email.",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      inviteId = inviteRow.id;
-    }
-
-    try {
-      const draftToken = crypto.randomUUID();
-
-      const { data: inserted, error } = await supabase
-        .from("reviews")
-        .insert({
-          business_id,
-          rating: Math.max(1, Math.min(5, Math.round(rating))),
-          title: title?.trim() || null,
-          body: body.trim(),
-          date_of_experience,
-          guest_email: submittedEmail,
-          guest_name: guest_name.trim(),
-          draft: true,
-          status: "draft",
-          draft_token: draftToken,
-          verification_status: "pending",
-          draft_token_expires_at: new Date(
-            Date.now() + 7 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          invite_id: inviteId,
-        })
-        .select("id")
-        .maybeSingle();
-
-      if (error) {
-        if (error.code === "23505") {
-          const message = inviteId
-            ? "This review link has already been used."
-            : "You have already reviewed this business.";
-          return new Response(
-            JSON.stringify({
-              ok: false,
-              message,
-            }),
-            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        return new Response(
-          JSON.stringify({ ok: false, message: "Failed to create review draft." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const reviewId =
-        (inserted as { id?: string } | null)?.id != null
-          ? (inserted as { id: string }).id
-          : null;
-
-      if (inviteId && reviewId) {
-        await supabase
-          .from("review_invites")
-          .update({
-            used_at: nowIso,
-            review_id: reviewId,
-          })
-          .eq("id", inviteId);
-      }
-
-      return new Response(
-        JSON.stringify({ ok: true, draft_token: draftToken }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } catch (_err) {
-      return new Response(
-        JSON.stringify({ ok: false, message: "Failed to create review draft." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-  } catch (_error) {
-    return new Response(
-      JSON.stringify({ ok: false, message: "Failed to create review draft." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json(200, { ok: true, review: data });
+  } catch (e) {
+    console.error("create-review-draft unexpected error", e);
+    return json(500, { error: "Failed to create review draft" });
   }
 });
+
