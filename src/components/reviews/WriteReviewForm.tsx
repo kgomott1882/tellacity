@@ -120,6 +120,7 @@ export default function WriteReviewForm({
   initialBusinessId,
   initialBusinessSlug,
   initialBusinessName,
+  businessSlug,
 }: WriteReviewFormProps) {
   const router = useRouter();
 
@@ -225,7 +226,7 @@ export default function WriteReviewForm({
     let isMounted = true;
 
     const loadBusiness = async () => {
-      if (!initialBusinessId && !initialBusinessSlug) {
+      if (!initialBusinessId && !initialBusinessSlug && !businessSlug) {
         setBusinessLoading(false);
         return;
       }
@@ -236,10 +237,11 @@ export default function WriteReviewForm({
       // Optimistic selection
       setBusiness((prev) => {
         if (prev) return prev;
+        const slugToUse = initialBusinessSlug ?? businessSlug ?? "";
         return {
           id: initialBusinessId ?? "",
           name: inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business"),
-          slug: initialBusinessSlug ?? "",
+          slug: slugToUse,
           website: null,
         };
       });
@@ -255,6 +257,8 @@ export default function WriteReviewForm({
         query.eq("id", initialBusinessId);
       } else if (initialBusinessSlug) {
         query.eq("slug", initialBusinessSlug);
+      } else if (businessSlug) {
+        query.eq("slug", businessSlug);
       }
 
       const { data, error } = await query.maybeSingle();
@@ -294,7 +298,7 @@ export default function WriteReviewForm({
     return () => {
       isMounted = false;
     };
-  }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId]);
+  }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId, businessSlug]);
 
   // Restore draft saved before Google sign-in
   useEffect(() => {

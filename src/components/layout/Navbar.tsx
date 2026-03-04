@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
-import { setActiveCountry } from "@/lib/getActiveCountry";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -44,10 +45,11 @@ export default function Navbar() {
     message: string;
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [countryCode, setCountryCode] = useState<string>("ZA");
 
-  const activeCountryCode = searchParams.get("country") ?? "ZA";
   const activeCountry =
-    COUNTRIES.find((item) => item.code === activeCountryCode) ?? COUNTRIES[0];
+    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
   const isBusinessNav =
     pathname?.startsWith("/for-business") ||
     pathname?.startsWith("/pricing") ||
@@ -55,6 +57,21 @@ export default function Navbar() {
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
   const isHomeNav = pathname === "/";
+
+  // Sync country from URL or stored preference on mount
+  useEffect(() => {
+    const fromUrl = searchParams.get("country");
+    if (fromUrl) {
+      setCountryCode(fromUrl);
+      return;
+    }
+    const stored = getActiveCountry();
+    if (stored) {
+      setCountryCode(stored);
+    } else {
+      setCountryCode("ZA");
+    }
+  }, [searchParams]);
 
   // Skip auth on landing page to avoid AbortError and keep landing page stable; load user on all other routes.
   useEffect(() => {
@@ -242,6 +259,7 @@ export default function Navbar() {
   const handleCountryChange = (code: string) => {
     // Persist for other UIs that still read local storage,
     // and broadcast the custom event for listeners.
+    setCountryCode(code);
     setActiveCountry(code);
 
     const params = new URLSearchParams(searchParams.toString());
@@ -251,83 +269,182 @@ export default function Navbar() {
   };
 
   if (isBusinessNav) {
-  return (
-    <header className="w-full">
-        <div className="sticky top-0 z-40 w-full bg-[#1FAF9E]">
-          <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-6 px-6">
-            <Link href="/for-business" className="flex items-center">
-              <img
-                src="/brand/Tellacity%20-Business%20Logo.png"
-                alt="Tellacity Business"
-                className="h-8 w-auto"
-              />
-            </Link>
+    return (
+      <>
+        <header className="w-full">
+          <div className="sticky top-0 z-40 w-full bg-[#1FAF9E]">
+            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:h-[72px] md:gap-6 md:px-6">
+              <Link href="/for-business" className="flex items-center">
+                <img
+                  src="/brand/Tellacity%20-Business%20Logo.png"
+                  alt="Tellacity Business"
+                  className="h-6 w-auto md:h-8"
+                />
+              </Link>
 
-            <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
-              <Link
-                href="/for-business"
-                className={`border-b-2 pb-1 font-semibold ${
-                  pathname === "/for-business"
-                    ? "border-white text-white"
-                    : "border-transparent text-white/90 hover:border-white"
-                }`}
-              >
-                Features
-              </Link>
-              <Link
-                href="/pricing"
-                className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
-              >
-                Pricing
-              </Link>
-              <Link
-                href="/solution"
-                className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
-              >
-                Solution
-              </Link>
-              <Link
-                href="/resources"
-                className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
-              >
-                Resources
-              </Link>
-            </nav>
+              <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
+                <Link
+                  href="/for-business"
+                  className={`border-b-2 pb-1 font-semibold ${
+                    pathname === "/for-business"
+                      ? "border-white text-white"
+                      : "border-transparent text-white/90 hover:border-white"
+                  }`}
+                >
+                  Features
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="/solution"
+                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                >
+                  Solution
+                </Link>
+                <Link
+                  href="/resources"
+                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                >
+                  Resources
+                </Link>
+              </nav>
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/business/login"
-                className="hidden text-sm font-semibold text-white/90 hover:text-white md:inline-flex"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/business/signup"
-                className="hidden rounded-full border border-white/60 px-5 py-2 text-sm font-semibold text-white hover:border-white md:inline-flex"
-              >
-                Get Started
-              </Link>
-          <button
-            type="button"
-                className="inline-flex items-center justify-center rounded-full border border-white/60 p-2 text-white md:hidden"
-                aria-label="Open menu"
-          >
-            <svg
-              viewBox="0 0 24 24"
-                  className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-                  strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18M3 12h18M3 18h18" />
-            </svg>
-          </button>
+              <div className="flex items-center gap-2 md:gap-3">
+                <Link
+                  href="/business/login"
+                  className="hidden text-sm font-semibold text-white/90 hover:text-white md:inline-flex"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/business/signup"
+                  className="hidden rounded-full border border-white/60 px-5 py-2 text-sm font-semibold text-white hover:border-white md:inline-flex"
+                >
+                  Get Started
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                  className="inline-flex items-center justify-center p-1.5 text-white md:hidden"
+                  aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                >
+                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-30 md:hidden">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#0E0E0E] p-5 shadow-xl">
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-white"
+                  aria-label="Close menu"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="text-white">
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-xs font-medium"
+                    onClick={() => setIsCountryOpen((prev) => !prev)}
+                  >
+                    <img
+                      src={activeCountry.flagUrl}
+                      alt={activeCountry.name}
+                      className="h-3 w-5 object-cover"
+                    />
+                    <span>{activeCountry.name}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3 w-3 text-white/70"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  {isCountryOpen && (
+                    <div className="mt-2 rounded-md border border-white/10 bg-[#111] text-xs">
+                      {COUNTRIES.map((item) => (
+                        <button
+                          key={item.code}
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-white/5"
+                          onClick={() => {
+                            handleCountryChange(item.code);
+                            setIsCountryOpen(false);
+                          }}
+                        >
+                          <img
+                            src={item.flagUrl}
+                            alt={item.name}
+                            className="h-3 w-5 object-cover"
+                          />
+                          <span className="flex-1">{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="mb-4 border-t border-white/10" />
+                <nav className="flex flex-col gap-4 text-sm">
+                  <Link
+                    href="/write-review"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Write a Review
+                  </Link>
+                  <Link
+                    href="/categories"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Categories
+                  </Link>
+                  <Link
+                    href="/for-business"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    For Business
+                  </Link>
+
+                  <div className="my-6 border-t border-white/10" />
+
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
+                  >
+                    Get Started
+                  </Link>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -339,158 +456,256 @@ export default function Navbar() {
             isHomeNav ? "bg-black" : "bg-[#0E0E0E]"
           }`}
         >
-          <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-6 px-6">
-          <Link href="/" className="flex items-center">
-            <img
-              src="/brand/TELLACITY%20LOGO%202A.png"
-              alt="Tellacity"
-              className="h-[26px] w-auto"
-            />
-          </Link>
+          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:h-[72px] md:gap-6 md:px-6">
+            <Link href="/" className="flex items-center">
+              <img
+                src="/brand/TELLACITY%20LOGO%202A.png"
+                alt="Tellacity"
+                className="h-6 w-auto md:h-[26px]"
+              />
+            </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
-            <div
-              className="relative"
-              onMouseEnter={openCountryMenu}
-              onMouseLeave={scheduleCountryClose}
-            >
+            <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
+              <div
+                className="relative"
+                onMouseEnter={openCountryMenu}
+                onMouseLeave={scheduleCountryClose}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-2 border-b-2 border-transparent pb-1 text-sm font-semibold text-white/80 hover:border-[#1FAF9E] hover:text-white"
+                  onClick={() => setIsCountryOpen((prev) => !prev)}
+                >
+                  <img
+                    src={activeCountry.flagUrl}
+                    alt={activeCountry.name}
+                    className="h-4 w-6 object-cover"
+                  />
+                  <span>{activeCountry.name}</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3 w-3 text-white/70"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {isCountryOpen && (
+                  <div className="absolute left-0 top-7 z-50 w-48 rounded-lg border border-gray-200 bg-white py-2 text-xs text-[#0E0E0E] shadow-lg">
+                    {COUNTRIES.map((item) => (
+                      <button
+                        key={item.code}
+                        type="button"
+                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                        onClick={() => {
+                          handleCountryChange(item.code);
+                          setIsCountryOpen(false);
+                        }}
+                      >
+                        <img
+                          src={item.flagUrl}
+                          alt={item.name}
+                          className="h-4 w-6 object-cover"
+                        />
+                        <span className="flex-1">{item.name}</span>
+                        {item.code === activeCountry.code && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4 text-[#1FAF9E]"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Link
+                href="/write-review"
+                className={`border-b-2 pb-1 font-semibold ${
+                  pathname === "/write-review"
+                    ? "border-[#1FAF9E] text-white"
+                    : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
+                }`}
+              >
+                Write a Review
+              </Link>
+              <Link
+                href="/categories"
+                className={`border-b-2 pb-1 font-semibold ${
+                  pathname === "/categories"
+                    ? "border-[#1FAF9E] text-white"
+                    : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
+                }`}
+              >
+                Categories
+              </Link>
+              <Link
+                href="/for-business"
+                className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786]"
+              >
+                For Business
+              </Link>
+            </nav>
+
+            <div className="flex items-center gap-2 md:gap-3">
+              {userInitials ? (
+                <>
+                  <Link
+                    href={dashboardHref}
+                    className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+                  >
+                    Dashboard
+                  </Link>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
+                    {userInitials}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/login"
+                    className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="hidden rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
               <button
                 type="button"
-                className="flex items-center gap-2 border-b-2 border-transparent pb-1 text-sm font-semibold text-white/80 hover:border-[#1FAF9E] hover:text-white"
-                onClick={() => setIsCountryOpen((prev) => !prev)}
+                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                className="inline-flex items-center justify-center p-1.5 text-white md:hidden"
+                aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
               >
-                <img
-                  src={activeCountry.flagUrl}
-                  alt={activeCountry.name}
-                  className="h-4 w-6 object-cover"
-                />
-                <span>{activeCountry.name}</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-3 w-3 text-white/70"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
-              {isCountryOpen && (
-                <div className="absolute left-0 top-7 z-50 w-48 rounded-lg border border-gray-200 bg-white py-2 text-xs text-[#0E0E0E] shadow-lg">
-                  {COUNTRIES.map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
-                      onClick={() => {
-                        handleCountryChange(item.code);
-                        setIsCountryOpen(false);
-                      }}
-                    >
-                      <img
-                        src={item.flagUrl}
-                        alt={item.name}
-                        className="h-4 w-6 object-cover"
-                      />
-                      <span className="flex-1">{item.name}</span>
-                      {item.code === activeCountry.code && (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-4 w-4 text-[#1FAF9E]"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
-            <Link
-              href="/write-review"
-              className={`border-b-2 pb-1 font-semibold ${
-                pathname === "/write-review"
-                  ? "border-[#1FAF9E] text-white"
-                  : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
-              }`}
-            >
-              Write a Review
-            </Link>
-            <Link
-              href="/categories"
-              className={`border-b-2 pb-1 font-semibold ${
-                pathname === "/categories"
-                  ? "border-[#1FAF9E] text-white"
-                  : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
-              }`}
-            >
-              Categories
-            </Link>
-            <Link
-              href="/for-business"
-              className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786]"
-            >
-              For Business
-            </Link>
-          </nav>
+          </div>
 
-          <div className="flex items-center gap-3">
-            {userInitials ? (
-              <>
-                <Link
-                  href={dashboardHref}
-                  className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+        </div>
+      </header>
+
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-30 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#0E0E0E] p-5 shadow-xl">
+            <div className="mb-6 flex justify-end">
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-white"
+                aria-label="Close menu"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="text-white">
+              <div className="mb-4">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-xs font-medium"
+                  onClick={() => setIsCountryOpen((prev) => !prev)}
                 >
-                  Dashboard
+                  <img
+                    src={activeCountry.flagUrl}
+                    alt={activeCountry.name}
+                    className="h-3 w-5 object-cover"
+                  />
+                  <span>{activeCountry.name}</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3 w-3 text-white/70"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {isCountryOpen && (
+                  <div className="mt-2 rounded-md border border-white/10 bg-[#111] text-xs">
+                    {COUNTRIES.map((item) => (
+                      <button
+                        key={item.code}
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-white/5"
+                        onClick={() => {
+                          handleCountryChange(item.code);
+                          setIsCountryOpen(false);
+                        }}
+                      >
+                        <img
+                          src={item.flagUrl}
+                          alt={item.name}
+                          className="h-3 w-5 object-cover"
+                        />
+                        <span className="flex-1">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-4 border-t border-white/10" />
+              <nav className="flex flex-col gap-4 text-sm">
+                <Link
+                  href="/write-review"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Write a Review
                 </Link>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
-                  {userInitials}
-                </div>
-              </>
-            ) : (
-              <>
+                <Link
+                  href="/categories"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Categories
+                </Link>
+                <Link
+                  href="/for-business"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  For Business
+                </Link>
+
+                <div className="my-6 border-t border-white/10" />
+
                 <Link
                   href="/auth/login"
-                  className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="hidden rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
                 >
                   Get Started
                 </Link>
-              </>
-            )}
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-[#0E0E0E] md:hidden"
-              aria-label="Open menu"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 6h18M3 12h18M3 18h18" />
-              </svg>
-            </button>
-          </div>
+              </nav>
+            </div>
           </div>
         </div>
-      </header>
+      )}
 
       {isLoginOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F8F4F0] px-4">

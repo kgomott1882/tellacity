@@ -5,5 +5,16 @@ export default function WriteReviewPage({
 }: {
   params: { business_slug: string };
 }) {
-  return <WriteReviewForm businessSlug={params.business_slug} />;
+  const slug = params.business_slug;
+
+  return (
+    <WriteReviewForm
+      inviteId={null}
+      inviteToken={undefined}
+      businessSlug={slug}
+      initialBusinessId={null}
+      initialBusinessSlug={slug}
+      initialBusinessName={null}
+    />
+  );
 }

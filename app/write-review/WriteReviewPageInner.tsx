@@ -19,7 +19,7 @@ export default function WriteReviewLandingPage() {
       inviteToken={inviteToken ?? undefined}
       businessSlug={initialBusinessSlug ?? ""}
       initialBusinessId={businessId}
-      initialBusinessSlug={null}
+      initialBusinessSlug={initialBusinessSlug}
       initialBusinessName={businessName}
     />
   );

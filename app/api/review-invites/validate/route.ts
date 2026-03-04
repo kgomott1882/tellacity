@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -26,12 +27,17 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date().toISOString();
 
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token.trim())
+      .digest("hex");
+
     const { data: invite, error } = await supabase
       .from("review_invites")
       .select(
         "id, business_id, status, expires_at, used_at, businesses(id, name, slug)"
       )
-      .eq("token", token.trim())
+      .eq("token", hashedToken)
       .maybeSingle();
 
     if (error || !invite) {

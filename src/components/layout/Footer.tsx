@@ -5,42 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
-  {
-    code: "US",
-    name: "United States",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/US.svg",
-  },
-  {
-    code: "UK",
-    name: "United Kingdom",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/GB.svg",
-  },
-  {
-    code: "ZA",
-    name: "South Africa",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/ZA.svg",
-  },
-  {
-    code: "AU",
-    name: "Australia",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/AU.svg",
-  },
-  {
-    code: "CA",
-    name: "Canada",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/CA.svg",
-  },
-  {
-    code: "NZ",
-    name: "New Zealand",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/NZ.svg",
-  },
-  {
-    code: "IE",
-    name: "Ireland",
-    flagUrl: "https://purecatamphetamine.github.io/country-flag-icons/3x2/IE.svg",
-  },
+  { code: "US", name: "United States", flagUrl: `${FLAG_BASE}/US.svg` },
+  { code: "GB", name: "United Kingdom", flagUrl: `${FLAG_BASE}/GB.svg` },
+  { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
+  { code: "AU", name: "Australia", flagUrl: `${FLAG_BASE}/AU.svg` },
+  { code: "CA", name: "Canada", flagUrl: `${FLAG_BASE}/CA.svg` },
+  { code: "NZ", name: "New Zealand", flagUrl: `${FLAG_BASE}/NZ.svg` },
+  { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
 export default function Footer() {

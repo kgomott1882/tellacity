@@ -458,7 +458,12 @@ export default function HomePageClient({
     const value = name.toLowerCase();
     const iconClass = "h-7 w-7 text-[#124541]";
 
-    if (value.includes("hotel") || value.includes("lodging") || value.includes("accommodation")) {
+    // Hotels / accommodation
+    if (
+      value.includes("hotel") ||
+      value.includes("lodging") ||
+      value.includes("accommodation")
+    ) {
       return (
         <svg
           viewBox="0 0 24 24"
@@ -478,7 +483,165 @@ export default function HomePageClient({
       );
     }
 
-    // ... all other icon cases unchanged from original HomePage ...
+    // Banking / money
+    if (value.includes("bank") || value.includes("money") || value.includes("finance")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 10h16" />
+          <path d="M5 10V8.5L12 4l7 4.5V10" />
+          <rect x="5" y="10" width="3" height="7" />
+          <rect x="10.5" y="10" width="3" height="7" />
+          <rect x="16" y="10" width="3" height="7" />
+          <path d="M4 17h16" />
+        </svg>
+      );
+    }
+
+    // Travel agencies
+    if (value.includes("travel")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 10l4.5 1.5L12 9l-1.5 4.5L15 18l1.5-4.5L20 12" />
+          <circle cx="12" cy="12" r="8" />
+        </svg>
+      );
+    }
+
+    // Cars & trucks
+    if (value.includes("car") || value.includes("truck")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="11" width="18" height="5" rx="1" />
+          <path d="M7 11l1.5-3h7L17 11" />
+          <circle cx="7" cy="17" r="1.4" />
+          <circle cx="17" cy="17" r="1.4" />
+        </svg>
+      );
+    }
+
+    // Furniture stores
+    if (value.includes("furniture")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="4" y="9" width="16" height="6" rx="1.5" />
+          <path d="M8 9V6h8v3" />
+          <path d="M7 15v3" />
+          <path d="M17 15v3" />
+        </svg>
+      );
+    }
+
+    // Jewelry & watches
+    if (value.includes("jewel") || value.includes("watch")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="4.5" />
+          <path d="M12 8v2.5l1.8 1.2" />
+          <rect x="10" y="3" width="4" height="3" rx="1" />
+          <rect x="10" y="18" width="4" height="3" rx="1" />
+        </svg>
+      );
+    }
+
+    // Clothing & underwear
+    if (value.includes("clothing") || value.includes("underwear") || value.includes("clothes")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M8 4l4 2 4-2 2 3-3 2v9H9V9L6 7z" />
+        </svg>
+      );
+    }
+
+    // Appliances & electronics
+    if (value.includes("appliance") || value.includes("electronic")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="5" y="4" width="14" height="14" rx="2" />
+          <rect x="8" y="7" width="8" height="6" rx="1" />
+          <path d="M9 17h6" />
+          <path d="M9 14.5h.01" />
+          <path d="M15 14.5h.01" />
+        </svg>
+      );
+    }
+
+    // Fitness & gyms
+    if (value.includes("fitness") || value.includes("gym")) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className={iconClass}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 7v10" />
+          <path d="M18 7v10" />
+          <rect x="8" y="8" width="2" height="8" />
+          <rect x="14" y="8" width="2" height="8" />
+          <path d="M4 9v6" />
+          <path d="M20 9v6" />
+        </svg>
+      );
+    }
 
     return (
       <svg
@@ -507,7 +670,8 @@ export default function HomePageClient({
             "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
         }}
       >
-        <div className="mx-auto max-w-7xl px-6 py-28 md:py-32 text-center">
+        <div className="mx-auto flex min-h-[440px] max-w-7xl flex-col items-center px-6 pb-14 pt-20 text-center sm:min-h-[520px] sm:pt-24 md:pt-32 md:pb-16">
+          <div className="w-full max-w-md sm:max-w-lg md:max-w-4xl">
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -515,11 +679,11 @@ export default function HomePageClient({
               duration: 0.9,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-4xl font-semibold text-[#F9FAFB] md:text-5xl lg:text-[3.25rem]"
+            className="text-3xl font-semibold text-[#F9FAFB] sm:text-4xl md:text-5xl lg:text-[3.25rem]"
           >
             Customer{" "}
             <span className="relative inline-block cursor-default">
-              <span className="relative z-[1]">Feedback &amp; Reviews</span>
+              <span className="relative z-[1]">Reviews &amp; Feedback</span>
               <span
                 className="absolute left-0 right-0 bottom-[2px] h-[4px] rounded-sm bg-[#5dd4cc]"
                 aria-hidden
@@ -534,16 +698,16 @@ export default function HomePageClient({
               delay: 0.2,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-4 text-base sm:text-lg text-[#F9FAFB] font-medium tracking-wide"
+            className="mt-3 text-sm font-medium tracking-wide text-[#F9FAFB]/80 sm:mt-4 sm:text-base"
           >
             Business insights. Transparency at scale.
           </motion.p>
           <FadeUp delay={0.2}>
-            <div className="mx-auto mt-10 w-full max-w-3xl">
+            <div className="mt-8 w-full sm:mt-10">
               <BusinessSearchInput
                 placeholder="Find businesses you can trust..."
                 heroLayout
-                heroButtonLabel="Find a business"
+                heroButtonLabel="FIND A BUSINESS"
                 onSelect={(business) => {
                   router.push(`/b/${business.slug}`);
                 }}
@@ -557,11 +721,11 @@ export default function HomePageClient({
           <div className="mt-6">
             <Link
               href="/write-review"
-              className="relative inline-flex items-center gap-2 overflow-visible rounded-full bgblack px-6 py-3 text-sm font-semibold text-white shadow-[0_0_0_rgba(47,178,168,0)] transition-all duration-300 hover:bg-gray-900 hover:shadow-[0_0_20px_rgba(47,178,168,0.5),0_0_40px_rgba(47,178,168,0.25)] active:scale-95"
+              className="relative inline-flex items-center gap-1.5 rounded-full bg-[#0B9A6D] px-4 py-2 text-xs font-semibold text-white shadow-[0_0_0_rgba(239,68,68,0)] transition-all duration-300 sm:px-5 sm:py-2.5 sm:text-xs hover:shadow-[0_0_14px_rgba(239,68,68,0.85),0_0_26px_rgba(239,68,68,0.5)] active:scale-95"
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4"
+                className="h-3 w-3 sm:h-4 sm:w-4"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -572,6 +736,7 @@ export default function HomePageClient({
               </svg>
               Write a Review
             </Link>
+          </div>
           </div>
         </div>
       </section>
@@ -584,10 +749,10 @@ export default function HomePageClient({
 
       {/* WHAT ARE YOU LOOKING FOR? */}
       <section className="bg-white overflow-visible">
-        <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-20">
+        <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-semibold text-[#0E0E0E]">
+              <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
                 <span className="relative inline-block">
                   <span className="relative z-10">What are you looking for?</span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
@@ -633,7 +798,7 @@ export default function HomePageClient({
               </div>
               <Link
                 href="/categories"
-                className="rounded-full border border-[#1FAF9E] px-4 py-2 text-sm font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className="rounded-full border border-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-4 sm:py-2 sm:text-sm"
               >
                 See more →
               </Link>
@@ -641,7 +806,7 @@ export default function HomePageClient({
           </div>
           <div
             ref={categoryScrollRef}
-            className="mt-8 flex gap-6 overflow-x-hidden overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="mt-6 flex gap-4 overflow-x-auto overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {visibleCategories.map((category, index) => (
               <motion.div
@@ -657,12 +822,12 @@ export default function HomePageClient({
               >
                 <Link
                   href={`/categories/${category.slug}`}
-                  className="group relative flex h-[120px] w-[160px] shrink-0 flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center text-gray-600 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] hover:border-[#2fb2a8]/40"
+                  className="group relative flex h-[110px] w-[150px] shrink-0 flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center text-gray-600 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] hover:border-[#2fb2a8]/40 sm:h-[120px] sm:w-[160px]"
                 >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center text-gray-500">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 sm:h-12 sm:w-12">
                     {getCategoryIcon(category.name)}
                   </span>
-                  <span className="leading-tight text-sm font-medium text-[#0E0E0E]">
+                  <span className="leading-tight text-xs font-medium text-[#0E0E0E] sm:text-sm">
                     {category.name}
                   </span>
                 </Link>
@@ -673,12 +838,12 @@ export default function HomePageClient({
       </section>
 
       {/* RECENT REVIEWS */}
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-8 sm:py-10 md:py-12">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-semibold text-[#0E0E0E]">
+            <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
-                <span className="relative z-10">What people are saying right now</span>
+                <span className="relative z-10">Recent reviews</span>
                 <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
               </span>
             </h2>
@@ -734,17 +899,36 @@ export default function HomePageClient({
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {isLoading && (
-            <>
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="h-64 rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
-                />
-              ))}
-            </>
-          )}
+        {/* Mobile: horizontal swipe carousel */}
+        <div className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {isLoading &&
+            [1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-64 w-72 shrink-0 rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
+              />
+            ))}
+          {!isLoading &&
+            visibleReviews.length > 0 &&
+            visibleReviews.map((review) => (
+              <div
+                key={review.review_id}
+                className="w-72 shrink-0 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
+              >
+                <RecentReviewCard review={review} showMoreAndReply={false} />
+              </div>
+            ))}
+        </div>
+
+        {/* Tablet / desktop: grid */}
+        <div className="mt-6 hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+          {isLoading &&
+            [1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-64 rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
+              />
+            ))}
           {!isLoading &&
             visibleReviews.length > 0 &&
             visibleReviews.map((review) => (
@@ -752,25 +936,23 @@ export default function HomePageClient({
                 key={review.review_id}
                 className="transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl"
               >
-                <RecentReviewCard
-                  review={review}
-                  showMoreAndReply={false}
-                />
+                <RecentReviewCard review={review} showMoreAndReply={false} />
               </div>
             ))}
-          {!isLoading && visibleReviews.length === 0 && !error && (
-            <p className="col-span-full text-center text-sm text-gray-500 py-8">
-              No reviews to show yet. Check back soon.
-            </p>
-          )}
         </div>
+
+        {!isLoading && visibleReviews.length === 0 && !error && (
+          <p className="mt-8 text-center text-sm text-gray-500 py-8">
+            No reviews to show yet. Check back soon.
+          </p>
+        )}
       </section>
 
       {/* FAQ SECTION */}
       <section className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-6 py-16">
+        <div className="mx-auto w-full max-w-7xl px-6 py-8 sm:py-10 md:py-12">
           <div>
-            <h2 className="text-3xl font-semibold text-[#0E0E0E]">
+            <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
                 <span className="relative z-10">Frequently Asked Questions</span>
                 <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
@@ -783,7 +965,57 @@ export default function HomePageClient({
             </p>
           </div>
 
-          <div className="mt-10 grid gap-4 lg:grid-cols-2">
+          {/* Mobile: show only a subset of FAQs */}
+          <div className="mt-6 flex flex-col gap-4 lg:hidden">
+            {faqItems.slice(0, 8).map((item) => {
+              const isOpen = openFaqKey === item.question;
+              return (
+                <div
+                  key={item.question}
+                  className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#2fb2a8]/5 hover:border-[#2fb2a8] ${
+                    isOpen ? "shadow-md border-[#2fb2a8]" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenFaqKey((prev) =>
+                        prev === item.question ? null : item.question
+                      )
+                    }
+                    className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm font-medium text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
+                  >
+                    <span>{item.question}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${
+                        isOpen ? "rotate-180 text-[#2fb2a8]" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isOpen ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="px-5 pb-4 text-sm text-gray-600">
+                      {item.answer}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: full FAQ grid */}
+          <div className="mt-8 hidden gap-4 lg:grid lg:grid-cols-2">
             {faqColumns.map((column, columnIndex) => (
               <div
                 key={`faq-column-${columnIndex}`}
@@ -869,9 +1101,9 @@ export default function HomePageClient({
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         viewport={{ once: true, amount: 0.2 }}
       >
-        <div className="mx-auto w-full max-w-7xl px-6 py-16">
+        <div className="mx-auto w-full max-w-7xl px-6 py-8 sm:py-10 md:py-12">
           <div>
-            <h2 className="text-3xl font-semibold text-[#0E0E0E]">
+            <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
                 <span className="relative z-10">Latest Blog Posts</span>
                 <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
@@ -889,7 +1121,7 @@ export default function HomePageClient({
             </Link>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-6">
             {latestBlogPost && (
               <div
                 key={latestBlogPost.title}
@@ -933,7 +1165,7 @@ export default function HomePageClient({
                       },
                     }}
                   >
-                    <h3 className="mt-4 text-2xl font-semibold text-[#0E0E0E]">
+                    <h3 className="mt-4 text-base font-semibold text-[#0E0E0E] sm:text-lg md:text-xl">
                       {latestBlogPost.title}
                     </h3>
                   </motion.div>
@@ -990,11 +1222,11 @@ export default function HomePageClient({
 
       {/* BUSINESS CTA */}
       <section className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-6 pb-16">
+        <div className="mx-auto w-full max-w-7xl px-6 py-8 sm:py-10 md:py-12">
           <div className="rounded-[28px] bg-[#D9FAEF] px-8 py-8 sm:px-10 sm:py-10">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-3xl">
-                <h3 className="text-3xl font-semibold text-[#0E0E0E]">
+                <h3 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
                   <span className="relative inline-block">
                     <span className="relative z-10">
                       Looking to grow your business?

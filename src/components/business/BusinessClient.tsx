@@ -751,7 +751,13 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               )}
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
-                  href={`/write-review/${business?.slug ?? ""}`}
+                  href={
+                    business?.slug
+                      ? `/write-review?businessSlug=${encodeURIComponent(
+                          business.slug
+                        )}`
+                      : "/write-review"
+                  }
                   className="inline-flex items-center gap-2 rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -980,7 +986,13 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       This business has no published reviews yet.
                     </p>
                     <Link
-                      href={`/write-review/${business?.slug ?? ""}`}
+                      href={
+                        business?.slug
+                          ? `/write-review?businessSlug=${encodeURIComponent(
+                              business.slug
+                            )}`
+                          : "/write-review"
+                      }
                       className="mt-3 inline-flex rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                     >
                       Be the first to write a review
