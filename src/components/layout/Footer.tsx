@@ -262,8 +262,16 @@ export default function Footer() {
                     Safety &amp; Trust
                   </Link>
                 </li>
-                <li>Log In</li>
-                <li>Sign Up</li>
+                <li>
+                  <Link href="/auth/login" className="hover:text-white">
+                    Log In
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signup" className="hover:text-white">
+                    Sign Up
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
@@ -271,6 +279,11 @@ export default function Footer() {
                 FOR BUSINESSES
               </h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
+                <li>
+                  <Link href="/solution" className="hover:text-white">
+                    Solutions
+                  </Link>
+                </li>
                 <li>
                   <Link href="/for-business" className="hover:text-white">
                     Tellacity for Business
@@ -286,10 +299,9 @@ export default function Footer() {
                     Plans &amp; Pricing
                   </Link>
                 </li>
-                <li>Business Login</li>
                 <li>
-                  <Link href="/api-data-solutions" className="hover:text-white">
-                    API &amp; Data Solutions
+                  <Link href="/business/login" className="hover:text-white">
+                    Business Login
                   </Link>
                 </li>
                 <li>
