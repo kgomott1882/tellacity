@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import "./globals.css";
 import { Suspense } from "react";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";

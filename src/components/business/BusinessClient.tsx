@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { getActiveCountry } from "@/lib/getActiveCountry";
@@ -112,7 +113,6 @@ type BusinessClientProps = {
 };
 
 export default function BusinessClient({ initialBusiness = null }: BusinessClientProps) {
-  const supabase = supabaseBrowser();
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
   const [business, setBusiness] = useState<Business | null>(() => {
@@ -209,6 +209,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       setNotFound(false);
       setBusiness(null);
 
+      const supabase = supabaseBrowser();
       const { data, error } = await supabase.rpc("get_business_by_slug", {
         p_slug: slug,
       });
@@ -318,7 +319,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const { data } = await supabase
+      const sb = supabase();
+      const { data } = await sb
         .from("categories")
         .select("name, slug, group_name, group_slug")
         .eq("slug", business.categorySlug)
@@ -352,7 +354,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const { data, error, count } = await supabase
+      const sb = supabase();
+      const { data, error, count } = await sb
         .from("reviews")
         .select("rating", { count: "exact" })
         .eq("business_id", business.id)
@@ -401,7 +404,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const { data, error } = await supabase
+      const sb = supabase();
+      const { data, error } = await sb
         .from("review_replies")
         .select("id, review_id, body, created_at, author_role")
         .in("review_id", reviewIds)
@@ -437,7 +441,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       offset = 0,
       append = false
     ) => {
-      const { data, error, count } = await supabase
+      const sb = supabase();
+      const { data, error, count } = await sb
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, status", {
           count: "exact",
@@ -1022,7 +1027,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         setIsLoadingMore(true);
                         const offset = reviewOffset;
 
-                        const { data, error, count } = await supabase
+                        const sb = supabase();
+                        const { data, error, count } = await sb
                           .from("reviews")
                           .select(
                             "id, guest_name, rating, title, body, created_at, status",
@@ -1049,7 +1055,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           ]);
                           const reviewIds = mapped.map((item) => item.id);
                           if (reviewIds.length > 0) {
-                            const { data: replyData } = await supabase
+                            const { data: replyData } = await sb
                               .from("review_replies")
                               .select(
                                 "id, review_id, body, created_at, author_role"

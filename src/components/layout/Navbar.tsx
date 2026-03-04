@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { setActiveCountry } from "@/lib/getActiveCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -20,12 +20,10 @@ const COUNTRIES = [
 ];
 
 export default function Navbar() {
-  const supabase = supabaseBrowser();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("");
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -47,8 +45,9 @@ export default function Navbar() {
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const activeCountryCode = searchParams.get("country") ?? "ZA";
   const activeCountry =
-    COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
+    COUNTRIES.find((item) => item.code === activeCountryCode) ?? COUNTRIES[0];
   const isBusinessNav =
     pathname?.startsWith("/for-business") ||
     pathname?.startsWith("/pricing") ||
@@ -56,15 +55,6 @@ export default function Navbar() {
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
   const isHomeNav = pathname === "/";
-
-  useEffect(() => {
-    const fromUrl = searchParams.get("country");
-    if (fromUrl) {
-      setCountryCode(fromUrl);
-      return;
-    }
-    setCountryCode(getActiveCountry() ?? "");
-  }, [searchParams]);
 
   // Skip auth on landing page to avoid AbortError and keep landing page stable; load user on all other routes.
   useEffect(() => {
@@ -103,6 +93,7 @@ export default function Navbar() {
           setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
         }
 
+        const supabase = supabaseBrowser();
         const { data: byId } = await supabase
           .from("business_profiles")
           .select("id")
@@ -133,7 +124,8 @@ export default function Navbar() {
   }, [isSignupOpen]);
 
   useEffect(() => {
-    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange(
+    const supabase = supabaseBrowser();
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         const user = session?.user ?? null;
         if (user) {
@@ -151,6 +143,7 @@ export default function Navbar() {
             setUserInitials(user.email?.[0]?.toUpperCase() ?? "U");
           }
           (async () => {
+            const supabase = supabaseBrowser();
             const { data: byId } = await supabase
               .from("business_profiles")
               .select("id")
@@ -192,6 +185,7 @@ export default function Navbar() {
           if (!user) return;
 
           (async () => {
+            const supabase = supabaseBrowser();
             const { data: byId } = await supabase
               .from("business_profiles")
               .select("id")
@@ -391,7 +385,6 @@ export default function Navbar() {
                       type="button"
                       className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
                       onClick={() => {
-                        setCountryCode(item.code);
                         handleCountryChange(item.code);
                         setIsCountryOpen(false);
                       }}

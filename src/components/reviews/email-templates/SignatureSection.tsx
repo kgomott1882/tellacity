@@ -15,7 +15,6 @@ type Props = {
 };
 
 export function SignatureSection({ plan, value, onChange, businessId }: Props) {
-  const supabase = supabaseBrowser();
   const [isEditing, setIsEditing] = React.useState(false);
   const [logoError, setLogoError] = React.useState<string | null>(null);
   const [logoUploading, setLogoUploading] = React.useState(false);
@@ -66,6 +65,7 @@ export function SignatureSection({ plan, value, onChange, businessId }: Props) {
     const path = `${businessId}/${Date.now()}-${safeName}`;
 
     try {
+      const supabase = supabaseBrowser();
       const { error: uploadError } = await supabase.storage
         .from("email-signatures")
         .upload(path, file, { upsert: true, contentType: file.type });

@@ -1,29 +1,23 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-/** No-op lock to avoid AbortError from auth lock timeout (multiple tabs, unmount, strict mode). */
-const noOpLock = async <R>(
-  _name: string,
-  _acquireTimeout: number,
-  fn: () => Promise<R>
-): Promise<R> => fn();
-
-let _browserClient: SupabaseClient | null = null;
+let client: SupabaseClient | null = null;
 
 export function supabaseBrowser(): SupabaseClient {
-  if (_browserClient) return _browserClient;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anon) {
-    throw new Error("supabaseUrl is required.");
+  if (typeof window === "undefined") {
+    throw new Error("supabaseBrowser() should only be called in the browser.");
   }
 
-  _browserClient = createClient(url, anon, {
-    auth: {
-      lock: noOpLock,
-    },
-  });
+  if (client) return client;
 
-  return _browserClient;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Supabase environment variables are missing. Check Vercel environment settings."
+    );
+  }
+
+  client = createClient(supabaseUrl, supabaseAnonKey);
+  return client;
 }

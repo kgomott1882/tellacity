@@ -14,7 +14,6 @@ export const useBusinessAuth = (): BusinessAuthState => {
   const [user, setUser] = useState<BusinessAuthState["user"]>(null);
   const [isBusiness, setIsBusiness] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = supabaseBrowser();
 
   useEffect(() => {
     let isMounted = true;
@@ -47,6 +46,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
       setUser({ id: sessionUser.id, email: sessionUser.email });
       
       // Business user = has business_profiles by user id or by email (same email may have profile under another auth id)
+      const supabase = supabaseBrowser();
       const { data: businessProfileById, error: errById } = await supabase
         .from("business_profiles")
         .select("id")
@@ -93,6 +93,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
         
         setUser({ id: sessionUser.id, email: sessionUser.email });
         
+        const supabase = supabaseBrowser();
         const { data: byId } = await supabase
           .from("business_profiles")
           .select("id")
@@ -105,6 +106,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
         }
         const emailNorm = sessionUser.email?.trim().toLowerCase();
         if (emailNorm) {
+          const supabase = supabaseBrowser();
           const { data: byEmail } = await supabase
             .from("business_profiles")
             .select("id")

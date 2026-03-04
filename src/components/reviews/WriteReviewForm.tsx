@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import RatingStars from "@/components/RatingStars";
 import { Button } from "@/components/ui/button";
@@ -120,7 +121,6 @@ export default function WriteReviewForm({
   initialBusinessSlug,
   initialBusinessName,
 }: WriteReviewFormProps) {
-  const supabase = supabaseBrowser();
   const router = useRouter();
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -244,7 +244,8 @@ export default function WriteReviewForm({
         };
       });
 
-      const query = supabase
+      const sb = supabase();
+      const query = sb
         .from("businesses")
         .select("id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom")
         .eq("status", "active")
@@ -405,7 +406,8 @@ export default function WriteReviewForm({
       .toString(36)
       .slice(2)}_${proofFile.name}`;
 
-    const { error: uploadError } = await supabase.storage
+    const sb = supabase();
+    const { error: uploadError } = await sb.storage
       .from("receipts")
       .upload(uniqueName, proofFile);
 
@@ -413,7 +415,7 @@ export default function WriteReviewForm({
       throw new Error("Could not upload your proof. Please try again.");
     }
 
-    const { data } = supabase.storage
+    const { data } = sb.storage
       .from("receipts")
       .getPublicUrl(uniqueName);
 
@@ -445,7 +447,8 @@ export default function WriteReviewForm({
       const receiptUrl = await uploadProofIfNeeded();
 
       if (userId) {
-        const { error } = await supabase.from("reviews").insert({
+        const sb = supabase();
+        const { error } = await sb.from("reviews").insert({
           business_id: business.id,
           user_id: userId,
           rating: Math.max(1, Math.min(5, Math.round(rating))),
