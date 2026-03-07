@@ -8,12 +8,12 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  const entries: MetadataRoute.Sitemap = [
+  const pages: MetadataRoute.Sitemap = [
     {
       url: `${BASE_URL}/`,
       lastModified: now,
       changeFrequency: "daily",
-      priority: 1.0,
+      priority: 1,
     },
     {
       url: `${BASE_URL}/categories`,
@@ -88,7 +88,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const g of groupSlugs) {
     const slug = g.group_slug ?? g.slug;
     if (slug) {
-      entries.push({
+      pages.push({
         url: `${BASE_URL}/best/${slug}`,
         lastModified: now,
         changeFrequency: "weekly",
@@ -105,7 +105,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const categorySlugs = (Array.isArray(categories) ? categories : []) as { slug: string | null }[];
   for (const c of categorySlugs) {
     if (c.slug) {
-      entries.push({
+      pages.push({
         url: `${BASE_URL}/best/${c.slug}`,
         lastModified: now,
         changeFrequency: "weekly",
@@ -114,6 +114,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  return entries;
+  return pages;
 }
-
