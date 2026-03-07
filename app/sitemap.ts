@@ -1,6 +1,6 @@
 export const dynamic = "force-static";
 
-import type { MetadataRoute } from "next";
+import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
@@ -89,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const slug = g.group_slug ?? g.slug;
     if (slug) {
       pages.push({
-        url: `${BASE_URL}/best/${slug}`,
+        url: `${BASE_URL}/best/${encodeURIComponent(slug)}`,
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.8,
@@ -106,7 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const c of categorySlugs) {
     if (c.slug) {
       pages.push({
-        url: `${BASE_URL}/best/${c.slug}`,
+        url: `${BASE_URL}/best/${encodeURIComponent(c.slug)}`,
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.8,
