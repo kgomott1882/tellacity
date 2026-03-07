@@ -86,7 +86,7 @@ export default async function CategoryPage(props: {
   const companyCount =
     typeof countData === "number"
       ? countData
-      : Number(countData ?? 0) || 0;
+      : (Number(countData ?? 0)) || 0;
 
   const hasNextPage = companyCount > 10;
 

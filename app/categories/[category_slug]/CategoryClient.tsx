@@ -293,13 +293,13 @@ export default function CategoryClient({
               const aAgg = agg[a.id] ?? { count: 0, sum: 0 };
               const bAgg = agg[b.id] ?? { count: 0, sum: 0 };
               const aRating =
-                aAgg.count > 0 ? aAgg.sum / aAgg.count : Number(a.trust_score ?? 0) || 0;
+                aAgg.count > 0 ? aAgg.sum / aAgg.count : (Number(a.trust_score ?? 0)) || 0;
               const bRating =
-                bAgg.count > 0 ? bAgg.sum / bAgg.count : Number(b.trust_score ?? 0) || 0;
+                bAgg.count > 0 ? bAgg.sum / bAgg.count : (Number(b.trust_score ?? 0)) || 0;
               const aCount =
-                aAgg.count > 0 ? aAgg.count : Number(a.review_count ?? 0) || 0;
+                aAgg.count > 0 ? aAgg.count : (Number(a.review_count ?? 0)) || 0;
               const bCount =
-                bAgg.count > 0 ? bAgg.count : Number(b.review_count ?? 0) || 0;
+                bAgg.count > 0 ? bAgg.count : (Number(b.review_count ?? 0)) || 0;
 
               if (bRating !== aRating) return bRating - aRating;
               if (bCount !== aCount) return bCount - aCount;
@@ -620,7 +620,7 @@ export default function CategoryClient({
 
             {businessesList.length > 0 &&
               businessesList.map((business) => {
-                const reviewCount = Number(business.review_count ?? 0) || 0;
+                const reviewCount = (Number(business.review_count ?? 0)) || 0;
                 const ratingValue =
                   typeof business.trust_score === "number" && business.trust_score > 0
                     ? business.trust_score
@@ -745,7 +745,7 @@ export default function CategoryClient({
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {recentCompanies.map((company) => {
-                  const reviewCount = Number(company.review_count ?? 0) || 0;
+                  const reviewCount = (Number(company.review_count ?? 0)) || 0;
                   const ratingValue =
                     typeof company.trust_score === "number" && company.trust_score > 0
                       ? company.trust_score

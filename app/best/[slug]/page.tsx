@@ -138,7 +138,7 @@ export default async function BestPage(props: { params: Promise<{ slug: string }
             <ul className="mt-6 space-y-3">
               {groupList.map((row) => {
                 const categorySlug = row.category_slug ?? "";
-                const name = row.category_name ?? categorySlug || "Category";
+                const name = (row.category_name ?? categorySlug) || "Category";
                 const rank = row.rank_position ?? 0;
                 const rating = Number(row.rating_value ?? 0);
                 const reviewCount = Number(row.review_count ?? 0);
@@ -249,7 +249,7 @@ export default async function BestPage(props: { params: Promise<{ slug: string }
           <ul className="mt-6 space-y-3">
             {categoryList.map((row, index) => {
               const businessSlug = row.business_slug ?? "";
-              const name = row.business_name ?? businessSlug || "Business";
+              const name = (row.business_name ?? businessSlug) || "Business";
               const rank = row.rank_position ?? index + 1;
               const rating = Number(row.rating_value ?? 0);
               const reviewCount = Number(row.review_count ?? 0);

@@ -37,7 +37,7 @@ export default async function BestPage() {
         return {
           "@type": "ListItem",
           position: index + 1,
-          name: g.name ?? slug || "Category group",
+          name: (g.name ?? slug) || "Category group",
           url: `${siteUrl}/best/${slug}`,
         };
       }),
@@ -61,7 +61,7 @@ export default async function BestPage() {
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3">
             {list.map((group) => {
               const slug = group.group_slug ?? group.slug ?? "";
-              const name = group.name ?? slug || "Category group";
+              const name = (group.name ?? slug) || "Category group";
               return (
                 <Link
                   key={slug || name}

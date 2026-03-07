@@ -28,7 +28,7 @@ export default async function WidgetEmbedPage({
   const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
     ? (rawType as WidgetType)
     : "badge";
-  const limit = Math.min(Math.max(parseInt(params.limit ?? "5", 10) || 5, 1), 20);
+  const limit = Math.min(Math.max((parseInt(params.limit ?? "5", 10)) || 5, 1), 20);
 
   if (!slug) {
     return <Fallback message="Missing business slug." />;

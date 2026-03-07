@@ -243,10 +243,10 @@ export default function HomePageClient({
     const withScores = list.map((biz) => {
       const metrics = bestInMetrics[biz.id];
       const reviewCount = metrics
-        ? Number(metrics.review_count ?? 0) || 0
-        : Number(biz.review_count ?? 0) || 0;
+        ? (Number(metrics.review_count ?? 0)) || 0
+        : (Number(biz.review_count ?? 0)) || 0;
       const rating = metrics
-        ? Number(metrics.trust_score ?? 0) || 0
+        ? (Number(metrics.trust_score ?? 0)) || 0
         : typeof biz.trust_score === "number"
         ? biz.trust_score || 0
         : 0;

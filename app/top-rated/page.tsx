@@ -68,7 +68,7 @@ export default async function TopRatedPage() {
             <ul className="mt-8 space-y-4">
               {list.map((row) => {
                 const slug = row.business_slug ?? "";
-                const name = row.business_name ?? slug || "Business";
+                const name = (row.business_name ?? slug) || "Business";
                 const rank = row.rank_position ?? 0;
                 const rating = Number(row.rating_value ?? 0);
                 const reviewCount = Number(row.review_count ?? 0);

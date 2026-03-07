@@ -98,10 +98,10 @@ export default function CategoryDetailPage() {
             });
 
             list.sort((a, b) => {
-              const aRating = Number(a.trust_score ?? 0) || 0;
-              const bRating = Number(b.trust_score ?? 0) || 0;
-              const aCount = Number(a.review_count ?? 0) || 0;
-              const bCount = Number(b.review_count ?? 0) || 0;
+              const aRating = (Number(a.trust_score ?? 0)) || 0;
+              const bRating = (Number(b.trust_score ?? 0)) || 0;
+              const aCount = (Number(a.review_count ?? 0)) || 0;
+              const bCount = (Number(b.review_count ?? 0)) || 0;
               if (bRating !== aRating) return bRating - aRating;
               if (bCount !== aCount) return bCount - aCount;
               return (a.name || "").localeCompare(b.name || "");

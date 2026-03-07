@@ -124,7 +124,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     const countryCode = String(row.country_code ?? "").trim();
     const email = String(row.email ?? "").trim();
     const phone = String(row.phone ?? "").trim();
-    const resolvedLogoUrl = String(row.resolved_logo_url ?? "").trim() || null;
+    const resolvedLogoUrl = (String(row.resolved_logo_url ?? "").trim()) || null;
     const reviewCount = Number(row.review_count ?? 0);
     const averageRating = Number(row.average_rating ?? 0);
     return {
@@ -141,9 +141,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       rating3Count: Number(row.rating_3_count ?? 0),
       rating4Count: Number(row.rating_4_count ?? 0),
       rating5Count: Number(row.rating_5_count ?? 0),
-      countryCode: countryCode || String(row.country_code ?? ""),
+      countryCode: countryCode || (String(row.country_code ?? "")),
       address,
-      city: city || String(row.city ?? ""),
+      city: city || (String(row.city ?? "")),
       description: String(row.description ?? "").trim(),
       categorySlug: String(row.category_slug ?? ""),
       categoryGroupSlug: row.primary_group_slug
@@ -240,7 +240,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       let countryCode = (row.country_code ?? "").toString().trim();
       let email = (row.email ?? "").toString().trim();
       let phone = (row.phone ?? "").toString().trim();
-      const resolvedLogoUrl: string | null = (row.resolved_logo_url ?? "").toString().trim() || null;
+      const resolvedLogoUrl: string | null = ((row.resolved_logo_url ?? "").toString().trim()) || null;
       const reviewCount = Number(row.review_count ?? 0);
       const averageRating = Number(row.average_rating ?? 0);
 
@@ -263,9 +263,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         rating3Count: Number(row.rating_3_count ?? 0),
         rating4Count: Number(row.rating_4_count ?? 0),
         rating5Count: Number(row.rating_5_count ?? 0),
-        countryCode: countryCode || (row.country_code ?? "").toString(),
+        countryCode: countryCode || ((row.country_code ?? "").toString()),
         address,
-        city: city || (row.city ?? "").toString(),
+        city: city || ((row.city ?? "").toString()),
         description: (row.description ?? "").toString().trim(),
         categorySlug: (row.category_slug ?? "").toString(),
         categoryGroupSlug: (row.primary_group_slug ?? null) as string | null,
