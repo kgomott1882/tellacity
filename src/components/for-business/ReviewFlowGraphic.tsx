@@ -41,7 +41,7 @@ const lineVariants = {
 export default function ReviewFlowGraphic() {
   return (
     <motion.div
-      className="flex items-center justify-center gap-6"
+      className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 min-w-0"
       variants={container}
       initial="hidden"
       whileInView="visible"
@@ -51,18 +51,24 @@ export default function ReviewFlowGraphic() {
         <div key={step.num} className="contents">
           <div className="flex flex-col items-center">
             <motion.div
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1FAF9E] font-semibold text-white"
+              className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E] text-sm sm:text-base font-semibold text-white"
               variants={circleVariants}
             >
               {step.num}
             </motion.div>
-            <p className="mt-2 text-xs text-gray-600">{step.label}</p>
+            <p className="mt-1.5 sm:mt-2 text-xs text-gray-600 text-center">{step.label}</p>
           </div>
           {i < steps.length - 1 && (
-            <motion.div
-              className="h-[2px] w-16 origin-left bg-gray-300"
-              variants={lineVariants}
-            />
+            <>
+              <motion.div
+                className="hidden sm:block h-[2px] w-12 sm:w-16 shrink-0 origin-left bg-gray-300"
+                variants={lineVariants}
+              />
+              <motion.div
+                className="sm:hidden h-6 w-px shrink-0 bg-gray-300"
+                variants={lineVariants}
+              />
+            </>
           )}
         </div>
       ))}

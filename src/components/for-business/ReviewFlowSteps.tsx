@@ -46,7 +46,7 @@ const numberVariants = {
 export default function ReviewFlowSteps() {
   return (
     <motion.div
-      className="mt-6 grid gap-6 md:grid-cols-4"
+      className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-4 min-w-0"
       variants={container}
       initial="hidden"
       whileInView="visible"
@@ -55,16 +55,16 @@ export default function ReviewFlowSteps() {
       {steps.map((item, index) => (
         <motion.div
           key={item}
-          className="rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95 hover:bg-teal-50"
+          className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95 hover:bg-teal-50 min-w-0"
           variants={cardVariants}
         >
           <motion.span
-            className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1FAF9E] text-xs font-semibold text-white"
+            className="mb-2 sm:mb-3 inline-flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E] text-xs font-semibold text-white"
             variants={numberVariants}
           >
             {index + 1}
           </motion.span>
-          <p className="text-sm font-semibold text-[#0E0E0E]">{item}</p>
+          <p className="text-sm font-semibold text-[#0E0E0E] leading-snug">{item}</p>
         </motion.div>
       ))}
     </motion.div>

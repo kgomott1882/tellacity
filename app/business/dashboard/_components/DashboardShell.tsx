@@ -1,10 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "./Sidebar";
 import SecondarySidebar from "./SecondarySidebar";
 import TopBar from "./TopBar";
+import BusinessSwitcher from "./BusinessSwitcher";
+import { NAV_ITEMS } from "./Sidebar";
 import { BusinessProvider, useBusinessContext } from "../_context/BusinessContext";
 import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
@@ -73,6 +77,9 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const { loading, user, isBusiness } = useBusinessAuth();
   const { setBusinesses, selectedBusiness, setSelectedBusiness, setIsLoading, businesses, pageLoading, setPageLoading } = useBusinessContext() as any;
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
+  const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
   const prevPathnameRef = React.useRef<string | null>(null);
 
   const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
@@ -189,6 +196,17 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
+  // Close drawer when route changes (after user navigates via a sub-link). Must be before any early return.
+  const prevPathRef = React.useRef(pathname);
+  useEffect(() => {
+    if (prevPathRef.current !== pathname) {
+      prevPathRef.current = pathname;
+      setMobileDrawerOpen(false);
+      setMobileNavView("main");
+      setMobileSubSection(null);
+    }
+  }, [pathname]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8F4F0] flex items-center justify-center text-black/60">
@@ -204,10 +222,28 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 
+  const closeDrawer = () => {
+    setMobileDrawerOpen(false);
+    setMobileNavView("main");
+    setMobileSubSection(null);
+  };
+
+  const handleMobileSectionTap = (key: string) => {
+    setMobileSubSection(key);
+    setMobileNavView("sub");
+  };
+
+  const handleMobileSubLinkClick = () => {
+    closeDrawer();
+  };
+
+  const subData = mobileSubSection ? NAV_SECTIONS[mobileSubSection] : null;
+
   return (
     <div className="min-h-screen flex bg-[#F8F4F0]">
+      {/* Desktop: sidebars */}
       <div
-        className="flex shrink-0"
+        className="hidden lg:flex shrink-0"
         onMouseLeave={() => setActiveSection(null)}
       >
         <Sidebar
@@ -226,11 +262,126 @@ function InnerShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
-      <main className="flex-1 relative">
-        <TopBar />
-        <div className="px-10 py-8">{children}</div>
-        {pageLoading && <PageLoadingOverlay />}
-      </main>
+
+      {/* Mobile: hamburger + main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:hidden flex items-center gap-2 h-14 px-4 border-b border-gray-200 bg-white shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className="p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+            aria-label="Open menu"
+          >
+            <Menu size={24} />
+          </button>
+          <span className="text-sm font-medium text-gray-700 truncate">Menu</span>
+        </div>
+        <main className="flex-1 relative">
+          <TopBar />
+          <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">{children}</div>
+          {pageLoading && <PageLoadingOverlay />}
+        </main>
+      </div>
+
+      {/* Mobile drawer overlay */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeDrawer}
+            aria-hidden
+          />
+          <div className="absolute left-0 top-0 bottom-0 w-[85%] max-w-sm bg-[#2fb2a8] text-white flex flex-col shadow-xl">
+            {mobileNavView === "main" ? (
+              <>
+                <div className="flex items-center justify-between px-4 h-14 border-b border-white/15 shrink-0">
+                  <span className="font-semibold">Menu</span>
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    className="p-2 rounded-lg text-white hover:bg-white/10"
+                    aria-label="Close menu"
+                  >
+                    <X size={22} />
+                  </button>
+                </div>
+                <div className="border-b border-white/15 px-4 py-3">
+                  <BusinessSwitcher loading={bizLoading} />
+                </div>
+                <div className="px-4 pt-4 pb-2">
+                  <Link href="/business/dashboard" onClick={closeDrawer} className="flex items-center">
+                    <img
+                      src="/brand/Tellacity%20-Business%20Logo.png"
+                      alt="Tellacity"
+                      className="h-[2rem] w-auto object-contain"
+                    />
+                  </Link>
+                </div>
+                <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                  {NAV_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    const hasItems = item.items && item.items.length > 0;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => hasItems && handleMobileSectionTap(item.key)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left text-white/90 hover:bg-white/10"
+                      >
+                        <Icon size={18} />
+                        <span className="flex-1">{item.label}</span>
+                        {hasItems && <ChevronRight size={16} className="text-white/80" />}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 px-4 h-14 border-b border-white/15 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setMobileNavView("main"); setMobileSubSection(null); }}
+                    className="p-2 rounded-lg text-white hover:bg-white/10"
+                    aria-label="Back"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <span className="flex-1 font-semibold uppercase tracking-wide text-sm">
+                    {subData?.title ?? mobileSubSection}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    className="p-2 rounded-lg text-white hover:bg-white/10"
+                    aria-label="Close menu"
+                  >
+                    <X size={22} />
+                  </button>
+                </div>
+                <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+                  {subData?.items?.map((item) => {
+                    const isActive = pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        onClick={handleMobileSubLinkClick}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-md transition ${
+                          isActive ? "bg-white/20 text-white font-medium" : "text-white/90 hover:bg-white/10"
+                        }`}
+                      >
+                        <span>{item.label}</span>
+                        {!isActive && <ChevronRight size={16} className="text-white/60" />}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

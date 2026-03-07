@@ -51,40 +51,50 @@ export default function ForBusinessPage() {
       </section>
 
       <section className="border-y border-gray-100 bg-[#F8FAFC]">
-        <div className="mx-auto w-full max-w-7xl px-6 py-8">
-          <div className="grid gap-6 text-center md:grid-cols-4 md:text-left">
-            <div>
-              <p className="text-lg font-semibold text-[#0E0E0E]">
-                Verified Reviews Only
-              </p>
-              <p className="text-sm text-gray-500">
-                Real customer experiences. No anonymous noise.
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-[#0E0E0E]">
-                No Pay-to-Hide Reviews
-              </p>
-              <p className="text-sm text-gray-500">
-                Fair for businesses. Fair for customers.
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-[#0E0E0E]">
-                Right of Reply
-              </p>
-              <p className="text-sm text-gray-500">
-                Businesses respond. Reviews aren’t erased.
-              </p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-[#0E0E0E]">
-                Built for Long-Term Trust
-              </p>
-              <p className="text-sm text-gray-500">
-                Reputation that compounds over time.
-              </p>
-            </div>
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-4 md:gap-6">
+            {[
+              {
+                num: "01",
+                title: "Verified Reviews Only",
+                description: "Real customer experiences. No anonymous noise.",
+              },
+              {
+                num: "02",
+                title: "No Pay-to-Hide Reviews",
+                description: "Fair for businesses. Fair for customers.",
+              },
+              {
+                num: "03",
+                title: "Right of Reply",
+                description: "Businesses respond. Reviews aren't erased.",
+              },
+              {
+                num: "04",
+                title: "Built for Long-Term Trust",
+                description: "Reputation that compounds over time.",
+              },
+            ].map((item) => (
+              <div
+                key={item.num}
+                className="flex gap-4 text-left"
+              >
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E] text-sm font-bold text-white ring-2 ring-[#1FAF9E]/30"
+                  aria-hidden
+                >
+                  {item.num}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-semibold text-[#0E0E0E] sm:text-lg">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -204,10 +214,10 @@ export default function ForBusinessPage() {
       </ForBusinessMotionSection>
 
       {/* CONVERT + REVIEW FLOW: combined in one card */}
-      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
-        <div className="rounded-3xl border border-gray-200 bg-white p-8">
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-4 sm:px-6 pb-16">
+        <div className="rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 lg:p-8">
           {/* Convert Visitors Into Customers */}
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 md:items-center">
             <div>
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">
                 <span className="relative inline-block">
@@ -235,14 +245,14 @@ export default function ForBusinessPage() {
           </div>
 
           {/* What Happens After a Review Is Posted? */}
-          <div className="mt-10 border-t border-gray-100 pt-10 grid gap-8 md:grid-cols-2 md:items-center">
-            <div className="order-2 md:order-1">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+          <div className="mt-6 sm:mt-10 border-t border-gray-100 pt-6 sm:pt-10 grid gap-6 sm:gap-8 md:grid-cols-2 md:items-center min-w-0">
+            <div className="order-2 md:order-1 min-w-0">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4 shadow-sm min-w-0 overflow-hidden">
                 <ReviewFlowGraphic />
               </div>
             </div>
-            <div className="order-1 md:order-2">
-              <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+            <div className="order-1 md:order-2 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#0E0E0E]">
                 <span className="relative inline-block">
                   <span className="relative z-10">
                     What Happens After a Review Is Posted?

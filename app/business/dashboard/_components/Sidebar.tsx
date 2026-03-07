@@ -17,8 +17,8 @@ import NavItem from "./NavItem";
 import BusinessSwitcher from "./BusinessSwitcher";
 import { useBusinessContext } from "../_context/BusinessContext";
 
-// Single flat array — rendered in this exact order, no splits
-const NAV_ITEMS = [
+// Single flat array — rendered in this exact order, no splits (exported for mobile drawer)
+export const NAV_ITEMS = [
   {
     label: "Analytics",
     icon: BarChart2,

@@ -46,6 +46,8 @@ export default function Navbar() {
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [countryCode, setCountryCode] = useState<string>("ZA");
 
   const activeCountry =
@@ -75,6 +77,18 @@ export default function Navbar() {
       setCountryCode("ZA");
     }
   }, [searchParams]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isUserMenuOpen]);
 
   // Skip auth on landing page and auth/reset flows so we never
   // show dashboard access while a user is in the middle of a
@@ -571,17 +585,34 @@ export default function Navbar() {
 
             <div className="flex items-center gap-2 md:gap-3">
               {userInitials && !isAuthFlow ? (
-                <>
+                <div className="relative" ref={userMenuRef}>
                   <Link
                     href={dashboardHref}
                     className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
                   >
                     Dashboard
                   </Link>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm text-white">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]"
+                    aria-label="Open account menu"
+                    aria-expanded={isUserMenuOpen}
+                  >
                     {userInitials}
-                  </div>
-                </>
+                  </button>
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-2 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                      <Link
+                        href={dashboardHref}
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-[#0E0E0E] hover:bg-gray-50"
+                      >
+                        Dashboard
+                      </Link>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <Link
@@ -678,6 +709,15 @@ export default function Navbar() {
               </div>
               <div className="mb-4 border-t border-white/10" />
               <nav className="flex flex-col gap-4 text-sm">
+                {userInitials && !isAuthFlow && (
+                  <Link
+                    href={dashboardHref}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="font-medium text-[#1FAF9E]"
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 <Link
                   href="/write-review"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -699,19 +739,23 @@ export default function Navbar() {
 
                 <div className="my-6 border-t border-white/10" />
 
-                <Link
-                  href="/auth/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
-                >
-                  Get Started
-                </Link>
+                {userInitials && !isAuthFlow ? null : (
+                  <>
+                    <Link
+                      href="/auth/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/auth/signup"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
               </nav>
             </div>
           </div>
