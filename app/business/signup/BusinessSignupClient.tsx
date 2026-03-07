@@ -368,17 +368,11 @@ export default function BusinessSignupClient() {
         />
         <div className="flex min-h-screen">
           <div className="hidden lg:flex lg:w-1/2 flex-col bg-[#F8F4F0] px-12 py-16">
-            <Link
-              href="/for-business"
-              className="text-sm text-gray-600 hover:text-[#0E0E0E] mb-12"
-            >
-              ← Back
-            </Link>
             <div className="mb-12">
               <img
-                src="/brand/Tellacity%20-Business%20Logo.png"
+                src="/brand/TELLACITY%20-Line%20Icon.png"
                 alt="Tellacity Business"
-                className="h-10 w-auto mb-8"
+                className="h-16 w-auto mb-8 sm:h-[4.5rem]"
               />
             </div>
             <div className="space-y-8 max-w-md">
@@ -435,26 +429,19 @@ export default function BusinessSignupClient() {
 
           <div className="w-full lg:w-1/2 flex flex-col overflow-y-auto">
             <div className="flex-1 px-6 py-8 lg:px-12 lg:py-16">
-              <div className="lg:hidden mb-6">
-                <Link
-                  href="/for-business"
-                  className="text-sm text-gray-600 hover:text-[#0E0E0E] mb-4 inline-block"
-                >
-                  ← Back
-                </Link>
+              <div className="lg:hidden mb-6 flex justify-center">
                 <img
-                  src="/brand/Tellacity%20-Business%20Logo.png"
+                  src="/brand/TELLACITY%20-Line%20Icon.png"
                   alt="Tellacity Business"
-                  className="h-8 w-auto"
+                  className="h-16 w-auto sm:h-[4.5rem]"
                 />
               </div>
 
               <div className="max-w-md mx-auto lg:mx-0">
-                <h1 className="text-2xl font-semibold text-[#0E0E0E] mb-6">
-                  Create a free account
-                </h1>
-
                 <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                  <h1 className="text-xl font-semibold text-[#0E0E0E] mb-3 sm:text-2xl">
+                    Create a free account
+                  </h1>
                   <p className="text-sm text-neutral-600">Selected Plan:</p>
                   <p className="text-lg font-semibold capitalize">
                     {selectedPlan}

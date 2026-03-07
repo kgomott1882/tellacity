@@ -371,10 +371,21 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#0E0E0E] p-5 shadow-xl">
-              <div className="mb-6 flex justify-end">
+              <div className="mb-6 flex items-center justify-between">
+                <Link
+                  href="/for-business"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center"
+                >
+                  <img
+                    src="/brand/Tellacity%20-Business%20Logo.png"
+                    alt="Tellacity Business"
+                    className="h-6 w-auto"
+                  />
+                </Link>
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-white"
+                  className="text-white p-1"
                   aria-label="Close menu"
                 >
                   <X size={24} />
@@ -431,39 +442,61 @@ export default function Navbar() {
                 <div className="mb-4 border-t border-white/10" />
                 <nav className="flex flex-col gap-4 text-sm">
                   <Link
-                    href="/write-review"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Write a Review
-                  </Link>
-                  <Link
-                    href="/categories"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Categories
-                  </Link>
-                  <Link
                     href="/for-business"
                     onClick={() => setIsMobileMenuOpen(false)}
+                    className={pathname === "/for-business" ? "text-[#1FAF9E]" : ""}
                   >
-                    For Business
+                    Features
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={pathname === "/pricing" ? "text-[#1FAF9E]" : ""}
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    href="/solution"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={pathname === "/solution" ? "text-[#1FAF9E]" : ""}
+                  >
+                    Solution
+                  </Link>
+                  <Link
+                    href="/resources"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={pathname === "/resources" ? "text-[#1FAF9E]" : ""}
+                  >
+                    Resources
                   </Link>
 
                   <div className="my-6 border-t border-white/10" />
 
-                  <Link
-                    href="/auth/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
-                  >
-                    Get Started
-                  </Link>
+                  {userInitials && !isAuthFlow ? (
+                    <Link
+                      href={dashboardHref}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
+                    >
+                      Dashboard
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/business/login"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        href="/business/signup"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
+                      >
+                        Get Started
+                      </Link>
+                    </>
+                  )}
                 </nav>
               </div>
             </div>
@@ -586,12 +619,6 @@ export default function Navbar() {
             <div className="flex items-center gap-2 md:gap-3">
               {userInitials && !isAuthFlow ? (
                 <div className="relative" ref={userMenuRef}>
-                  <Link
-                    href={dashboardHref}
-                    className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
-                  >
-                    Dashboard
-                  </Link>
                   <button
                     type="button"
                     onClick={() => setIsUserMenuOpen((prev) => !prev)}

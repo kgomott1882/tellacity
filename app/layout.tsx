@@ -24,7 +24,7 @@ const abortErrorHandlerScript = `
       if (r && typeof r === 'object') {
         var name = r.name || (r.constructor && r.constructor.name);
         var msg = typeof r.message === 'string' ? r.message : '';
-        if (name === 'AbortError' || msg.toLowerCase().indexOf('abort') !== -1 || msg === 'signal is aborted without reason') {
+        if (name === 'AbortError' || msg.toLowerCase().indexOf('abort') !== -1 || msg === 'signal is aborted without reason' || msg.indexOf('Lock broken') !== -1 || msg.indexOf('steal') !== -1) {
           e.preventDefault();
           e.stopPropagation();
           return true;

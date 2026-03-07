@@ -880,7 +880,14 @@ export default function WriteReviewForm({
           Share your experience to help others make better decisions.
         </p>
 
-        <div className="mt-6 space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div
+          className="mt-6 space-y-6 rounded-2xl bg-white p-6"
+          style={{
+            border: "3px solid #124541",
+            boxShadow:
+              "0 0 20px rgba(18, 69, 65, 0.25), 0 0 40px rgba(18, 69, 65, 0.15)",
+          }}
+        >
           <div>
             <h2 className="text-sm font-semibold text-[#0E0E0E]">
               1. Choose a business

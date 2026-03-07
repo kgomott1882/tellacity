@@ -25,10 +25,19 @@ export const useBusinessAuth = (): BusinessAuthState => {
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
-          if (isMounted) setLoading(false);
-          return;
+          if (!isMounted) return;
+          try {
+            await new Promise((r) => setTimeout(r, 200));
+            const retry = await supabaseBrowser().auth.getSession();
+            data = retry.data;
+          } catch (retryErr) {
+            if (isMounted) setLoading(false);
+            return;
+          }
+          if (!isMounted) return;
+        } else {
+          throw e;
         }
-        throw e;
       }
       const sessionUser = data?.session?.user ?? null;
       

@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeLogoUrl, resolveBusinessLogoViaClient, domainFromWebsite } from "@/lib/logo";
-import { useBusinessAuth } from "@/lib/useBusinessAuth";
+import { normalizeLogoUrl, domainFromWebsite } from "@/lib/logo";
+import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 
 type BusinessRow = {
   id: string;
   name: string;
+  slug: string;
   domain: string;
   logoUrl: string | null;
   location: string;
 };
-
-type ClaimStatus = "idle" | "requested" | "already_requested";
 
 const cleanDomain = (value: string | null | undefined) => {
   if (!value) {
@@ -27,75 +26,30 @@ const cleanDomain = (value: string | null | undefined) => {
 const skeletons = Array.from({ length: 6 });
 
 export default function BusinessClaimPage() {
-  const router = useRouter();
-  const { user, isBusiness, loading } = useBusinessAuth();
-  const [query, setQuery] = useState("");
   const [results, setResults] = useState<BusinessRow[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [claimStatus, setClaimStatus] = useState<Record<string, ClaimStatus>>(
-    {}
-  );
-  const [businessProfile, setBusinessProfile] = useState<{
-    email: string;
-    business_name: string | null;
-  } | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/business/login");
-    }
-  }, [loading, user, router]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadProfile = async () => {
-      if (!user) {
-        return;
-      }
-      const supabase = supabaseBrowser();
-      const { data } = await supabase
-        .from("business_profiles")
-        .select("email, business_name")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setBusinessProfile({
-        email: data?.email ?? user.email ?? "",
-        business_name: data?.business_name ?? null,
-      });
-    };
-
-    loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  const trimmedQuery = useMemo(() => query.trim(), [query]);
-
-  const handleSearch = async () => {
-    if (!trimmedQuery) {
+  const runSearch = async (searchTerm: string) => {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
       setResults([]);
+      setHasSearched(false);
       return;
     }
 
+    setHasSearched(true);
     setIsSearching(true);
 
     const supabase = supabaseBrowser();
     const { data, error } = await supabase
       .from("businesses")
       .select(
-        "id, name, website, website_display, logo_url, city, country_code"
+        "id, name, slug, website, website_display, logo_url, city, country_code"
       )
       .eq("status", "active")
       .or(
-        `name.ilike.%${trimmedQuery}%,website.ilike.%${trimmedQuery}%,website_display.ilike.%${trimmedQuery}%`
+        `name.ilike.%${trimmed}%,website.ilike.%${trimmed}%,website_display.ilike.%${trimmed}%`
       )
       .order("trust_score", { ascending: false, nullsFirst: false })
       .order("review_count", { ascending: false })
@@ -110,111 +64,34 @@ export default function BusinessClaimPage() {
     const rows = (data ?? []) as Array<{
       id: string;
       name?: string | null;
+      slug?: string | null;
       website?: string | null;
       website_display?: string | null;
       logo_url?: string | null;
       city?: string | null;
       country_code?: string | null;
     }>;
-    const mapped: typeof results = [];
-    for (const business of rows) {
-      let logoUrl = normalizeLogoUrl(business.logo_url ?? null);
-      if (!logoUrl) {
-        const domain = domainFromWebsite(business.website_display ?? business.website);
-        if (domain) {
-          const fromEdge = await resolveBusinessLogoViaClient(supabase, domain);
-          if (fromEdge) logoUrl = fromEdge;
-        }
-      }
-      mapped.push({
-        id: business.id,
-        name: business.name ?? "Business",
-        domain: cleanDomain(business.website_display ?? business.website ?? ""),
-        logoUrl: normalizeLogoUrl(logoUrl),
-        location: business.city ?? business.country_code ?? "",
-      });
-    }
+
+    const mapped: BusinessRow[] = rows.map((business) => ({
+      id: business.id,
+      name: business.name ?? "Business",
+      slug: business.slug ?? "",
+      domain: cleanDomain(business.website_display ?? business.website ?? ""),
+      logoUrl: normalizeLogoUrl(business.logo_url ?? null),
+      location: business.city ?? business.country_code ?? "",
+    }));
 
     setResults(mapped);
     setIsSearching(false);
   };
 
-  const handleClaim = async (business: BusinessRow) => {
-    if (!user) {
-      return;
-    }
-
-    const existingStatus = claimStatus[business.id];
-    if (existingStatus === "requested" || existingStatus === "already_requested") {
-      return;
-    }
-
-    const supabase = supabaseBrowser();
-    const { data: existingRequest } = await supabase
-      .from("business_claim_requests")
-      .select("id, status")
-      .eq("business_id", business.id)
-      .eq("requester_user_id", user.id)
-      .eq("status", "pending")
-      .maybeSingle();
-
-    if (existingRequest) {
-      setClaimStatus((prev) => ({
-        ...prev,
-        [business.id]: "already_requested",
-      }));
-      return;
-    }
-
-    const requesterEmail = businessProfile?.email ?? user.email ?? "";
-    const { error } = await supabase
-      .from("business_claim_requests")
-      .insert({
-        business_id: business.id,
-        requester_user_id: user.id,
-        requester_email: requesterEmail,
-        requester_business_name: businessProfile?.business_name ?? null,
-        status: "pending",
-      });
-
-    if (error) {
-      return;
-    }
-
-    setClaimStatus((prev) => ({
-      ...prev,
-      [business.id]: "requested",
-    }));
+  const signupUrl = (business: BusinessRow) => {
+    const params = new URLSearchParams();
+    params.set("businessId", business.id);
+    if (business.slug) params.set("businessSlug", business.slug);
+    params.set("businessName", business.name);
+    return `/business/signup?${params.toString()}`;
   };
-
-  if (loading) {
-    return (
-      <main className="bg-white">
-        <section className="mx-auto w-full max-w-7xl px-6 py-16">
-          <p className="text-sm text-gray-600">Loading...</p>
-        </section>
-      </main>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  if (!isBusiness) {
-    return (
-      <main className="bg-white">
-        <section className="mx-auto w-full max-w-7xl px-6 py-16">
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">
-            Access denied
-          </h1>
-          <p className="mt-3 text-sm text-gray-600">
-            You do not have permission to access this page.
-          </p>
-        </section>
-      </main>
-    );
-  }
 
   return (
     <main className="bg-white">
@@ -228,29 +105,23 @@ export default function BusinessClaimPage() {
           </p>
         </div>
 
-        <form
-          className="mt-6 flex w-full max-w-2xl flex-col gap-3 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSearch();
-          }}
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search business name or website…"
-            className="w-full rounded-full border border-gray-200 px-5 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+        <div className="mt-6 w-full max-w-2xl">
+          <BusinessSearchInput
+            placeholder="Find businesses you can trust..."
+            heroLayout
+            heroButtonLabel="FIND A BUSINESS"
+            onSelect={(business) => runSearch(business.name)}
+            onSubmitQuery={(query) => runSearch(query)}
           />
-          <button
-            type="submit"
-            className="rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786]"
-          >
-            Search
-          </button>
-        </form>
+        </div>
 
-        <div className="mt-10 divide-y divide-gray-200 rounded-2xl border border-gray-200">
+        {!isSearching && hasSearched && results.length > 0 && (
+          <p className="mt-6 text-sm font-medium text-[#0E3B36]">
+            We found your business. Claim it below to manage your profile.
+          </p>
+        )}
+
+        <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
           {isSearching &&
             skeletons.map((_, index) => (
               <div
@@ -266,67 +137,53 @@ export default function BusinessClaimPage() {
               </div>
             ))}
 
-          {!isSearching && trimmedQuery && results.length === 0 && (
-            <div className="px-4 py-6 text-sm text-gray-500">
+          {!isSearching && hasSearched && results.length === 0 && (
+            <div className="px-4 py-8 text-sm text-gray-500">
               No businesses found. Try another search.
             </div>
           )}
 
           {!isSearching &&
-            results.map((business) => {
-              const status = claimStatus[business.id] ?? "idle";
-              return (
-                <div
-                  key={business.id}
-                  className="flex flex-wrap items-center gap-4 px-4 py-5"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
-                    {business.logoUrl ? (
-                      <img
-                        src={normalizeLogoUrl(business.logoUrl) ?? business.logoUrl}
-                        alt={`${business.name} logo`}
-                        className="h-full w-full object-contain"
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        onError={(event) => {
-                          event.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-[200px] flex-1">
-                    <div className="text-base font-semibold text-[#0E0E0E]">
-                      {business.name}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {business.domain}
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {business.location}
-                  </div>
-                  <div className="ml-auto">
-                    {status === "requested" ? (
-                      <span className="rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E]">
-                        Claim requested
-                      </span>
-                    ) : status === "already_requested" ? (
-                      <span className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500">
-                        Already requested
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleClaim(business)}
-                        className="rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E]"
-                      >
-                        Claim
-                      </button>
-                    )}
-                  </div>
+            results.map((business) => (
+              <div
+                key={business.id}
+                className="flex flex-wrap items-center gap-4 px-4 py-5"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
+                  {business.logoUrl ? (
+                    <img
+                      src={normalizeLogoUrl(business.logoUrl) ?? business.logoUrl}
+                      alt=""
+                      className="h-full w-full object-contain"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
                 </div>
-              );
-            })}
+                <div className="min-w-0 flex-1">
+                  <div className="text-base font-semibold text-[#0E0E0E]">
+                    {business.name}
+                  </div>
+                  {business.domain ? (
+                    <div className="text-sm text-gray-500">{business.domain}</div>
+                  ) : null}
+                  {business.location ? (
+                    <div className="text-xs text-gray-400">{business.location}</div>
+                  ) : null}
+                </div>
+                <div className="shrink-0">
+                  <Link
+                    href={signupUrl(business)}
+                    className="inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#169786]"
+                  >
+                    Claim your business
+                  </Link>
+                </div>
+              </div>
+            ))}
         </div>
       </section>
     </main>

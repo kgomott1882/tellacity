@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
@@ -160,6 +161,24 @@ export default function BusinessSearchInput({
       )}
       {searchLoading && (
         <p className="mt-2 text-xs text-gray-500">Searching businesses…</p>
+      )}
+      {!searchLoading && searchTerm.trim() && searchResults.length === 0 && (
+        <div className="mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white text-sm shadow-lg">
+          <p className="px-4 py-3 text-gray-500">
+            No businesses found for &ldquo;{searchTerm.trim()}&rdquo;.
+          </p>
+          <Link
+            href={`/suggest-business?name=${encodeURIComponent(searchTerm.trim())}`}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#1FAF9E] hover:bg-gray-50"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E]/10 text-[#1FAF9E]" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+            Suggest a missing business
+          </Link>
+        </div>
       )}
       {!searchLoading && searchResults.length > 0 && (
         <div

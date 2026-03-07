@@ -1,13 +1,14 @@
 /**
- * Supabase auth can throw AbortError when the lock is released (e.g. component unmount,
- * navigation, or multiple tabs). It may be an Error or a DOMException; DOMException
- * is not instanceof Error, so we check by name/message.
+ * Supabase auth can throw AbortError or "Lock broken by another request with the 'steal' option"
+ * when the lock is released (e.g. component unmount, refresh, navigation, or multiple tabs).
+ * Treat these as transient and do not redirect to login or surface to the user.
  */
 export function isAbortError(e: unknown): boolean {
   if (e == null || typeof e !== "object") return false;
   const name = (e as { name?: string }).name;
-  const message = (e as { message?: string }).message;
+  const message = typeof (e as { message?: string }).message === "string" ? (e as { message: string }).message : "";
   if (name === "AbortError") return true;
-  if (typeof message === "string" && message.includes("aborted")) return true;
+  if (message.includes("aborted")) return true;
+  if (message.includes("Lock broken") || message.includes("steal")) return true;
   return false;
 }

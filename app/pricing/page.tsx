@@ -258,7 +258,7 @@ export default function PricingPage() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
           viewport={{ once: true }}
-          className="relative"
+          className="relative hidden md:block"
         >
           <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-[#1FAF9E]/10 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[#0E3B36]/10 blur-3xl" />

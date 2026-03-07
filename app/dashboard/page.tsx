@@ -64,13 +64,19 @@ export default function ConsumerDashboard() {
         data = result.data;
       } catch (e) {
         if (isAbortError(e)) {
-          if (isMounted) {
-            setLoadingUser(false);
-            router.push("/auth/login");
+          if (!isMounted) return;
+          try {
+            await new Promise((r) => setTimeout(r, 200));
+            const retry = await supabaseBrowser().auth.getUser();
+            data = retry.data;
+          } catch (retryErr) {
+            if (isMounted) setLoadingUser(false);
+            return;
           }
-          return;
+          if (!isMounted) return;
+        } else {
+          throw e;
         }
-        throw e;
       }
       if (!isMounted) return;
       if (!data?.user) {

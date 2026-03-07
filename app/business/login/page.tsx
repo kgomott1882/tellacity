@@ -90,9 +90,9 @@ export default function BusinessLoginPage() {
     <main className="min-h-screen bg-[#F8F4F0] px-4 py-10 flex flex-col items-center justify-center">
       <Link href="/for-business" className="mb-8 flex items-center justify-center">
         <img
-          src="/brand/Tellacity%20-Business%20Logo.png"
+          src="/brand/TELLACITY%20-Line%20Icon.png"
           alt="Tellacity Business"
-          className="h-8 w-auto"
+          className="h-16 w-auto sm:h-[4.5rem]"
         />
       </Link>
 
