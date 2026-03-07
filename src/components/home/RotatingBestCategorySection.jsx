@@ -13,6 +13,7 @@ export default function RotatingBestCategorySection({
   categorySlug,
   categoryLabel,
   businesses,
+  metricsByBusinessId = {},
 }) {
   const hasBusinesses = Array.isArray(businesses) && businesses.length > 0;
 
@@ -45,15 +46,24 @@ export default function RotatingBestCategorySection({
             {/* Mobile: horizontal swipe carousel */}
             <div className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {businesses.map((business) => {
-                const reviewCount = Number(business.review_count ?? 0) || 0;
-                const ratingValue =
-                  typeof business.trust_score === "number" && business.trust_score > 0
-                    ? business.trust_score
-                    : 0;
+                const liveMetrics = metricsByBusinessId[business.id];
+                const hasLive = !!liveMetrics;
+                const reviewCount = hasLive
+                  ? Number(liveMetrics.review_count ?? 0) || 0
+                  : Number(business.review_count ?? 0) || 0;
+                const ratingValue = hasLive
+                  ? Number(liveMetrics.trust_score ?? 0) || 0
+                  : typeof business.trust_score === "number"
+                  ? business.trust_score || 0
+                  : 0;
+                const rawLogo =
+                  business.resolved_logo_url || business.logo_url || null;
                 const logoUrl =
-                  normalizeLogoUrl(business.resolved_logo_url) ??
+                  normalizeLogoUrl(rawLogo) ??
                   getLogoDevUrl(
-                    domainFromWebsite(business.website_display ?? business.website),
+                    domainFromWebsite(
+                      business.website_display ?? business.website,
+                    ),
                   );
 
                 return (
@@ -107,16 +117,25 @@ export default function RotatingBestCategorySection({
             {/* Desktop / tablet: original grid layout */}
             <div className="mt-8 hidden gap-4 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {businesses.map((business) => {
-                const reviewCount = Number(business.review_count ?? 0) || 0;
-                const ratingValue =
-                  typeof business.trust_score === "number" && business.trust_score > 0
-                    ? business.trust_score
-                    : 0;
+                const liveMetrics = metricsByBusinessId[business.id];
+                const hasLive = !!liveMetrics;
+                const reviewCount = hasLive
+                  ? Number(liveMetrics.review_count ?? 0) || 0
+                  : Number(business.review_count ?? 0) || 0;
+                const ratingValue = hasLive
+                  ? Number(liveMetrics.trust_score ?? 0) || 0
+                  : typeof business.trust_score === "number"
+                  ? business.trust_score || 0
+                  : 0;
 
+                const rawLogo =
+                  business.resolved_logo_url || business.logo_url || null;
                 const logoUrl =
-                  normalizeLogoUrl(business.resolved_logo_url) ??
+                  normalizeLogoUrl(rawLogo) ??
                   getLogoDevUrl(
-                    domainFromWebsite(business.website_display ?? business.website),
+                    domainFromWebsite(
+                      business.website_display ?? business.website,
+                    ),
                   );
 
                 return (

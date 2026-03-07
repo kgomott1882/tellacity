@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
@@ -115,6 +115,7 @@ type BusinessClientProps = {
 export default function BusinessClient({ initialBusiness = null }: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
+  const searchParams = useSearchParams();
   const [business, setBusiness] = useState<Business | null>(() => {
     if (!initialBusiness || typeof initialBusiness !== "object") return null;
     const row = initialBusiness;
@@ -177,6 +178,14 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     counts: RatingCounts;
   } | null>(null);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
+  const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return searchParams.get("reviewNotice") === "duplicate_review";
+    } catch {
+      return false;
+    }
+  });
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
 
@@ -664,6 +673,26 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         />
       )}
       <main className="bg-white">
+      {duplicateNoticeOpen && (
+        <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
+          <div className="flex w-full max-w-md items-start gap-3 rounded-xl bg-[#124541] px-4 py-3 text-sm text-white shadow-lg">
+            <div className="flex-1">
+              <p className="font-semibold">You’ve already reviewed this business</p>
+              <p className="mt-1 text-xs text-white/80">
+                To manage or update your review, please sign in from the login page and edit it from your account.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDuplicateNoticeOpen(false)}
+              className="ml-2 text-white/80 hover:text-white"
+              aria-label="Close notice"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <nav className="text-xs text-gray-500">
           <Link href="/categories" className="hover:text-[#1FAF9E]">
@@ -1115,6 +1144,42 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                     </button>
                   </div>
                 )}
+              </div>
+
+              <div className="mt-10">
+                <h3 className="text-lg font-semibold text-[#0E0E0E]">
+                  Explore Rankings
+                </h3>
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {business?.categorySlug && (
+                    <Link
+                      href={`/best/${business.categorySlug}`}
+                      className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
+                    >
+                      <span className="font-semibold text-[#0E0E0E]">
+                        Best {business.categoryName || "Companies"} Companies
+                      </span>
+                    </Link>
+                  )}
+                  <Link
+                    href="/top-rated"
+                    className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
+                  >
+                    <span className="font-semibold text-[#0E0E0E]">
+                      Top Rated Companies
+                    </span>
+                  </Link>
+                  {business?.categoryGroupSlug && (
+                    <Link
+                      href={`/best/${business.categoryGroupSlug}`}
+                      className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
+                    >
+                      <span className="font-semibold text-[#0E0E0E]">
+                        Best {business.categoryGroupName || "Categories"} Categories
+                      </span>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           </div>

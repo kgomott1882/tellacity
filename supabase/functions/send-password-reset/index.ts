@@ -12,7 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email } = await req.json();
+    const body = await req.json();
+    const email = body?.email as string | undefined;
+    const redirectPath = (body?.redirectPath as string | undefined) ?? "/auth/reset-password";
     if (!email) {
       return new Response(
         JSON.stringify({ error: "Email is required." }),
@@ -26,7 +28,11 @@ Deno.serve(async (req) => {
     const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") ?? "Tellacity <no-reply@tellacity.com>";
     const siteUrl = Deno.env.get("SITE_URL") ?? "http://localhost:3000";
     const origin = req.headers.get("origin") ?? siteUrl;
-    const redirectTo = new URL("/auth/reset-password", origin).toString();
+    const safePath =
+      typeof redirectPath === "string" && redirectPath.startsWith("/")
+        ? redirectPath
+        : "/auth/reset-password";
+    const redirectTo = new URL(safePath, origin).toString();
 
     if (!supabaseUrl || !serviceRoleKey || !resendApiKey) {
       return new Response(

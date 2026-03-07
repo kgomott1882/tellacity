@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 
-export default function ResetPasswordPage() {
+export default function BusinessResetPasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
         }
 
         const hashParams = new URLSearchParams(
-          window.location.hash.replace(/^#/, "")
+          window.location.hash.replace(/^#/, ""),
         );
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
@@ -54,13 +54,12 @@ export default function ResetPasswordPage() {
       }
     };
     checkSession();
-    const { data: subscription } = supabaseBrowser().auth.onAuthStateChange(
-      (_event, session) => {
+    const { data: subscription } =
+      supabaseBrowser().auth.onAuthStateChange((_event, session) => {
         if (isMounted) {
           setReady(Boolean(session));
         }
-      }
-    );
+      });
     return () => {
       isMounted = false;
       subscription.subscription.unsubscribe();
@@ -79,34 +78,33 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const { data: updateData, error: updateError } =
-      await supabaseBrowser().auth.updateUser({
-        password,
-      });
+    const { error: updateError } = await supabaseBrowser().auth.updateUser({
+      password,
+    });
     setLoading(false);
     if (updateError) {
       setError(updateError.message);
       return;
     }
-    // After a successful password reset, sign the user out and
-    // send them back to the login screen so they authenticate
-    // explicitly with the new credentials.
+
+    // After resetting a business password, sign out and
+    // send the user back to the business login screen.
     const supabase = supabaseBrowser();
     await supabase.auth.signOut();
-    router.push("/auth/login?reset=success");
+    router.push("/business/login?reset=success");
   };
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto w-full max-w-md px-4 py-16">
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+    <main className="min-h-screen bg-[#F8F4F0] px-4 py-10 flex flex-col items-center justify-center">
+      <section className="w-full max-w-md">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl">
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">
             Set a new password
           </h1>
           {!ready ? (
             <p className="mt-2 text-sm text-gray-600">
               This reset link is invalid or has expired. Please request a new
-              one.
+              one from the login page.
             </p>
           ) : (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -128,11 +126,15 @@ export default function ResetPasswordPage() {
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  onChange={(event) =>
+                    setConfirmPassword(event.target.value)
+                  }
                   className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-600">{error}</p>
+              )}
               <button
                 type="submit"
                 disabled={loading}
@@ -147,3 +149,4 @@ export default function ResetPasswordPage() {
     </main>
   );
 }
+

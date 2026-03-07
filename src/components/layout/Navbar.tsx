@@ -57,6 +57,9 @@ export default function Navbar() {
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
   const isHomeNav = pathname === "/";
+  const isAuthFlow =
+    pathname?.startsWith("/auth/") ||
+    pathname?.startsWith("/business/reset-password");
 
   // Sync country from URL or stored preference on mount
   useEffect(() => {
@@ -73,9 +76,11 @@ export default function Navbar() {
     }
   }, [searchParams]);
 
-  // Skip auth on landing page to avoid AbortError and keep landing page stable; load user on all other routes.
+  // Skip auth on landing page and auth/reset flows so we never
+  // show dashboard access while a user is in the middle of a
+  // password reset or similar sensitive flow.
   useEffect(() => {
-    if (pathname === "/") {
+    if (pathname === "/" || isAuthFlow) {
       setUserInitials(null);
       setDashboardHref("/dashboard");
       return;
@@ -145,6 +150,15 @@ export default function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         const user = session?.user ?? null;
+
+        // During password reset / auth flows we always behave as if
+        // logged out in the navbar – no dashboard access.
+        if (!session || isAuthFlow) {
+          setUserInitials(null);
+          setDashboardHref("/dashboard");
+          return;
+        }
+
         if (user) {
           const name = user.user_metadata?.display_name as string | undefined;
           if (name) {
@@ -185,9 +199,6 @@ export default function Navbar() {
         } else {
           setUserInitials(null);
           setDashboardHref("/dashboard");
-        }
-        if (!session) {
-          return;
         }
         const shouldRedirect =
           window.localStorage.getItem("tellacity_auth_redirect") === "true" ||
@@ -278,14 +289,14 @@ export default function Navbar() {
                 <img
                   src="/brand/Tellacity%20-Business%20Logo.png"
                   alt="Tellacity Business"
-                  className="h-6 w-auto md:h-8"
+                  className="h-7 w-auto md:h-9"
                 />
               </Link>
 
               <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
                 <Link
                   href="/for-business"
-                  className={`border-b-2 pb-1 font-semibold ${
+                  className={`border-b-2 pb-1 ${
                     pathname === "/for-business"
                       ? "border-white text-white"
                       : "border-transparent text-white/90 hover:border-white"
@@ -295,19 +306,19 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/pricing"
-                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
                   Pricing
                 </Link>
                 <Link
                   href="/solution"
-                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
                   Solution
                 </Link>
                 <Link
                   href="/resources"
-                  className="border-b-2 border-transparent pb-1 font-semibold text-white/90 hover:border-white"
+                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
                   Resources
                 </Link>
@@ -316,13 +327,13 @@ export default function Navbar() {
               <div className="flex items-center gap-2 md:gap-3">
                 <Link
                   href="/business/login"
-                  className="hidden text-sm font-semibold text-white/90 hover:text-white md:inline-flex"
+                  className="hidden text-sm text-white/90 hover:text-white md:inline-flex"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/business/signup"
-                  className="hidden rounded-full border border-white/60 px-5 py-2 text-sm font-semibold text-white hover:border-white md:inline-flex"
+                  className="hidden rounded-full border border-white/60 px-5 py-2 text-sm text-white hover:border-white md:inline-flex"
                 >
                   Get Started
                 </Link>
@@ -461,7 +472,7 @@ export default function Navbar() {
               <img
                 src="/brand/TELLACITY%20LOGO%202A.png"
                 alt="Tellacity"
-                className="h-6 w-auto md:h-[26px]"
+                className="h-5 w-auto md:h-[22px]"
               />
             </Link>
 
@@ -473,7 +484,7 @@ export default function Navbar() {
               >
                 <button
                   type="button"
-                  className="flex items-center gap-2 border-b-2 border-transparent pb-1 text-sm font-semibold text-white/80 hover:border-[#1FAF9E] hover:text-white"
+                  className="flex items-center gap-2 border-b-2 border-transparent pb-1 text-sm text-white/80 hover:border-[#1FAF9E] hover:text-white"
                   onClick={() => setIsCountryOpen((prev) => !prev)}
                 >
                   <img
@@ -532,7 +543,7 @@ export default function Navbar() {
               </div>
               <Link
                 href="/write-review"
-                className={`border-b-2 pb-1 font-semibold ${
+                className={`border-b-2 pb-1 ${
                   pathname === "/write-review"
                     ? "border-[#1FAF9E] text-white"
                     : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
@@ -542,7 +553,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/categories"
-                className={`border-b-2 pb-1 font-semibold ${
+                className={`border-b-2 pb-1 ${
                   pathname === "/categories"
                     ? "border-[#1FAF9E] text-white"
                     : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
@@ -552,22 +563,22 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/for-business"
-                className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786]"
+                className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm text-white hover:bg-[#169786]"
               >
                 For Business
               </Link>
             </nav>
 
             <div className="flex items-center gap-2 md:gap-3">
-              {userInitials ? (
+              {userInitials && !isAuthFlow ? (
                 <>
                   <Link
                     href={dashboardHref}
-                    className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+                    className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
                   >
                     Dashboard
                   </Link>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-white">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm text-white">
                     {userInitials}
                   </div>
                 </>
@@ -575,13 +586,13 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="hidden text-sm font-semibold text-white/80 hover:text-white md:inline-flex"
+                    className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
                   >
                     Log in
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="hidden rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
+                    className="hidden rounded-full border border-white/30 px-5 py-2 text-sm text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
                   >
                     Get Started
                   </Link>

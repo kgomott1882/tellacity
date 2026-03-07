@@ -62,7 +62,56 @@ export default function CategoryDetailPage() {
         setError(error.message);
         setBusinesses([]);
       } else {
-        setBusinesses(data ?? []);
+        const list = (data ?? []) as CategoryBusiness[];
+
+        try {
+          const ids = list.map((row) => row.id).filter(Boolean);
+          const supabase = supabaseBrowser();
+          const { data: reviews, error: reviewError } = await supabase
+            .from("reviews")
+            .select("business_id, rating")
+            .in("business_id", ids)
+            .eq("status", "published");
+
+          if (!reviewError && reviews) {
+            const agg: Record<string, { count: number; sum: number }> = {};
+            for (const row of reviews as any[]) {
+              const id = String(row.business_id);
+              const rating = Number(row.rating ?? 0);
+              if (!agg[id]) agg[id] = { count: 0, sum: 0 };
+              if (rating > 0) {
+                agg[id].count += 1;
+                agg[id].sum += rating;
+              }
+            }
+
+            list.forEach((row) => {
+              const m = agg[row.id];
+              if (m && m.count > 0) {
+                const avg = m.sum / m.count;
+                row.trust_score = avg;
+                row.review_count = m.count;
+              } else {
+                row.trust_score = 0;
+                row.review_count = 0;
+              }
+            });
+
+            list.sort((a, b) => {
+              const aRating = Number(a.trust_score ?? 0) || 0;
+              const bRating = Number(b.trust_score ?? 0) || 0;
+              const aCount = Number(a.review_count ?? 0) || 0;
+              const bCount = Number(b.review_count ?? 0) || 0;
+              if (bRating !== aRating) return bRating - aRating;
+              if (bCount !== aCount) return bCount - aCount;
+              return (a.name || "").localeCompare(b.name || "");
+            });
+          }
+        } catch {
+          // ignore recompute errors, fall back to RPC data
+        }
+
+        setBusinesses(list);
       }
 
       setIsLoading(false);
@@ -95,7 +144,7 @@ export default function CategoryDetailPage() {
       const { data: group } = await supabase
         .from("category_groups")
         .select("name")
-        .eq("group_slug", groupSlug)
+        .eq("slug", groupSlug)
         .single();
 
       setGroupName((group as { name?: string } | null)?.name ?? null);

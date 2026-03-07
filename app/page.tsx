@@ -39,7 +39,10 @@ export default async function HomePage(props: PageProps) {
           p_category_slug: slug,
           p_country_code: country,
           p_min_rating: null,
-          p_limit: 8,
+          // Fetch more than we need so the homepage
+          // can re-rank by live metrics and keep the
+          // strongest performers in the top 8.
+          p_limit: 24,
           p_offset: 0,
         }
       );

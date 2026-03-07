@@ -176,7 +176,7 @@ export default function CategoryClient({
         const { data: groupData } = await supabase
           .from("category_groups")
           .select("name")
-          .eq("group_slug", categorySlug)
+          .eq("slug", categorySlug)
           .maybeSingle();
 
         if (isMounted) {
@@ -200,7 +200,7 @@ export default function CategoryClient({
         const { data: groupData } = await supabase
           .from("category_groups")
           .select("name")
-          .eq("group_slug", categoryData.group_slug)
+          .eq("slug", categoryData.group_slug)
           .maybeSingle();
 
         if (isMounted) setGroupName(groupData?.name ?? "");
@@ -264,6 +264,65 @@ export default function CategoryClient({
       const list = (data ?? []) as BusinessRow[];
       const hasNext = list.length > PAGE_SIZE;
       const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
+
+      // Recompute live metrics from published reviews so that
+      // ratings and ordering always reflect the latest data.
+      try {
+        const ids = sliced.map((row) => row.id).filter(Boolean);
+        if (ids.length > 0) {
+          const { data: reviews, error: reviewError } = await supabase
+            .from("reviews")
+            .select("business_id, rating")
+            .in("business_id", ids)
+            .eq("status", "published");
+
+          if (!reviewError && reviews) {
+            const agg: Record<string, { count: number; sum: number }> = {};
+            for (const row of reviews as any[]) {
+              const id = String(row.business_id);
+              const rating = Number(row.rating ?? 0);
+              if (!agg[id]) agg[id] = { count: 0, sum: 0 };
+              if (rating > 0) {
+                agg[id].count += 1;
+                agg[id].sum += rating;
+              }
+            }
+
+            // Sort by live rating desc, then review count desc, then name.
+            sliced.sort((a, b) => {
+              const aAgg = agg[a.id] ?? { count: 0, sum: 0 };
+              const bAgg = agg[b.id] ?? { count: 0, sum: 0 };
+              const aRating =
+                aAgg.count > 0 ? aAgg.sum / aAgg.count : Number(a.trust_score ?? 0) || 0;
+              const bRating =
+                bAgg.count > 0 ? bAgg.sum / bAgg.count : Number(b.trust_score ?? 0) || 0;
+              const aCount =
+                aAgg.count > 0 ? aAgg.count : Number(a.review_count ?? 0) || 0;
+              const bCount =
+                bAgg.count > 0 ? bAgg.count : Number(b.review_count ?? 0) || 0;
+
+              if (bRating !== aRating) return bRating - aRating;
+              if (bCount !== aCount) return bCount - aCount;
+              return (a.name || "").localeCompare(b.name || "");
+            });
+
+            // Override stale metrics so UI never shows ratings
+            // that don't match published reviews.
+            sliced.forEach((row) => {
+              const m = agg[row.id];
+              if (m && m.count > 0) {
+                row.trust_score = m.sum / m.count;
+                row.review_count = m.count;
+              } else {
+                row.trust_score = 0;
+                row.review_count = 0 as any;
+              }
+            });
+          }
+        }
+      } catch {
+        // If live recompute fails, fall back to RPC ordering/metrics.
+      }
 
       setRows(sliced);
       setComputedCount(sliced.length); // simple count (RPC doesn’t return total)

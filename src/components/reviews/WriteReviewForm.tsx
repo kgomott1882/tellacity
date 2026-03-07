@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
@@ -11,6 +11,8 @@ import { HelpCircle } from "lucide-react";
 import BusinessSearchInput, {
   BusinessSearchResult,
 } from "@/components/search/BusinessSearchInput";
+import ReviewOtpModal from "@/components/reviews/ReviewOtpModal";
+import { reviewErrorMessages } from "@/lib/errorMessages";
 
 type WriteReviewFormProps = {
   inviteId?: string | null;
@@ -123,6 +125,8 @@ export default function WriteReviewForm({
   businessSlug,
 }: WriteReviewFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editReviewId = searchParams.get("edit");
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -156,7 +160,114 @@ export default function WriteReviewForm({
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
 
+  const [otpReviewId, setOtpReviewId] = useState<string | null>(null);
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+
+  const [toast, setToast] = useState<{
+    title: string;
+    description: string;
+    variant?: "destructive" | "success";
+  } | null>(null);
+
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  const showToast = (opts: {
+    title: string;
+    description: string;
+    variant?: "destructive" | "success";
+  }) => {
+    setToast(opts);
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  // Load existing review when in edit mode
+  useEffect(() => {
+    if (!editReviewId) return;
+
+    let cancelled = false;
+
+    const loadExistingReview = async () => {
+      try {
+        const sb = supabase();
+        const { data: review, error: reviewError } = await sb
+          .from("reviews")
+          .select("business_id,rating,title,body,date_of_experience")
+          .eq("id", editReviewId)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (reviewError || !review) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setRating(review.rating ?? 0);
+        setTitle(review.title ?? "");
+        setBody(review.body ?? "");
+        setDateOfExperience(
+          review.date_of_experience ?? todayIsoDate(),
+        );
+
+        if (review.business_id) {
+          const { data: biz, error: bizError } = await sb
+            .from("businesses")
+            .select(
+              "id,name,slug,website,website_display,reference_number_enabled,reference_number_type,reference_number_label_custom",
+            )
+            .eq("id", review.business_id)
+            .maybeSingle();
+
+          if (!cancelled && !bizError && biz) {
+            setBusiness({
+              id: biz.id,
+              name:
+                biz.name ??
+                initialBusinessName ??
+                "Business",
+              slug: biz.slug,
+              website: biz.website_display ?? biz.website ?? null,
+              reference_number_enabled: Boolean(
+                biz.reference_number_enabled,
+              ),
+              reference_number_type: (biz.reference_number_type ??
+                null) as ReferenceType | null,
+              reference_number_label_custom:
+                biz.reference_number_label_custom ?? null,
+            });
+          }
+        }
+      } catch {
+        if (cancelled) return;
+        const mapped = reviewErrorMessages.unexpected_error;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadExistingReview();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editReviewId]);
 
   // Load auth state
   useEffect(() => {
@@ -450,8 +561,77 @@ export default function WriteReviewForm({
     try {
       const receiptUrl = await uploadProofIfNeeded();
 
+      // If editing an existing review, update instead of inserting
+      if (editReviewId) {
+        const sb = supabase();
+        const { error: updateError } = await sb
+          .from("reviews")
+          .update({
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            date_of_experience: dateOfExperience,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editReviewId);
+
+        if (updateError) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+        } else {
+          showToast({
+            title: "Review updated",
+            description:
+              "Your review has been successfully updated.",
+            variant: "success",
+          });
+          if (business) {
+            const slugToUse = business.slug;
+            router.push(`/b/${slugToUse}`);
+          }
+        }
+
+        return;
+      }
+
       if (userId) {
         const sb = supabase();
+
+        // Prevent duplicate reviews for the same business/user
+        const { data: existingReview, error: existingError } = await sb
+          .from("reviews")
+          .select("id")
+          .eq("business_id", business.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!existingError && existingReview?.id) {
+          const mapped = reviewErrorMessages.duplicate_review;
+          showToast({
+            title: mapped.title,
+            description:
+              mapped.message +
+              " To manage or update your review, please sign in from the login page.",
+            variant: "destructive",
+          });
+
+          // Do not leave the user silently authenticated from the
+          // write-review flow. Require an explicit login instead.
+          try {
+            await supabaseBrowser().auth.signOut();
+          } catch {
+            // ignore sign-out errors; we still redirect
+          }
+
+          const slugToUse = business.slug;
+          router.push(`/b/${slugToUse}?reviewNotice=duplicate_review`);
+          return;
+        }
+
         const { error } = await sb.from("reviews").insert({
           business_id: business.id,
           user_id: userId,
@@ -466,13 +646,20 @@ export default function WriteReviewForm({
             userDisplayName ||
             guestName ||
             (userEmail ? userEmail.split("@")[0] : null),
-          reference_number: business.reference_number_enabled && referenceNumber.trim() ? referenceNumber.trim() : null,
+          reference_number:
+            business.reference_number_enabled && referenceNumber.trim()
+              ? referenceNumber.trim()
+              : null,
           status: "published",
           draft: false,
         });
 
         if (error) {
-          throw new Error("Something went wrong while publishing your review.");
+          const anyErr = error as { code?: string; message?: string };
+          if (anyErr.code === "23505") {
+            throw new Error("duplicate_review");
+          }
+          throw new Error("unexpected_error");
         }
 
         const slugToUse = business.slug;
@@ -483,32 +670,150 @@ export default function WriteReviewForm({
       const guestEmailTrimmed = guestEmail.trim().toLowerCase();
       const guestNameTrimmed = guestName.trim();
 
-      await callEdgeFunction("create-review-draft", {
-        business_id: business.id,
-        rating: Math.max(1, Math.min(5, Math.round(rating))),
-        title: title.trim() || null,
-        body: body.trim(),
-        guest_email: guestEmailTrimmed,
-        guest_name: guestNameTrimmed,
-        receipt_url: receiptUrl,
-        date_of_experience: dateOfExperience,
-        marketing_opt_in: marketingOptIn,
-        reference_number: business.reference_number_enabled && referenceNumber.trim() ? referenceNumber.trim() : null,
-        invite_token: inviteToken ?? null,
-      });
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!baseUrl || !anonKey) {
+        const mapped = reviewErrorMessages.unexpected_error;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
+      const response = await fetch(
+        `${baseUrl}/functions/v1/create-review-draft`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anonKey,
+            Authorization: `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            business_id: business.id,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            guest_email: guestEmailTrimmed,
+            guest_name: guestNameTrimmed,
+            receipt_url: receiptUrl,
+            date_of_experience: dateOfExperience,
+            marketing_opt_in: marketingOptIn,
+            reference_number:
+              business.reference_number_enabled && referenceNumber.trim()
+                ? referenceNumber.trim()
+                : null,
+            invite_token: inviteToken ?? null,
+          }),
+        },
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (
+          data &&
+          data.error === "draft_exists" &&
+          typeof data.reviewId === "string"
+        ) {
+          const reviewId = data.reviewId as string;
+          setOtpReviewId(reviewId);
+          setOtpEmail(guestEmailTrimmed);
+          setSubmittedEmail(guestEmailTrimmed);
+          setSubmitted(true);
+          setCheckEmailState({ active: true, email: guestEmailTrimmed });
+          setOtpModalOpen(true);
+
+          showToast({
+            title: "Finish publishing your review",
+            description:
+              "You already started a review for this business. Check your email for the verification code to publish it.",
+            variant: "success",
+          });
+
+          return;
+        }
+
+        const errorKey =
+          (data && typeof data.error === "string" && data.error) ||
+          "unexpected_error";
+        const mapped =
+          reviewErrorMessages[errorKey] ||
+          reviewErrorMessages.unexpected_error;
+
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (
+        data &&
+        data.requiresUpdate === true &&
+        typeof data.reviewId === "string"
+      ) {
+        showToast({
+          title: "You’ve already reviewed this business",
+          description:
+            "You can update your existing review if your experience has changed.",
+          variant: "success",
+        });
+
+        router.push(`/write-review?edit=${data.reviewId}`);
+        return;
+      }
+
+      if (
+        !data ||
+        typeof data.reviewId !== "string" ||
+        data.requiresOtp !== true
+      ) {
+        const mapped = reviewErrorMessages.unexpected_error;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reviewId = data.reviewId as string;
+      setOtpReviewId(reviewId);
+      setOtpEmail(guestEmailTrimmed);
       setSubmittedEmail(guestEmailTrimmed);
       setSubmitted(true);
       setCheckEmailState({ active: true, email: guestEmailTrimmed });
+      setOtpModalOpen(true);
     } catch (error) {
-      const message =
-        error instanceof Error
+      const keyFromError =
+        error instanceof Error && error.message
           ? error.message
-          : "Something went wrong. Please try again.";
-      setSubmitError(message);
+          : "unexpected_error";
+      const mapped =
+        reviewErrorMessages[keyFromError] ||
+        reviewErrorMessages.unexpected_error;
+      showToast({
+        title: mapped.title,
+        description: mapped.message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleResendCode = () => {
+    if (!otpEmail) return;
+    showToast({
+      title: "Check your email",
+      description:
+        "If you can't find the code, please check your spam or promotions folder.",
+      variant: "success",
+    });
   };
 
   const handleGoogleContinue = async () => {
@@ -564,36 +869,6 @@ export default function WriteReviewForm({
     setSubmitError(null);
     setCheckEmailState({ active: false, email: "" });
   };
-
-  if (submitted) {
-    return (
-      <main className="bg-white">
-        <div className="max-w-2xl mx-auto py-10">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center shadow-sm">
-            <h2 className="text-lg font-semibold text-green-800 mb-2">
-              Check your email
-            </h2>
-            <p className="text-green-700">
-              We&apos;ve sent a verification link to{" "}
-              <span className="font-medium">{submittedEmail}</span>.
-            </p>
-            <p className="text-green-700 mt-1">
-              Open it to publish your review.
-            </p>
-          </div>
-          <div className="mt-5 flex justify-center">
-            <Button
-              type="button"
-              onClick={handleWriteAnotherReview}
-              className="rounded-full bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold hover:bg-[#169786]"
-            >
-              Write Another Review
-            </Button>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="bg-white">
@@ -931,28 +1206,83 @@ export default function WriteReviewForm({
                   : "Submit review"}
               </Button>
 
-              {submitError && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {submitError}
-                </div>
-              )}
-
               {checkEmailState.active && (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                  <p className="font-semibold">Check your email</p>
+                  <p className="font-semibold">Check your email for a code</p>
                   <p className="mt-1">
-                    We&apos;ve sent a verification link to{" "}
+                    We&apos;ve sent a 6-digit verification code to{" "}
                     <span className="font-semibold">
                       {checkEmailState.email}
                     </span>
-                    . Open it to publish your review.
+                    . Enter this code in the verification window to publish your
+                    review.
                   </p>
+                </div>
+              )}
+
+              {otpReviewId && otpEmail && !otpModalOpen && (
+                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="font-semibold text-emerald-800">
+                    Finish publishing your review
+                  </p>
+                  <p className="mt-1 text-sm text-emerald-700">
+                    We sent a verification code to your email. Enter the code to
+                    publish your review.
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setOtpModalOpen(true)}
+                      className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Enter verification code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                    >
+                      Resend code
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </form>
         </div>
       </section>
+
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
+          <div
+            className={`pointer-events-auto max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
+              toast.variant === "destructive"
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            }`}
+          >
+            <p className="font-semibold">{toast.title}</p>
+            <p className="mt-1 text-xs">{toast.description}</p>
+          </div>
+        </div>
+      )}
+
+      {otpReviewId && otpEmail && (
+        <ReviewOtpModal
+          reviewId={otpReviewId}
+          email={otpEmail}
+          open={otpModalOpen}
+          onSuccess={() => {
+            if (business) {
+              const slugToUse = business.slug;
+              router.push(`/b/${slugToUse}`);
+            }
+          }}
+          onClose={() => {
+            setOtpModalOpen(false);
+          }}
+        />
+      )}
     </main>
   );
 }

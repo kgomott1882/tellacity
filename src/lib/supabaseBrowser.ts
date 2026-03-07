@@ -18,6 +18,11 @@ export function supabaseBrowser(): SupabaseClient {
     );
   }
 
-  client = createClient(supabaseUrl, supabaseAnonKey);
+  client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
   return client;
 }

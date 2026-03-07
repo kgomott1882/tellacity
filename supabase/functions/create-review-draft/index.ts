@@ -1,13 +1,39 @@
-/// <reference deno.ns="deno" />
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
+const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+function json(
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
+  });
+}
+
+function isUuid(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 type DraftPayload = {
   business_id?: string;
@@ -16,146 +42,290 @@ type DraftPayload = {
   body?: string;
   guest_name?: string;
   guest_email?: string;
-  date_of_experience?: string; // yyyy-mm-dd
+  date_of_experience?: string | null;
   marketing_opt_in?: boolean | null;
-  proof_urls?: string[] | null;
-  proof_data?: unknown | null;
+  receipt_url?: string | null;
+  reference_number?: string | null;
+  invite_id?: string | null;
 };
 
-function json(status: number, body: Record<string, unknown>) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-function isUuid(v: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    v,
-  );
-}
-
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return json(405, { error: "Method not allowed" });
-  }
-
   try {
-    const SUPABASE_URL =
-      Deno.env.get("SUPABASE_URL") ?? Deno.env.get("NEXT_PUBLIC_SUPABASE_URL");
-    const SERVICE_ROLE =
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
-      Deno.env.get("SUPABASE_SERVICE_ROLE");
-
-    if (!SUPABASE_URL || !SERVICE_ROLE) {
-      console.error("Missing Supabase env vars", {
-        hasUrl: !!SUPABASE_URL,
-        hasServiceRole: !!SERVICE_ROLE,
-      });
-      return json(500, {
-        error:
-          "Server misconfigured: missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in Edge Function secrets.",
-      });
+    if (req.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders });
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    if (req.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceKey) {
+      console.error("Missing Supabase env", {
+        hasUrl: !!supabaseUrl,
+        hasServiceRoleKey: !!serviceKey,
+      });
+      return json({ error: "Missing Supabase env" }, 500);
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false },
     });
 
-    const payload = (await req.json()) as DraftPayload;
+    let payload: DraftPayload;
+    try {
+      payload = (await req.json()) as DraftPayload;
+    } catch {
+      return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    // Basic payload validation
+    if (!payload || typeof payload !== "object") {
+      return json({ error: "Invalid payload" }, 400);
+    }
 
     const business_id = (payload.business_id ?? "").trim();
+    if (!isUuid(business_id)) {
+      return json({ error: "business_id must be a valid UUID" }, 400);
+    }
+
+    const ratingNum = Number(payload.rating);
+    if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return json({ error: "rating must be between 1 and 5" }, 400);
+    }
+
     const body = (payload.body ?? "").trim();
+    if (!body) {
+      return json({ error: "body is required" }, 400);
+    }
+
     const guest_name = (payload.guest_name ?? "").trim();
-    const guest_email = (payload.guest_email ?? "").trim().toLowerCase();
-    const rating = Number(payload.rating);
-
-    // Required fields
-    if (!business_id || !isUuid(business_id)) {
-      return json(400, {
-        error: "business_id is required and must be a UUID",
-      });
-    }
-    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
-      return json(400, { error: "rating must be between 1 and 5" });
-    }
-    if (!body || body.length < 10) {
-      return json(400, {
-        error: "body is required (min 10 characters)",
-      });
-    }
     if (!guest_name) {
-      return json(400, { error: "guest_name is required" });
+      return json({ error: "guest_name is required" }, 400);
     }
+
+    const guest_email = (payload.guest_email ?? "").trim().toLowerCase();
     if (!guest_email || !guest_email.includes("@")) {
-      return json(400, { error: "guest_email is required" });
-    }
-    if (!payload.date_of_experience) {
-      return json(400, {
-        error: "date_of_experience is required",
-      });
+      return json({ error: "guest_email must be a valid email" }, 400);
     }
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    let date_of_experience: string | null = null;
+    if (payload.date_of_experience && payload.date_of_experience.trim()) {
+      const d = payload.date_of_experience.trim();
+      // Simple YYYY-MM-DD validation
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        return json({ error: "date_of_experience must be YYYY-MM-DD" }, 400);
+      }
+      const parsed = new Date(d);
+      if (Number.isNaN(parsed.getTime())) {
+        return json({ error: "date_of_experience is invalid" }, 400);
+      }
+      date_of_experience = d;
+    }
 
-    const insertRow = {
+    const marketing_opt_in = payload.marketing_opt_in ?? false;
+    const receipt_url =
+      payload.receipt_url && payload.receipt_url.trim()
+        ? payload.receipt_url.trim()
+        : null;
+    const reference_number =
+      payload.reference_number && payload.reference_number.trim()
+        ? payload.reference_number.trim()
+        : null;
+
+    const invite_idRaw =
+      payload.invite_id && payload.invite_id.trim()
+        ? payload.invite_id.trim()
+        : null;
+    const invite_id =
+      invite_idRaw && isUuid(invite_idRaw) ? invite_idRaw : null;
+
+    // Check for an existing review for this business + guest email
+    const { data: existing, error: existingError } = await supabase
+      .from("reviews")
+      .select("id, status, draft")
+      .eq("business_id", business_id)
+      .eq("guest_email", guest_email)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Existing review lookup failed:", existingError);
+      return json({ error: "unexpected_error" }, 500);
+    }
+
+    if (existing?.id && (existing as any).draft === true) {
+      return json(
+        {
+          error: "draft_exists",
+          reviewId: (existing as { id: string }).id,
+        },
+        409,
+      );
+    }
+
+    if (existing?.id) {
+      return json(
+        {
+          requiresUpdate: true,
+          reviewId: (existing as { id: string }).id,
+        },
+        200,
+      );
+    }
+
+    const insertRow: Record<string, unknown> = {
       business_id,
-      rating,
-      title: payload.title?.trim() || null,
+      rating: ratingNum,
+      title:
+        payload.title && payload.title.trim()
+          ? payload.title.trim()
+          : null,
       body,
       guest_name,
       guest_email,
-      date_of_experience: payload.date_of_experience,
-      marketing_opt_in: payload.marketing_opt_in ?? false,
-
-      // Draft mechanics
+      date_of_experience,
+      marketing_opt_in,
+      receipt_url,
+      reference_number,
+      source: "guest",
       status: "draft",
       draft: true,
-      draft_token: token,
-      draft_token_expires_at: expiresAt,
-      verification_status: "pending",
-
-      // Optional evidence/proof fields (if your schema supports them)
-      proof_urls: payload.proof_urls ?? null,
-      proof_data: payload.proof_data ?? null,
-
-      source: "guest",
     };
+
+    if (invite_id) {
+      insertRow.invite_id = invite_id;
+    }
 
     const { data, error } = await supabase
       .from("reviews")
       .insert(insertRow)
-      .select(
-        "id,business_id,draft_token,draft_token_expires_at,guest_email,status,draft",
-      )
+      .select("id,business_id")
       .single();
 
     if (error) {
-      // Clean handling of duplicate review per business/email
-      // Postgres unique violation code
-      // deno-lint-ignore no-explicit-any
-      const code = (error as any)?.code;
-      if (code === "23505") {
-        return json(409, {
-          error: "You have already reviewed this business.",
-        });
+      console.error("Insert error:", error);
+      const anyErr = error as { code?: string; message?: string };
+
+      if (anyErr?.code === "23505") {
+        return json(
+          { error: "duplicate_review" },
+          409,
+        );
       }
 
-      console.error("create-review-draft insert error", error);
-      return json(500, { error: "Failed to create review draft" });
+      // expose actual DB error for debugging
+      return json(
+        {
+          error: "unexpected_error",
+        },
+        500,
+      );
     }
 
-    return json(200, { ok: true, review: data });
-  } catch (e) {
-    console.error("create-review-draft unexpected error", e);
-    return json(500, { error: "Failed to create review draft" });
+    // After creating the draft review, generate and send a verification OTP
+    try {
+      const otp = generateOtp();
+
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      const { error: otpError } = await supabase.from("review_email_otps")
+        .insert({
+          email: guest_email,
+          code: otp,
+          review_id: data.id,
+          attempts: 0,
+          used: false,
+          expires_at: expiresAt,
+        });
+
+      if (otpError) {
+        console.error("Failed to insert review_email_otps row:", otpError);
+        return json(
+          { error: "unexpected_error" },
+          500,
+        );
+      }
+
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        console.error("RESEND_API_KEY is not set");
+        return json(
+          { error: "unexpected_error" },
+          500,
+        );
+      }
+
+      const subject = "Verify your Tellacity review";
+      const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /></head>
+<body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
+  <p>Hi ${guest_name},</p>
+
+  <p>Your Tellacity verification code is:</p>
+
+  <h2 style="letter-spacing:4px">${otp}</h2>
+
+  <p>Enter this code in the verification window to publish your review.</p>
+
+  <p>This code expires in 10 minutes.</p>
+</body>
+</html>
+`.trim();
+
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Tellacity <notifications@tellacity.com>",
+          to: guest_email,
+          subject,
+          html,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errorBody = await emailResponse.text();
+        console.error(
+          "Resend OTP email error:",
+          emailResponse.status,
+          errorBody,
+        );
+        return json(
+          { error: "unexpected_error" },
+          500,
+        );
+      }
+    } catch (err) {
+      console.error("OTP generation/email error:", err);
+      return json(
+        { error: "unexpected_error" },
+        500,
+      );
+    }
+
+    return json(
+      {
+        requiresOtp: true,
+        reviewId: data.id,
+      },
+      200,
+    );
+  } catch (err: any) {
+    console.error("create-review-draft failed:", err);
+
+    return json(
+      {
+        error: "unexpected_error",
+      },
+      500,
+    );
   }
 });
 

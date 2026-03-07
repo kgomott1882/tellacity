@@ -51,30 +51,52 @@ export default async function BusinessPage({ params }: { params: { slug: string 
     return <BusinessClient />;
   }
 
-  const jsonLd = {
-          "@context": "https://schema.org",
-    "@type": "Organization",
-          name: business.name,
+  const { data: reviewSchema } = await supabase
+    .from("review_schema_data")
+    .select("*")
+    .eq("business_slug", business.slug)
+    .limit(5);
+
+  const reviewObjects =
+    reviewSchema?.map((review: { reviewer_name: string; rating: number; body: string; created_at: string }) => ({
+      "@type": "Review",
+      author: {
+        "@type": "Person",
+        name: review.reviewer_name,
+      },
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: review.rating,
+      },
+      reviewBody: review.body,
+      datePublished: review.created_at,
+    })) ?? [];
+
+  const hasReviews = reviewObjects.length > 0;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: business.name,
     url: `https://tellacity.com/b/${business.slug}`,
-    ...(business.review_count != null &&
-    Number(business.review_count) > 0 &&
-    business.trust_score != null
-            ? {
-                aggregateRating: {
-                  "@type": "AggregateRating",
-            ratingValue: business.trust_score,
+    ...(business.website ? { sameAs: business.website } : {}),
+    ...(hasReviews && business.review_count != null && Number(business.review_count) > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: business.average_rating ?? business.trust_score,
             reviewCount: business.review_count,
-            bestRating: 5,
-                },
-              }
-            : {}),
+          },
+        }
+      : {}),
+    ...(hasReviews ? { review: reviewObjects } : {}),
   };
 
   return (
     <>
         <script
           type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
       <BusinessClient initialBusiness={business} />
     </>

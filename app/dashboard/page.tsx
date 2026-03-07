@@ -46,6 +46,12 @@ export default function ConsumerDashboard() {
   const [reviewsError, setReviewsError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+  const [editingReview, setEditingReview] = useState<ReviewItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
 
@@ -164,6 +170,83 @@ export default function ConsumerDashboard() {
   const handleSignOut = async () => {
     await supabaseBrowser().auth.signOut();
     router.push("/");
+  };
+
+  const openEditReview = (review: ReviewItem) => {
+    setEditingReview(review);
+    setEditTitle(review.title ?? "");
+    setEditBody(review.body);
+    setEditError("");
+  };
+
+  const handleSaveReview = async () => {
+    if (!editingReview) return;
+    const trimmedBody = editBody.trim();
+    if (!trimmedBody) {
+      setEditError("Your review text cannot be empty.");
+      return;
+    }
+
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase
+        .from("reviews")
+        .update({
+          title: editTitle.trim() || null,
+          body: trimmedBody,
+        })
+        .eq("id", editingReview.id)
+        .eq("guest_email", userEmail);
+
+      if (error) {
+        throw new Error(error.message || "Unable to save changes.");
+      }
+
+      setReviews((prev) =>
+        prev.map((item) =>
+          item.id === editingReview.id
+            ? { ...item, title: editTitle.trim() || null, body: trimmedBody }
+            : item
+        )
+      );
+      setEditingReview(null);
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Unable to save changes."
+      );
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) {
+      return;
+    }
+
+    setDeletingId(id);
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase
+        .from("reviews")
+        .delete()
+        .eq("id", id)
+        .eq("guest_email", userEmail);
+
+      if (error) {
+        throw new Error(error.message || "Unable to delete review.");
+      }
+
+      setReviews((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setReviewsError(
+        err instanceof Error ? err.message : "Unable to delete review."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (loadingUser) {
@@ -311,8 +394,24 @@ export default function ConsumerDashboard() {
                           <p className="mt-1 line-clamp-2">{review.body}</p>
                         </div>
                         <div className="mt-4 flex items-center gap-4 text-xs font-semibold text-[#1FAF9E]">
-                          <button type="button">Edit</button>
-                          <button type="button">Delete</button>
+                          <button
+                            type="button"
+                            onClick={() => openEditReview(review)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReview(review.id)}
+                            disabled={deletingId === review.id}
+                            className={
+                              deletingId === review.id
+                                ? "text-gray-400 cursor-not-allowed"
+                                : ""
+                            }
+                          >
+                            {deletingId === review.id ? "Deleting…" : "Delete"}
+                          </button>
                           {review.business?.slug && (
                             <Link href={`/b/${review.business.slug}`}>View</Link>
                           )}
@@ -436,6 +535,65 @@ export default function ConsumerDashboard() {
           </div>
         </div>
       </section>
+
+      {editingReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-[#0E0E0E]">
+              Edit your review
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Updates will replace your existing review for{" "}
+              {editingReview.business?.name ?? "this business"}.
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-[#0E0E0E]">
+                  Title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[#0E0E0E]">
+                  Your review
+                </label>
+                <textarea
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={4}
+                  className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                />
+              </div>
+              {editError && (
+                <p className="text-xs text-red-600">{editError}</p>
+              )}
+              <div className="mt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingReview(null)}
+                  disabled={editSaving}
+                  className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveReview}
+                  disabled={editSaving}
+                  className="rounded-full bg-[#1FAF9E] px-5 py-2 text-xs font-semibold text-white hover:bg-[#169786] disabled:opacity-50"
+                >
+                  {editSaving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

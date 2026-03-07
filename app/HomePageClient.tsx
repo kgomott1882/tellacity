@@ -56,6 +56,7 @@ type BestInBusiness = {
   slug: string;
   website: string | null;
   website_display?: string | null;
+  logo_url?: string | null;
   resolved_logo_url?: string | null;
   trust_score?: number | null;
   review_count?: number | null;
@@ -105,6 +106,9 @@ export default function HomePageClient({
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
+  const [bestInMetrics, setBestInMetrics] = useState<
+    Record<string, { review_count: number; trust_score: number }>
+  >({});
 
   const latestBlogPost = useMemo(() => {
     const post = blogSortedPosts[0];
@@ -229,7 +233,36 @@ export default function HomePageClient({
     rotatingCategorySlugs && rotatingCategorySlugs.length > 0
       ? rotatingCategorySlugs[bestInIndex % rotatingCategorySlugs.length]
       : "banking";
-  const activeBestInBusinesses = bestInByCategory[activeBestInSlug] ?? [];
+
+  // Always rank "Best in" businesses by latest metrics so higher-rated
+  // businesses automatically surface into the top positions.
+  const rankedBestInBusinesses: BestInBusiness[] = useMemo(() => {
+    const list = bestInByCategory[activeBestInSlug] ?? [];
+    if (!Array.isArray(list) || list.length === 0) return [];
+
+    const withScores = list.map((biz) => {
+      const metrics = bestInMetrics[biz.id];
+      const reviewCount = metrics
+        ? Number(metrics.review_count ?? 0) || 0
+        : Number(biz.review_count ?? 0) || 0;
+      const rating = metrics
+        ? Number(metrics.trust_score ?? 0) || 0
+        : typeof biz.trust_score === "number"
+        ? biz.trust_score || 0
+        : 0;
+      return { biz, reviewCount, rating };
+    });
+
+    withScores.sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+      return (a.biz.name || "").localeCompare(b.biz.name || "");
+    });
+
+    // Keep a maximum of 8 cards even if the backend returns more.
+    return withScores.slice(0, 8).map((item) => item.biz);
+  }, [activeBestInSlug, bestInByCategory, bestInMetrics]);
+
   const activeBestInLabel =
     bestInCategoryLabels[activeBestInSlug] ??
     activeBestInSlug.replace(/-/g, " ");
@@ -355,6 +388,84 @@ export default function HomePageClient({
       isMounted = false;
     };
   }, [selectedCountry]);
+
+  // Recompute live metrics for "Best in" businesses so sections stay in sync
+  // after users edit or delete reviews.
+  useEffect(() => {
+    let cancelled = false;
+
+    const recomputeBestInMetrics = async () => {
+      try {
+        const ids = new Set<string>();
+        Object.values(bestInByCategory).forEach((list) => {
+          (list ?? []).forEach((biz) => {
+            if (biz.id) ids.add(String(biz.id));
+          });
+        });
+
+        if (ids.size === 0) {
+          if (!cancelled) setBestInMetrics({});
+          return;
+        }
+
+        const supabase = supabaseBrowser();
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("business_id, rating")
+          .in("business_id", Array.from(ids))
+          .eq("status", "published");
+
+        if (cancelled || error || !data) {
+          return;
+        }
+
+        const agg: Record<string, { review_count: number; sum: number }> = {};
+        for (const row of data as any[]) {
+          const businessId = String(row.business_id);
+          const rating = Number(row.rating ?? 0);
+          if (!agg[businessId]) {
+            agg[businessId] = { review_count: 0, sum: 0 };
+          }
+          if (rating > 0) {
+            agg[businessId].review_count += 1;
+            agg[businessId].sum += rating;
+          }
+        }
+
+        const metrics: Record<
+          string,
+          { review_count: number; trust_score: number }
+        > = {};
+
+        ids.forEach((id) => {
+          const value = agg[id];
+          if (value) {
+            const count = value.review_count;
+            metrics[id] = {
+              review_count: count,
+              trust_score: count > 0 ? value.sum / count : 0,
+            };
+          } else {
+            // No published reviews remain for this business – override any
+            // stale server metrics with zero so cards stay accurate.
+            metrics[id] = { review_count: 0, trust_score: 0 };
+          }
+        });
+
+        if (!cancelled) {
+          setBestInMetrics(metrics);
+        }
+      } catch {
+        // Fail silently; fall back to server-provided metrics.
+      }
+    };
+
+    recomputeBestInMetrics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bestInByCategory, selectedCountry]);
 
   useEffect(() => {
     if (reviewPage >= totalReviewPages) {
@@ -744,7 +855,8 @@ export default function HomePageClient({
       <RotatingBestCategorySection
         categorySlug={activeBestInSlug}
         categoryLabel={activeBestInLabel}
-        businesses={activeBestInBusinesses}
+        businesses={rankedBestInBusinesses}
+        metricsByBusinessId={bestInMetrics}
       />
 
       {/* WHAT ARE YOU LOOKING FOR? */}
