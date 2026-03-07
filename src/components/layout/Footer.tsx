@@ -21,19 +21,31 @@ export default function Footer() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("");
+  const [countryCode, setCountryCode] = useState("ZA");
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
 
+  // Sync country from URL or stored preference (same logic as Navbar; default ZA)
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
       setCountryCode(fromUrl);
       return;
     }
-    setCountryCode(getActiveCountry() ?? "");
+    const stored = getActiveCountry();
+    setCountryCode(stored ?? "ZA");
   }, [searchParams]);
+
+  // Stay in sync when country is changed from Navbar or elsewhere
+  useEffect(() => {
+    const handler = () => {
+      const code = getActiveCountry();
+      if (code) setCountryCode(code);
+    };
+    window.addEventListener("tellacity-country-change", handler);
+    return () => window.removeEventListener("tellacity-country-change", handler);
+  }, []);
 
   const openCountryMenu = () => {
     if (closeTimeoutRef.current) {

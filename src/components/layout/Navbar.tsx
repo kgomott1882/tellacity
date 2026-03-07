@@ -63,7 +63,7 @@ export default function Navbar() {
     pathname?.startsWith("/auth/") ||
     pathname?.startsWith("/business/reset-password");
 
-  // Sync country from URL or stored preference on mount
+  // Sync country from URL or stored preference on mount (same default ZA as Footer)
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
@@ -71,12 +71,18 @@ export default function Navbar() {
       return;
     }
     const stored = getActiveCountry();
-    if (stored) {
-      setCountryCode(stored);
-    } else {
-      setCountryCode("ZA");
-    }
+    setCountryCode(stored ?? "ZA");
   }, [searchParams]);
+
+  // Stay in sync when country is changed from Footer or elsewhere
+  useEffect(() => {
+    const handler = () => {
+      const code = getActiveCountry();
+      if (code) setCountryCode(code);
+    };
+    window.addEventListener("tellacity-country-change", handler);
+    return () => window.removeEventListener("tellacity-country-change", handler);
+  }, []);
 
   // Close user menu when clicking outside
   useEffect(() => {
