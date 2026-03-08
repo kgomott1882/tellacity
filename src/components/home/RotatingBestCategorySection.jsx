@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import Link from "next/link";
 import {
   normalizeLogoUrl,
@@ -14,8 +15,11 @@ export default function RotatingBestCategorySection({
   categoryLabel,
   businesses,
   metricsByBusinessId = {},
+  onPrevious,
+  onNext,
 }) {
   const hasBusinesses = Array.isArray(businesses) && businesses.length > 0;
+  const cardsScrollRef = useRef(null);
 
   return (
     <section className="bg-white">
@@ -27,12 +31,34 @@ export default function RotatingBestCategorySection({
               <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
             </span>
           </h2>
-          <Link
-            href={`/categories/${categorySlug}`}
-            className="text-sm font-semibold text-[#1FAF9E]"
-          >
-            View all →
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onPrevious?.()}
+              aria-label="Previous Best in category"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNext?.()}
+              aria-label="Next Best in category"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+            <Link
+              href={`/categories/${categorySlug}`}
+              className="rounded-full border border-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              See more →
+            </Link>
+          </div>
         </div>
 
         {!hasBusinesses && (
@@ -44,7 +70,10 @@ export default function RotatingBestCategorySection({
         {hasBusinesses && (
           <>
             {/* Mobile: horizontal swipe carousel */}
-            <div className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div
+              ref={cardsScrollRef}
+              className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
               {businesses.map((business) => {
                 const liveMetrics = metricsByBusinessId[business.id];
                 const hasLive = !!liveMetrics;
@@ -114,7 +143,7 @@ export default function RotatingBestCategorySection({
               })}
             </div>
 
-            {/* Desktop / tablet: original grid layout */}
+            {/* Desktop / tablet: grid layout */}
             <div className="mt-8 hidden gap-4 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {businesses.map((business) => {
                 const liveMetrics = metricsByBusinessId[business.id];

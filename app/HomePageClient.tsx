@@ -50,6 +50,40 @@ const LOOKING_FOR_CATEGORIES = [
   { label: "Fitness & Gyms", slug: "fitness-and-gyms" },
 ];
 
+// 16 additional categories (from design) wired to existing slugs used elsewhere in the app
+const ADDITIONAL_MARQUEE_CATEGORIES: { label: string; slug: string }[] = [
+  { label: "Pet Store", slug: "retail" },
+  { label: "Energy Supplier", slug: "insurance" },
+  { label: "Real Estate Agents", slug: "banking-and-money" },
+  { label: "Insurance Agency", slug: "insurance" },
+  { label: "Bedroom Furniture Store", slug: "furniture-stores" },
+  { label: "Activewear Store", slug: "clothing-and-underwear" },
+  { label: "Women's Clothing Store", slug: "clothing-and-underwear" },
+  { label: "Men's Clothing Store", slug: "clothing-and-underwear" },
+  { label: "Shopping Store", slug: "retail" },
+  { label: "Bicycle Store", slug: "retail" },
+  { label: "Shoe Store", slug: "clothing-and-underwear" },
+  { label: "Mortgage Broker", slug: "banking-and-money" },
+  { label: "Appliance Store", slug: "appliances-and-electronics" },
+  { label: "Cosmetics Store", slug: "jewelry-and-watches" },
+  { label: "Electronics Store", slug: "appliances-and-electronics" },
+  { label: "Garden Center", slug: "retail" },
+  { label: "Travel Agency", slug: "travel-agencies" },
+];
+
+// 24 items for the rotating marquee: 8 existing + 16 additional (all use existing slugs)
+const ROTATING_MARQUEE_CATEGORIES: CategoryCard[] = (() => {
+  const base = [
+    ...LOOKING_FOR_CATEGORIES,
+    ...ADDITIONAL_MARQUEE_CATEGORIES.slice(0, 16),
+  ];
+  return base.map((c, i) => ({
+    id: `marquee-${c.slug}-${i}-${c.label.replace(/\s+/g, "-")}`,
+    name: c.label,
+    slug: c.slug,
+  }));
+})();
+
 type BestInBusiness = {
   id: string;
   name: string;
@@ -569,13 +603,11 @@ export default function HomePageClient({
   }, [selectedCountry]);
 
   const scrollCategories = (direction: "left" | "right") => {
-    const container = categoryScrollRef.current;
-    if (!container) {
-      return;
-    }
-    const scrollAmount = Math.min(520, container.clientWidth);
-    container.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    const amount = Math.min(320, el.clientWidth * 0.8);
+    el.scrollBy({
+      left: direction === "left" ? -amount : amount,
       behavior: "smooth",
     });
   };
@@ -769,6 +801,136 @@ export default function HomePageClient({
       );
     }
 
+    // Pet store (paw)
+    if (value.includes("pet")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 10c1.5 0 2.5-1.5 2.5-3S13.5 4 12 4s-2.5 1.5-2.5 3 1 3 2.5 3z" />
+          <path d="M12 10v11" />
+          <path d="M8 14c0 2 1.5 3 4 3s4-1 4-3" />
+          <circle cx="9" cy="8" r="1.2" fill="currentColor" />
+          <circle cx="15" cy="8" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    }
+
+    // Energy / utilities (lightning)
+    if (value.includes("energy") || value.includes("supplier")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L4 14h6l-3 8 9-12h-6l3-8z" />
+        </svg>
+      );
+    }
+
+    // Real estate / mortgage (house)
+    if (value.includes("real estate") || value.includes("mortgage")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12l9-9 9 9" />
+          <path d="M5 10v10h4v-5h6v5h4V10" />
+        </svg>
+      );
+    }
+
+    // Insurance (umbrella)
+    if (value.includes("insurance")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v12" />
+          <path d="M4 12c0-4 3.6-8 8-8s8 4 8 8" />
+          <path d="M4 12h16v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6z" />
+        </svg>
+      );
+    }
+
+    // Bedroom / bed
+    if (value.includes("bedroom") || value.includes("bed ")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12v7h4v-5h10v5h4v-7" />
+          <path d="M3 12h18" />
+          <path d="M5 12V8a2 2 0 012-2h10a2 2 0 012 2v4" />
+        </svg>
+      );
+    }
+
+    // Activewear / women's / men's clothing (dress or shirt)
+    if (value.includes("activewear") || value.includes("women's")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v4l4 2-2 4v8H10v-8l-2-4 4-2V2z" />
+          <path d="M8 22h8" />
+        </svg>
+      );
+    }
+    if (value.includes("men's")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 4l2 4 4 2-2 4v6H8v-6l-2-4 4-2 2-4z" />
+          <path d="M12 4l-2 4-4 2 2 4h8l2-4-4-2-2-4z" />
+        </svg>
+      );
+    }
+
+    // Shopping / retail (bag)
+    if (value.includes("shopping")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 8v12h12V8" />
+          <path d="M6 8h12" />
+          <path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" />
+        </svg>
+      );
+    }
+
+    // Bicycle
+    if (value.includes("bicycle")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="6" cy="16" r="3" />
+          <circle cx="18" cy="16" r="3" />
+          <path d="M6 16l3-6 3 2 3-4 3 2" />
+          <path d="M12 12v4" />
+        </svg>
+      );
+    }
+
+    // Shoe store
+    if (value.includes("shoe")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 14h16l1-4H3l1 4z" />
+          <path d="M4 14v4h16v-4" />
+          <path d="M5 18v2h4v-2M15 18v2h4v-2" />
+        </svg>
+      );
+    }
+
+    // Cosmetics (bottle)
+    if (value.includes("cosmetic")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 4h8v14a2 2 0 01-2 2h-4a2 2 0 01-2-2V4z" />
+          <path d="M10 2h4v2h-4z" />
+          <path d="M12 8v4" />
+        </svg>
+      );
+    }
+
+    // Garden center (wheelbarrow / plant)
+    if (value.includes("garden")) {
+      return (
+        <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 16h14" />
+          <path d="M5 16V9l3-4 8 2-3 9H5z" />
+          <circle cx="7" cy="19" r="1.5" />
+          <circle cx="17" cy="19" r="1.5" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
+    }
+
     return (
       <svg
         viewBox="0 0 24 24"
@@ -872,9 +1034,24 @@ export default function HomePageClient({
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
         metricsByBusinessId={bestInMetrics}
+        onPrevious={() =>
+          setBestInIndex((prev) =>
+            rotatingCategorySlugs?.length
+              ? (prev - 1 + rotatingCategorySlugs.length) %
+                rotatingCategorySlugs.length
+              : 0
+          )
+        }
+        onNext={() =>
+          setBestInIndex((prev) =>
+            rotatingCategorySlugs?.length
+              ? (prev + 1) % rotatingCategorySlugs.length
+              : 0
+          )
+        }
       />
 
-      {/* WHAT ARE YOU LOOKING FOR? */}
+      {/* WHAT ARE YOU LOOKING FOR? – 24 items, right-to-left marquee + arrow buttons */}
       <section className="bg-white overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -886,43 +1063,27 @@ export default function HomePageClient({
                 </span>
               </h2>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 sm:flex">
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
-                  onClick={() => scrollCategories("left")}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
-                  onClick={() => scrollCategories("right")}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => scrollCategories("left")}
+                aria-label="Scroll categories left"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollCategories("right")}
+                aria-label="Scroll categories right"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
               <Link
                 href="/categories"
                 className="rounded-full border border-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-4 sm:py-2 sm:text-sm"
@@ -933,33 +1094,50 @@ export default function HomePageClient({
           </div>
           <div
             ref={categoryScrollRef}
-            className="mt-6 flex gap-4 overflow-x-auto overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="mt-6 overflow-x-auto overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {visibleCategories.map((category, index) => (
-              <motion.div
-                key={category.id}
-                initial={{ opacity: 0, y: 60, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
-                  duration: 0.6,
-                  delay: index * 0.1,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                viewport={{ once: true, amount: 0.2 }}
-              >
-                <Link
-                  href={`/categories/${category.slug}`}
-                  className="group relative flex h-[110px] w-[150px] shrink-0 flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center text-gray-600 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] hover:border-[#2fb2a8]/40 sm:h-[120px] sm:w-[160px]"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 sm:h-12 sm:w-12">
-                    {getCategoryIcon(category.name)}
-                  </span>
-                  <span className="leading-tight text-xs font-medium text-[#0E0E0E] sm:text-sm">
-                    {category.name}
-                  </span>
-                </Link>
-              </motion.div>
-            ))}
+            <motion.div
+              className="flex gap-6 py-2"
+              style={{ width: "max-content" }}
+              animate={{ x: ["0%", "-50%"] }}
+              transition={{
+                duration: 45,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+            >
+              {[0, 1].map((copy) => (
+                <div key={copy} className="flex shrink-0 gap-6">
+                  {ROTATING_MARQUEE_CATEGORIES.map((category, index) => (
+                    <motion.div
+                      key={`${copy}-${category.id}`}
+                      className="shrink-0"
+                      animate={{
+                        rotate: [0, 4, -2, 0],
+                      }}
+                      transition={{
+                        duration: 6,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: index * 0.08,
+                      }}
+                    >
+                      <Link
+                        href={`/categories/${category.slug}`}
+                        className="group flex flex-col items-center gap-2 text-center transition-colors duration-200 hover:text-[#1FAF9E]"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 transition-colors duration-200 group-hover:text-[#1FAF9E] sm:h-12 sm:w-12">
+                          {getCategoryIcon(category.name)}
+                        </span>
+                        <span className="leading-tight text-xs font-medium text-[#0E0E0E] sm:text-sm whitespace-nowrap">
+                          {category.name}
+                        </span>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              ))}
+            </motion.div>
           </div>
         </div>
       </section>
