@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 /**
  * OAuth callback: Supabase redirects here with hash (#access_token=...).
  * This page lets the client establish the session, then redirects to `next` or dashboard.
+ * Exception: password recovery (type=recovery in hash) is sent to /auth/reset-password so the user can set a new password instead of being auto-signed in.
  */
 function CallbackInner() {
   const router = useRouter();
@@ -15,9 +16,18 @@ function CallbackInner() {
 
   useEffect(() => {
     let isMounted = true;
-    const next = searchParams.get("next")?.trim() || "/dashboard";
 
     const run = async () => {
+      // Password recovery: do not treat as login – send to reset-password page with hash so user can set new password
+      if (typeof window !== "undefined" && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        if (hashParams.get("type") === "recovery") {
+          router.replace("/auth/reset-password" + window.location.hash);
+          return;
+        }
+      }
+
+      const next = searchParams.get("next")?.trim() || "/dashboard";
       // Give Supabase a moment to read the URL hash and set the session
       await new Promise((r) => setTimeout(r, 100));
       if (!isMounted) return;

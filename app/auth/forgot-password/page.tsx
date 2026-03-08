@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     const { error: invokeError } = await supabaseBrowser().functions.invoke(
       "send-password-reset",
-      { body: { email } }
+      { body: { email, redirectPath: "/auth/reset-password" } }
     );
     setLoading(false);
     if (invokeError) {

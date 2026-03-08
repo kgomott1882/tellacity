@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
@@ -12,6 +13,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,13 +46,17 @@ export default function ResetPasswordPage() {
         sessionData = result.data;
       } catch (e) {
         if (isAbortError(e)) {
-          if (isMounted) setReady(false);
+          if (isMounted) {
+            setReady(false);
+            setChecking(false);
+          }
           return;
         }
         throw e;
       }
       if (isMounted) {
         setReady(Boolean(sessionData?.session));
+        setChecking(false);
       }
     };
     checkSession();
@@ -58,6 +64,7 @@ export default function ResetPasswordPage() {
       (_event, session) => {
         if (isMounted) {
           setReady(Boolean(session));
+          setChecking(false);
         }
       }
     );
@@ -103,11 +110,30 @@ export default function ResetPasswordPage() {
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">
             Set a new password
           </h1>
-          {!ready ? (
+          {checking ? (
             <p className="mt-2 text-sm text-gray-600">
-              This reset link is invalid or has expired. Please request a new
-              one.
+              Checking your reset link…
             </p>
+          ) : !ready ? (
+            <>
+              <p className="mt-2 text-sm text-gray-600">
+                This reset link is invalid or has expired. Please request a new
+                one.
+              </p>
+              <Link
+                href="/auth/forgot-password"
+                className="mt-4 inline-flex text-sm font-semibold text-[#1FAF9E]"
+              >
+                Request a new reset link
+              </Link>
+              <span className="mx-2 text-gray-400">|</span>
+              <Link
+                href="/auth/login"
+                className="mt-4 inline-flex text-sm font-semibold text-[#1FAF9E]"
+              >
+                Back to sign in
+              </Link>
+            </>
           ) : (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>
@@ -140,6 +166,12 @@ export default function ResetPasswordPage() {
               >
                 {loading ? "Saving..." : "Update password"}
               </button>
+              <Link
+                href="/auth/login"
+                className="mt-4 inline-flex text-sm font-semibold text-[#1FAF9E]"
+              >
+                Back to sign in
+              </Link>
             </form>
           )}
         </div>

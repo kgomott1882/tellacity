@@ -220,6 +220,9 @@ export default function Navbar() {
           setUserInitials(null);
           setDashboardHref("/dashboard");
         }
+        // Do not redirect when user is on the password reset page – they must set a new password first
+        if (pathname === "/auth/reset-password") return;
+
         const shouldRedirect =
           window.localStorage.getItem("tellacity_auth_redirect") === "true" ||
           isLoginOpen ||
