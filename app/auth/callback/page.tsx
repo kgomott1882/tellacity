@@ -1,0 +1,101 @@
+"use client";
+
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
+
+/**
+ * OAuth callback: Supabase redirects here with hash (#access_token=...).
+ * This page lets the client establish the session, then redirects to `next` or dashboard.
+ */
+function CallbackInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+
+  useEffect(() => {
+    let isMounted = true;
+    const next = searchParams.get("next")?.trim() || "/dashboard";
+
+    const run = async () => {
+      // Give Supabase a moment to read the URL hash and set the session
+      await new Promise((r) => setTimeout(r, 100));
+      if (!isMounted) return;
+
+      try {
+        const { data } = await supabaseBrowser().auth.getSession();
+        const user = data?.session?.user;
+
+        if (!isMounted) return;
+        if (user) {
+          // Optional: detect business and override next to business dashboard
+          const { data: biz } = await supabaseBrowser()
+            .from("business_profiles")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (biz) {
+            router.replace("/business/dashboard");
+            return;
+          }
+          const emailNorm = user.email?.trim().toLowerCase();
+          if (emailNorm) {
+            const { data: byEmail } = await supabaseBrowser()
+              .from("business_profiles")
+              .select("id")
+              .eq("email", emailNorm)
+              .maybeSingle();
+            if (byEmail) {
+              router.replace("/business/dashboard");
+              return;
+            }
+          }
+          router.replace(next);
+        } else {
+          // No session (e.g. user closed OAuth) – send to login with return url
+          const loginPath = next.startsWith("/business") ? "/business/login" : "/auth/login";
+          router.replace(`${loginPath}?next=${encodeURIComponent(next)}`);
+        }
+        setStatus("done");
+      } catch {
+        if (isMounted) setStatus("error");
+      }
+    };
+
+    run();
+    return () => {
+      isMounted = false;
+    };
+  }, [router, searchParams]);
+
+  if (status === "error") {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
+        <p className="text-sm text-red-600">Something went wrong signing you in.</p>
+        <a href="/auth/login" className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline">
+          Back to sign in
+        </a>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
+      <p className="text-sm text-neutral-600">Signing you in…</p>
+    </main>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
+          <p className="text-sm text-neutral-600">Loading…</p>
+        </main>
+      }
+    >
+      <CallbackInner />
+    </Suspense>
+  );
+}

@@ -327,7 +327,7 @@ export default function BusinessSignupClient() {
         options: {
           redirectTo:
             typeof window !== "undefined"
-              ? `${window.location.origin}/business/dashboard`
+              ? `${window.location.origin}/auth/callback?next=/business/dashboard`
               : undefined,
         },
       });

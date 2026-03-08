@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
@@ -81,6 +81,8 @@ export default function HomePageClient({
   rpcDebug,
 }: HomePageClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [categoryCards, setCategoryCards] = useState<CategoryCard[]>([]);
   const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>(() =>
@@ -285,6 +287,19 @@ export default function HomePageClient({
       window.removeEventListener("tellacity-country-change", handleSync);
     };
   }, []);
+
+  // Apply stored country to URL when on landing page with no ?country= so "Best in" and nav/footer stay in sync (e.g. after refresh or back to home).
+  useEffect(() => {
+    if (pathname !== "/") return;
+    const fromUrl = searchParams.get("country");
+    if (fromUrl) return;
+    const stored = getActiveCountry();
+    if (stored) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("country", stored);
+      router.replace(`/?${params.toString()}`, { scroll: false });
+    }
+  }, [pathname, searchParams, router]);
 
   // Reviews: 1) home_feed_v1 view (optional), 2) fallback = reviews table + businesses (join). No RPC.
   useEffect(() => {

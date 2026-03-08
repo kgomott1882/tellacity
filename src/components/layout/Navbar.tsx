@@ -840,7 +840,7 @@ export default function Navbar() {
                       const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
-                          redirectTo: `${window.location.origin}/dashboard`,
+                          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
                         },
                       });
                       if (error) {
@@ -905,7 +905,7 @@ export default function Navbar() {
                     const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
-                        emailRedirectTo: `${window.location.origin}/dashboard`,
+                        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
                       },
                     });
                     setIsLoginSubmitting(false);
@@ -1068,7 +1068,7 @@ export default function Navbar() {
                       const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
-                          redirectTo: `${window.location.origin}/dashboard`,
+                          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
                         },
                       });
                       if (error) {
@@ -1133,7 +1133,7 @@ export default function Navbar() {
                     const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
-                        emailRedirectTo: `${window.location.origin}/dashboard`,
+                        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
                       },
                     });
                     setIsSignupSubmitting(false);
