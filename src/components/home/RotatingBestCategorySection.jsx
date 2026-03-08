@@ -120,9 +120,18 @@ export default function RotatingBestCategorySection({
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#0E0E0E]">
-                          {business.name}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-sm font-semibold text-[#0E0E0E]">
+                            {business.name}
+                          </p>
+                          {reviewCount > 0 && (
+                            <img
+                              src="/brand/Tellacity%20Vefication%20Batch.png"
+                              alt="Tellacity verified reviews"
+                              className="h-5 w-5 shrink-0"
+                            />
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">
                           {cleanDomain(business.website)}
                         </p>
@@ -209,9 +218,18 @@ export default function RotatingBestCategorySection({
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#0E0E0E]">
-                          {business.name}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-sm font-semibold text-[#0E0E0E]">
+                            {business.name}
+                          </p>
+                          {reviewCount > 0 && (
+                            <img
+                              src="/brand/Tellacity%20Vefication%20Batch.png"
+                              alt="Tellacity verified reviews"
+                              className="h-5 w-5 shrink-0"
+                            />
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">
                           {cleanDomain(business.website)}
                         </p>

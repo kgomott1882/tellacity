@@ -28,6 +28,8 @@ type HomeReview = {
   business_slug: string | null;
   website: string | null;
   resolved_logo_url: string | null;
+  /** Used for verification badge next to business name (same logic as category cards). */
+  review_count?: number | null;
 };
 
 const cleanDomain = (value: string | null | undefined) =>
@@ -358,7 +360,7 @@ export default function HomePageClient({
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("reviews")
           .select(
-            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url)"
+            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url, review_count)"
           )
           .or("status.is.null,status.eq.published")
           .order("created_at", { ascending: false })
@@ -373,6 +375,7 @@ export default function HomePageClient({
             slug?: string;
             website?: string;
             logo_url?: string;
+            review_count?: number | null;
           } | null;
           const guestName = (row.guest_name as string) ?? null;
           return {
@@ -387,6 +390,7 @@ export default function HomePageClient({
             website: biz?.website ?? null,
             resolved_logo_url: biz?.logo_url ?? null,
             reviewer_name: guestName,
+            review_count: biz?.review_count ?? null,
           };
         });
         setReviews(mapped);
@@ -1595,11 +1599,13 @@ export default function HomePageClient({
                   </span>
                 </h3>
                 <p className="mt-3 text-sm text-[#0E0E0E]/80">
-                  Build trust and stand out with verified customer reviews on
-                  Tellacity, a transparent platform where real customers share
-                  real experiences. Get discovered, earn authentic feedback,
-                  and attract quality customers by showing why your business
-                  deserves to be trusted and chosen.
+                  Grow your business with trusted customer reviews on Tellacity.
+                  Collect authentic customer feedback, strengthen your online
+                  reputation, and build trust with new customers by showcasing
+                  real experiences from verified customers. Tellacity helps
+                  businesses stand out in search results, earn credibility
+                  through transparent reviews, and attract more customers who
+                  are looking for reliable companies they can trust.
                 </p>
               </div>
               <Link

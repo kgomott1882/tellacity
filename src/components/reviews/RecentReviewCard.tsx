@@ -130,7 +130,7 @@ export default function RecentReviewCard({
       )}
     >
       <div className="flex gap-3 p-4">
-        <div className="h-12 w-12 rounded-sm border border-[#EDEDED] bg-[#FCF7F6] flex items-center justify-center overflow-hidden">
+        <div className="h-12 w-12 flex-shrink-0 rounded-sm border border-[#EDEDED] bg-[#FCF7F6] flex items-center justify-center overflow-hidden">
           {logoUrl ? (
             <img
               src={logoUrl}
@@ -146,9 +146,22 @@ export default function RecentReviewCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-slate-900 truncate text-base">
-            {businessName}
-          </h3>
+          <div className="flex items-center gap-1">
+            <h3 className="font-bold text-slate-900 truncate text-base">
+              {businessName}
+            </h3>
+            {(() => {
+              const count = Number(review.review_count ?? review.business?.review_count ?? 0) || 0;
+              const hasAtLeastOneReview = count > 0 || !!businessName;
+              return hasAtLeastOneReview;
+            })() && (
+              <img
+                src="/brand/Tellacity%20Vefication%20Batch.png"
+                alt="Tellacity verified reviews"
+                className="h-5 w-5 shrink-0"
+              />
+            )}
+          </div>
 
           {displayWebsite && (
             <a

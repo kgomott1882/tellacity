@@ -224,8 +224,17 @@ export default function SearchPageInner() {
                   ) : null}
                 </div>
                 <div className="min-w-[220px] flex-1">
-                  <div className="text-base font-semibold text-[#0E0E0E]">
-                    {business.name}
+                  <div className="flex items-center gap-1">
+                    <div className="text-base font-semibold text-[#0E0E0E]">
+                      {business.name}
+                    </div>
+                    {business.reviewCount > 0 && (
+                      <img
+                        src="/brand/Tellacity%20Vefication%20Batch.png"
+                        alt="Tellacity verified reviews"
+                        className="h-5 w-5 shrink-0"
+                      />
+                    )}
                   </div>
                   <div className="text-sm text-gray-500">{business.domain}</div>
                 </div>

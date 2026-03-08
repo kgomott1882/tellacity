@@ -225,13 +225,24 @@ export default function CategoryDetailPage() {
                 className="flex items-center justify-between gap-6 border p-4 rounded-lg"
               >
                 <div className="flex items-center gap-4 min-w-0">
-                  <img
-                    src={normalizeLogoUrl(b.resolved_logo_url) ?? undefined}
-                    alt={b.name}
-                    className="h-10 w-10 object-contain"
-                  />
+                  <div className="h-10 w-10 shrink-0">
+                    <img
+                      src={normalizeLogoUrl(b.resolved_logo_url) ?? undefined}
+                      alt={b.name}
+                      className="h-10 w-10 rounded-md object-contain"
+                    />
+                  </div>
                   <div className="min-w-0">
-                    <div className="font-semibold truncate">{b.name}</div>
+                    <div className="flex items-center gap-1">
+                      <div className="font-semibold truncate">{b.name}</div>
+                      {(Number(b.review_count ?? 0) || 0) > 0 && (
+                        <img
+                          src="/brand/Tellacity%20Vefication%20Batch.png"
+                          alt="Tellacity verified reviews"
+                          className="h-5 w-5 shrink-0"
+                        />
+                      )}
+                    </div>
                     {website && (
                       <div className="text-sm text-gray-500 truncate">
                         {website}

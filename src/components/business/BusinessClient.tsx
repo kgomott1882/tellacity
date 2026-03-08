@@ -753,9 +753,18 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 </div>
               ) : (
                 <>
-                  <h1 className="mt-3 text-3xl font-semibold text-[#0E0E0E]">
-                    {business?.name ?? ""}
-                  </h1>
+                  <div className="mt-3 flex items-center gap-2">
+                    <h1 className="text-3xl font-semibold text-[#0E0E0E]">
+                      {business?.name ?? ""}
+                    </h1>
+                    {derivedReviewCount > 0 && (
+                      <img
+                        src="/brand/Tellacity%20Vefication%20Batch.png"
+                        alt="Tellacity verified reviews"
+                        className="h-5 w-5 shrink-0"
+                      />
+                    )}
+                  </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                     <span>
                       Reviews {derivedReviewCount.toLocaleString()}

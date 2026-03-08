@@ -671,12 +671,12 @@ export default function CategoryClient({
                   <Link key={business.id} href={`/b/${business.slug}`} className="block w-full">
                     <div className="flex items-center justify-between gap-6 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40">
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
+                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
                           {logoUrl ? (
                             <img
                               src={logoUrl}
                               alt={`${business.name} logo`}
-                              className="absolute inset-0 h-full w-full object-contain"
+                              className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
                               onError={(e) => {
@@ -687,7 +687,16 @@ export default function CategoryClient({
                         </div>
 
                         <div className="min-w-0">
-                          <div className="text-base font-semibold text-[#0E0E0E] truncate">{business.name}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-base font-semibold text-[#0E0E0E] truncate">{business.name}</div>
+                            {reviewCount > 0 && (
+                              <img
+                                src="/brand/Tellacity%20Vefication%20Batch.png"
+                                alt="Tellacity verified reviews"
+                                className="h-5 w-5 shrink-0"
+                              />
+                            )}
+                          </div>
                           {business.website && <div className="text-sm text-gray-500 truncate">{business.website}</div>}
                           <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
                             <RatingStars
@@ -795,12 +804,12 @@ export default function CategoryClient({
                       className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
                           {logoUrl ? (
                             <img
                               src={logoUrl}
                               alt={`${company.name} logo`}
-                              className="absolute inset-0 h-full w-full object-contain"
+                              className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
                               onError={(e) => {
@@ -811,7 +820,16 @@ export default function CategoryClient({
                         </div>
 
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-[#0E0E0E]">{company.name}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-sm font-semibold text-[#0E0E0E]">{company.name}</div>
+                            {reviewCount > 0 && (
+                              <img
+                                src="/brand/Tellacity%20Vefication%20Batch.png"
+                                alt="Tellacity verified reviews"
+                                className="h-5 w-5 shrink-0"
+                              />
+                            )}
+                          </div>
                           {company.website && <div className="text-xs text-gray-500">{company.website}</div>}
                           <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
                             <RatingStars

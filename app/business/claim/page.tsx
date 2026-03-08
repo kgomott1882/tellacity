@@ -13,6 +13,7 @@ type BusinessRow = {
   domain: string;
   logoUrl: string | null;
   location: string;
+  reviewCount: number;
 };
 
 const cleanDomain = (value: string | null | undefined) => {
@@ -45,7 +46,7 @@ export default function BusinessClaimPage() {
     const { data, error } = await supabase
       .from("businesses")
       .select(
-        "id, name, slug, website, website_display, logo_url, city, country_code"
+        "id, name, slug, website, website_display, logo_url, city, country_code, review_count"
       )
       .eq("status", "active")
       .or(
@@ -70,6 +71,7 @@ export default function BusinessClaimPage() {
       logo_url?: string | null;
       city?: string | null;
       country_code?: string | null;
+      review_count?: number | null;
     }>;
 
     const mapped: BusinessRow[] = rows.map((business) => ({
@@ -79,6 +81,7 @@ export default function BusinessClaimPage() {
       domain: cleanDomain(business.website_display ?? business.website ?? ""),
       logoUrl: normalizeLogoUrl(business.logo_url ?? null),
       location: business.city ?? business.country_code ?? "",
+      reviewCount: Number(business.review_count ?? 0) || 0,
     }));
 
     setResults(mapped);
@@ -164,8 +167,17 @@ export default function BusinessClaimPage() {
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold text-[#0E0E0E]">
-                    {business.name}
+                  <div className="flex items-center gap-1">
+                    <div className="text-base font-semibold text-[#0E0E0E]">
+                      {business.name}
+                    </div>
+                    {business.reviewCount > 0 && (
+                      <img
+                        src="/brand/Tellacity%20Vefication%20Batch.png"
+                        alt="Tellacity verified reviews"
+                        className="h-5 w-5 shrink-0"
+                      />
+                    )}
                   </div>
                   {business.domain ? (
                     <div className="text-sm text-gray-500">{business.domain}</div>
