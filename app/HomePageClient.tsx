@@ -141,6 +141,7 @@ export default function HomePageClient({
   });
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
+  const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
   const [bestInMetrics, setBestInMetrics] = useState<
     Record<string, { review_count: number; trust_score: number }>
@@ -264,6 +265,14 @@ export default function HomePageClient({
     reviewPage * reviewsPerPage,
     reviewPage * reviewsPerPage + reviewsPerPage
   );
+  // Mobile: chunk into pairs for vertical stack (1 top, 1 bottom) per slide
+  const reviewPairs = useMemo(() => {
+    const pairs: HomeReview[][] = [];
+    for (let i = 0; i < visibleReviews.length; i += 2) {
+      pairs.push(visibleReviews.slice(i, i + 2));
+    }
+    return pairs;
+  }, [visibleReviews]);
 
   const activeBestInSlug =
     rotatingCategorySlugs && rotatingCategorySlugs.length > 0
@@ -606,6 +615,17 @@ export default function HomePageClient({
     const el = categoryScrollRef.current;
     if (!el) return;
     const amount = Math.min(320, el.clientWidth * 0.8);
+    el.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  };
+
+  const scrollReviews = (direction: "left" | "right") => {
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    const firstSlide = el.querySelector("[data-review-slide]");
+    const amount = firstSlide instanceof HTMLElement ? firstSlide.offsetWidth + 24 : el.clientWidth;
     el.scrollBy({
       left: direction === "left" ? -amount : amount,
       behavior: "smooth",
@@ -986,12 +1006,12 @@ export default function HomePageClient({
               delay: 0.2,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-3 text-sm font-medium tracking-wide text-[#F9FAFB]/80 sm:mt-4 sm:text-base"
+            className="mt-5 text-sm font-medium tracking-wide text-[#F9FAFB]/80 sm:mt-6 sm:text-base"
           >
-            Business insights. Transparency at scale.
+            Discover real customer reviews, honest experiences, and trusted insights about businesses.
           </motion.p>
           <FadeUp delay={0.2}>
-            <div className="mt-8 w-full sm:mt-10">
+            <div className="mt-5 w-full sm:mt-6">
               <BusinessSearchInput
                 placeholder="Find businesses you can trust..."
                 heroLayout
@@ -1006,7 +1026,7 @@ export default function HomePageClient({
               />
             </div>
           </FadeUp>
-          <div className="mt-6">
+          <div className="mt-5 sm:mt-6">
             <Link
               href="/write-review"
               className="relative inline-flex items-center gap-1.5 rounded-full bg-[#0B9A6D] px-4 py-2 text-xs font-semibold text-white shadow-[0_0_0_rgba(239,68,68,0)] transition-all duration-300 sm:px-5 sm:py-2.5 sm:text-xs hover:shadow-[0_0_14px_rgba(239,68,68,0.85),0_0_26px_rgba(239,68,68,0.5)] active:scale-95"
@@ -1051,26 +1071,29 @@ export default function HomePageClient({
         }
       />
 
-      {/* WHAT ARE YOU LOOKING FOR? – 24 items, right-to-left marquee + arrow buttons */}
+      {/* Find businesses by category – 24 items, right-to-left marquee + arrow buttons */}
       <section className="bg-white overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
+<span className="relative inline-block">
                 <span className="relative inline-block">
-                  <span className="relative z-10">What are you looking for?</span>
+                  <span className="relative z-10">Find</span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
+                {" "}businesses by category
+              </span>
               </h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => scrollCategories("left")}
                 aria-label="Scroll categories left"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
@@ -1078,17 +1101,17 @@ export default function HomePageClient({
                 type="button"
                 onClick={() => scrollCategories("right")}
                 aria-label="Scroll categories right"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
               <Link
                 href="/categories"
-                className="rounded-full border border-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-4 sm:py-2 sm:text-sm"
+                className="rounded-full border border-[#1FAF9E] px-2.5 py-1 text-[10px] font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-3 sm:py-1.5 sm:text-xs"
               >
-                See more →
+                More
               </Link>
             </div>
           </div>
@@ -1148,28 +1171,35 @@ export default function HomePageClient({
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
-                <span className="relative z-10">Recent reviews</span>
-                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                <span className="relative inline-block">
+                  <span className="relative z-10">Recent</span>
+                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                </span>
+                {" "}reviews
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               Reviews are written by real customers and moderated for authenticity.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Previous reviews"
-              onClick={() =>
-                setReviewPage((prev) =>
-                  prev === 0 ? totalReviewPages - 1 : prev - 1
-                )
-              }
+              onClick={() => {
+                if (reviewsScrollRef.current) {
+                  scrollReviews("left");
+                } else {
+                  setReviewPage((prev) =>
+                    prev === 0 ? totalReviewPages - 1 : prev - 1
+                  );
+                }
+              }}
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4"
+                className="h-3.5 w-3.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1181,17 +1211,21 @@ export default function HomePageClient({
             </button>
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Next reviews"
-              onClick={() =>
-                setReviewPage((prev) =>
-                  prev === totalReviewPages - 1 ? 0 : prev + 1
-                )
-              }
+              onClick={() => {
+                if (reviewsScrollRef.current) {
+                  scrollReviews("right");
+                } else {
+                  setReviewPage((prev) =>
+                    prev === totalReviewPages - 1 ? 0 : prev + 1
+                  );
+                }
+              }}
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4"
+                className="h-3.5 w-3.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1204,23 +1238,38 @@ export default function HomePageClient({
           </div>
         </div>
 
-        {/* Mobile: horizontal swipe carousel */}
-        <div className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Mobile: one card on top, one on bottom per slide; ~half of next column peeks to encourage swipe */}
+        <div
+          ref={reviewsScrollRef}
+          className="mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-2 pr-6 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {isLoading &&
-            [1, 2, 3].map((i) => (
+            [1, 2].map((i) => (
               <div
                 key={i}
-                className="h-64 w-72 shrink-0 rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
-              />
+                data-review-slide
+                className="flex w-[calc((100vw-3rem)*0.67)] min-w-[260px] shrink-0 snap-center flex-col gap-4"
+              >
+                <div className="h-48 shrink-0 rounded-xl border border-gray-200 bg-gray-50 animate-pulse" />
+                <div className="h-48 shrink-0 rounded-xl border border-gray-200 bg-gray-50 animate-pulse" />
+              </div>
             ))}
           {!isLoading &&
-            visibleReviews.length > 0 &&
-            visibleReviews.map((review) => (
+            reviewPairs.length > 0 &&
+            reviewPairs.map((pair, idx) => (
               <div
-                key={review.review_id}
-                className="w-72 shrink-0 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
+                key={idx}
+                data-review-slide
+                className="flex w-[calc((100vw-3rem)*0.67)] min-w-[260px] shrink-0 snap-center flex-col gap-4"
               >
-                <RecentReviewCard review={review} showMoreAndReply={false} />
+                {pair.map((review) => (
+                  <div
+                    key={review.review_id}
+                    className="transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    <RecentReviewCard review={review} showMoreAndReply={false} />
+                  </div>
+                ))}
               </div>
             ))}
         </div>
@@ -1259,8 +1308,11 @@ export default function HomePageClient({
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
-                <span className="relative z-10">Frequently Asked Questions</span>
-                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                <span className="relative inline-block">
+                  <span className="relative z-10">Frequently</span>
+                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                </span>
+                {" "}Asked Questions
               </span>
             </h2>
             <p className="mt-3 max-w-2xl text-sm text-gray-600">
@@ -1410,8 +1462,11 @@ export default function HomePageClient({
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
-                <span className="relative z-10">Latest Blog Posts</span>
-                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                <span className="relative inline-block">
+                  <span className="relative z-10">Latest</span>
+                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                </span>
+                {" "}Blog Posts
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
