@@ -61,3 +61,28 @@ After that, the app redirect will send `www` traffic to `https://tellacity.com`.
   - https://www.tellacity.com (should redirect to https://tellacity.com)
 
 After the certificate and DNS are correct, users will no longer see "Your connection is not private" for these URLs.
+
+---
+
+## Avoiding "Too many redirects" (ERR_TOO_MANY_REDIRECTS)
+
+If users see **"tellacity.com redirected you too many times"**, two systems are redirecting in a loop.
+
+### What causes it
+
+- **Host and app both redirect:** e.g. host redirects `tellacity.com` → `www.tellacity.com`, and the app redirects `www` → `tellacity.com`. Result: endless loop.
+- **Cloudflare + Vercel:** If you use Cloudflare in front of Vercel with SSL mode **Flexible**, Cloudflare sends HTTP to Vercel and Vercel redirects to HTTPS; that can create a loop. Use **Full** or **Full (strict)** in Cloudflare SSL/TLS.
+
+### What to do
+
+1. **Single place for www → non-www**  
+   The app redirects `www.tellacity.com` → `https://tellacity.com` (temporary redirect). In your **host** (Vercel, Cloudflare, etc.):
+   - **Do not** redirect `tellacity.com` to `www.tellacity.com`.
+   - In Vercel: add both domains and set **tellacity.com** as primary (no "Redirect to www").
+   - In Cloudflare: use one redirect rule only (e.g. www → apex), not apex → www.
+
+2. **Cloudflare**  
+   SSL/TLS: set encryption mode to **Full** or **Full (strict)**, not Flexible.
+
+3. **After changing settings**  
+   Clear site data/cookies for tellacity.com and retry; old cached redirects can keep the loop until the cache is cleared.

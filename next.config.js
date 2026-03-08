@@ -10,16 +10,16 @@ const nextConfig = {
       },
     ],
   },
-  // Normalize to one canonical host so https and www work without certificate mismatch.
-  // Redirect www → non-www (canonical: https://tellacity.com). Fix NET::ERR_CERT_COMMON_NAME_INVALID
-  // by ensuring your host issues a cert for both tellacity.com and www.tellacity.com (or use this redirect).
+  // Canonical host: https://tellacity.com. Redirect www → non-www only (one hop).
+  // Use temporary redirect (302) to avoid caching loops. If your host redirects
+  // tellacity.com → www, disable that so only this redirect runs (or do www→apex at the host only).
   async redirects() {
     return [
       {
         source: "/:path*",
         has: [{ type: "host", value: "www.tellacity.com" }],
         destination: "https://tellacity.com/:path*",
-        permanent: true,
+        permanent: false,
       },
     ];
   },
