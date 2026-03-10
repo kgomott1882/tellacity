@@ -2,10 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type PlanKey = "free" | "grow" | "premium" | "elite";
 
-/** Monthly invite limits; Free must be 25 (pricing table). */
 export const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
-  free: 25,
-  grow: 100,
+  free: 20,
+  grow: 150,
   premium: 500,
   elite: 3000,
 };

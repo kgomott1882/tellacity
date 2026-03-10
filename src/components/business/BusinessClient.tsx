@@ -611,6 +611,10 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     reviews.length,
   ]);
 
+  const businessLogoUrl =
+    business?.logoUrl ??
+    (business?.website ? getLogoDevUrl(business.website) : null);
+
   if (notFound && !isLoadingBusiness) {
     return (
       <main className="bg-white">
@@ -728,7 +732,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-[#FCF7F6]">
               {(() => {
-                const displayLogo = business?.logoUrl ?? (business?.website ? getLogoDevUrl(business.website) : null);
+                const displayLogo = businessLogoUrl;
                 return displayLogo ? (
                   <img
                     key={displayLogo}
@@ -1054,7 +1058,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           business_name: business?.name ?? "Business",
                           business_slug: business?.slug ?? null,
                           website: business?.website ?? "",
-                          resolved_logo_url: business?.logoUrl ?? null,
+                          resolved_logo_url: businessLogoUrl,
                         }}
                         businessReplies={
                           repliesByReviewId[review.id]?.map((r) => ({

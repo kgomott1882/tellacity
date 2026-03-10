@@ -991,16 +991,9 @@ export default function HomePageClient({
               duration: 0.9,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-3xl font-semibold text-[#F9FAFB] sm:text-4xl md:text-5xl lg:text-[3.25rem]"
+            className="bg-gradient-to-r from-[#9CA3AF] via-[#D1D5DB] to-[#F3F4F6] bg-clip-text text-transparent text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-[3.25rem]"
           >
-            Customer{" "}
-            <span className="relative inline-block cursor-default">
-              <span className="relative z-[1]">Reviews &amp; Feedback</span>
-              <span
-                className="absolute left-0 right-0 bottom-[2px] h-[4px] rounded-sm bg-[#5dd4cc]"
-                aria-hidden
-              />
-            </span>
+            Customer Reviews &amp; Feedback
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -1010,12 +1003,12 @@ export default function HomePageClient({
               delay: 0.2,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-5 text-sm font-medium tracking-wide text-[#F9FAFB]/80 sm:mt-6 sm:text-base"
+            className="mt-5 text-sm font-semibold tracking-wide text-[#F9FAFB]/90 sm:mt-6 sm:text-base"
           >
-            Discover real customer reviews, honest experiences, and trusted insights about businesses.
+            Discover honest experiences. Read and write real customer reviews. Gain trusted business insights.
           </motion.p>
           <FadeUp delay={0.2}>
-            <div className="mt-5 w-full sm:mt-6">
+            <div className="mt-5 w-full sm:mt-6 max-w-3xl mx-auto">
               <BusinessSearchInput
                 placeholder="Find businesses you can trust..."
                 heroLayout
@@ -1033,7 +1026,7 @@ export default function HomePageClient({
           <div className="mt-5 sm:mt-6">
             <Link
               href="/write-review"
-              className="relative inline-flex items-center gap-1.5 rounded-full bg-[#0B9A6D] px-4 py-2 text-xs font-semibold text-white shadow-[0_0_0_rgba(239,68,68,0)] transition-all duration-300 sm:px-5 sm:py-2.5 sm:text-xs hover:shadow-[0_0_14px_rgba(239,68,68,0.85),0_0_26px_rgba(239,68,68,0.5)] active:scale-95"
+              className="relative inline-flex items-center gap-1.5 rounded-full bg-[#124541] px-4 py-2 text-xs font-semibold text-white shadow-[0_0_0_rgba(18,69,65,0)] transition-all duration-300 sm:px-5 sm:py-2.5 sm:text-xs hover:shadow-[0_0_14px_rgba(18,69,65,0.85),0_0_26px_rgba(18,69,65,0.5)] active:scale-95"
             >
               <svg
                 viewBox="0 0 24 24"

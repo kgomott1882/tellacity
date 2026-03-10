@@ -41,7 +41,17 @@ export default function SuggestBusinessPage() {
 
       const { data: groupsData, error: groupsErr } = await supabase
         .from("category_groups")
-        .select("name, slug")
+        .select(
+          `
+          id,
+          name,
+          slug,
+          categories (
+            id,
+            group
+          )
+        `
+        )
         .order("name");
 
       if (!mounted) return;
@@ -52,10 +62,20 @@ export default function SuggestBusinessPage() {
         return;
       }
 
-      const groupList = (groupsData ?? []).map((r: { name: string; slug: string }) => ({
-        name: r.name,
-        group_slug: r.slug,
-      }));
+      const groupList =
+        (groupsData ?? [])
+          .map((r: { name: string; slug: string; categories?: { id: string; group: string | null }[] }) => {
+            const hasCategories = (r.categories ?? []).some((c) => c.group === r.slug);
+            return hasCategories
+              ? {
+                  name: r.name,
+                  group_slug: r.slug,
+                }
+              : null;
+          })
+          .filter((g): g is Group => g !== null)
+          .sort((a, b) => a.name.localeCompare(b.name));
+
       setGroups(groupList);
 
       const { data: categoriesData, error: catErr } = await supabase
@@ -96,6 +116,11 @@ export default function SuggestBusinessPage() {
     const trimmedCountry = countryCode.trim().toUpperCase().slice(0, 2);
     const trimmedCategory = categorySlug.trim();
     const trimmedGroup = primaryGroupSlug.trim();
+    const trimmedCity = city.trim();
+    const trimmedStreetAddress = streetAddress.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedPublicEmail = publicEmail.trim();
+    const trimmedNotes = notes.trim();
 
     if (!trimmedName || !trimmedWebsite || !trimmedCountry || !trimmedCategory || !trimmedGroup) {
       setError("Please fill in all required fields: Business Name, Website, Country Code, Category, and Primary Group.");
@@ -113,6 +138,11 @@ export default function SuggestBusinessPage() {
           country_code: trimmedCountry,
           category_slug: trimmedCategory,
           primary_group_slug: trimmedGroup,
+          city: trimmedCity || null,
+          street_address: trimmedStreetAddress || null,
+          phone: trimmedPhone || null,
+          public_email: trimmedPublicEmail || null,
+          notes: trimmedNotes || null,
         }),
       });
       const data = await res.json().catch(() => ({}));

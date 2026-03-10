@@ -24,7 +24,7 @@ const plans: Plan[] = [
       "Claim your business profile",
       "Verified Business Dashboard access",
       "Receive unlimited consumer reviews",
-      "25 review invites per month",
+      "20 review invites per month",
       "Basic Email review invitations",
     ],
   },
@@ -34,7 +34,7 @@ const plans: Plan[] = [
     priceSub: "/ month",
     description: "Essential tools to actively build trust and collect reviews.",
     features: [
-      "100 review invites per month",
+      "150 review invites per month",
       "Email & SMS review invitations",
       "Customisable email invite templates",
       "QR code reviews",
@@ -66,7 +66,7 @@ const plans: Plan[] = [
   },
   {
     name: "Elite",
-    price: "$489",
+    price: "$499",
     priceSub: "/ month",
     description: "Enterprise-grade brand management & strategic insights.",
     features: [
@@ -94,7 +94,7 @@ type FeatureRow = [string, string, string, string, string];
 
 const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "feature"; row: FeatureRow }> = [
   { type: "section", label: "COLLECT" },
-  { type: "feature", row: ["Review invitations / month", "25", "100", "500", "3,000"] },
+  { type: "feature", row: ["Review invitations / month", "20", "150", "500", "3,000"] },
   { type: "feature", row: ["Email invites", "✓", "✓", "✓", "✓"] },
   { type: "feature", row: ["Customisable email templates", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["QR code reviews", "–", "✓", "✓", "✓"] },
@@ -180,7 +180,7 @@ export default function PricingPage() {
       annual: 159,
     },
     elite: {
-      monthly: 489,
+      monthly: 499,
       annual: 399,
     },
   } as const;
@@ -446,7 +446,7 @@ export default function PricingPage() {
                 {plan.name !== "Free" && plan.connectors && plan.connectors.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">
-                      Connectors included
+                      Connectors supported
                     </p>
                     <div className="flex flex-wrap gap-x-2 gap-y-1">
                       {plan.connectors.map((connector) => (
@@ -952,7 +952,7 @@ export default function PricingPage() {
             <div className="rounded-xl border p-4 mb-6 bg-neutral-50">
               {selectedPlan === "free" && (
                 <ul className="space-y-2 text-sm">
-                  <li>✓ 25 review invites/month</li>
+                  <li>✓ 20 review invites/month</li>
                   <li>✓ Basic dashboard</li>
                   <li>✓ Email invites</li>
                 </ul>
@@ -960,7 +960,7 @@ export default function PricingPage() {
 
               {selectedPlan === "grow" && (
                 <ul className="space-y-2 text-sm">
-                  <li>✓ 100 review invites/month</li>
+                  <li>✓ 150 review invites/month</li>
                   <li>✓ Email &amp; SMS invites</li>
                   <li>✓ Performance analytics</li>
                 </ul>
@@ -1005,22 +1005,6 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* DESKTOP STICKY CONVERSION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 hidden md:flex items-center justify-between px-10 py-4 bg-white border-t shadow-sm">
-        <div className="text-sm font-semibold text-[#0E0E0E]">
-          Premium – <span className="text-base font-bold">$199/mo</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedPlan("premium");
-            setShowUpgradeModal(true);
-          }}
-          className="rounded-full bg-black px-6 py-3 text-white font-semibold shadow-lg shadow-black/20 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 active:scale-95"
-        >
-          Start Now
-        </button>
-      </div>
     </main>
   );
 }

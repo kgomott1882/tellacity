@@ -29,6 +29,11 @@ export async function POST(request: Request) {
       country_code,
       category_slug,
       primary_group_slug,
+      city,
+      street_address,
+      phone,
+      public_email,
+      notes,
     } = body as Record<string, unknown>;
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -110,6 +115,18 @@ export async function POST(request: Request) {
         country_code: country_code.trim(),
         category_slug: category_slug.trim(),
         primary_group_slug: primary_group_slug.trim(),
+        address:
+          typeof street_address === "string" && street_address.trim()
+            ? street_address.trim()
+            : null,
+        city: typeof city === "string" && city.trim() ? city.trim() : null,
+        phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
+        email:
+          typeof public_email === "string" && public_email.trim()
+            ? public_email.trim()
+            : null,
+        description:
+          typeof notes === "string" && notes.trim() ? notes.trim() : null,
         source: "user_suggested",
         submission_status: "under_review",
         status: "active",

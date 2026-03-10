@@ -359,16 +359,20 @@ export default function BusinessProfilePage() {
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-[#0E0E0E]">Email</label>
+                <label className="block text-sm font-medium text-[#0E0E0E]">
+                  Public Email <span className="text-gray-400">(optional)</span>
+                </label>
                 <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/20"
                   placeholder="contact@example.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0E0E0E]">Phone</label>
+                <label className="block text-sm font-medium text-[#0E0E0E]">
+                  Phone Number <span className="text-gray-400">(optional)</span>
+                </label>
                 <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/20"
-                  placeholder="+27 11 123 4567" />
+                  placeholder="+1 234 567 8900" />
               </div>
             </div>
             <div>
