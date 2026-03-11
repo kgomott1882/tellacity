@@ -181,82 +181,82 @@ export default function HomePageClient({
     {
       question: "What is Tellacity?",
       answer:
-        "Tellacity is a global trust and reputation platform where consumers can share genuine experiences and businesses can build credibility. Unlike generic review sites, Tellacity uses proof-of-purchase verification and advanced fraud-prevention measures to ensure reviews are real. Businesses gain tools for analytics, engagement, and reputation growth, while consumers get a trusted place to make better decisions.",
+        "Tellacity is a global customer reviews and feedback platform where people share real experiences about businesses. Reviews are protected by verification and fraud-prevention systems to ensure they are genuine. Businesses use Tellacity to collect authentic customer reviews, build trust, strengthen their reputation, and gain insights to improve their services and grow.",
     },
     {
       question: "How does Tellacity ensure reviews are trustworthy?",
       answer:
-        "We use several layers of verification to maintain integrity: Proof of Purchase: Consumers can upload receipts, invoices, or order numbers to verify their reviews. Fraud Detection: AI-driven systems check for suspicious patterns, duplicate accounts, or spam behavior. Community Guidelines: Every review must follow strict fairness and respect standards. Moderation: Businesses can flag reviews, which are reviewed under our transparent dispute process.",
+        "Tellacity uses several layers of verification to maintain trust. Reviewers may provide proof of purchase such as receipts, invoices, or order confirmations. Our systems also detect suspicious activity like duplicate accounts, spam, or unusual review patterns. Businesses and users can flag reviews that violate our guidelines, and our moderation team reviews them through a transparent dispute process.",
     },
     {
       question: "Can businesses respond to reviews?",
       answer:
-        "Yes. We encourage open communication. Businesses can: Reply publicly to customer feedback (positive or negative). Address disputes by opening a moderated discussion with the reviewer. Show responsiveness with the “Owner Responded” badge. This creates a fair two-way conversation between customers and businesses.",
+        "Yes. Businesses can publicly reply to customer reviews—both positive and negative. This encourages open communication and allows businesses to resolve issues directly with customers. When a business responds, the reply is marked with an “Owner Responded” badge so readers can clearly see the conversation.",
     },
     {
       question: "What is a ‘Verified Review’?",
       answer:
-        "A Verified Review is marked with a badge indicating the consumer provided proof of transaction (invoice, booking number, receipt, or payment record). Verified Reviews carry more weight and rank higher in visibility compared to unverified ones, ensuring customers can trust what they read.",
+        "A Verified Review is marked with a badge showing the reviewer provided proof of their transaction, such as a receipt, booking number, or payment confirmation. Verified Reviews carry greater credibility and may receive higher visibility because they confirm the reviewer had a real experience with the business.",
     },
     {
       question: "How can I claim my business on Tellacity?",
       answer:
-        "Claiming is simple and secure: Search for your business in our directory. Click “Claim Business” and follow the verification steps (email/domain match, official documents, or other approved proof). Once approved, you’ll unlock the Free Plan dashboard with tools for managing reviews, analytics, and promotional widgets. You can upgrade anytime to Grow, Premium, or Elite plans for advanced features.",
+        "Claiming your business is simple. Search for your business on Tellacity and click “Claim Business.” You’ll be asked to verify ownership through methods such as email verification, domain verification, or official documentation. Once approved, you can manage reviews, access analytics, and use Tellacity tools to grow your reputation.",
     },
     {
       question: "Is Tellacity free to use?",
       answer:
-        "For consumers: It is 100% free to write, read, and share reviews. For businesses: We offer a robust Free Plan which includes claiming your profile, responding to reviews, and using our basic SEO widget. Paid Plans: Our Grow, Premium, and Elite plans unlock advanced analytics, deeper integrations (Shopify, etc.), and automated review collection tools.",
+        "Yes. Consumers can read, write, and share reviews for free. Businesses can also claim their profile and respond to reviews using our Free Plan. Paid plans such as Grow, Premium, and Elite unlock additional features like advanced analytics, integrations, and automated review collection tools.",
     },
     {
       question: "How do I report a fake or inappropriate review?",
       answer:
-        "If you believe a review is fake, offensive, or violates our Community Guidelines, click the “Report Review” flag icon directly under the review. You'll need to select a reason (e.g., spam, offensive content, conflict of interest). Our moderation team will investigate, and the review may be temporarily labeled as “Under Review” during this process.",
+        "If you believe a review violates our Community Guidelines, click the “Report Review” option below the review. Select the reason (such as spam, offensive content, or conflict of interest), and our moderation team will investigate. During this process, the review may be temporarily marked as “Under Review.”",
     },
     {
       question: "Do I need an account to write a review?",
       answer:
-        "Yes, you need a free Tellacity account. This requirement helps prevent spam, ensures reviews are linked to real people, and allows you to manage your own reviews later.",
+        "Yes. Creating a free Tellacity account helps prevent spam, links reviews to real users, and allows you to manage or update your reviews later.",
     },
     {
       question: "Can I edit or delete my review?",
       answer:
-        "Yes. You can edit your review for a short period after posting to correct typos or add details. You can delete your review at any time from your user dashboard if you no longer wish to share your experience.",
+        "Yes. You can edit your review shortly after posting to correct mistakes or add details. You can also delete your review at any time from your user dashboard.",
     },
     {
       question: "Will the business see my contact details?",
       answer:
-        "No. Your email and phone number are private. Businesses only see your public profile name and the content of your review. If a dispute arises, you may choose to share details privately to resolve the issue, but that is entirely up to you.",
+        "No. Your email address and phone number remain private. Businesses only see your public profile name and the content of your review. If a dispute arises, you may choose to share additional details privately.",
     },
     {
       question: "What benefits do businesses get by claiming their profile?",
       answer:
-        "Reputation Control: Manage and respond to reviews directly. SEO Boost: Tellacity profile pages rank well on search engines, driving traffic to your brand. Analytics Dashboard: Track review trends, star ratings, and consumer sentiment over time. Integrations: Sync reviews and sales data with platforms like Shopify, Paystack, and others. Trust Badges: Display a Verified Business badge on your website to increase conversion rates.",
+        "Claiming your profile gives businesses access to tools that help manage and grow their reputation. These include responding to reviews, tracking ratings and customer sentiment, improving search visibility, integrating with platforms like Shopify or Paystack, and displaying verified trust badges on their website.",
     },
     {
       question: "What payment methods does Tellacity support?",
       answer:
-        "We support major credit cards and local payment methods via our payment partners, including Paystack, PayFast, and PayPal. We aim to make subscription management easy for businesses globally.",
+        "Tellacity supports major credit cards and several local payment methods through our payment partners, including Paystack, PayFast, and PayPal, making subscription management easy for businesses worldwide.",
     },
     {
       question: "Can multiple team members manage one business account?",
       answer:
-        "Yes. Our platform allows you to invite team members and assign roles (such as Admin or Manager) so your support or marketing teams can help manage reviews and analytics without sharing a single login.",
+        "Yes. Businesses can invite team members and assign roles such as Admin or Manager. This allows customer support, marketing, or operations teams to manage reviews and analytics without sharing a single login.",
     },
     {
       question: "How are disputes handled?",
       answer:
-        "When a business disputes a review, our system places the review in a mediation state. We may ask the reviewer for proof of experience or clarification. Our moderation team reviews the evidence impartially. If the review violates guidelines, it is removed; otherwise, it remains visible.",
+        "When a business disputes a review, the review enters a mediation process. The reviewer may be asked to provide proof of experience or clarification. Our moderation team evaluates the evidence fairly. If the review violates our guidelines, it is removed; otherwise, it remains visible.",
     },
     {
       question: "What happens if a business tries to delete negative reviews?",
       answer:
-        "Businesses cannot delete legitimate consumer reviews. Transparency is our core value. Reviews remain visible unless they violate our content policies (e.g., hate speech, spam). This ensures consumers get an honest picture of the business.",
+        "Businesses cannot delete legitimate customer reviews. Transparency is a core principle of Tellacity. Reviews remain visible unless they violate our content policies, such as containing spam, hate speech, or fraudulent content.",
     },
     {
       question: "How does Tellacity protect against manipulation?",
       answer:
-        "We actively monitor for manipulation attempts such as: Bulk fake reviews from the same IP address. Incentivized or paid positive reviews. Competitors leaving malicious negative reviews. Violations can result in content removal, account suspension, or a consumer warning badge placed on the business profile.",
+        "Tellacity actively monitors for review manipulation, including bulk fake reviews, paid review schemes, or coordinated attacks. Our systems analyze patterns such as IP activity, account behavior, and review timing. Violations can lead to content removal, account suspension, or warnings placed on a business profile.",
     },
   ];
   const faqMidpoint = Math.ceil(faqItems.length / 2);
@@ -1337,9 +1337,11 @@ export default function HomePageClient({
                         prev === item.question ? null : item.question
                       )
                     }
-                    className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm font-medium text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
+                    className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
                   >
-                    <span>{item.question}</span>
+                    <span className={isOpen ? "font-semibold" : "font-normal"}>
+                      {item.question}
+                    </span>
                     <svg
                       viewBox="0 0 24 24"
                       className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${
@@ -1391,9 +1393,11 @@ export default function HomePageClient({
                             prev === item.question ? null : item.question
                           )
                         }
-                        className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm font-medium text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
+                        className="flex w-full cursor-pointer items-center justify-between px-5 py-3 text-left text-sm text-[#0E0E0E] [&::-webkit-details-marker]:hidden"
                       >
-                        <span>{item.question}</span>
+                        <span className={isOpen ? "font-semibold" : "font-normal"}>
+                          {item.question}
+                        </span>
                         <svg
                           viewBox="0 0 24 24"
                           className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${

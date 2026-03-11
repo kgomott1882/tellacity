@@ -2,6 +2,7 @@ export const dynamic = "force-static";
 
 import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { SUPPORTED_COUNTRY_CODES, countryPathSegment } from "@/lib/seoCountries";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
 
@@ -75,7 +76,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${BASE_URL}/companies`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
   ];
+
+  for (const code of SUPPORTED_COUNTRY_CODES) {
+    const segment = countryPathSegment(code);
+    pages.push({
+      url: `${BASE_URL}/companies/${segment}`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.7,
+    });
+  }
 
   const supabase = createClient();
 
@@ -110,6 +127,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.8,
+      });
+    }
+  }
+
+  const { count: businessCount } = await supabase
+    .from("businesses")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .not("slug", "is", null);
+
+  if (typeof businessCount === "number" && businessCount > 0) {
+    const SHARD_SIZE = 10000;
+    const shardTotal = Math.ceil(businessCount / SHARD_SIZE);
+    for (let i = 1; i <= shardTotal; i++) {
+      pages.push({
+        url: `${BASE_URL}/business-sitemaps/${i}`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.4,
       });
     }
   }
