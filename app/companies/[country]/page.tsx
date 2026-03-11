@@ -141,10 +141,17 @@ export default async function CompaniesCountryPage(props: {
     notFound();
   }
 
-  const rawCursor = searchParams.cursor ?? undefined;
-  const cursor = rawCursor && rawCursor.length > 0 ? rawCursor : null;
+  const rawCursor = searchParams.cursor;
+  const cursor: string | null =
+    typeof rawCursor === "string"
+      ? rawCursor
+      : Array.isArray(rawCursor)
+      ? rawCursor[0] ?? null
+      : null;
 
-  const rawPrev = searchParams.prev ?? "";
+  const rawPrev = Array.isArray(searchParams.prev)
+    ? searchParams.prev[0]
+    : searchParams.prev ?? "";
   const prevStack = rawPrev
     ? rawPrev.split("|").filter((value) => value.length > 0)
     : [];
