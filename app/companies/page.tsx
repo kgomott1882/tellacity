@@ -48,7 +48,6 @@ export default function CompaniesDirectoryPage() {
 }
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { supabaseServer } from "@/lib/supabaseServer";
 import {
   SUPPORTED_COUNTRY_CODES,
