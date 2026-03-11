@@ -149,12 +149,12 @@ export default async function CompaniesCountryPage(props: {
       ? rawCursor[0] ?? null
       : null;
 
-  const rawPrev = Array.isArray(searchParams.prev)
-    ? searchParams.prev[0]
-    : searchParams.prev ?? "";
-  const prevStack = rawPrev
-    ? rawPrev.split("|").filter((value) => value.length > 0)
-    : [];
+  const rawPrev = searchParams.prev;
+
+  const prevStack =
+    typeof rawPrev === "string"
+      ? rawPrev.split("|").filter((value) => value.length > 0)
+      : [];
 
   const [businesses, total] = await Promise.all([
     fetchBusinessesForCountry(normalized, cursor),

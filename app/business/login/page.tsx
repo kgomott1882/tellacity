@@ -77,9 +77,10 @@ export default function BusinessLoginPage() {
     setLoading(false);
 
     if (!existingProfile) {
-      setError(
-        "No business account found for this email. You are signed in, but this email does not have a Tellacity Business profile yet."
-      );
+      // If there is no business profile for this user, treat this as a
+      // consumer login attempt: sign out and send them to the consumer login.
+      await supabase.auth.signOut();
+      router.push("/auth/login?from=business");
       return;
     }
 

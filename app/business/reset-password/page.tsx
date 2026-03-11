@@ -87,11 +87,31 @@ export default function BusinessResetPasswordPage() {
       return;
     }
 
-    // After resetting a business password, sign out and
-    // send the user back to the business login screen.
+    // Decide where to send the user after resetting the password.
+    // If they have a business profile, send them to the business login.
+    // Otherwise, treat this as a consumer reset and send them to consumer login.
+    let redirectPath = "/auth/login?reset=success";
+    try {
+      const { data } = await supabaseBrowser().auth.getUser();
+      const user = data.user;
+      if (user) {
+        const supabase = supabaseBrowser();
+        const { data: businessProfile } = await supabase
+          .from("business_profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (businessProfile) {
+          redirectPath = "/business/login?reset=success";
+        }
+      }
+    } catch {
+      // If anything goes wrong, fall back to the consumer login redirect.
+    }
+
     const supabase = supabaseBrowser();
     await supabase.auth.signOut();
-    router.push("/business/login?reset=success");
+    router.push(redirectPath);
   };
 
   return (
