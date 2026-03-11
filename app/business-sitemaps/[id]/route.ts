@@ -14,9 +14,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const rawId = context.params.id;
+  const { id: rawId } = await context.params;
   const shardIndex = parseInt(rawId, 10);
 
   if (!Number.isFinite(shardIndex) || shardIndex < 1) {
