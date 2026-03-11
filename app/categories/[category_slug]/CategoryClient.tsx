@@ -457,8 +457,8 @@ export default function CategoryClient({
             </p>
           </div>
 
-          {/* How this page works */}
-          <section className="mt-8 grid gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid-cols-3">
+          {/* How this page works (desktop / tablet only) */}
+          <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
             <div>
               <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
                 Ranked by trust
@@ -669,7 +669,7 @@ export default function CategoryClient({
 
                 return (
                   <Link key={business.id} href={`/b/${business.slug}`} className="block w-full">
-                    <div className="flex items-center justify-between gap-6 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40">
+                      <div className="flex flex-col gap-3 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
                           {logoUrl ? (
@@ -711,10 +711,19 @@ export default function CategoryClient({
                               • {reviewCount.toLocaleString()} reviews
                             </span>
                           </div>
+                          {locationText && (
+                            <div className="mt-1 text-xs text-gray-500 sm:hidden">
+                              {locationText}
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="text-sm text-gray-500 text-right min-w-[180px]">{locationText}</div>
+                      {locationText && (
+                        <div className="hidden text-sm text-gray-500 sm:block sm:text-right sm:min-w-[180px]">
+                          {locationText}
+                        </div>
+                      )}
                     </div>
                   </Link>
                 );

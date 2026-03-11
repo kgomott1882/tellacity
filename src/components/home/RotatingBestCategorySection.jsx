@@ -263,9 +263,9 @@ export default function RotatingBestCategorySection({
                             business.slug ?? "",
                           )}`;
                         }}
-                        className="inline-flex w-auto items-center justify-center rounded-full bg-black px-6 py-2 text-xs font-medium text-white shadow-[0_0_0_rgba(249,115,22,0)] transition-all duration-200 hover:bg-[#111111] hover:shadow-[0_0_16px_rgba(249,115,22,0.5),0_0_32px_rgba(249,115,22,0.25)] active:scale-95"
+                        className="inline-flex w-auto items-center justify-center rounded-full bg-gray-600 px-3 py-1 text-[11px] font-medium text-white shadow-[0_0_0_rgba(249,115,22,0)] transition-all duration-200 hover:bg-gray-700 hover:shadow-[0_0_16px_rgba(75,85,99,0.5),0_0_32px_rgba(75,85,99,0.25)] active:scale-95"
                       >
-                        Review
+                        Review this Business
                       </button>
                     </div>
                   </Link>
