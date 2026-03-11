@@ -33,33 +33,50 @@ export default async function HomePage(props: PageProps) {
 
   const results = await Promise.all(
     ROTATING_BEST_IN_SLUGS.map(async (slug) => {
-      const { data, error } = await supabase.rpc(
-        "get_top_businesses_for_category_global",
-        {
-          p_category_slug: slug,
-          p_country_code: country,
-          p_min_rating: null,
-          // Fetch more than we need so the homepage
-          // can re-rank by live metrics and keep the
-          // strongest performers in the top 8.
-          p_limit: 24,
-          p_offset: 0,
-        }
-      );
+      try {
+        const { data, error } = await supabase.rpc(
+          "get_top_businesses_for_category_global",
+          {
+            p_category_slug: slug,
+            p_country_code: country,
+            p_min_rating: null,
+            // Fetch more than we need so the homepage
+            // can re-rank by live metrics and keep the
+            // strongest performers in the top 8.
+            p_limit: 24,
+            p_offset: 0,
+          }
+        );
 
-      console.log("BEST-IN RPC", {
-        slug,
-        country,
-        error: error?.message ?? null,
-        count: data?.length ?? 0,
-      });
+        console.log("BEST-IN RPC", {
+          slug,
+          country,
+          error: error?.message ?? null,
+          count: data?.length ?? 0,
+        });
 
-      return {
-        slug,
-        data: (data ?? []) as any[],
-        error: error?.message ?? null,
-        count: data?.length ?? 0,
-      };
+        return {
+          slug,
+          data: (data ?? []) as any[],
+          error: error?.message ?? null,
+          count: data?.length ?? 0,
+        };
+      } catch (rpcError) {
+        console.error("BEST-IN RPC FAILED", {
+          slug,
+          country,
+          error:
+            rpcError instanceof Error ? rpcError.message : String(rpcError),
+        });
+
+        return {
+          slug,
+          data: [] as any[],
+          error:
+            rpcError instanceof Error ? rpcError.message : String(rpcError),
+          count: 0,
+        };
+      }
     })
   );
 
