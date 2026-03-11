@@ -41,12 +41,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${BASE_URL}/write-review`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    },
-    {
       url: `${BASE_URL}/blog`,
       lastModified: now,
       changeFrequency: "weekly",
@@ -134,7 +128,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { count: businessCount } = await supabase
     .from("businesses")
     .select("id", { count: "exact", head: true })
-    .eq("status", "active")
+    .in("status", ["active", "ok"])
     .not("slug", "is", null);
 
   if (typeof businessCount === "number" && businessCount > 0) {

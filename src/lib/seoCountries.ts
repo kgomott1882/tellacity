@@ -34,3 +34,19 @@ export function countryPathSegment(code: SupportedCountryCode): string {
   return code.toLowerCase();
 }
 
+// Maps our public country codes to the storage codes used in the database.
+// Most countries match 1:1, but the UK is stored as GB in the DB.
+export const STORAGE_COUNTRY_CODE: Record<SupportedCountryCode, string> = {
+  US: "US",
+  ZA: "ZA",
+  UK: "GB",
+  AU: "AU",
+  CA: "CA",
+  NZ: "NZ",
+  IE: "IE",
+};
+
+export function toStorageCountryCode(code: SupportedCountryCode): string {
+  return STORAGE_COUNTRY_CODE[code] ?? code;
+}
+

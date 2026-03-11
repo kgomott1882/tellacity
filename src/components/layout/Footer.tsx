@@ -238,6 +238,11 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/companies" className="hover:text-white">
+                    Browse Businesses by Country
+                  </Link>
+                </li>
+                <li>
                   <Link href="/suggest-business" className="hover:text-white">
                     Suggest a Business
                   </Link>

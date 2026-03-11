@@ -1,3 +1,10 @@
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 "use client";
 
 import { Suspense, useEffect, useState } from "react";

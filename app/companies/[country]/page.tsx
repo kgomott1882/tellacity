@@ -6,10 +6,24 @@ import {
   COUNTRY_LABELS,
   SUPPORTED_COUNTRY_CODES,
   normalizeCountryParam,
+  toStorageCountryCode,
   type SupportedCountryCode,
 } from "@/lib/seoCountries";
 
+export const revalidate = 300;
+
 const PAGE_SIZE = 50;
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
+
+const COUNTRY_FLAG_CODE: Record<SupportedCountryCode, string> = {
+  US: "US",
+  ZA: "ZA",
+  UK: "GB", // GB flag for United Kingdom
+  AU: "AU",
+  CA: "CA",
+  NZ: "NZ",
+  IE: "IE",
+};
 
 type BusinessRow = {
   slug: string | null;
@@ -24,153 +38,186 @@ function cleanDomain(value: string | null | undefined): string {
   return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
 }
 
-function parsePageParam(
-  raw: string | string[] | undefined
-): { page: number; offset: number } {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const n = parseInt(value ?? "1", 10);
-  const page = Number.isFinite(n) && n > 0 ? n : 1;
-  const offset = (page - 1) * PAGE_SIZE;
-  return { page, offset };
-}
-
 type PageParams = {
   country: string;
 };
 
 type PageSearchParams = Record<string, string | string[] | undefined>;
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
+
 export async function generateMetadata(props: {
   params: Promise<PageParams>;
+  searchParams?: Promise<PageSearchParams>;
 }): Promise<Metadata> {
-  const params = await props.params;
-  const normalized = normalizeCountryParam(params.country);
+  const [params, rawSearch] = await Promise.all([
+    props.params,
+    props.searchParams ?? Promise.resolve<PageSearchParams>({}),
+  ]);
 
+  const normalized = normalizeCountryParam(params.country.toUpperCase());
   if (!normalized) {
     return {};
   }
 
   const label = COUNTRY_LABELS[normalized];
+  const canonicalPath = `/companies/${params.country.toLowerCase()}`;
+  const canonicalUrl = `${BASE_URL}${canonicalPath}`;
+
+  const searchParams = rawSearch || {};
+  const rawCursor = searchParams.cursor ?? undefined;
+  const hasCursor =
+    typeof rawCursor === "string" && rawCursor.trim().length > 0;
+
+  const robots =
+    hasCursor
+      ? {
+          index: false,
+          follow: true,
+        }
+      : {
+          index: true,
+          follow: true,
+        };
 
   return {
     title: `${normalized} Business Reviews & Companies | Tellacity`,
     description: `Browse reviewed and listed businesses in ${label} on Tellacity.`,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    robots,
   };
 }
 
 async function fetchBusinessesForCountry(
   country: SupportedCountryCode,
-  offset: number
-): Promise<{ businesses: BusinessRow[]; total: number }> {
-  const limit = PAGE_SIZE;
+  cursor: string | null
+): Promise<BusinessRow[]> {
+  const storageCode = toStorageCountryCode(country);
 
-  const [{ data: businesses, error: bizError }, { data: totalData, error: countError }] =
-    await Promise.all([
-      supabaseServer.rpc("get_public_businesses_for_index", {
-        p_country: country,
-        p_limit: limit,
-        p_offset: offset,
-      }),
-      supabaseServer.rpc("get_public_business_count", {
-        p_country: country,
-      }),
-    ]);
+  const { data: businesses, error } =
+    await supabaseServer.rpc("get_companies_by_country_cursor", {
+      p_country_code: storageCode,
+      p_cursor: cursor,
+      p_limit: PAGE_SIZE,
+    });
 
-  if (bizError) {
-    throw bizError;
+  if (error) {
+    throw error;
   }
 
-  if (countError) {
-    throw countError;
+  return Array.isArray(businesses) ? (businesses as BusinessRow[]) : [];
+}
+
+async function fetchTotalForCountry(
+  country: SupportedCountryCode
+): Promise<number> {
+  const storageCode = toStorageCountryCode(country);
+  const { data, error } = await supabaseServer.rpc(
+    "get_public_business_count",
+    {
+      p_country_code: storageCode,
+    }
+  );
+
+  if (error) {
+    throw error;
   }
 
-  const list = Array.isArray(businesses)
-    ? (businesses as BusinessRow[])
-    : [];
-
-  let total = 0;
-  if (typeof totalData === "number") {
-    total = totalData;
-  } else if (Array.isArray(totalData) && totalData.length > 0) {
-    const first = totalData[0] as any;
-    total = Number(
-      first?.total ??
-        first?.count ??
-        first?.business_count ??
-        first?.businesses ??
-        0
-    );
-  } else if (totalData && typeof totalData === "object") {
-    const anyData = totalData as any;
-    total = Number(
-      anyData.total ??
-        anyData.count ??
-        anyData.business_count ??
-        anyData.businesses ??
-        0
-    );
-  }
-
-  if (!Number.isFinite(total) || total < 0) {
-    total = 0;
-  }
-
-  return { businesses: list, total };
+  return typeof data === "number" ? data : Number(data ?? 0);
 }
 
 export default async function CompaniesCountryPage(props: {
   params: Promise<PageParams>;
-  searchParams: Promise<PageSearchParams>;
+  searchParams?: Promise<PageSearchParams>;
 }) {
-  const [{ country: rawCountry }, query] = await Promise.all([
-    props.params,
-    props.searchParams,
-  ]);
+  const { country: rawCountry } = await props.params;
+  const searchParams = props.searchParams ? await props.searchParams : {};
 
-  const normalized = normalizeCountryParam(rawCountry);
+  const normalized = normalizeCountryParam(rawCountry.toUpperCase());
   if (!normalized) {
     notFound();
   }
 
-  const { page, offset } = parsePageParam(query.page);
+  const rawCursor = searchParams.cursor ?? undefined;
+  const cursor = rawCursor && rawCursor.length > 0 ? rawCursor : null;
 
-  let data: { businesses: BusinessRow[]; total: number };
-  try {
-    data = await fetchBusinessesForCountry(normalized, offset);
-  } catch {
-    data = { businesses: [], total: 0 };
-  }
+  const rawPrev = searchParams.prev ?? "";
+  const prevStack = rawPrev
+    ? rawPrev.split("|").filter((value) => value.length > 0)
+    : [];
 
-  const { businesses, total } = data;
-  const totalPages = total > 0 ? Math.ceil(total / PAGE_SIZE) : 1;
-  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const [businesses, total] = await Promise.all([
+    fetchBusinessesForCountry(normalized, cursor),
+    fetchTotalForCountry(normalized),
+  ]);
+
+  const isInitialPage = !cursor;
+  const nextCursor =
+    businesses.length > 0
+      ? businesses[businesses.length - 1]?.name ?? null
+      : null;
 
   if (!SUPPORTED_COUNTRY_CODES.includes(normalized)) {
     notFound();
   }
 
   const label = COUNTRY_LABELS[normalized];
+  const flagCode = COUNTRY_FLAG_CODE[normalized];
+  const flagUrl = `${FLAG_BASE}/${flagCode}.svg`;
 
-  const hasPrevious = safePage > 1;
-  const hasNext = safePage < totalPages;
+  const page = prevStack.length + 1;
+  const shownSoFar = prevStack.length * PAGE_SIZE + businesses.length;
+  const totalPages =
+    total > 0 ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : page;
+  const remaining =
+    total > 0 && total > shownSoFar ? total - shownSoFar : 0;
+
+  const hasPrevious = prevStack.length > 0;
+  const hasNext = businesses.length === PAGE_SIZE && !!nextCursor;
 
   const basePath = `/companies/${rawCountry.toLowerCase()}`;
 
-  const buildPageHref = (targetPage: number) => {
+  const buildHref = (targetCursor: string | null, nextPrevStack: string[]) => {
     const params = new URLSearchParams();
-    if (targetPage > 1) {
-      params.set("page", String(targetPage));
+    if (targetCursor && targetCursor.length > 0) {
+      params.set("cursor", targetCursor);
+    }
+    if (nextPrevStack.length > 0) {
+      params.set("prev", nextPrevStack.join("|"));
     }
     const queryString = params.toString();
     return queryString ? `${basePath}?${queryString}` : basePath;
+  };
+
+  const buildNextHref = () => {
+    if (!hasNext || !nextCursor) return "#";
+    const nextPrevStack = [...prevStack, cursor ?? ""];
+    return buildHref(nextCursor, nextPrevStack);
+  };
+
+  const buildPreviousHref = () => {
+    if (!hasPrevious) return "#";
+    const newPrevStack = prevStack.slice(0, -1);
+    const previousCursor = prevStack[prevStack.length - 1];
+    const cursorValue =
+      previousCursor && previousCursor.length > 0 ? previousCursor : null;
+    return buildHref(cursorValue, newPrevStack);
   };
 
   return (
     <main className="bg-white">
       <section className="bg-white">
         <div className="mx-auto w-full max-w-5xl px-6 py-16">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
-            Businesses in {label}
+          <h1 className="flex items-center gap-3 text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
+            <img
+              src={flagUrl}
+              alt={label}
+              className="h-6 w-9 object-cover rounded-sm"
+            />
+            <span>Businesses in {label}</span>
           </h1>
           <p className="mt-4 max-w-2xl text-sm text-gray-600">
             Browse companies listed on Tellacity in {label}. Each business has a
@@ -178,7 +225,7 @@ export default async function CompaniesCountryPage(props: {
           </p>
 
           <div className="mt-8 rounded-xl border border-gray-200 bg-white">
-            {businesses.length === 0 ? (
+            {isInitialPage && businesses.length === 0 ? (
               <div className="px-5 py-6 text-sm text-gray-500">
                 No businesses are available in this country yet.
               </div>
@@ -216,34 +263,44 @@ export default async function CompaniesCountryPage(props: {
             )}
           </div>
 
-          {totalPages > 1 && (
+          {(hasPrevious || hasNext) && (
             <div className="mt-6 flex items-center justify-between text-xs text-gray-600">
-              <div>
-                Page {safePage} of {totalPages}
-              </div>
+              <div />
               <div className="flex items-center gap-2">
-                <Link
-                  href={hasPrevious ? buildPageHref(safePage - 1) : "#"}
-                  aria-disabled={!hasPrevious}
-                  className={`rounded-full border px-3 py-1 font-medium ${
-                    hasPrevious
-                      ? "border-gray-300 text-[#0E0E0E] hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                      : "cursor-not-allowed border-gray-200 text-gray-400"
-                  }`}
-                >
-                  Previous
-                </Link>
-                <Link
-                  href={hasNext ? buildPageHref(safePage + 1) : "#"}
-                  aria-disabled={!hasNext}
-                  className={`rounded-full border px-3 py-1 font-medium ${
-                    hasNext
-                      ? "border-gray-300 text-[#0E0E0E] hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                      : "cursor-not-allowed border-gray-200 text-gray-400"
-                  }`}
-                >
-                  Next
-                </Link>
+                {hasPrevious && (
+                  <Link
+                    href={buildPreviousHref()}
+                    aria-disabled={!hasPrevious}
+                    className={`rounded-full border px-3 py-1 font-medium ${
+                      hasPrevious
+                        ? "border-gray-300 text-[#0E0E0E] hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
+                        : "cursor-not-allowed border-gray-200 text-gray-400"
+                    }`}
+                  >
+                    Previous
+                  </Link>
+                )}
+                {hasNext && (
+                  <Link
+                    href={buildNextHref()}
+                    aria-disabled={!hasNext}
+                    className={`rounded-full border px-3 py-1 font-medium ${
+                      hasNext
+                        ? "border-gray-300 text-[#0E0E0E] hover-border-[#1FAF9E] hover:text-[#1FAF9E]"
+                        : "cursor-not-allowed border-gray-200 text-gray-400"
+                    }`}
+                  >
+                    Next
+                  </Link>
+                )}
+                {total > 0 && (
+                  <span className="ml-1 text-[11px] text-gray-500">
+                    Page {page} of {totalPages}
+                    {remaining > 0
+                      ? ` · ${remaining.toLocaleString()} remaining`
+                      : ""}
+                  </span>
+                )}
               </div>
             </div>
           )}

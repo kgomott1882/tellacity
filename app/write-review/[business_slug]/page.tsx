@@ -1,3 +1,10 @@
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
 
 export default function WriteReviewPage({
