@@ -1,53 +1,5 @@
-import Link from "next/link";
-
-export const revalidate = 300;
-
-const countries = [
-  { code: "us", name: "United States", flag: "🇺🇸" },
-  { code: "uk", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "za", name: "South Africa", flag: "🇿🇦" },
-  { code: "au", name: "Australia", flag: "🇦🇺" },
-  { code: "ca", name: "Canada", flag: "🇨🇦" },
-  { code: "nz", name: "New Zealand", flag: "🇳🇿" },
-  { code: "ie", name: "Ireland", flag: "🇮🇪" },
-];
-
-export default function CompaniesDirectoryPage() {
-  return (
-    <main className="bg-white">
-      <section className="bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-16">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
-            Browse Companies by Country
-          </h1>
-
-          <p className="text-gray-600 mt-3 max-w-xl">
-            Explore businesses around the world. Select a country to browse
-            companies alphabetically and read verified customer reviews on
-            Tellacity.
-          </p>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {countries.map((country) => (
-              <Link
-                key={country.code}
-                href={`/companies/${country.code}`}
-                className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 hover:border-[#1FAF9E] hover:text-[#1FAF9E] transition-colors"
-              >
-                <span className="text-xl" aria-hidden="true">
-                  {country.flag}
-                </span>
-                <span className="font-medium">{country.name}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
 import type { Metadata } from "next";
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabaseServer";
 import {
   SUPPORTED_COUNTRY_CODES,
