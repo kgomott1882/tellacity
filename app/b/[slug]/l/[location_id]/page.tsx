@@ -13,9 +13,9 @@ function getSupabase() {
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string; location_id: string };
+  params: Promise<{ slug: string; location_id: string }>;
 }) {
-  const { slug, location_id } = params;
+  const { slug, location_id } = await params;
 
   const supabase = getSupabase();
   const { data: bizData } = await supabase
@@ -65,9 +65,9 @@ export async function generateMetadata({
 export default async function LocationPage({
   params,
 }: {
-  params: { slug: string; location_id: string };
+  params: Promise<{ slug: string; location_id: string }>;
 }) {
-  const { slug, location_id } = params;
+  const { slug, location_id } = await params;
 
   const supabase = getSupabase();
   const { data: bizData } = await supabase

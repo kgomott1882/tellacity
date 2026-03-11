@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-
 import { supabaseServer } from "@/lib/supabaseServer";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";

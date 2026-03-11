@@ -20,10 +20,11 @@ function buildBlogUrl(params: { page?: number; category?: string }): string {
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams?: { page?: string; category?: string };
+  searchParams?: Promise<{ page?: string; category?: string }>;
 }) {
-  const category = searchParams?.category ?? null;
-  const rawPage = searchParams?.page ?? "1";
+  const sp = (await searchParams) ?? {};
+  const category = sp.category ?? null;
+  const rawPage = sp.page ?? "1";
   const page = Math.max(1, parseInt(rawPage, 10) || 1);
 
   const filteredPosts =

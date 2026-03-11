@@ -94,9 +94,10 @@ const ITEMS_PER_PAGE = 6;
 export default async function PressPage({
   searchParams,
 }: {
-  searchParams?: { page?: string };
+  searchParams?: Promise<{ page?: string }>;
 }) {
-  const rawPage = searchParams?.page ?? "1";
+  const sp = (await searchParams) ?? {};
+  const rawPage = sp.page ?? "1";
   const page = Math.max(1, parseInt(rawPage, 10) || 1);
   const totalPages = Math.ceil(gridArticles.length / ITEMS_PER_PAGE);
   const currentPage = Math.min(page, totalPages);

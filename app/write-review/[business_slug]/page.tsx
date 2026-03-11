@@ -7,12 +7,12 @@ export const metadata = {
 
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
 
-export default function WriteReviewPage({
+export default async function WriteReviewPage({
   params,
 }: {
-  params: { business_slug: string };
+  params: Promise<{ business_slug: string }>;
 }) {
-  const slug = params.business_slug;
+  const { business_slug: slug } = await params;
 
   return (
     <WriteReviewForm

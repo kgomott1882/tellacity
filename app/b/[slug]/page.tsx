@@ -10,10 +10,15 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
   const supabase = getSupabase();
   const { data } = await supabase.rpc("get_business_by_slug", {
-    p_slug: params.slug,
+    p_slug: slug,
   });
 
   const business = Array.isArray(data) ? data[0] : data;
@@ -39,10 +44,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function BusinessPage({ params }: { params: { slug: string } }) {
+export default async function BusinessPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
   const supabase = getSupabase();
   const { data } = await supabase.rpc("get_business_by_slug", {
-    p_slug: params.slug,
+    p_slug: slug,
   });
 
   const business = Array.isArray(data) ? data[0] : data;
