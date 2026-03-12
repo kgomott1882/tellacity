@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
-export const metadata = {
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
