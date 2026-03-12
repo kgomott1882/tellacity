@@ -41,10 +41,7 @@ export default function ResourcesPage() {
           </button>
         </div>
 
-        <Link
-          href="/resources/trust-transparency-report"
-          className="relative mt-10 block overflow-hidden rounded-xl shadow-md"
-        >
+        <section className="relative mt-10 block overflow-hidden rounded-xl shadow-md">
           <img
             src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2000"
             alt="Trust and transparency"
@@ -56,16 +53,13 @@ export default function ResourcesPage() {
           />
           <div className="absolute bottom-0 left-0 p-6 text-white">
             <h2 className="text-xl font-semibold sm:text-2xl">
-              The 2026 Trust Transparency Report
+              Customer Trust &amp; Review Insights
             </h2>
             <p className="mt-2 max-w-xl text-sm text-white/90">
-              Key insights on how trust and verification are shaping the future of reviews.
+              Guides, research, and practical insights on customer reviews, reputation, and feedback transparency.
             </p>
-            <span className="mt-4 inline-block rounded-lg bg-white px-4 py-2 text-sm font-medium text-black shadow transition-opacity hover:opacity-90">
-              Read the report
-            </span>
           </div>
-        </Link>
+        </section>
       </section>
 
       <section className="mx-auto w-full max-w-7xl space-y-16 border-t border-gray-100 pt-12 px-6 pb-16">

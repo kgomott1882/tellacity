@@ -10,6 +10,7 @@ import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { normalizeLogoUrl, getLogoDevUrl, domainFromWebsite } from "@/lib/logo";
 import { isAbortError } from "@/lib/authErrors";
 import {
   sortedPosts as blogSortedPosts,
@@ -393,7 +394,7 @@ export default function HomePageClient({
           )
           .or("status.is.null,status.eq.published")
           .order("created_at", { ascending: false })
-          .limit(54);
+          .limit(56);
 
         if (!isMounted) return false;
         if (fallbackError || !fallbackData || fallbackData.length === 0) return false;
@@ -402,11 +403,22 @@ export default function HomePageClient({
           const biz = row.businesses as {
             name?: string;
             slug?: string;
-            website?: string;
-            logo_url?: string;
+            website?: string | null;
+            logo_url?: string | null;
+            resolved_logo_url?: string | null;
             review_count?: number | null;
           } | null;
           const guestName = (row.guest_name as string) ?? null;
+
+          const rawLogo =
+            biz?.resolved_logo_url ??
+            biz?.logo_url ??
+            null;
+          const domain = domainFromWebsite(biz?.website ?? null);
+          const businessLogoUrl =
+            normalizeLogoUrl(rawLogo) ??
+            getLogoDevUrl(domain);
+
           return {
             review_id: row.id as string,
             rating: (row.rating as number) ?? null,
@@ -417,7 +429,7 @@ export default function HomePageClient({
             business_name: biz?.name ?? null,
             business_slug: biz?.slug ?? null,
             website: biz?.website ?? null,
-            resolved_logo_url: biz?.logo_url ?? null,
+            resolved_logo_url: businessLogoUrl,
             reviewer_name: guestName,
             review_count: biz?.review_count ?? null,
           };
@@ -441,7 +453,7 @@ export default function HomePageClient({
             query = query.eq("country_code", country);
           }
 
-          const result = await query.limit(54);
+          const result = await query.limit(56);
           if (!isMounted) return;
           err = result.error;
           if (!result.error && result.data && result.data.length > 0) {

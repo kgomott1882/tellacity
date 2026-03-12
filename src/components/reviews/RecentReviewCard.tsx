@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import ReviewShareMenu from "@/components/ReviewShareMenu";
+import { normalizeLogoUrl } from "@/lib/logo";
 
 type BusinessReply = { body: string; createdAt: string };
 
@@ -60,17 +61,13 @@ export default function RecentReviewCard({
     review.business?.slug ||
     null;
 
-  const rawLogoUrl = review.resolved_logo_url;
-  let logoUrl = rawLogoUrl;
-  if (rawLogoUrl && rawLogoUrl.includes("img.logo.dev")) {
-    try {
-      const parsed = new URL(rawLogoUrl);
-      parsed.searchParams.set("fallback", "404");
-      logoUrl = parsed.toString();
-    } catch {
-      logoUrl = rawLogoUrl;
-    }
-  }
+  const rawLogoUrl =
+    review.resolved_logo_url ||
+    review.logo_url ||
+    review.business?.resolved_logo_url ||
+    review.business?.logo_url ||
+    null;
+  const logoUrl = normalizeLogoUrl(rawLogoUrl) ?? rawLogoUrl ?? null;
 
   const reviewerName = review.reviewer_name;
   
@@ -130,8 +127,8 @@ export default function RecentReviewCard({
       )}
     >
       <div className="flex gap-3 p-4">
-        <div className="h-12 w-12 flex-shrink-0 rounded-sm border border-[#EDEDED] bg-[#FCF7F6] flex items-center justify-center overflow-hidden">
-          {logoUrl ? (
+        <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden">
+          {logoUrl && (
             <img
               src={logoUrl}
               alt={businessName}
@@ -142,7 +139,7 @@ export default function RecentReviewCard({
                 e.currentTarget.style.display = "none";
               }}
             />
-          ) : null}
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
