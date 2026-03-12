@@ -17,6 +17,7 @@ export default function RotatingBestCategorySection({
   metricsByBusinessId = {},
   onPrevious,
   onNext,
+  countryCode,
 }) {
   const hasBusinesses = Array.isArray(businesses) && businesses.length > 0;
   const cardsScrollRef = useRef(null);
@@ -56,7 +57,13 @@ export default function RotatingBestCategorySection({
               </svg>
             </button>
             <Link
-              href={`/categories/${categorySlug}`}
+              href={
+                countryCode
+                  ? `/categories/${categorySlug}?country=${encodeURIComponent(
+                      countryCode,
+                    )}`
+                  : `/categories/${categorySlug}`
+              }
               className="rounded-full border border-[#1FAF9E] px-2.5 py-1 text-[10px] font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-3 sm:py-1.5 sm:text-xs"
             >
               More

@@ -162,6 +162,8 @@ export default function HomePageClient({
   const [bestInMetrics, setBestInMetrics] = useState<
     Record<string, { review_count: number; trust_score: number }>
   >({});
+  const [clientBestInByCategory, setClientBestInByCategory] =
+    useState<Record<string, BestInBusiness[]>>(bestInByCategory);
 
   const activeCountryCode = normalizeCountryCode(
     selectedCountry ?? searchParams.get("country")
@@ -314,7 +316,7 @@ export default function HomePageClient({
   // Always rank "Best in" businesses by latest metrics so higher-rated
   // businesses automatically surface into the top positions.
   const rankedBestInBusinesses: BestInBusiness[] = useMemo(() => {
-    const list = bestInByCategory[activeBestInSlug] ?? [];
+    const list = clientBestInByCategory[activeBestInSlug] ?? [];
     if (!Array.isArray(list) || list.length === 0) return [];
 
     const withScores = list.map((biz) => {
@@ -338,7 +340,7 @@ export default function HomePageClient({
 
     // Keep a maximum of 8 cards even if the backend returns more.
     return withScores.slice(0, 8).map((item) => item.biz);
-  }, [activeBestInSlug, bestInByCategory, bestInMetrics]);
+  }, [activeBestInSlug, clientBestInByCategory, bestInMetrics]);
 
   const activeBestInLabel =
     bestInCategoryLabels[activeBestInSlug] ??
@@ -492,83 +494,51 @@ export default function HomePageClient({
     };
   }, [selectedCountry]);
 
-  // Recompute live metrics for "Best in" businesses so sections stay in sync
-  // after users edit or delete reviews.
+  // Keep a local copy of Best-in data and fill gaps with a direct businesses fallback
+  // when the RPC returns no rows for a given category/country.
   useEffect(() => {
-    let cancelled = false;
+    setClientBestInByCategory(bestInByCategory);
 
-    const recomputeBestInMetrics = async () => {
-      try {
-        const ids = new Set<string>();
-        Object.values(bestInByCategory).forEach((list) => {
-          (list ?? []).forEach((biz) => {
-            if (biz.id) ids.add(String(biz.id));
-          });
-        });
+    const fetchFallbackForEmptyCategories = async () => {
+      const country = selectedCountry ?? initialSelectedCountry ?? "ZA";
+      const emptySlugs = Object.entries(bestInByCategory)
+        .filter(
+          ([, list]) => !Array.isArray(list) || (list as BestInBusiness[]).length === 0,
+        )
+        .map(([slug]) => slug);
 
-        if (ids.size === 0) {
-          if (!cancelled) setBestInMetrics({});
-          return;
-        }
-
-        const supabase = supabaseBrowser();
-        const { data, error } = await supabase
-          .from("reviews")
-          .select("business_id, rating")
-          .in("business_id", Array.from(ids))
-          .eq("status", "published");
-
-        if (cancelled || error || !data) {
-          return;
-        }
-
-        const agg: Record<string, { review_count: number; sum: number }> = {};
-        for (const row of data as any[]) {
-          const businessId = String(row.business_id);
-          const rating = Number(row.rating ?? 0);
-          if (!agg[businessId]) {
-            agg[businessId] = { review_count: 0, sum: 0 };
-          }
-          if (rating > 0) {
-            agg[businessId].review_count += 1;
-            agg[businessId].sum += rating;
-          }
-        }
-
-        const metrics: Record<
-          string,
-          { review_count: number; trust_score: number }
-        > = {};
-
-        ids.forEach((id) => {
-          const value = agg[id];
-          if (value) {
-            const count = value.review_count;
-            metrics[id] = {
-              review_count: count,
-              trust_score: count > 0 ? value.sum / count : 0,
-            };
-          } else {
-            // No published reviews remain for this business – override any
-            // stale server metrics with zero so cards stay accurate.
-            metrics[id] = { review_count: 0, trust_score: 0 };
-          }
-        });
-
-        if (!cancelled) {
-          setBestInMetrics(metrics);
-        }
-      } catch {
-        // Fail silently; fall back to server-provided metrics.
+      if (emptySlugs.length === 0) {
+        return;
       }
+
+      const supabase = supabaseBrowser();
+
+      await Promise.all(
+        emptySlugs.map(async (slug) => {
+          const { data, error } = await supabase
+            .from("businesses")
+            .select(
+              "id, name, slug, website, website_display, logo_url, resolved_logo_url, trust_score, review_count, country_code, category_slug, status",
+            )
+            .eq("status", "active")
+            .eq("category_slug", slug)
+            .eq("country_code", country)
+            .order("trust_score", { ascending: false })
+            .order("review_count", { ascending: false })
+            .limit(8);
+
+          if (!error && data && data.length > 0) {
+            setClientBestInByCategory((prev) => ({
+              ...prev,
+              [slug]: data as BestInBusiness[],
+            }));
+          }
+        }),
+      );
     };
 
-    recomputeBestInMetrics();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bestInByCategory, selectedCountry]);
+    fetchFallbackForEmptyCategories();
+  }, [bestInByCategory, selectedCountry, initialSelectedCountry]);
 
   useEffect(() => {
     if (reviewPage >= totalReviewPages) {
@@ -1081,6 +1051,7 @@ export default function HomePageClient({
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
         metricsByBusinessId={bestInMetrics}
+        countryCode={selectedCountry ?? initialSelectedCountry ?? "ZA"}
         onPrevious={() =>
           setBestInIndex((prev) =>
             rotatingCategorySlugs?.length
