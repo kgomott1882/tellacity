@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import WriteReviewPageInner from "./WriteReviewPageInner";
 
-export const dynamic = "force-dynamic";
-
 export const metadata = {
   robots: {
     index: false,
-    follow: false,
+    follow: true,
   },
 };
+
+export const dynamic = "force-dynamic";
 
 export default function WriteReviewPage() {
   return (
