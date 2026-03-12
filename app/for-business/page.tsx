@@ -23,14 +23,12 @@ export default function ForBusinessPage() {
                 <span className="block text-[#1FAF9E]">Growth Channel</span>
               </h1>
               <p className="mt-4 text-base leading-relaxed text-gray-300">
-                Turn customer feedback into actionable insights and powerful
-                marketing assets. Join thousands of businesses growing with
-                Tellacity.
+                Turn verified customer reviews and real customer feedback into powerful insights, build trust, and attract new customers.
               </p>
               <div className="mt-8">
                 <Link
                   href="/business/signup"
-                  className="inline-flex items-center justify-center rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_0_rgba(31,175,158,0)] transition-all duration-300 hover:bg-gray-800 hover:shadow-[0_0_20px_rgba(31,175,158,0.5),0_0_40px_rgba(31,175,158,0.25)] active:scale-[0.98]"
+                  className="inline-flex items-center justify-center rounded-2xl bg-[#FBBF24] px-6 py-3.5 text-sm font-semibold text-black shadow-[0_0_0_rgba(251,191,36,0)] transition-all duration-300 hover:bg-[#F59E0B] hover:shadow-[0_0_20px_rgba(251,191,36,0.6),0_0_40px_rgba(251,191,36,0.3)] active:scale-[0.98]"
                 >
                   Claim Free Profile
                 </Link>

@@ -9,7 +9,7 @@ import RotatingBestCategorySection from "@/components/home/RotatingBestCategoryS
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
-import { getActiveCountry } from "@/lib/getActiveCountry";
+import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 import { isAbortError } from "@/lib/authErrors";
 import {
   sortedPosts as blogSortedPosts,
@@ -72,6 +72,25 @@ const ADDITIONAL_MARQUEE_CATEGORIES: { label: string; slug: string }[] = [
   { label: "Garden Center", slug: "retail" },
   { label: "Travel Agency", slug: "travel-agencies" },
 ];
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
+const COUNTRIES = [
+  { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
+  { code: "US", name: "United States", flagUrl: `${FLAG_BASE}/US.svg` },
+  { code: "GB", name: "United Kingdom", flagUrl: `${FLAG_BASE}/GB.svg` },
+  { code: "AU", name: "Australia", flagUrl: `${FLAG_BASE}/AU.svg` },
+  { code: "CA", name: "Canada", flagUrl: `${FLAG_BASE}/CA.svg` },
+  { code: "NZ", name: "New Zealand", flagUrl: `${FLAG_BASE}/NZ.svg` },
+  { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
+] as const;
+
+type CountryCode = (typeof COUNTRIES)[number]["code"];
+
+const normalizeCountryCode = (code: string | null | undefined): CountryCode => {
+  const upper = (code ?? "ZA").toUpperCase();
+  if (upper === "UK") return "GB";
+  const found = COUNTRIES.find((country) => country.code === upper);
+  return (found?.code ?? "ZA") as CountryCode;
+};
 
 // 24 items for the rotating marquee: 8 existing + 16 additional (all use existing slugs)
 const ROTATING_MARQUEE_CATEGORIES: CategoryCard[] = (() => {
@@ -131,6 +150,7 @@ export default function HomePageClient({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
+  const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       return (
@@ -148,6 +168,13 @@ export default function HomePageClient({
   const [bestInMetrics, setBestInMetrics] = useState<
     Record<string, { review_count: number; trust_score: number }>
   >({});
+
+  const activeCountryCode = normalizeCountryCode(
+    selectedCountry ?? searchParams.get("country")
+  );
+  const activeCountry =
+    COUNTRIES.find((country) => country.code === activeCountryCode) ??
+    COUNTRIES[0];
 
   const latestBlogPost = useMemo(() => {
     const post = blogSortedPosts[0];
@@ -176,6 +203,15 @@ export default function HomePageClient({
     }, 180000);
     return () => window.clearInterval(id);
   }, [rotatingCategorySlugs]);
+
+
+  const handleCountryChange = (code: CountryCode) => {
+    setActiveCountry(code);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", code);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    setIsCountryMenuOpen(false);
+  };
 
   const faqItems = [
     {
@@ -1132,15 +1168,6 @@ export default function HomePageClient({
                     <motion.div
                       key={`${copy}-${category.id}`}
                       className="shrink-0"
-                      animate={{
-                        rotate: [0, 4, -2, 0],
-                      }}
-                      transition={{
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: index * 0.08,
-                      }}
                     >
                       <Link
                         href={`/categories/${category.slug}`}
@@ -1167,12 +1194,66 @@ export default function HomePageClient({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
-              <span className="relative inline-block">
+              <span className="inline-flex items-center gap-2">
                 <span className="relative inline-block">
-                  <span className="relative z-10">Recent</span>
-                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                  <span className="relative inline-block">
+                    <span className="relative z-10">Recent</span>
+                    <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                  </span>
+                  {" "}reviews
                 </span>
-                {" "}reviews
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white px-2 py-1 text-sm shadow-sm hover:border-gray-300"
+                    onClick={() => setIsCountryMenuOpen((prev) => !prev)}
+                    aria-label="Change review country"
+                  >
+                    <img
+                      src={activeCountry.flagUrl}
+                      alt={activeCountry.name}
+                      className="h-3 w-5 object-cover"
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only">Open country selection</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="ml-1 h-3 w-3 text-gray-500"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 9l6 6 6-6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  {isCountryMenuOpen && (
+                    <div className="absolute right-0 z-10 mt-1 w-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                      {COUNTRIES.map((country) => (
+                        <button
+                          key={country.code}
+                          type="button"
+                          className="flex w-full items-center justify-center px-2 py-1 hover:bg-gray-50"
+                          onClick={() =>
+                            handleCountryChange(country.code as CountryCode)
+                          }
+                        >
+                          <img
+                            src={country.flagUrl}
+                            alt={country.name}
+                            className="h-3 w-5 object-cover"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">{country.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
