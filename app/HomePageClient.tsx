@@ -151,16 +151,9 @@ export default function HomePageClient({
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return (
-        window.localStorage.getItem("tellacity_country") ??
-        initialSelectedCountry ??
-        null
-      );
-    }
-    return initialSelectedCountry ?? null;
-  });
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(
+    initialSelectedCountry ?? null
+  );
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -655,17 +648,6 @@ export default function HomePageClient({
     const el = categoryScrollRef.current;
     if (!el) return;
     const amount = Math.min(320, el.clientWidth * 0.8);
-    el.scrollBy({
-      left: direction === "left" ? -amount : amount,
-      behavior: "smooth",
-    });
-  };
-
-  const scrollReviews = (direction: "left" | "right") => {
-    const el = reviewsScrollRef.current;
-    if (!el) return;
-    const firstSlide = el.querySelector("[data-review-slide]");
-    const amount = firstSlide instanceof HTMLElement ? firstSlide.offsetWidth + 24 : el.clientWidth;
     el.scrollBy({
       left: direction === "left" ? -amount : amount,
       behavior: "smooth",
@@ -1265,15 +1247,11 @@ export default function HomePageClient({
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Previous reviews"
-              onClick={() => {
-                if (reviewsScrollRef.current) {
-                  scrollReviews("left");
-                } else {
-                  setReviewPage((prev) =>
-                    prev === 0 ? totalReviewPages - 1 : prev - 1
-                  );
-                }
-              }}
+              onClick={() =>
+                setReviewPage((prev) =>
+                  prev === 0 ? totalReviewPages - 1 : prev - 1
+                )
+              }
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1291,15 +1269,11 @@ export default function HomePageClient({
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Next reviews"
-              onClick={() => {
-                if (reviewsScrollRef.current) {
-                  scrollReviews("right");
-                } else {
-                  setReviewPage((prev) =>
-                    prev === totalReviewPages - 1 ? 0 : prev + 1
-                  );
-                }
-              }}
+              onClick={() =>
+                setReviewPage((prev) =>
+                  prev === totalReviewPages - 1 ? 0 : prev + 1
+                )
+              }
             >
               <svg
                 viewBox="0 0 24 24"

@@ -1,6 +1,7 @@
 export const revalidate = 60;
 
 import { createClient } from "@supabase/supabase-js";
+import { notFound } from "next/navigation";
 import CategoryClient from "./CategoryClient";
 
 function getSupabase() {
@@ -56,6 +57,16 @@ export default async function CategoryPage(props: {
   const { category_slug } = await props.params;
   const searchParams = await props.searchParams;
   const supabase = getSupabase();
+
+  const { data: category } = await supabase
+    .from("categories")
+    .select("slug,name,group_slug")
+    .eq("slug", category_slug)
+    .maybeSingle();
+
+  if (!category) {
+    notFound();
+  }
 
   const countryCode = searchParams?.country ?? "ZA";
 

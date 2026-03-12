@@ -3,9 +3,9 @@ export const reviewErrorMessages: Record<
   { title: string; message: string }
 > = {
   duplicate_review: {
-    title: "You’ve already reviewed this business",
+    title: "You’ve already submitted a review for this business.",
     message:
-      "Each customer can leave one review per business. If your experience has changed, you can update your existing review.",
+      "You can edit your existing review if you'd like to update your experience.",
   },
 
   draft_exists: {
@@ -26,9 +26,9 @@ export const reviewErrorMessages: Record<
   },
 
   unexpected_error: {
-    title: "Something went wrong",
+    title: "You’ve already submitted a review for this business.",
     message:
-      "We couldn't submit your review right now. Please try again in a moment.",
+      "You can edit your existing review if you'd like to update your experience.",
   },
 };
 

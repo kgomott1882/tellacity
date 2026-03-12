@@ -1,11 +1,24 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+
+const ALLOWED_GUIDE_SLUGS = [
+  "trust-strategy",
+  "reputation-management",
+  "consumer-insights",
+] as const;
+
+type GuideSlug = (typeof ALLOWED_GUIDE_SLUGS)[number];
 
 export default async function GuideCategoryPage(
   props: {
-    params: Promise<{ slug: string }>;
+    params: Promise<{ slug: GuideSlug }>;
   }
 ) {
   const { slug } = await props.params;
+
+  if (!ALLOWED_GUIDE_SLUGS.includes(slug)) {
+    notFound();
+  }
 
   const title = slug
     .split("-")

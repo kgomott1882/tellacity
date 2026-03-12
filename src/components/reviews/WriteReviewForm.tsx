@@ -360,8 +360,9 @@ export default function WriteReviewForm({
       const sb = supabase();
       const query = sb
         .from("businesses")
-        .select("id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom")
-        .eq("status", "active")
+        .select(
+          "id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom"
+        )
         .limit(1);
 
       if (initialBusinessId && isUuid(initialBusinessId)) {
@@ -613,9 +614,7 @@ export default function WriteReviewForm({
           const mapped = reviewErrorMessages.duplicate_review;
           showToast({
             title: mapped.title,
-            description:
-              mapped.message +
-              " To manage or update your review, please sign in from the login page.",
+            description: mapped.message,
             variant: "destructive",
           });
 
@@ -1203,6 +1202,19 @@ export default function WriteReviewForm({
             </div>
 
             <div className="space-y-3">
+              {toast && (
+                <div
+                  className={`rounded-md border px-3 py-2 text-sm ${
+                    toast.variant === "destructive"
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  }`}
+                >
+                  <p className="font-semibold">{toast.title}</p>
+                  <p className="mt-1 text-xs">{toast.description}</p>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
@@ -1258,22 +1270,6 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-
-      {toast && (
-        <div className="pointer-events-none fixed inset-x-0 top-4 z-[10000] flex justify-center px-4">
-          <div
-            className={`pointer-events-auto max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg ${
-              toast.variant === "destructive"
-                ? "border-red-200 bg-red-50 text-red-800"
-                : "border-emerald-200 bg-emerald-50 text-emerald-800"
-            }`}
-          >
-            <p className="font-semibold">{toast.title}</p>
-            <p className="mt-1 text-xs">{toast.description}</p>
-          </div>
-        </div>
-      )}
-
       {otpReviewId && otpEmail && (
         <ReviewOtpModal
           reviewId={otpReviewId}
