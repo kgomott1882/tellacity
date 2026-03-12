@@ -52,11 +52,24 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
   integrations: {
     title: "INTEGRATIONS",
     items: [
+      { label: "All Integrations", path: "/business/dashboard/integrations" },
       { label: "Ecommerce", path: "/business/dashboard/integrations/ecommerce" },
-      { label: "Payment & CRM", path: "/business/dashboard/integrations/payments" },
-      { label: "Developers", path: "/business/dashboard/integrations/dev" },
-      { label: "Marketing", path: "/business/dashboard/integrations/marketing" },
-      { label: "Customer support", path: "/business/dashboard/integrations/support" },
+      {
+        label: "Marketing & Messaging",
+        path: "/business/dashboard/integrations/marketing-and-messaging",
+      },
+      {
+        label: "CRM & Sales",
+        path: "/business/dashboard/integrations/crm-and-sales",
+      },
+      {
+        label: "Support & Feedback Operations",
+        path: "/business/dashboard/integrations/support-and-feedback-operations",
+      },
+      {
+        label: "Enterprise Systems",
+        path: "/business/dashboard/integrations/enterprise-systems",
+      },
     ],
   },
   settings: {
@@ -239,7 +252,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-[#F8F4F0]">
       {/* Desktop: sidebars */}
       <div
-        className="hidden lg:flex shrink-0"
+        className="hidden lg:flex shrink-0 sticky top-0 h-screen"
         onMouseLeave={() => setActiveSection(null)}
       >
         <Sidebar
@@ -249,7 +262,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
           activeSection={activeSection}
         />
         {secondarySidebarData && (
-          <div className="shrink-0 flex flex-col min-h-screen self-stretch">
+          <div className="shrink-0 flex flex-col h-screen self-stretch">
             <SecondarySidebar
               title={secondarySidebarData.title}
               items={secondarySidebarData.items}

@@ -34,6 +34,18 @@ function cleanDomain(value: string | null | undefined): string {
 const BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
 
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
+
+const COUNTRY_FLAG_CODE: Record<SupportedCountryCode, string> = {
+  US: "US",
+  ZA: "ZA",
+  UK: "GB", // Use GB flag for United Kingdom
+  AU: "AU",
+  CA: "CA",
+  NZ: "NZ",
+  IE: "IE",
+};
+
 export async function generateMetadata(props: {
   params: Promise<PageParams>;
 }): Promise<Metadata> {
@@ -114,13 +126,22 @@ export default async function CompaniesCountryLetterPage(props: {
   }
 
   const label = COUNTRY_LABELS[normalizedCountry];
+  const flagCode = COUNTRY_FLAG_CODE[normalizedCountry];
+  const flagUrl = `${FLAG_BASE}/${flagCode}.svg`;
 
   return (
     <main className="bg-white">
       <section className="bg-white">
         <div className="mx-auto w-full max-w-5xl px-6 py-16">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
-            Companies starting with {normalizedLetter} in {label}
+          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl flex items-center gap-2">
+            <span>
+              Companies starting with {normalizedLetter} in {label}
+            </span>
+            <img
+              src={flagUrl}
+              alt={label}
+              className="h-5 w-7 object-cover"
+            />
           </h1>
           <p className="mt-4 max-w-2xl text-sm text-gray-600">
             Browse companies in {label} whose names start with{" "}

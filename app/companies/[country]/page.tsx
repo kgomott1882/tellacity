@@ -5,6 +5,7 @@ import {
   COUNTRY_LABELS,
   SUPPORTED_COUNTRY_CODES,
   normalizeCountryParam,
+  type SupportedCountryCode,
 } from "@/lib/seoCountries";
 
 export const revalidate = 300;
@@ -15,6 +16,18 @@ type PageParams = {
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://tellacity.com";
+
+const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
+
+const COUNTRY_FLAG_CODE: Record<SupportedCountryCode, string> = {
+  US: "US",
+  ZA: "ZA",
+  UK: "GB", // Use GB flag for United Kingdom
+  AU: "AU",
+  CA: "CA",
+  NZ: "NZ",
+  IE: "IE",
+};
 
 export async function generateMetadata(props: {
   params: Promise<PageParams>;
@@ -50,6 +63,8 @@ export default async function CompaniesCountryIndexPage(props: {
   }
 
   const label = COUNTRY_LABELS[normalized];
+  const flagCode = COUNTRY_FLAG_CODE[normalized];
+  const flagUrl = `${FLAG_BASE}/${flagCode}.svg`;
   const country = normalized.toLowerCase();
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const basePath = `/companies/${country}`;
@@ -58,8 +73,13 @@ export default async function CompaniesCountryIndexPage(props: {
     <main className="bg-white">
       <section className="bg-white">
         <div className="mx-auto w-full max-w-5xl px-6 py-16">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
-            Browse Companies in {label}
+          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl flex items-center gap-2">
+            <span>Browse Companies in {label}</span>
+            <img
+              src={flagUrl}
+              alt={label}
+              className="h-5 w-7 object-cover"
+            />
           </h1>
           <p className="text-gray-600 mt-3 max-w-lg">
             Browse companies in this country alphabetically. Click a letter to
