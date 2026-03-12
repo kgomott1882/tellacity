@@ -392,7 +392,7 @@ export default function HomePageClient({
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("reviews")
           .select(
-            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url, review_count)"
+            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url, resolved_logo_url, review_count)"
           )
           .or("status.is.null,status.eq.published")
           .order("created_at", { ascending: false })

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
@@ -82,9 +83,9 @@ function CallbackInner() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
         <p className="text-sm text-red-600">Something went wrong signing you in.</p>
-        <a href="/auth/login" className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline">
+        <Link href="/auth/login" className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline">
           Back to sign in
-        </a>
+        </Link>
       </main>
     );
   }

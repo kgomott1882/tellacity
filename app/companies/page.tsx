@@ -61,23 +61,26 @@ async function fetchCountryCounts(): Promise<
 
   // 2) For any supported country that is missing or zero, fall back to a
   // direct COUNT(*) on the businesses table so numbers always reflect reality.
-  for (const code of SUPPORTED_COUNTRY_CODES) {
-    const existing = map[code];
-    if (typeof existing === "number" && existing > 0) continue;
+  // Run fallback counts in parallel for better performance and consistency.
+  await Promise.all(
+    SUPPORTED_COUNTRY_CODES.map(async (code) => {
+      const existing = map[code];
+      if (typeof existing === "number" && existing > 0) return;
 
-    const storageCode = toStorageCountryCode(code);
+      const storageCode = toStorageCountryCode(code);
 
-    const { count } = await supabaseServer
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .eq("country_code", storageCode)
-      .in("status", ["active", "ok"])
-      .not("slug", "is", null);
+      const { count } = await supabaseServer
+        .from("businesses")
+        .select("id", { count: "exact", head: true })
+        .eq("country_code", storageCode)
+        .in("status", ["active", "ok"])
+        .not("slug", "is", null);
 
-    if (typeof count === "number" && count >= 0) {
-      map[code] = count;
-    }
-  }
+      if (typeof count === "number" && count >= 0) {
+        map[code] = count;
+      }
+    })
+  );
 
   return map;
 }

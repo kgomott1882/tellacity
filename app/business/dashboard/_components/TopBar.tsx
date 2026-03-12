@@ -110,8 +110,26 @@ export default function TopBar() {
   }, []);
 
   const handleLogout = async () => {
-    await supabaseBrowser().auth.signOut();
-    router.push("/business/login");
+    setIsUserMenuOpen(false);
+    try {
+      await supabaseBrowser().auth.signOut();
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error("Error during logout:", error);
+      }
+      // Even if sign-out fails, continue redirect so the user is taken
+      // out of the dashboard and a new session can be established.
+    }
+
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("selectedBusinessId");
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    router.replace("/business/login");
   };
 
   const displayName = user?.display_name || user?.email?.split("@")[0] || "User";

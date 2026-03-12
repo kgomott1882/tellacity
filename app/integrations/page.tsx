@@ -6,13 +6,34 @@ const integrations = [
   { name: "WooCommerce", slug: "woocommerce", logo: "woocommerce.jpg" },
   { name: "HubSpot", slug: "hubspot", logo: "HubSpot.jpg" },
   { name: "Salesforce", slug: "salesforce", logo: "Salesforce.jpg" },
+  {
+    name: "SAP",
+    slug: "sap",
+    logo: "SAP.jpg",
+    description:
+      "Seamlessly connect SAP to sync enterprise customer data and automate review workflows.",
+  },
+  {
+    name: "NetSuite",
+    slug: "netsuite",
+    logo: "NetSuite.jpg",
+    description:
+      "Connect NetSuite to automate review requests and synchronize customer records across systems.",
+  },
+  {
+    name: "Marketo",
+    slug: "marketo",
+    logo: "Marketo.jpg",
+    description:
+      "Integrate Marketo to trigger automated review invitations and marketing workflows.",
+  },
   { name: "Slack", slug: "slack", logo: "Slack.jpg" },
   { name: "Klaviyo", slug: "klaviyo", logo: "Klaviyo.jpg" },
   { name: "Zendesk", slug: "zendesk", logo: "Zendesk.jpg" },
   { name: "Twilio", slug: "twilio", logo: "Twilio.jpg" },
   { name: "WordPress", slug: "wordpress", logo: "WordPress.jpg" },
   { name: "Magento", slug: "magento", logo: "Magento.jpg" },
-  { name: "Google Sheets", slug: "google-sheets", logo: "Googlesheets.jpg" }
+  { name: "Google Sheets", slug: "google-sheets", logo: "Googlesheets.jpg" },
 ];
 
 export default function IntegrationsPage() {
@@ -48,7 +69,8 @@ export default function IntegrationsPage() {
             </h3>
 
             <p className="text-sm text-gray-600 mb-4">
-              Seamlessly connect {integration.name} to automate workflows and customer insights.
+              {integration.description ??
+                `Seamlessly connect ${integration.name} to automate workflows and customer insights.`}
             </p>
 
             <span className="text-sm font-medium underline">

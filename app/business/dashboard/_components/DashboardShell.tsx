@@ -208,11 +208,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F4F0] flex items-center justify-center text-black/60">
-        Loading…
-      </div>
-    );
+    return <PageLoadingOverlay />;
   }
 
   if (!user) return null;
