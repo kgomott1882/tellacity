@@ -18,8 +18,11 @@ function getSupabase() {
 // ----------------------------
 export async function generateMetadata(props: {
   params: Promise<{ category_slug: string }>;
+  searchParams?: Promise<{ page?: string }>;
 }) {
   const { category_slug } = await props.params;
+  const searchParams = await (props.searchParams ?? Promise.resolve({}));
+  const pageNum = Math.max(1, parseInt(String(searchParams?.page ?? "1"), 10) || 1);
   const supabase = getSupabase();
 
   let categoryName: string | null = null;
@@ -40,9 +43,11 @@ export async function generateMetadata(props: {
       .join(" ");
 
   const title = categoryName ?? fallbackTitle;
+  const baseTitle = `${title} Reviews & Top Rated Companies | Tellacity`;
+  const metaTitle = pageNum > 1 ? `${title} Reviews & Top Rated Companies – Page ${pageNum} | Tellacity` : baseTitle;
 
   return {
-    title: `Best in ${title} | Tellacity`,
+    title: metaTitle,
     description: `Browse verified customer reviews for ${title} businesses on Tellacity.`,
   };
 }

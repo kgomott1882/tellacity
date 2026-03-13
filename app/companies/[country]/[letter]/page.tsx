@@ -145,8 +145,8 @@ export default async function CompaniesCountryLetterPage(props: {
           </h1>
           <p className="mt-4 max-w-2xl text-sm text-gray-600">
             Browse companies in {label} whose names start with{" "}
-            {normalizedLetter}. Each business has a dedicated page where
-            customers can share reviews and feedback.
+            {normalizedLetter}. Read customer reviews, ratings, and real
+            experiences shared on Tellacity before choosing a business.
           </p>
 
           <div className="mt-8 rounded-xl border border-gray-200 bg-white">

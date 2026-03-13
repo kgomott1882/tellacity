@@ -290,8 +290,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       return;
     }
 
-    const pageTitle = `${business.name} Reviews | Tellacity`;
-    const description = `Read customer reviews for ${business.name}. See ratings, trust score, and recent feedback on Tellacity.`;
+    const pageTitle = `${business.name} Reviews | Customer Reviews & Ratings | Tellacity`;
+    const description = `Read verified customer reviews of ${business.name}. See ratings, feedback and real experiences from customers on Tellacity.`;
 
     if (typeof document !== "undefined") {
       document.title = pageTitle;
@@ -759,7 +759,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 <>
                   <div className="mt-3 flex items-center gap-2">
                     <h1 className="text-3xl font-semibold text-[#0E0E0E]">
-                      {business?.name ?? ""}
+                      {business?.name ?? ""} Reviews
                     </h1>
                     {derivedReviewCount > 0 && (
                       <img
@@ -830,12 +830,33 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           </div>
           {business && (
             <p className="mt-4 mb-6 max-w-2xl text-sm text-gray-600">
-              Tellacity reviews for {business.name}. Read real customer experiences, ratings, and feedback about{" "}
-              {business.name}. Share your experience and help others make informed decisions.
-              {categoryTrail?.categoryName && (
-                <> {business.name} is listed under {categoryTrail.categoryName} on Tellacity.</>
-              )}
+              Tellacity collects verified customer reviews to help people make informed decisions. Read real {business.name} reviews, see customer ratings, and share your experience with {business.name} on Tellacity.
             </p>
+          )}
+          {business && (
+            <div className="mt-6 max-w-2xl text-sm text-gray-600 space-y-3">
+              <h2 className="text-base font-semibold text-[#0E0E0E]">
+                Customer reviews of {business.name}
+              </h2>
+
+              <p>
+                Looking for honest customer reviews of {business.name}? Tellacity
+                collects real feedback, ratings, and complaints from customers who
+                have interacted with {business.name}.
+              </p>
+
+              <p>
+                Before choosing a company, many people search for experiences from
+                other customers. Explore verified reviews, ratings, and service
+                feedback about {business.name} to help you make an informed decision.
+              </p>
+
+              <p>
+                Have you used {business.name}? Share your experience and help other
+                customers understand the service quality, reliability, and reputation
+                of {business.name}.
+              </p>
+            </div>
           )}
         </div>
 

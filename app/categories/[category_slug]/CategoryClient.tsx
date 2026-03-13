@@ -277,13 +277,22 @@ export default function CategoryClient({
       const min = typeof minRating === "number" ? minRating : 0;
 
       const supabase = supabaseBrowser();
-      const { data, error } = await supabase.rpc("get_top_businesses_for_category_global", {
-        p_category_slug: categorySlug,
-        p_country_code: countryCode,
-        p_min_rating: min,
-        p_limit: PAGE_SIZE + 1, // fetch one extra to detect next page
-        p_offset: offset,
-      });
+      const [businessesResult, countResult] = await Promise.all([
+        supabase.rpc("get_top_businesses_for_category_global", {
+          p_category_slug: categorySlug,
+          p_country_code: countryCode,
+          p_min_rating: min,
+          p_limit: PAGE_SIZE + 1, // fetch one extra to detect next page
+          p_offset: offset,
+        }),
+        supabase.rpc("get_category_business_count", {
+          p_category_slug: categorySlug,
+          p_country_code: countryCode,
+          p_min_rating: min,
+        }),
+      ]);
+
+      const { data, error } = businessesResult;
 
       if (!isMounted) return;
 
@@ -295,6 +304,11 @@ export default function CategoryClient({
         setLoading(false);
         return;
       }
+
+      const totalCount =
+        typeof countResult.data === "number"
+          ? countResult.data
+          : (Number(countResult.data ?? 0)) || 0;
 
       const list = (data ?? []) as BusinessRow[];
       const hasNext = list.length > PAGE_SIZE;
@@ -360,7 +374,7 @@ export default function CategoryClient({
       }
 
       setRows(sliced);
-      setComputedCount(sliced.length); // simple count (RPC doesn’t return total)
+      setComputedCount(totalCount);
       setComputedHasNext(hasNext);
       setLoading(false);
     };
@@ -449,11 +463,12 @@ export default function CategoryClient({
           </nav>
 
           <div className="mt-4">
-            <h1 className="text-3xl font-semibold text-[#0E0E0E]">Best in {title}</h1>
-            <p className="mt-2 text-sm text-gray-600">Top rated businesses in this category</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
+              {title} Reviews in {COUNTRIES.find((c) => c.code === derivedCountry)?.name ?? derivedCountry ?? "South Africa"}
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">Top rated {title} companies based on verified customer reviews.</p>
             <p className="mt-3 max-w-2xl text-sm text-gray-600">
-              Browse verified customer reviews for {title} businesses. Compare ratings, read real experiences, and
-              choose providers you can trust.
+              Browse verified customer reviews for {title} companies. Compare ratings, read real customer experiences, and discover the top rated {title} providers before choosing who to trust.
             </p>
           </div>
 
@@ -768,6 +783,25 @@ export default function CategoryClient({
                 ))}
               </div>
             </section>
+          )}
+
+          {subcategories.length > 0 && (
+            <div className="mt-12">
+              <h3 className="text-lg font-semibold text-[#0E0E0E] mb-4">
+                Explore related categories
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {subcategories.map((cat) => (
+                  <Link
+                    key={cat.slug}
+                    href={`/categories/${cat.slug}?country=${derivedCountry ?? "ZA"}`}
+                    className="rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E] hover:bg-gray-50"
+                  >
+                    {cat.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
           )}
 
           {recentCompanies.length > 0 && (

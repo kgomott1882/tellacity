@@ -6,6 +6,7 @@ import { useBusinessContext } from "../../_context/BusinessContext";
 import { useBusinessInsights } from "@/hooks/useBusinessInsights";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { RecentReviewInvitesCard } from "../_components/RecentReviewInvitesCard";
+import SeoIndexingMonitor from "@/components/dashboard/SeoIndexingMonitor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -932,6 +933,9 @@ export default function PerformancePage() {
 
           {/* Recent invite rows */}
           <RecentReviewInvitesCard businessId={businessId} />
+
+          {/* SEO Indexing Monitor (internal metrics) */}
+          <SeoIndexingMonitor />
 
           {/* ════════════════════════════════════════════
               4) REVIEW MOMENTUM
