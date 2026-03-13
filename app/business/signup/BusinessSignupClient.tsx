@@ -424,6 +424,75 @@ export default function BusinessSignupClient() {
                   </p>
                 </div>
               </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-1">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-6 w-6 text-[#1FAF9E]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-[#0E0E0E] mb-2">
+                    Improve your online reputation
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Showcase verified customer reviews that strengthen your brand reputation and increase trust across search engines and digital channels.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-1">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-6 w-6 text-[#1FAF9E]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-[#0E0E0E] mb-2">
+                    Get discovered through customer feedback
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Tellacity helps businesses appear when people search for reviews, complaints, and real customer experiences online.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-1">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-6 w-6 text-[#1FAF9E]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-[#0E0E0E] mb-2">
+                    Turn customer insights into growth
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Analyze review patterns and customer feedback to understand what customers value most and improve your products and services.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

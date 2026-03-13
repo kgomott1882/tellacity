@@ -12,7 +12,7 @@ import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
 export const metadata = {
   icons: {
-    icon: "/favicon.ico",
+    icon: "/brand/Favicon.png",
   },
 };
 

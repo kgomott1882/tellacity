@@ -186,23 +186,27 @@ export default function ForBusinessPage() {
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">
                 <span className="relative inline-block">
                   <span className="relative z-10">
-                    Built for Fair, Transparent Feedback, Not Review Blackmail
+                    Built for Honest, Transparent Customer Reviews
                   </span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
               </h2>
+              <p className="mt-3 text-sm text-gray-600">
+                Tellacity is designed to protect authentic customer feedback. Businesses can respond, improve, and build trust without manipulation, pay-to-hide tactics, or review blackmail.
+              </p>
               <div className="mt-6 grid gap-4 text-sm text-gray-600 md:grid-cols-2">
                 {[
-                  "Verified reviews only",
-                  "No pay-to-hide reviews",
-                  "Right of reply, not deletion",
-                  "Trust over tactics",
+                  { title: "Verified customer reviews", description: "Only real, verified feedback from genuine customers." },
+                  { title: "No pay-to-hide reviews", description: "Reviews cannot be removed or hidden through paid plans." },
+                  { title: "Right to respond publicly", description: "Businesses can reply to reviews and show how they resolve issues." },
+                  { title: "Trust built on transparency", description: "A fair review platform built for long-term reputation and customer trust." },
                 ].map((item) => (
                   <div
-                    key={item}
+                    key={item.title}
                     className="rounded-2xl border border-gray-200 p-4"
                   >
-                    <p className="text-sm font-semibold text-[#0E0E0E]">{item}</p>
+                    <p className="text-sm font-semibold text-[#0E0E0E]">{item.title}</p>
+                    <p className="mt-1 text-sm text-gray-600">{item.description}</p>
                   </div>
                 ))}
               </div>
@@ -242,7 +246,7 @@ export default function ForBusinessPage() {
             </div>
           </div>
 
-          {/* What Happens After a Review Is Posted? */}
+          {/* How Customer Reviews Work on Tellacity */}
           <div className="mt-6 sm:mt-10 border-t border-gray-100 pt-6 sm:pt-10 grid gap-6 sm:gap-8 md:grid-cols-2 md:items-center min-w-0">
             <div className="order-2 md:order-1 min-w-0">
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4 shadow-sm min-w-0 overflow-hidden">
@@ -253,11 +257,14 @@ export default function ForBusinessPage() {
               <h2 className="text-xl sm:text-2xl font-semibold text-[#0E0E0E]">
                 <span className="relative inline-block">
                   <span className="relative z-10">
-                    What Happens After a Review Is Posted?
+                    How Customer Reviews Work on Tellacity
                   </span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
               </h2>
+              <p className="mt-3 text-sm text-gray-600">
+                Every customer review helps businesses improve and helps future customers make better decisions. Here&apos;s what happens when feedback is shared on Tellacity.
+              </p>
               <ReviewFlowSteps />
             </div>
           </div>

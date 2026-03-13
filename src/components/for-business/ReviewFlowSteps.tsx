@@ -3,10 +3,26 @@
 import { motion } from "framer-motion";
 
 const steps = [
-  "Customer leaves a verified review",
-  "Business is notified instantly",
-  "Business responds publicly or privately",
-  "Trust indicators update automatically",
+  {
+    title: "Customer submits a verified review",
+    description:
+      "A customer shares an authentic experience about a business through Tellacity's verified review system.",
+  },
+  {
+    title: "Business receives instant notification",
+    description:
+      "The business is notified immediately so they can read the customer feedback and respond quickly.",
+  },
+  {
+    title: "Business responds and resolves issues",
+    description:
+      "Businesses can reply publicly or privately to address concerns, provide support, and show transparency.",
+  },
+  {
+    title: "Trust signals update automatically",
+    description:
+      "Ratings, reputation signals, and review insights update in real time to reflect the latest customer feedback.",
+  },
 ];
 
 const container = {
@@ -54,7 +70,7 @@ export default function ReviewFlowSteps() {
     >
       {steps.map((item, index) => (
         <motion.div
-          key={item}
+          key={item.title}
           className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95 hover:bg-teal-50 min-w-0"
           variants={cardVariants}
         >
@@ -64,7 +80,8 @@ export default function ReviewFlowSteps() {
           >
             {index + 1}
           </motion.span>
-          <p className="text-sm font-semibold text-[#0E0E0E] leading-snug">{item}</p>
+          <p className="text-sm font-semibold text-[#0E0E0E] leading-snug">{item.title}</p>
+          <p className="mt-1 text-sm text-gray-600 leading-snug">{item.description}</p>
         </motion.div>
       ))}
     </motion.div>
