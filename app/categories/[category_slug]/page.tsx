@@ -4,6 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import CategoryClient from "./CategoryClient";
 
+type PageProps = {
+  params: Promise<{ category_slug: string }>;
+  searchParams?: Promise<{ page?: string; country?: string }>;
+};
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,8 +26,16 @@ export async function generateMetadata(props: {
   searchParams?: Promise<{ page?: string }>;
 }) {
   const { category_slug } = await props.params;
-  const searchParams = await (props.searchParams ?? Promise.resolve({}));
-  const pageNum = Math.max(1, parseInt(String(searchParams?.page ?? "1"), 10) || 1);
+
+  const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
+    page?: string;
+    country?: string;
+  };
+
+  const pageNum = Math.max(
+    1,
+    parseInt(String(searchParams.page ?? "1"), 10) || 1
+  );
   const supabase = getSupabase();
 
   let categoryName: string | null = null;
@@ -55,12 +68,16 @@ export async function generateMetadata(props: {
 // ----------------------------
 // PAGE (Next 16 compliant)
 // ----------------------------
-export default async function CategoryPage(props: {
-  params: Promise<{ category_slug: string }>;
-  searchParams: Promise<{ country?: string }>;
-}) {
+export default async function Page(props: PageProps) {
   const { category_slug } = await props.params;
-  const searchParams = await props.searchParams;
+  const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
+    page?: string;
+    country?: string;
+  };
+  const pageNum = Math.max(
+    1,
+    parseInt(String(searchParams.page ?? "1"), 10) || 1
+  );
   const supabase = getSupabase();
 
   const { data: category } = await supabase
