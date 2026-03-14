@@ -94,6 +94,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
   const prevPathnameRef = React.useRef<string | null>(null);
+  const isBackForwardRef = React.useRef(false);
 
   const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
 
@@ -101,13 +102,25 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     setIsLoading(bizLoading);
   }, [bizLoading, setIsLoading]);
 
-  // Show page loading overlay on route change
+  // Detect browser back/forward so we don't show overlay and history works as expected
+  useEffect(() => {
+    const handlePopState = () => {
+      isBackForwardRef.current = true;
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Show page loading overlay on route change (skip for back/forward so back button feels instant)
   useEffect(() => {
     if (prevPathnameRef.current !== null && prevPathnameRef.current !== pathname) {
-      setPageLoading(true);
-      const timer = setTimeout(() => setPageLoading(false), 600);
-      prevPathnameRef.current = pathname;
-      return () => clearTimeout(timer);
+      if (!isBackForwardRef.current) {
+        setPageLoading(true);
+        const timer = setTimeout(() => setPageLoading(false), 400);
+        prevPathnameRef.current = pathname;
+        return () => clearTimeout(timer);
+      }
+      isBackForwardRef.current = false;
     }
     prevPathnameRef.current = pathname;
   }, [pathname, setPageLoading]);

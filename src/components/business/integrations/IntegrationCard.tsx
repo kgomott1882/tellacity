@@ -56,9 +56,9 @@ export default function IntegrationCard({ integration, businessId }: Props) {
   const primaryCta =
     (integration.state as string) === "connected" ? (
       <span className="text-green-600 font-medium">Connected ✓</span>
-    ) : isShopifyAvailable ? (
+    ) :     isShopifyAvailable ? (
       <a
-        href={`/api/integrations/shopify/connect?business_id=${businessId}`}
+        href={`/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`}
         className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
       >
         Connect
