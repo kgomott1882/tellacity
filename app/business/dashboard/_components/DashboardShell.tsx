@@ -126,12 +126,13 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     prevPathnameRef.current = pathname;
   }, [pathname, setPageLoading]);
 
-  // Business dashboard is for business users only. Consumers must use consumer dashboard.
+  // Business dashboard is for business users only. Never send to consumer dashboard—redirect to business login so dashboards don't mix.
   useEffect(() => {
-    if (!loading && user && !isBusiness) {
-      router.replace("/dashboard");
-    }
-  }, [loading, user, isBusiness, router]);
+    if (loading || !user || isBusiness) return;
+    const onIntegrationFlow = pathname?.includes("/integrations/");
+    if (onIntegrationFlow) return;
+    router.replace("/business/login");
+  }, [loading, user, isBusiness, router, pathname]);
 
   useEffect(() => {
     setBusinesses(ownedBusinesses);
