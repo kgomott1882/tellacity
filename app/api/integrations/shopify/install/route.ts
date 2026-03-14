@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { getShopifyEnvForOAuthStart } from "@/lib/shopifyEnv";
 
 export const runtime = "nodejs";
 
@@ -10,12 +11,10 @@ const SHOP_NAME_REGEX = /^[a-z0-9-]+$/;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  const clientId = process.env.SHOPIFY_CLIENT_ID;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
-  if (!clientId || !appUrl) {
+  const env = getShopifyEnvForOAuthStart();
+  if (!env) {
     return NextResponse.json(
-      { error: "Shopify environment variables not configured" },
+      { error: "Shopify not configured. Set SHOPIFY_CLIENT_ID (and NEXT_PUBLIC_APP_URL). Use credentials from Shopify Partner Dashboard → Apps → your app → Client credentials." },
       { status: 500 }
     );
   }
@@ -37,16 +36,13 @@ export async function GET(request: Request) {
   const oauthBase = `https://${shopDomain}/admin/oauth/authorize`;
 
   const params = new URLSearchParams({
-    client_id: clientId,
+    client_id: env.clientId,
     scope: SCOPE,
-    redirect_uri: `${appUrl}/api/integrations/shopify/callback`,
+    redirect_uri: env.callbackUrl,
     state: randomUUID(),
   });
 
   const oauthUrl = `${oauthBase}?${params.toString()}`;
-
-  console.log("Normalized Shopify shop:", shopDomain);
-  console.log("Shopify OAuth redirect:", oauthUrl);
 
   return NextResponse.redirect(oauthUrl);
 }

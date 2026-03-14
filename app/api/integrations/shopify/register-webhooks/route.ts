@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getShopifyEnv } from "@/lib/shopifyEnv";
 
 export const runtime = "nodejs";
 
 const SHOPIFY_API_VERSION = "2024-01";
 const WEBHOOK_TOPIC = "orders/fulfilled";
-
-const webhookAddress =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-  "https://tellacity.com";
 
 export async function POST(request: Request) {
   let shopDomain: string | null = null;
@@ -34,6 +31,9 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  const env = getShopifyEnv();
+  const webhookAddress = env?.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://tellacity.com";
 
   const normalizedShop = shopDomain.trim().toLowerCase();
   const domain =

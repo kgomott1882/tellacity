@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { getShopifyEnvForOAuthStart } from "@/lib/shopifyEnv";
 
 const SHOP_NAME_REGEX = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
 
@@ -23,12 +24,10 @@ export async function GET(request: Request) {
   const businessId = searchParams.get("business_id");
   const shop = searchParams.get("shop");
 
-  const clientId = process.env.SHOPIFY_CLIENT_ID;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
-  if (!clientId || !appUrl) {
+  const env = getShopifyEnvForOAuthStart();
+  if (!env) {
     return NextResponse.json(
-      { error: "Shopify environment variables not configured. Set SHOPIFY_CLIENT_ID and NEXT_PUBLIC_APP_URL." },
+      { error: "Shopify not configured. Set SHOPIFY_CLIENT_ID (and NEXT_PUBLIC_APP_URL). Use credentials from Shopify Partner Dashboard → Apps → your app → Client credentials." },
       { status: 500 }
     );
   }
@@ -48,17 +47,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const baseUrl = appUrl.replace(/\/$/, "");
-  const redirectUri = `${baseUrl}/api/integrations/shopify/callback`;
   const scope = "read_orders,read_customers";
   const state = encodeState(businessId);
 
   const authUrl =
     `https://${shopDomain}/admin/oauth/authorize?` +
     new URLSearchParams({
-      client_id: clientId,
+      client_id: env.clientId,
       scope,
-      redirect_uri: redirectUri,
+      redirect_uri: env.callbackUrl,
       response_type: "code",
       state,
     }).toString();
