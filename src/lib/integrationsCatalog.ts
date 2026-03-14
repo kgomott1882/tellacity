@@ -8,11 +8,11 @@ export type IntegrationCategoryId =
   | "enterprise-systems";
 
 export type IntegrationState =
-  | "connected"
   | "available"
-  | "upgrade_required"
+  | "connected"
+  | "coming_soon"
   | "enterprise"
-  | "coming_soon";
+  | "upgrade_required";
 
 export type IntegrationDefinition = {
   slug: string;

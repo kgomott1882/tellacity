@@ -22,14 +22,25 @@ function primaryCtaLabel(state: IntegrationWithState["state"]): string {
 }
 
 type Props = {
-  integration: IntegrationWithState;
+  integration: {
+    slug: string;
+    name: string;
+    description?: string;
+    logo?: string;
+    state:
+      | "available"
+      | "connected"
+      | "coming_soon"
+      | "enterprise"
+      | "upgrade_required";
+  };
   businessId?: string;
 };
 
 export default function IntegrationCard({ integration, businessId }: Props) {
   const router = useRouter();
   const ctaLabel = primaryCtaLabel(integration.state);
-  const disabled = integration.state === "coming_soon";
+  const disabled = (integration.state as string) === "coming_soon";
 
   const handleClick = () => {
     if (disabled) return;
@@ -38,11 +49,11 @@ export default function IntegrationCard({ integration, businessId }: Props) {
 
   const isShopifyAvailable =
     integration.slug === "shopify" &&
-    integration.state === "available" &&
+    (integration.state as string) === "available" &&
     businessId;
 
   const primaryCta =
-    integration.state === "connected" ? (
+    (integration.state as string) === "connected" ? (
       <span className="text-green-600 font-medium">Connected ✓</span>
     ) : isShopifyAvailable ? (
       <a
@@ -59,11 +70,11 @@ export default function IntegrationCard({ integration, businessId }: Props) {
         className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
           disabled
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : integration.state === "upgrade_required"
+            : (integration.state as string) === "upgrade_required"
             ? "bg-[#0E0E0E] text-white hover:bg-black"
-            : integration.state === "enterprise"
+            : (integration.state as string) === "enterprise"
             ? "bg-[#1F2937] text-white hover:bg-black"
-            : integration.state === "connected"
+            : (integration.state as string) === "connected"
             ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
             : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
         }`}
@@ -78,7 +89,7 @@ export default function IntegrationCard({ integration, businessId }: Props) {
         <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/brand/${integration.logoFile}`}
+            src={integration.logo ?? `/brand/${integration.slug}.png`}
             alt={`${integration.name} logo`}
             className="h-8 w-auto object-contain"
           />
@@ -91,7 +102,7 @@ export default function IntegrationCard({ integration, businessId }: Props) {
             <IntegrationStateBadge state={integration.state} />
           </div>
           <p className="mt-1 text-xs text-gray-600 line-clamp-2">
-            {integration.shortDescription}
+            {integration.description}
           </p>
         </div>
       </div>
