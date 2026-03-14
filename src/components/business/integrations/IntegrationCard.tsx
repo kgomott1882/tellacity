@@ -27,6 +27,7 @@ type Props = {
     name: string;
     description?: string;
     logo?: string;
+    logoFile?: string;
     state:
       | "available"
       | "connected"
@@ -89,7 +90,7 @@ export default function IntegrationCard({ integration, businessId }: Props) {
         <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={integration.logo ?? `/brand/${integration.slug}.png`}
+            src={integration.logo ?? (integration.logoFile ? `/brand/${integration.logoFile}` : `/brand/${integration.slug}.png`)}
             alt={`${integration.name} logo`}
             className="h-8 w-auto object-contain"
           />
