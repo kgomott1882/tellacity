@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import IntegrationStateBadge from "./IntegrationStateBadge";
 import type { IntegrationWithState } from "@/lib/integrationsCatalog";
@@ -56,13 +57,13 @@ export default function IntegrationCard({ integration, businessId }: Props) {
   const primaryCta =
     (integration.state as string) === "connected" ? (
       <span className="text-green-600 font-medium">Connected ✓</span>
-    ) :     isShopifyAvailable ? (
-      <a
+    ) : isShopifyAvailable ? (
+      <Link
         href={`/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`}
         className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
       >
         Connect
-      </a>
+      </Link>
     ) : (
       <button
         type="button"

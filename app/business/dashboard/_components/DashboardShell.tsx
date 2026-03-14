@@ -167,17 +167,34 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownedBusinesses]);
 
-  // Restore or auto-select business when none is selected
+  // Restore or auto-select business when none is selected (e.g. after full page load or back)
   useEffect(() => {
     const restoreBusiness = async () => {
       if (!user?.id) return;
       if (selectedBusiness) return;
 
-      // 1) Try localStorage
+      // 1) Restore from full object in localStorage immediately so the business name shows before the list loads
       if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem("selectedBusiness");
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as { id?: string; name?: string; slug?: string | null; website?: string | null; plan?: string | null };
+            if (parsed?.id && parsed?.name) {
+              setSelectedBusiness({
+                id: parsed.id,
+                name: parsed.name,
+                slug: parsed.slug ?? null,
+                website: parsed.website ?? null,
+                plan: parsed.plan ?? null,
+              });
+              return;
+            }
+          } catch (_) {}
+        }
+        // 2) If we have businesses list and stored id, use it
         const storedId = window.localStorage.getItem("selectedBusinessId");
-        if (storedId) {
-          const match = businesses?.find?.((b: any) => b.id === storedId);
+        if (storedId && businesses?.length) {
+          const match = businesses.find((b: any) => b.id === storedId);
           if (match) {
             setSelectedBusiness(match);
             return;
@@ -185,7 +202,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 2) Fallback to first business owned by user
+      // 3) Fallback: fetch first business owned by user
       const supabase = supabaseBrowser();
       const { data } = await supabase
         .from("businesses")
@@ -271,9 +288,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   // Redirect to login only when auth has settled (loading false) and there is no session.
   if (!user && !isConnectShopifyPage) return null;
 
-  // Only show "Business account required" after auth has settled and we know the user is not a business user.
-  // Avoid showing it while auth or business context is still loading (prevents false "logged out" feel on back/navigation).
-  const showBusinessRequiredMessage = !loading && user && !isBusiness && !isConnectShopifyPage;
+  // Only show "Business account required" when we're sure the user is not a business user.
+  // Don't show it if we have a selected business (e.g. restored from localStorage) or while auth is loading.
+  const showBusinessRequiredMessage =
+    !loading && user && !isBusiness && !isConnectShopifyPage && !selectedBusiness;
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 
   const closeDrawer = () => {
