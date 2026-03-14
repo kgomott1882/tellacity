@@ -6,6 +6,49 @@ import { Bell, Info, LogOut, Settings, CreditCard, RefreshCw } from "lucide-reac
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 
+const TOPBAR_USER_CACHE = "tellacity_dashboard_topbar_user";
+
+function readCachedUser(): { id: string; email: string | null; display_name: string | null } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(TOPBAR_USER_CACHE);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { id?: string; email?: string | null; display_name?: string | null };
+    if (!p?.id) return null;
+    return { id: p.id, email: p.email ?? null, display_name: p.display_name ?? null };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(u: { id: string; email: string | null; display_name: string | null }) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(TOPBAR_USER_CACHE, JSON.stringify(u));
+  } catch {
+    // ignore
+  }
+}
+
+function initialsFromUser(u: { email: string | null; display_name: string | null }): string {
+  const name = u.display_name?.trim();
+  if (name) {
+    return name
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }
+  const email = u.email?.trim();
+  if (email) {
+    const local = email.split("@")[0];
+    if (local.length >= 2) return local.slice(0, 2).toUpperCase();
+    return email[0]?.toUpperCase() || "U";
+  }
+  return "U";
+}
+
 export default function TopBar() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email: string | null; display_name: string | null } | null>(null);
@@ -23,71 +66,87 @@ export default function TopBar() {
   };
 
   useEffect(() => {
+    const applySessionUser = (sessionUser: {
+      id: string;
+      email?: string | null;
+      user_metadata?: Record<string, unknown>;
+    }) => {
+      const displayName = (sessionUser.user_metadata?.display_name as string | undefined) ?? null;
+      const row = {
+        id: sessionUser.id,
+        email: sessionUser.email ?? null,
+        display_name: displayName,
+      };
+      setUser(row);
+      writeCachedUser(row);
+      setUserInitials(initialsFromUser(row));
+    };
+
     const loadUser = async () => {
-      let data: { user: typeof user } | null = null;
-      try {
-          const result = await supabaseBrowser().auth.getUser();
-        data = {
-          user: result.data?.user
-            ? {
-                id: result.data.user.id,
-                email: result.data.user.email ?? null,
-                display_name: null,
-              }
-            : null,
-        };
-      } catch (e) {
-        if (isAbortError(e)) return;
-        throw e;
+      const supabase = supabaseBrowser();
+      const cached = readCachedUser();
+      if (cached?.email) {
+        setUser(cached);
+        setUserInitials(initialsFromUser(cached));
       }
-      if (data?.user) {
-        setUser({
-          id: data.user!.id,
-          email: data.user!.email,
-          display_name: data.user!.display_name,
-        });
-        const name = data.user!.display_name ?? undefined;
-        if (name) {
-          setUserInitials(
-            name
-              .split(" ")
-              .map((part: string) => part[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()
-          );
+
+      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
+      } catch (e) {
+        if (isAbortError(e)) {
+          await new Promise((r) => setTimeout(r, 250));
+          try {
+            const { data } = await supabase.auth.getSession();
+            session = data.session;
+          } catch {
+            return;
+          }
         } else {
-          setUserInitials(data.user!.email?.[0]?.toUpperCase() || "U");
+          console.error("[TopBar] getSession", e);
+          return;
+        }
+      }
+
+      if (session?.user) {
+        applySessionUser(session.user);
+        return;
+      }
+
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const u = userData?.user;
+        if (u) {
+          applySessionUser({
+            id: u.id,
+            email: u.email,
+            user_metadata: u.user_metadata as Record<string, unknown>,
+          });
+        }
+      } catch (e) {
+        if (isAbortError(e)) {
+          await new Promise((r) => setTimeout(r, 300));
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.user) applySessionUser(data.session.user);
         }
       }
     };
+
     loadUser();
 
-    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange((_event, session) => {
-      const sessionUser = session?.user ?? null;
-      if (sessionUser) {
-        setUser({
-          id: sessionUser.id,
-          email: sessionUser.email ?? null,
-          display_name: null,
-        });
-        const name = sessionUser.user_metadata?.display_name as string | undefined;
-        if (name) {
-          setUserInitials(
-            name
-              .split(" ")
-              .map((part: string) => part[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()
-          );
-        } else {
-          setUserInitials(sessionUser.email?.[0]?.toUpperCase() || "U");
-        }
-      } else {
+    const { data: authListener } = supabaseBrowser().auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
         setUser(null);
         setUserInitials("");
+        try {
+          sessionStorage.removeItem(TOPBAR_USER_CACHE);
+        } catch {
+          // ignore
+        }
+        return;
       }
+      applySessionUser(session.user);
     });
 
     return () => {
