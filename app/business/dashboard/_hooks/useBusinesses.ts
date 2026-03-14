@@ -39,7 +39,10 @@ export function useBusinesses(userId: string | null) {
           .order("name", { ascending: true });
 
         if (!ownedErr && owned && owned.length > 0) {
-          if (mounted) setData(owned);
+          if (mounted) {
+            setData(owned);
+            setLoading(false);
+          }
           return;
         }
         // If owner_id column doesn't exist (PGRST204), fall through to business_owners
@@ -56,7 +59,10 @@ export function useBusinesses(userId: string | null) {
 
           // If table doesn't exist, skip this fallback
           if (linksErr && linksErr.code === "PGRST205") {
-            if (mounted) setData([]);
+            if (mounted) {
+              setData([]);
+              setLoading(false);
+            }
             return;
           }
 
@@ -65,7 +71,10 @@ export function useBusinesses(userId: string | null) {
           const ids = (links || []).map((x: any) => x.business_id).filter(Boolean);
 
           if (!ids.length) {
-            if (mounted) setData([]);
+            if (mounted) {
+              setData([]);
+              setLoading(false);
+            }
             return;
           }
 
@@ -81,7 +90,10 @@ export function useBusinesses(userId: string | null) {
         } catch (fallbackErr: any) {
           // If business_owners table doesn't exist, just return empty array
           if (fallbackErr?.code === "PGRST205" || fallbackErr?.message?.includes("business_owners")) {
-            if (mounted) setData([]);
+            if (mounted) {
+              setData([]);
+              setLoading(false);
+            }
             return;
           }
           throw fallbackErr;

@@ -102,15 +102,39 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     setIsLoading(bizLoading);
   }, [bizLoading, setIsLoading]);
 
-  // Detect browser back/forward: skip loading overlay and clear it so back/forward feel instant
+  // Persist full selected business so we can restore it on back/forward
+  useEffect(() => {
+    if (typeof window === "undefined" || !selectedBusiness) return;
+    try {
+      window.localStorage.setItem("selectedBusinessId", selectedBusiness.id);
+      window.localStorage.setItem("selectedBusiness", JSON.stringify(selectedBusiness));
+    } catch (_) {}
+  }, [selectedBusiness]);
+
+  // Detect browser back/forward: restore business from localStorage and skip loading overlay
   useEffect(() => {
     const handlePopState = () => {
       isBackForwardRef.current = true;
       setPageLoading(false);
+      try {
+        const raw = typeof window !== "undefined" && window.localStorage.getItem("selectedBusiness");
+        if (raw) {
+          const parsed = JSON.parse(raw) as { id?: string; name?: string; slug?: string | null; website?: string | null; plan?: string | null };
+          if (parsed?.id && parsed?.name) {
+            setSelectedBusiness({
+              id: parsed.id,
+              name: parsed.name,
+              slug: parsed.slug ?? null,
+              website: parsed.website ?? null,
+              plan: parsed.plan ?? null,
+            });
+          }
+        }
+      } catch (_) {}
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [setPageLoading]);
+  }, [setPageLoading, setSelectedBusiness]);
 
   // Show page loading overlay on route change (skip for back/forward so back/forward work correctly)
   useEffect(() => {
@@ -131,10 +155,15 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setBusinesses(ownedBusinesses);
 
-    // Default selection to first business
-    if (!selectedBusiness && ownedBusinesses.length > 0) {
-      setSelectedBusiness(ownedBusinesses[0]);
+    if (ownedBusinesses.length === 0) return;
+
+    // Keep selection in sync: refresh from list if we have a matching business, or pick first if none selected
+    if (selectedBusiness) {
+      const match = ownedBusinesses.find((b) => b.id === selectedBusiness.id);
+      if (match) setSelectedBusiness(match);
+      return;
     }
+    setSelectedBusiness(ownedBusinesses[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownedBusinesses]);
 
@@ -189,6 +218,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     restoreBusiness();
   }, [user?.id, selectedBusiness, setSelectedBusiness, setBusinesses, businesses]);
 
+  // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/business/login");
@@ -231,10 +261,14 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
 
-  if (loading && !isConnectShopifyPage) {
+  // Only block the whole UI with auth loading when we don't have a user yet (initial load or session expired).
+  // Once we have a user, never replace the shell with the overlay so navigation and sidebar stay usable.
+  const showAuthOverlay = loading && !user && !isConnectShopifyPage;
+  if (showAuthOverlay) {
     return <PageLoadingOverlay />;
   }
 
+  // Redirect to login only when auth has settled (loading false) and there is no session.
   if (!user && !isConnectShopifyPage) return null;
 
   const showBusinessRequiredMessage = !isBusiness && !isConnectShopifyPage;

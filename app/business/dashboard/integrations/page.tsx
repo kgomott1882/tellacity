@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import IntegrationsOverview from "@/components/business/integrations/IntegrationsOverview";
 import {
@@ -12,13 +11,11 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { useBusinessContext } from "../_context/BusinessContext";
 
 export default function IntegrationsDashboardPage() {
-  const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
   const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
   const [connectedSlugs, setConnectedSlugs] = useState<string[]>([]);
 
   useEffect(() => {
-    router.refresh();
     const businessId = selectedBusiness?.id;
     if (!businessId) {
       setConnectedSlugs([]);
@@ -32,7 +29,7 @@ export default function IntegrationsDashboardPage() {
       .then(({ data }) => {
         setConnectedSlugs((data ?? []).map((r) => String(r.provider ?? "")));
       });
-  }, [router, selectedBusiness?.id]);
+  }, [selectedBusiness?.id]);
 
   const { connected, available, locked, enterprise } = getOverviewBuckets(
     plan,

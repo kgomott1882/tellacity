@@ -6,7 +6,7 @@ import { getShopifyEnv } from "@/lib/shopifyEnv";
 export const runtime = "nodejs";
 
 const SHOPIFY_API_VERSION = "2024-01";
-const WEBHOOK_TOPIC = "orders/fulfilled";
+const WEBHOOK_TOPICS = ["orders/create", "orders/fulfilled"] as const;
 
 export async function POST(request: Request) {
   let shopDomain: string | null = null;
@@ -55,32 +55,35 @@ export async function POST(request: Request) {
   }
 
   const accessToken = row.access_token as string;
-  const url = `https://${domain}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`;
+  const webhooksUrl = `https://${domain}/admin/api/${SHOPIFY_API_VERSION}/webhooks.json`;
+  const headers = {
+    "X-Shopify-Access-Token": accessToken,
+    "Content-Type": "application/json",
+  };
 
   try {
-    const { status, data } = await axios.post(
-      url,
-      {
-        webhook: {
-          topic: WEBHOOK_TOPIC,
-          address: `${webhookAddress}/api/integrations/shopify/webhook`,
-          format: "json",
+    for (const topic of WEBHOOK_TOPICS) {
+      const { status, data } = await axios.post(
+        webhooksUrl,
+        {
+          webhook: {
+            topic,
+            address: `${webhookAddress}/api/integrations/shopify/webhook`,
+            format: "json",
+          },
         },
-      },
-      {
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
-        },
-        validateStatus: () => true,
-      }
-    );
-
-    if (status < 200 || status >= 300) {
-      return NextResponse.json(
-        { error: "Shopify webhook registration failed", details: data },
-        { status: 502 }
+        {
+          headers,
+          validateStatus: () => true,
+        }
       );
+
+      if (status < 200 || status >= 300) {
+        return NextResponse.json(
+          { error: "Shopify webhook registration failed", topic, details: data },
+          { status: 502 }
+        );
+      }
     }
 
     const { error: updateError } = await supabaseServer
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       shop_domain: domain,
-      webhook_topic: WEBHOOK_TOPIC,
+      webhook_topics: [...WEBHOOK_TOPICS],
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

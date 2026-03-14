@@ -15,13 +15,16 @@ export default function BusinessSwitcher({ loading }: { loading: boolean }) {
     };
   }, [selectedBusiness]);
 
+  // When loading but we already have a selected business (e.g. restored from back/forward), show it so the dashboard doesn't look disconnected
+  const showLabel = !loading || selectedBusiness;
+
   return (
     <div className="px-4 pt-4 pb-4 text-left">
       <div className="text-sm font-semibold leading-tight text-white truncate">
-        {loading ? "Loading…" : label.name}
+        {showLabel ? label.name : "Loading…"}
       </div>
       <div className="text-xs text-white/70 leading-tight truncate mt-0.5">
-        {loading ? "" : label.domain}
+        {showLabel ? label.domain : ""}
       </div>
     </div>
   );
