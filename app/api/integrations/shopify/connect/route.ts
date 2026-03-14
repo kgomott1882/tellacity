@@ -9,6 +9,15 @@ function normalizeShop(shop: string): string {
   return `${trimmed}.myshopify.com`;
 }
 
+/** Encode business_id in state so redirect_uri stays fixed for Shopify whitelist. */
+function encodeState(businessId: string | null): string {
+  const payload = JSON.stringify({
+    b: businessId || null,
+    n: randomUUID(),
+  });
+  return Buffer.from(payload, "utf8").toString("base64url");
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const businessId = searchParams.get("business_id");
@@ -39,11 +48,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const redirectUri =
-    `${appUrl.replace(/\/$/, "")}/api/integrations/shopify/callback` +
-    (businessId ? `?business_id=${encodeURIComponent(businessId)}` : "");
+  const baseUrl = appUrl.replace(/\/$/, "");
+  const redirectUri = `${baseUrl}/api/integrations/shopify/callback`;
   const scope = "read_orders,read_customers";
-  const state = randomUUID();
+  const state = encodeState(businessId);
 
   const authUrl =
     `https://${shopDomain}/admin/oauth/authorize?` +

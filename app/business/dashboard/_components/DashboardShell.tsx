@@ -126,13 +126,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     prevPathnameRef.current = pathname;
   }, [pathname, setPageLoading]);
 
-  // Business dashboard is for business users only. Never send to consumer dashboard—redirect to business login so dashboards don't mix.
-  useEffect(() => {
-    if (loading || !user || isBusiness) return;
-    const onIntegrationFlow = pathname?.includes("/integrations/");
-    if (onIntegrationFlow) return;
-    router.replace("/business/login");
-  }, [loading, user, isBusiness, router, pathname]);
+  // Do not auto-redirect when user is logged in. Let them stay so back button works; show message if not a business user.
 
   useEffect(() => {
     setBusinesses(ownedBusinesses);
@@ -243,9 +237,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   if (!user && !isConnectShopifyPage) return null;
 
-  // Only business users (with business_profiles) may access; consumers are redirected above (allow connect-shopify so form can render)
-  if (!isBusiness && !isConnectShopifyPage) return null;
-
+  const showBusinessRequiredMessage = !isBusiness && !isConnectShopifyPage;
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 
   const closeDrawer = () => {
@@ -304,7 +296,32 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         </div>
         <main className="flex-1 relative">
           <TopBar />
-          <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">{children}</div>
+          <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
+            {showBusinessRequiredMessage ? (
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm max-w-md">
+                <h2 className="text-lg font-semibold text-[#0E0E0E]">Business account required</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Use a business account to access this area. You can log out and sign in with your business account.
+                </p>
+                <div className="mt-4 flex gap-3">
+                  <Link
+                    href="/business/login"
+                    className="inline-flex items-center justify-center rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 transition"
+                  >
+                    Business login
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Go to my dashboard
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              children
+            )}
+          </div>
           {pageLoading && <PageLoadingOverlay />}
         </main>
       </div>
