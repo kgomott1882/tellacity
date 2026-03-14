@@ -102,16 +102,17 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     setIsLoading(bizLoading);
   }, [bizLoading, setIsLoading]);
 
-  // Detect browser back/forward so we don't show overlay and history works as expected
+  // Detect browser back/forward: skip loading overlay and clear it so back/forward feel instant
   useEffect(() => {
     const handlePopState = () => {
       isBackForwardRef.current = true;
+      setPageLoading(false);
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [setPageLoading]);
 
-  // Show page loading overlay on route change (skip for back/forward so back button feels instant)
+  // Show page loading overlay on route change (skip for back/forward so back/forward work correctly)
   useEffect(() => {
     if (prevPathnameRef.current !== null && prevPathnameRef.current !== pathname) {
       if (!isBackForwardRef.current) {
@@ -233,14 +234,16 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  if (loading) {
+  const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
+
+  if (loading && !isConnectShopifyPage) {
     return <PageLoadingOverlay />;
   }
 
-  if (!user) return null;
+  if (!user && !isConnectShopifyPage) return null;
 
-  // Only business users (with business_profiles) may access; consumers are redirected above
-  if (!isBusiness) return null;
+  // Only business users (with business_profiles) may access; consumers are redirected above (allow connect-shopify so form can render)
+  if (!isBusiness && !isConnectShopifyPage) return null;
 
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 

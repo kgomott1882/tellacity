@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    windowHistorySupport: true,
+  },
   turbopack: {
     enabled: false,
   },

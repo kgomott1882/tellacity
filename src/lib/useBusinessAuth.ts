@@ -17,6 +17,9 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
   useEffect(() => {
     let isMounted = true;
+    const timeoutId = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 10000);
 
     const loadSessionAndRole = async () => {
       let data: { session: { user: { id: string; email?: string | null } } | null } | null = null;
@@ -36,7 +39,8 @@ export const useBusinessAuth = (): BusinessAuthState => {
           }
           if (!isMounted) return;
         } else {
-          throw e;
+          if (isMounted) setLoading(false);
+          return;
         }
       }
       const sessionUser = data?.session?.user ?? null;
@@ -131,6 +135,7 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
       authListener.subscription.unsubscribe();
     };
   }, []);
