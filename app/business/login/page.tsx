@@ -20,71 +20,74 @@ export default function BusinessLoginPage() {
       return;
     }
     setLoading(true);
-    const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (signInError) {
-      setLoading(false);
-      setError(signInError.message);
-      return;
-    }
+    try {
+      const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    // Business is determined by user id or by email (profile may exist under a different auth user id).
-    const supabase = supabaseBrowser();
-    let { data: existingProfile } = await supabase
-      .from("business_profiles")
-      .select("id")
-      .eq("id", signInData.user.id)
-      .maybeSingle();
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
 
-    if (!existingProfile) {
-      // Check by email: this email may have a business profile under a different user id (e.g. from another signup).
-      const { data: profileByEmail } = await supabase
+      // Business is determined by user id or by email (profile may exist under a different auth user id).
+      const supabase = supabaseBrowser();
+      let { data: existingProfile } = await supabase
         .from("business_profiles")
-        .select("id, email")
-        .eq("email", email.trim().toLowerCase())
+        .select("id")
+        .eq("id", signInData.user.id)
         .maybeSingle();
 
-      if (profileByEmail && profileByEmail.id !== signInData.user.id) {
-        // Migrate: assign this business profile and its businesses to the currently signed-in user.
-        const oldUserId = profileByEmail.id;
-        const tempEmail = `${email.trim().toLowerCase()}.old.${Date.now()}`;
-        await supabase
+      if (!existingProfile) {
+        // Check by email: this email may have a business profile under a different user id (e.g. from another signup).
+        const { data: profileByEmail } = await supabase
           .from("business_profiles")
-          .update({ email: tempEmail })
-          .eq("id", oldUserId);
+          .select("id, email")
+          .eq("email", email.trim().toLowerCase())
+          .maybeSingle();
 
-        await supabase
-          .from("business_profiles")
-          .upsert({
-            id: signInData.user.id,
-            email: email.trim().toLowerCase(),
-            business_name: email.trim().split("@")[0] || "Business",
-          }, { onConflict: "id" });
+        if (profileByEmail && profileByEmail.id !== signInData.user.id) {
+          // Migrate: assign this business profile and its businesses to the currently signed-in user.
+          const oldUserId = profileByEmail.id;
+          const tempEmail = `${email.trim().toLowerCase()}.old.${Date.now()}`;
+          await supabase
+            .from("business_profiles")
+            .update({ email: tempEmail })
+            .eq("id", oldUserId);
 
-        // Reassign any businesses owned by the old user to the current user
-        await supabase
-          .from("businesses")
-          .update({ owner_id: signInData.user.id })
-          .eq("owner_id", oldUserId);
+          await supabase
+            .from("business_profiles")
+            .upsert({
+              id: signInData.user.id,
+              email: email.trim().toLowerCase(),
+              business_name: email.trim().split("@")[0] || "Business",
+            }, { onConflict: "id" });
 
-        existingProfile = { id: signInData.user.id };
+          // Reassign any businesses owned by the old user to the current user
+          await supabase
+            .from("businesses")
+            .update({ owner_id: signInData.user.id })
+            .eq("owner_id", oldUserId);
+
+          existingProfile = { id: signInData.user.id };
+        }
       }
+
+      if (!existingProfile) {
+        // If there is no business profile for this user, treat this as a
+        // consumer login attempt: sign out and send them to the consumer login.
+        await supabase.auth.signOut();
+        router.push("/auth/login?from=business");
+        return;
+      }
+
+      router.push("/business/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-
-    if (!existingProfile) {
-      // If there is no business profile for this user, treat this as a
-      // consumer login attempt: sign out and send them to the consumer login.
-      await supabase.auth.signOut();
-      router.push("/auth/login?from=business");
-      return;
-    }
-
-    router.push("/business/dashboard");
   };
 
   return (

@@ -20,29 +20,34 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
-    }
-    // Redirect by account type: business users → business dashboard, consumers → consumer dashboard
-    if (signInData?.user) {
-      const supabase = supabaseBrowser();
-      const { data: businessProfile } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("id", signInData.user.id)
-        .maybeSingle();
-      if (businessProfile) {
-        router.push("/business/dashboard");
+    try {
+      const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        setError(signInError.message);
         return;
       }
+      // Redirect by account type: business users → business dashboard, consumers → consumer dashboard
+      if (signInData?.user) {
+        const supabase = supabaseBrowser();
+        const { data: businessProfile } = await supabase
+          .from("business_profiles")
+          .select("id")
+          .eq("id", signInData.user.id)
+          .maybeSingle();
+        if (businessProfile) {
+          router.push("/business/dashboard");
+          return;
+        }
+      }
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
   };
 
   return (

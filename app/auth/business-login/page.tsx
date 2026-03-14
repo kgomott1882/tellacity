@@ -23,16 +23,21 @@ function BusinessLoginInner() {
       return;
     }
     setLoading(true);
-    const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+    try {
+      const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+      router.push(nextPath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    router.push(nextPath);
   };
 
   return (

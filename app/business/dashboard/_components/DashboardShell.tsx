@@ -271,7 +271,9 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   // Redirect to login only when auth has settled (loading false) and there is no session.
   if (!user && !isConnectShopifyPage) return null;
 
-  const showBusinessRequiredMessage = !isBusiness && !isConnectShopifyPage;
+  // Only show "Business account required" after auth has settled and we know the user is not a business user.
+  // Avoid showing it while auth or business context is still loading (prevents false "logged out" feel on back/navigation).
+  const showBusinessRequiredMessage = !loading && user && !isBusiness && !isConnectShopifyPage;
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 
   const closeDrawer = () => {
