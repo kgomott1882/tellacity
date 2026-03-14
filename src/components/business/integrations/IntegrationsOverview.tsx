@@ -9,6 +9,7 @@ type Props = {
   available: IntegrationWithState[];
   locked: IntegrationWithState[];
   enterprise: IntegrationWithState[];
+  businessId: string | null;
 };
 
 function planLabel(plan: PlanId): string {
@@ -28,6 +29,7 @@ function planLabel(plan: PlanId): string {
 
 export default function IntegrationsOverview({
   plan,
+  businessId,
   connected,
   available,
   locked,
@@ -73,6 +75,7 @@ export default function IntegrationsOverview({
           title="Connected integrations"
           description="These integrations are already connected for this business."
           integrations={connected}
+          businessId={businessId}
           emptyLabel="No integrations are connected yet."
         />
 
@@ -80,6 +83,7 @@ export default function IntegrationsOverview({
           title="Available on your plan"
           description="You can connect these integrations on your current plan without upgrading."
           integrations={available}
+          businessId={businessId}
           emptyLabel="No additional integrations are available on your current plan."
         />
 
@@ -87,6 +91,7 @@ export default function IntegrationsOverview({
           title="Upgrade to unlock"
           description="Upgrade your Tellacity plan to unlock these integrations."
           integrations={locked}
+          businessId={businessId}
           emptyLabel="All currently available integrations are already included in your plan."
         />
 
@@ -94,6 +99,7 @@ export default function IntegrationsOverview({
           title="Enterprise & assisted setup"
           description="These integrations are available for Elite and enterprise customers. Our team will help you design and implement the connection."
           integrations={enterprise}
+          businessId={businessId}
           emptyLabel="Enterprise integrations are not yet available."
         />
       </div>

@@ -21,7 +21,12 @@ function primaryCtaLabel(state: IntegrationWithState["state"]): string {
   }
 }
 
-export default function IntegrationCard({ integration }: { integration: IntegrationWithState }) {
+type Props = {
+  integration: IntegrationWithState;
+  businessId?: string;
+};
+
+export default function IntegrationCard({ integration, businessId }: Props) {
   const router = useRouter();
   const ctaLabel = primaryCtaLabel(integration.state);
   const disabled = integration.state === "coming_soon";
@@ -30,6 +35,42 @@ export default function IntegrationCard({ integration }: { integration: Integrat
     if (disabled) return;
     router.push(`/business/dashboard/integrations/connectors/${integration.slug}`);
   };
+
+  const isShopifyAvailable =
+    integration.slug === "shopify" &&
+    integration.state === "available" &&
+    businessId;
+
+  const primaryCta =
+    integration.state === "connected" ? (
+      <span className="text-green-600 font-medium">Connected ✓</span>
+    ) : isShopifyAvailable ? (
+      <a
+        href={`/api/integrations/shopify/connect?business_id=${businessId}`}
+        className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
+      >
+        Connect
+      </a>
+    ) : (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={disabled}
+        className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+          disabled
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : integration.state === "upgrade_required"
+            ? "bg-[#0E0E0E] text-white hover:bg-black"
+            : integration.state === "enterprise"
+            ? "bg-[#1F2937] text-white hover:bg-black"
+            : integration.state === "connected"
+            ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
+            : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
+        }`}
+      >
+        {ctaLabel}
+      </button>
+    );
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#1FAF9E]/70 hover:shadow-md transition">
@@ -56,24 +97,7 @@ export default function IntegrationCard({ integration }: { integration: Integrat
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={disabled}
-          className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-            disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : integration.state === "upgrade_required"
-              ? "bg-[#0E0E0E] text-white hover:bg-black"
-              : integration.state === "enterprise"
-              ? "bg-[#1F2937] text-white hover:bg-black"
-              : integration.state === "connected"
-              ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
-              : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
-          }`}
-        >
-          {ctaLabel}
-        </button>
+        {primaryCta}
         <button
           type="button"
           onClick={() =>

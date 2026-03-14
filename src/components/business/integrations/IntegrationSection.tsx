@@ -7,6 +7,7 @@ type Props = {
   title: string;
   description?: string;
   integrations: IntegrationWithState[];
+  businessId?: string | null;
   emptyLabel?: string;
 };
 
@@ -14,6 +15,7 @@ export default function IntegrationSection({
   title,
   description,
   integrations,
+  businessId,
   emptyLabel,
 }: Props) {
   if (integrations.length === 0 && !emptyLabel) {
@@ -34,7 +36,11 @@ export default function IntegrationSection({
       {integrations.length > 0 ? (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {integrations.map((integration) => (
-            <IntegrationCard key={integration.slug} integration={integration} />
+            <IntegrationCard
+              key={integration.slug}
+              integration={integration}
+              businessId={businessId ?? undefined}
+            />
           ))}
         </div>
       ) : (

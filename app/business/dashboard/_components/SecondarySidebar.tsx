@@ -44,7 +44,7 @@ export default function SecondarySidebar({ title, items, groups }: SecondarySide
   };
 
   return (
-    <aside className="w-64 h-full min-h-full bg-black text-white flex flex-col">
+    <aside className="w-64 h-full min-h-full bg-gray-950 text-white flex flex-col">
       <div className="px-6 py-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide">{title}</h2>
       </div>
