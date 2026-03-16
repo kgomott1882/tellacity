@@ -12,7 +12,7 @@ import {
 
 export const revalidate = 300;
 
-const PAGE_LIMIT = 100;
+const PAGE_LIMIT = 20;
 
 type PageParams = {
   country: string;
@@ -77,7 +77,8 @@ export async function generateMetadata(props: {
 
 async function fetchBusinessesByLetter(
   country: SupportedCountryCode,
-  letter: string
+  letter: string,
+  offset: number
 ): Promise<BusinessRow[]> {
   const storageCode = toStorageCountryCode(country);
 
@@ -89,7 +90,8 @@ async function fetchBusinessesByLetter(
     .not("slug", "is", null)
     .ilike("name", `${letter.toLowerCase()}%`)
     .order("name", { ascending: true })
-    .limit(PAGE_LIMIT);
+    .limit(PAGE_LIMIT)
+    .range(offset, offset + PAGE_LIMIT - 1);
 
   if (error) {
     throw error;
@@ -100,8 +102,13 @@ async function fetchBusinessesByLetter(
 
 export default async function CompaniesCountryLetterPage(props: {
   params: Promise<PageParams>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { country: rawCountry, letter: rawLetter } = await props.params;
+  const searchParams = await props.searchParams;
+
+  const page = Math.max(1, Number(searchParams?.page ?? "1"));
+  const offset = (page - 1) * PAGE_LIMIT;
 
   const normalizedCountry = normalizeCountryParam(rawCountry.toUpperCase());
   if (!normalizedCountry || !SUPPORTED_COUNTRY_CODES.includes(normalizedCountry)) {
@@ -118,7 +125,8 @@ export default async function CompaniesCountryLetterPage(props: {
   try {
     businesses = await fetchBusinessesByLetter(
       normalizedCountry,
-      normalizedLetter
+      normalizedLetter,
+      offset
     );
   } catch {
     // Swallow errors and fall back to an empty list so the page never crashes.
@@ -160,9 +168,6 @@ export default async function CompaniesCountryLetterPage(props: {
                   const slug = (biz.slug ?? "").trim();
                   if (!slug) return null;
                   const name = (biz.name ?? "").trim() || "Business";
-                  const domain = cleanDomain(
-                    (biz.website_display ?? biz.website ?? "")?.toString()
-                  );
 
                   return (
                     <li key={slug}>
@@ -174,11 +179,6 @@ export default async function CompaniesCountryLetterPage(props: {
                           <p className="truncate text-sm font-semibold text-[#0E0E0E]">
                             {name}
                           </p>
-                          {domain && (
-                            <p className="mt-1 truncate text-xs text-gray-500">
-                              {domain}
-                            </p>
-                          )}
                         </div>
                       </Link>
                     </li>
@@ -186,6 +186,40 @@ export default async function CompaniesCountryLetterPage(props: {
                 })}
               </ul>
             )}
+
+          <div className="mt-10 flex justify-center">
+            <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white text-sm">
+              {page > 1 ? (
+                <a
+                  href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page - 1}`}
+                  className="border-r border-gray-200 px-4 py-2.5 text-gray-800 hover:bg-gray-50"
+                >
+                  Previous
+                </a>
+              ) : (
+                <span className="border-r border-gray-200 px-4 py-2.5 text-gray-400">
+                  Previous
+                </span>
+              )}
+
+              <span className="border-r border-gray-200 px-4 py-2.5 font-semibold text-gray-800">
+                Page {page}
+              </span>
+
+              {businesses.length === PAGE_LIMIT ? (
+                <a
+                  href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page + 1}`}
+                  className="px-4 py-2.5 text-gray-800 hover:bg-gray-50"
+                >
+                  Next
+                </a>
+              ) : (
+                <span className="px-4 py-2.5 text-gray-400">
+                  Next
+                </span>
+              )}
+            </div>
+          </div>
           </div>
         </div>
       </section>

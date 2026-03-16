@@ -309,7 +309,7 @@ export default function CategoriesPage() {
                   </div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  {group.categories.slice(0, 8).map((category) => (
+                  {group.categories.map((category) => (
                     <li key={category.id}>
                       <Link
                         href={`/categories/${category.slug}`}

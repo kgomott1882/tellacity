@@ -564,7 +564,7 @@ export default function CategoryClient({
 
           <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
             <span>
-              Companies ({computedCount > 0 ? computedCount.toLocaleString() : businessesList.length.toLocaleString()})
+              Companies ({computedCount > 0 ? computedCount.toLocaleString("en-US") : businessesList.length.toLocaleString("en-US")})
             </span>
 
             <div className="relative">
@@ -723,7 +723,7 @@ export default function CategoryClient({
                               {ratingValue.toFixed(1)}
                             </span>
                             <span className="text-gray-500">
-                              • {reviewCount.toLocaleString()} reviews
+                              • {reviewCount.toLocaleString("en-US")} reviews
                             </span>
                           </div>
                           {locationText && (
@@ -882,7 +882,7 @@ export default function CategoryClient({
                             />
                             <span>{ratingValue.toFixed(1)}</span>
                             <span className="text-gray-500">
-                              ({reviewCount.toLocaleString()})
+                              ({reviewCount.toLocaleString("en-US")})
                             </span>
                           </div>
                         </div>
