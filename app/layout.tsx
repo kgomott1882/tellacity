@@ -10,13 +10,7 @@ import CookieBar from "@/components/CookieBar";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
-export const metadata = {
-  icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
-  },
-};
+export const metadata = {};
 
 const abortErrorHandlerScript = `
   (function() {
