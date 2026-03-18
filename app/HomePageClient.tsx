@@ -12,10 +12,7 @@ import { FadeUp } from "@/components/ui/MotionWrapper";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl, getLogoDevUrl, domainFromWebsite } from "@/lib/logo";
 import { isAbortError } from "@/lib/authErrors";
-import {
-  sortedPosts as blogSortedPosts,
-  getPostHref as getBlogPostHref,
-} from "@/app/blog/data";
+import { getAllBlogPosts } from "../data/blogPosts";
 
 type HomeReview = {
   review_id: string;
@@ -173,14 +170,15 @@ export default function HomePageClient({
     COUNTRIES[0];
 
   const latestBlogPost = useMemo(() => {
-    const post = blogSortedPosts[0];
+    const posts = getAllBlogPosts();
+    const post = posts[0];
     if (!post) return null;
     return {
       title: post.title,
       description: post.description,
-      category: post.category,
-      href: getBlogPostHref(post.title),
-      imageSrc: post.image,
+      category: post.category ?? "Blog",
+      href: `/blog/${post.slug}`,
+      imageSrc: post.thumbnail ?? "",
       imageAlt: post.title,
     };
   }, []);

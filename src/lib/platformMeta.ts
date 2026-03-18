@@ -13,11 +13,15 @@ export const platformMeta = {
   },
   feefo: {
     name: "Feefo",
-    logo: "/brand/feefo.jpg",
+    logo: "/brand/feefo.icon.jpg",
   },
   hellopeter: {
     name: "HelloPeter",
-    logo: "/brand/hellopeter.jpg",
+    logo: "/brand/hellopeter.icon.jpg",
+  },
+  google: {
+    name: "Google Reviews",
+    logo: "/brand/googlereviews.png",
   },
 } as const;
 

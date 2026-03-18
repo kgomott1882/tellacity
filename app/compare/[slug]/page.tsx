@@ -211,6 +211,11 @@ export default async function CompareSlugPage({
       </div>
 
       <div className="mx-auto max-w-4xl space-y-12">
+        <div className="text-xs text-neutral-400 mb-4">
+          <Link href="/" className="hover:text-white">Home</Link> /{" "}
+          <Link href="/compare" className="hover:text-white">Compare</Link> /{" "}
+          <span className="text-white">{data.title}</span>
+        </div>
         <div className="space-y-4 text-center">
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-2">
@@ -762,16 +767,19 @@ export default async function CompareSlugPage({
         <section className="mb-16">
           <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
             <h2 className="mb-4 text-xl font-semibold">
-              Why Tellacity is a better alternative
+              A new approach to review management
             </h2>
             <p className="text-sm leading-relaxed text-neutral-400">
-              Tellacity gives you full control over your reviews, flexible monthly pricing without long-term contracts, and modern tools designed for growth.
-              While platforms like Trustpilot and Feefo offer strong analytics, they come at a significantly higher cost and often require long-term commitments.
-              Yelp focuses on advertising rather than review ownership, and HelloPeter is limited to local markets.
-              If you&apos;re looking for a scalable, transparent, and cost-effective review platform, Tellacity is the better choice.
+              Tellacity focuses on control, automation, and transparent pricing. You get full control over reviews, flexible monthly pricing without long-term contracts, and tools designed to scale with your business. If you want visibility in search, use Google alongside a dedicated platform; if you want to own the review process without high fixed costs, Tellacity is built for that.
             </p>
           </div>
         </section>
+
+        <p className="text-sm text-neutral-400 mb-8">
+          <Link href="/compare" className="text-[#1FAF9E] hover:underline">
+            View all comparison pages
+          </Link>
+        </p>
 
         <div className="space-y-4 pt-8 text-center">
           <h2 className="text-2xl font-semibold mb-3">
@@ -791,6 +799,45 @@ export default async function CompareSlugPage({
           </p>
         </div>
       </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: data.title,
+            description: data.description,
+            url: `https://tellacity.com/compare/${slug}`,
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Tellacity" },
+              { "@type": "ListItem", position: 2, name: data.competitor },
+            ],
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: "https://tellacity.com" },
+              { "@type": "ListItem", position: 2, name: "Compare", item: "https://tellacity.com/compare" },
+              { "@type": "ListItem", position: 3, name: data.title, item: `https://tellacity.com/compare/${slug}` },
+            ],
+          }),
+        }}
+      />
     </div>
   );
 }

@@ -278,6 +278,11 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/compare/tellacity-vs-google" className="hover:text-white">
+                    Tellacity vs Google Reviews
+                  </Link>
+                </li>
+                <li>
                   <Link href="/compare" className="hover:text-white">
                     All comparisons
                   </Link>

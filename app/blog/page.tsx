@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getAllBlogPosts } from "../../data/blogPosts";
 
 export default async function BlogPage() {
@@ -25,6 +26,24 @@ export default async function BlogPage() {
                 key={post.slug}
                 className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
               >
+                <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl">
+                  {post.thumbnail ? (
+                    <Link href={`/blog/${post.slug}`} className="block aspect-[16/9] w-full overflow-hidden">
+                      <Image
+                        src={post.thumbnail}
+                        alt=""
+                        width={400}
+                        height={225}
+                        className="h-full w-full rounded-xl object-cover transition-transform duration-200 hover:scale-[1.02]"
+                      />
+                    </Link>
+                  ) : (
+                    <div
+                      className="h-full w-full rounded-xl bg-gradient-to-br from-gray-100 to-gray-200"
+                      aria-hidden
+                    />
+                  )}
+                </div>
                 <div className="p-5">
                   <p className="text-xs uppercase tracking-wide text-gray-500">
                     {new Date(post.date).toLocaleDateString("en-US", {
@@ -36,7 +55,7 @@ export default async function BlogPage() {
                   <h3 className="mt-3 text-base font-semibold text-[#0E0E0E]">
                     {post.title}
                   </h3>
-                  <p className="mt-3 text-sm text-gray-600 line-clamp-3">
+                  <p className="mt-3 text-sm text-gray-600 line-clamp-2">
                     {post.description}
                   </p>
                   <Link
