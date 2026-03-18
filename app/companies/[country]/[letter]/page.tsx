@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { comparisonLinks } from "@/lib/comparisonLinks";
 import {
   COUNTRY_LABELS,
   SUPPORTED_COUNTRY_CODES,
@@ -219,7 +220,6 @@ export default async function CompaniesCountryLetterPage(props: {
                 </span>
               )}
             </div>
-          </div>
           </div>
         </div>
       </section>

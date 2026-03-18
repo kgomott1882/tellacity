@@ -84,111 +84,8 @@ export default function Footer() {
   return (
     <footer className="w-full bg-[#0E0E0E] text-white">
       <div className="mx-auto w-full max-w-7xl px-6 py-16">
-        <div className="flex items-center">
-          <img
-            src="/brand/TELLACITY%20LOGO%202A.png"
-            alt="Tellacity"
-            className="h-5 w-auto"
-          />
-        </div>
-
-        <div className="mt-10 grid gap-12 lg:grid-cols-6">
-          <div className="space-y-6 lg:col-span-1">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
-                Follow us on
-              </p>
-              <div className="mt-4 flex items-center gap-3">
-              <a
-                href="https://x.com/TellacityApp"
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/80 hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                aria-label="X"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 5l14 14" />
-                  <path d="M19 5L5 19" />
-                </svg>
-              </a>
-              <a
-                href="https://www.tiktok.com/@tellacity"
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/80 hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                aria-label="TikTok"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14 5v9a4 4 0 11-4-4" />
-                  <path d="M14 5a6 6 0 004 2" />
-                </svg>
-              </a>
-              <a
-                href="https://www.instagram.com/tellacity"
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/80 hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                aria-label="Instagram"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="4" y="4" width="16" height="16" rx="4" />
-                  <circle cx="12" cy="12" r="3" />
-                  <circle cx="17" cy="7" r="1" />
-                </svg>
-              </a>
-              <a
-                href="https://www.youtube.com/@Tellacity"
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/80 hover:border-[#1FAF9E] hover:text-[#1FAF9E]"
-                aria-label="YouTube"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="7" width="18" height="10" rx="3" />
-                  <path d="M10 9l5 3-5 3z" />
-                </svg>
-              </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-10 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-4">
+        <div className="grid gap-12 lg:grid-cols-6">
+          <div className="grid gap-10 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-5">
             <div>
               <h3 className="text-sm font-semibold tracking-wide">ABOUT</h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
@@ -225,7 +122,7 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h3 className="text-sm font-semibold tracking-wide">COMMUNITY</h3>
+              <h4 className="mb-4 text-sm font-semibold">PRODUCT</h4>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
                   <Link href="/write-review" className="hover:text-white">
@@ -255,16 +152,6 @@ export default function Footer() {
                 <li>
                   <Link href="/safety-trust" className="hover:text-white">
                     Safety &amp; Trust
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/login" className="hover:text-white">
-                    Log In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/signup" className="hover:text-white">
-                    Sign Up
                   </Link>
                 </li>
               </ul>
@@ -302,6 +189,16 @@ export default function Footer() {
                 <li>
                   <Link href="/resources" className="hover:text-white">
                     Business Resources
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/login" className="hover:text-white">
+                    Log In
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signup" className="hover:text-white">
+                    Sign Up
                   </Link>
                 </li>
               </ul>
@@ -354,6 +251,36 @@ export default function Footer() {
                   >
                     Cookie Settings
                   </button>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-4 text-sm font-semibold">COMPARE</h4>
+              <ul className="space-y-2 text-sm text-neutral-400">
+                <li>
+                  <Link href="/compare/tellacity-vs-trustpilot" className="hover:text-white">
+                    Tellacity vs Trustpilot
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/compare/tellacity-vs-yelp" className="hover:text-white">
+                    Tellacity vs Yelp
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/compare/tellacity-vs-feefo" className="hover:text-white">
+                    Tellacity vs Feefo
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/compare/tellacity-vs-hellopeter" className="hover:text-white">
+                    Tellacity vs HelloPeter
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/compare" className="hover:text-white">
+                    All comparisons
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -427,7 +354,71 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-gray-300">
+        <div className="mt-16 border-t border-neutral-800 pt-10 flex flex-col items-center text-center space-y-6">
+          <div className="flex justify-center">
+            <img
+              src="/brand/TELLACITY%20LOGO%202A.png"
+              alt="Tellacity"
+              className="h-5 w-auto"
+            />
+          </div>
+          <p className="text-xs tracking-widest text-neutral-500">
+            FOLLOW US ON
+          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://x.com/TellacityApp"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 text-white/80 hover:border-white transition"
+              aria-label="X"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 5l14 14" />
+                <path d="M19 5L5 19" />
+              </svg>
+            </a>
+            <a
+              href="https://www.tiktok.com/@tellacity"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 text-white/80 hover:border-white transition"
+              aria-label="TikTok"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 5v9a4 4 0 11-4-4" />
+                <path d="M14 5a6 6 0 004 2" />
+              </svg>
+            </a>
+            <a
+              href="https://www.instagram.com/tellacity"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 text-white/80 hover:border-white transition"
+              aria-label="Instagram"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="4" />
+                <circle cx="12" cy="12" r="3" />
+                <circle cx="17" cy="7" r="1" />
+              </svg>
+            </a>
+            <a
+              href="https://www.youtube.com/@Tellacity"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-700 text-white/80 hover:border-white transition"
+              aria-label="YouTube"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="7" width="18" height="10" rx="3" />
+                <path d="M10 9l5 3-5 3z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-sm text-neutral-500">
           © 2026 Tellacity. All rights reserved.
         </div>
       </div>

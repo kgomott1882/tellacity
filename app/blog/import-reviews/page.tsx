@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import ShareArticle from "@/components/blog/ShareArticle";
 
 export default function ImportReviewsPage() {
@@ -33,10 +34,18 @@ export default function ImportReviewsPage() {
           <p>
             If you&apos;re joining Tellacity from another platform, you don&apos;t have to start from
             scratch. The social proof you&apos;ve worked hard to build is a valuable asset, and our
-            import tools are designed to help you bring it over quickly and easily. Whether you have
-            reviews on Google, Facebook, Yelp, or a specialized industry platform, this guide will
-            show you how to consolidate your reputation, boost your Trust Score, and give your new
-            Tellacity profile an instant credibility lift.
+            import tools are designed to help you bring it over quickly and easily. Many businesses
+            use{" "}
+            <Link href="/compare/tellacity-vs-trustpilot">
+              Trustpilot
+            </Link>{" "}
+            or{" "}
+            <Link href="/compare/tellacity-vs-yelp">
+              Yelp
+            </Link>{" "}
+            to collect reviews, alongside sources like Google and Facebook. This guide will show you
+            how to consolidate your reputation, boost your Trust Score, and give your new Tellacity
+            profile an instant credibility lift.
           </p>
 
           <h2 className="mt-8 text-lg font-semibold text-[#0E0E0E]">

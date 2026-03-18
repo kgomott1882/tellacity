@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import HomePageClient from "./HomePageClient";
 import type { BestInBusiness } from "./HomePageClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { comparisonLinks } from "@/lib/comparisonLinks";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",

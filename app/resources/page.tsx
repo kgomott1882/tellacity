@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { comparisonLinks } from "@/lib/comparisonLinks";
 
 export default function ResourcesPage() {
   return (
