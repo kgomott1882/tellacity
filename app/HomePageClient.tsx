@@ -130,11 +130,11 @@ type HomePageClientProps = {
 };
 
 export default function HomePageClient({
-  initialSelectedCountry,
-  rotatingCategorySlugs,
-  bestInByCategory,
-  bestInCategoryLabels,
-  rpcDebug,
+  initialSelectedCountry = null,
+  rotatingCategorySlugs = [],
+  bestInByCategory = {},
+  bestInCategoryLabels = {},
+  rpcDebug = {},
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -163,7 +163,7 @@ export default function HomePageClient({
     Record<string, { review_count: number; trust_score: number }>
   >({});
   const [clientBestInByCategory, setClientBestInByCategory] =
-    useState<Record<string, BestInBusiness[]>>(bestInByCategory);
+    useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
 
   const activeCountryCode = normalizeCountryCode(
     selectedCountry ?? searchParams.get("country")
@@ -316,7 +316,7 @@ export default function HomePageClient({
   // Always rank "Best in" businesses by latest metrics so higher-rated
   // businesses automatically surface into the top positions.
   const rankedBestInBusinesses: BestInBusiness[] = useMemo(() => {
-    const list = clientBestInByCategory[activeBestInSlug] ?? [];
+    const list = (clientBestInByCategory ?? {})[activeBestInSlug] ?? [];
     if (!Array.isArray(list) || list.length === 0) return [];
 
     const withScores = list.map((biz) => {
@@ -343,8 +343,8 @@ export default function HomePageClient({
   }, [activeBestInSlug, clientBestInByCategory, bestInMetrics]);
 
   const activeBestInLabel =
-    bestInCategoryLabels[activeBestInSlug] ??
-    activeBestInSlug.replace(/-/g, " ");
+    (bestInCategoryLabels ?? {})[activeBestInSlug] ??
+    (activeBestInSlug ?? "").replace(/-/g, " ");
 
   useEffect(() => {
     const stored = getActiveCountry();
@@ -501,7 +501,7 @@ export default function HomePageClient({
 
     const fetchFallbackForEmptyCategories = async () => {
       const country = selectedCountry ?? initialSelectedCountry ?? "ZA";
-      const emptySlugs = Object.entries(bestInByCategory)
+      const emptySlugs = Object.entries(bestInByCategory ?? {})
         .filter(
           ([, list]) => !Array.isArray(list) || (list as BestInBusiness[]).length === 0,
         )

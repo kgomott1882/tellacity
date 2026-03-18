@@ -10,95 +10,122 @@ const CATEGORY_LABELS: Record<string, string> = {
   telecom: "Telecommunications",
 };
 
+const ROTATING_BEST_IN_SLUGS = [
+  "banking",
+  "insurance",
+  "restaurants-and-bars",
+  "internet-and-software",
+  "banking-and-money",
+  "cars-and-trucks",
+];
+
 type PageProps = {
   searchParams: Promise<{ country?: string }>;
 };
 
 export default async function HomePage(props: PageProps) {
-  const searchParams = await props.searchParams;
-  const country = searchParams?.country ?? "ZA";
-
-  const supabase = createSupabaseServerClient();
-
-  console.log("HOMEPAGE COUNTRY PARAM:", country);
-
-  const ROTATING_BEST_IN_SLUGS = [
-    "banking",
-    "insurance",
-    "restaurants-and-bars",
-    "internet-and-software",
-    "banking-and-money",
-    "cars-and-trucks",
-  ];
-
-  const results = await Promise.all(
-    ROTATING_BEST_IN_SLUGS.map(async (slug) => {
-      try {
-        const { data, error } = await supabase.rpc(
-          "get_top_businesses_for_category_global",
-          {
-            p_category_slug: slug,
-            p_country_code: country,
-            p_min_rating: null,
-            // Fetch more than we need so the homepage
-            // can re-rank by live metrics and keep the
-            // strongest performers in the top 8.
-            p_limit: 24,
-            p_offset: 0,
-          }
-        );
-
-        console.log("BEST-IN RPC", {
-          slug,
-          country,
-          error: error?.message ?? null,
-          count: data?.length ?? 0,
-        });
-
-        return {
-          slug,
-          data: (data ?? []) as any[],
-          error: error?.message ?? null,
-          count: data?.length ?? 0,
-        };
-      } catch (rpcError) {
-        console.error("BEST-IN RPC FAILED", {
-          slug,
-          country,
-          error:
-            rpcError instanceof Error ? rpcError.message : String(rpcError),
-        });
-
-        return {
-          slug,
-          data: [] as any[],
-          error:
-            rpcError instanceof Error ? rpcError.message : String(rpcError),
-          count: 0,
-        };
-      }
-    })
-  );
-
-  const bestInByCategory: Record<string, any[]> = {};
-  const rpcDebug: Record<
+  let country = "ZA";
+  let bestInByCategory: Record<string, unknown[]> = {};
+  let rpcDebug: Record<
     string,
     { country: string; error: string | null; count: number }
   > = {};
 
-  for (const { slug, data, error, count } of results) {
-    bestInByCategory[slug] = data;
-    rpcDebug[slug] = { country, error, count };
+  try {
+    const searchParams = await props.searchParams;
+    country = searchParams?.country ?? "ZA";
+
+    const supabase = createSupabaseServerClient();
+    if (!supabase) {
+      console.error("Homepage fetch failed: Supabase client is null");
+    } else {
+      console.log("HOMEPAGE COUNTRY PARAM:", country);
+
+      const results = await Promise.all(
+        (Array.isArray(ROTATING_BEST_IN_SLUGS) ? ROTATING_BEST_IN_SLUGS : []).map(
+          async (slug) => {
+            try {
+              const { data, error } = await supabase.rpc(
+                "get_top_businesses_for_category_global",
+                {
+                  p_category_slug: slug,
+                  p_country_code: country,
+                  p_min_rating: null,
+                  p_limit: 24,
+                  p_offset: 0,
+                }
+              );
+
+              console.log("BEST-IN RPC", {
+                slug,
+                country,
+                error: error?.message ?? null,
+                count: Array.isArray(data) ? data.length : 0,
+              });
+
+              return {
+                slug,
+                data: (Array.isArray(data) ? data : []) as unknown[],
+                error: error?.message ?? null,
+                count: Array.isArray(data) ? data.length : 0,
+              };
+            } catch (rpcError) {
+              console.error("Homepage fetch failed:", rpcError);
+              return {
+                slug,
+                data: [] as unknown[],
+                error:
+                  rpcError instanceof Error ? rpcError.message : String(rpcError),
+                count: 0,
+              };
+            }
+          }
+        )
+      );
+
+      for (const item of Array.isArray(results) ? results : []) {
+        const slug = item?.slug;
+        const data = item?.data;
+        const err = item?.error ?? null;
+        const count = typeof item?.count === "number" ? item.count : 0;
+        if (slug != null && typeof slug === "string") {
+          bestInByCategory[slug] = Array.isArray(data) ? data : [];
+          rpcDebug[slug] = { country, error: err, count };
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Homepage fetch failed:", error);
+    country = "ZA";
+    bestInByCategory = {};
+    rpcDebug = {};
   }
 
-  return (
-    <HomePageClient
-      initialSelectedCountry={country}
-      rotatingCategorySlugs={ROTATING_BEST_IN_SLUGS}
-      bestInByCategory={bestInByCategory}
-      bestInCategoryLabels={CATEGORY_LABELS}
-      rpcDebug={rpcDebug}
-    />
-  );
+  const safeBestInByCategory = bestInByCategory ?? {};
+  const safeRpcDebug = rpcDebug ?? {};
+  const safeRotatingSlugs = Array.isArray(ROTATING_BEST_IN_SLUGS)
+    ? ROTATING_BEST_IN_SLUGS
+    : [];
+  const safeLabels = CATEGORY_LABELS ?? {};
+
+  try {
+    return (
+      <HomePageClient
+        initialSelectedCountry={country ?? "ZA"}
+        rotatingCategorySlugs={safeRotatingSlugs}
+        bestInByCategory={safeBestInByCategory}
+        bestInCategoryLabels={safeLabels}
+        rpcDebug={safeRpcDebug}
+      />
+    );
+  } catch (renderError) {
+    console.error("Homepage render failed:", renderError);
+    return (
+      <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Tellacity</h1>
+        <p className="mt-2 text-gray-600">Customer Reviews &amp; Feedback</p>
+      </main>
+    );
+  }
 }
 
