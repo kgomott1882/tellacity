@@ -106,7 +106,7 @@ const ROTATING_MARQUEE_CATEGORIES: CategoryCard[] = (() => {
   }));
 })();
 
-type BestInBusiness = {
+export type BestInBusiness = {
   id: string;
   name: string;
   slug: string;

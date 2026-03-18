@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import HomePageClient from "./HomePageClient";
+import type { BestInBusiness } from "./HomePageClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -101,12 +102,23 @@ export default async function HomePage(props: PageProps) {
     rpcDebug = {};
   }
 
-  const safeBestInByCategory = bestInByCategory ?? {};
-  const safeRpcDebug = rpcDebug ?? {};
+  const safeBestInByCategory: Record<string, BestInBusiness[]> = {};
+  Object.entries(bestInByCategory ?? {}).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      safeBestInByCategory[key] = value as BestInBusiness[];
+    } else {
+      safeBestInByCategory[key] = [];
+    }
+  });
+
+  const safeLabels: Record<string, string> = CATEGORY_LABELS ?? {};
+  const safeRpcDebug: Record<
+    string,
+    { country: string; error: string | null; count: number }
+  > = rpcDebug ?? {};
   const safeRotatingSlugs = Array.isArray(ROTATING_BEST_IN_SLUGS)
     ? ROTATING_BEST_IN_SLUGS
     : [];
-  const safeLabels = CATEGORY_LABELS ?? {};
 
   try {
     return (
