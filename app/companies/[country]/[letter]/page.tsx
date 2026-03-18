@@ -188,37 +188,38 @@ export default async function CompaniesCountryLetterPage(props: {
               </ul>
             )}
 
-          <div className="mt-10 flex justify-center">
-            <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white text-sm">
-              {page > 1 ? (
-                <a
-                  href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page - 1}`}
-                  className="border-r border-gray-200 px-4 py-2.5 text-gray-800 hover:bg-gray-50"
-                >
-                  Previous
-                </a>
-              ) : (
-                <span className="border-r border-gray-200 px-4 py-2.5 text-gray-400">
-                  Previous
-                </span>
-              )}
+            <div className="mt-10 flex justify-center">
+              <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white text-sm">
+                {page > 1 ? (
+                  <a
+                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page - 1}`}
+                    className="border-r border-gray-200 px-4 py-2.5 text-gray-800 hover:bg-gray-50"
+                  >
+                    Previous
+                  </a>
+                ) : (
+                  <span className="border-r border-gray-200 px-4 py-2.5 text-gray-400">
+                    Previous
+                  </span>
+                )}
 
-              <span className="border-r border-gray-200 px-4 py-2.5 font-semibold text-gray-800">
-                Page {page}
-              </span>
-
-              {businesses.length === PAGE_LIMIT ? (
-                <a
-                  href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page + 1}`}
-                  className="px-4 py-2.5 text-gray-800 hover:bg-gray-50"
-                >
-                  Next
-                </a>
-              ) : (
-                <span className="px-4 py-2.5 text-gray-400">
-                  Next
+                <span className="border-r border-gray-200 px-4 py-2.5 font-semibold text-gray-800">
+                  Page {page}
                 </span>
-              )}
+
+                {businesses.length === PAGE_LIMIT ? (
+                  <a
+                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page + 1}`}
+                    className="px-4 py-2.5 text-gray-800 hover:bg-gray-50"
+                  >
+                    Next
+                  </a>
+                ) : (
+                  <span className="px-4 py-2.5 text-gray-400">
+                    Next
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
