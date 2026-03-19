@@ -207,8 +207,8 @@ export default function CheckBusinessLegit2025Page() {
           <p>
             Verifying a business&apos;s legitimacy is an essential skill for any online shopper.
             It&apos;s a process of gathering evidence and looking for a pattern of trust. By
-            combining these steps—checking independent reviews, verifying contact information,
-            ensuring website security, and scrutinizing business practices—you can build a
+            combining these steps-checking independent reviews, verifying contact information,
+            ensuring website security, and scrutinizing business practices-you can build a
             comprehensive picture of a company&apos;s trustworthiness. A few minutes of research is
             a small price to pay for peace of mind and a secure shopping experience.
           </p>

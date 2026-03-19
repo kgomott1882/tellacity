@@ -155,7 +155,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── If delayed, return early — cron worker will send later ───────────────
+    // ── If delayed, return early - cron worker will send later ───────────────
     if (!sendImmediately) {
       return NextResponse.json({
         success: true,
@@ -227,7 +227,7 @@ export async function POST(req: Request) {
 `;
     }
 
-    // Render final email — invite settings overrides take priority over template
+    // Render final email - invite settings overrides take priority over template
     const { subject, html } = renderInviteEmail({
       businessName: bizRecord.name ?? "",
       inviteLink,

@@ -27,6 +27,12 @@ type BusinessRow = {
   website_display?: string | null;
 };
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 function cleanDomain(value: string | null | undefined): string {
   if (!value) return "";
   return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
@@ -166,14 +172,14 @@ export default async function CompaniesCountryLetterPage(props: {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {businesses.map((biz) => {
-                  const slug = (biz.slug ?? "").trim();
-                  if (!slug) return null;
+                  const slug = (biz.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(slug)) return null;
                   const name = (biz.name ?? "").trim() || "Business";
 
                   return (
                     <li key={slug}>
                       <Link
-                        href={`/b/${encodeURIComponent(slug)}`}
+                        href={`/b/${slug}`}
                         className="flex items-center justify-between px-5 py-3 hover:bg-gray-50"
                       >
                         <div className="min-w-0">

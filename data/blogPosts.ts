@@ -20,7 +20,7 @@ export const blogPosts: BlogPost[] = [
     date: "2026-03-01",
     thumbnail: "/brand/Shoutlady.png",
     content: `
-      <p>Customer reviews are no longer just social proof. In 2026, they are one of the fastest, most reliable feedback loops you have — if you know how to use them properly.</p>
+      <p>Customer reviews are no longer just social proof. In 2026, they are one of the fastest, most reliable feedback loops you have - if you know how to use them properly.</p>
       <p>Most businesses collect reviews. Very few turn them into <strong>decisions</strong>. This guide shows you how to do exactly that.</p>
 
       <h2 id="why-reviews-matter">Why reviews matter more than ever</h2>
@@ -34,9 +34,9 @@ export const blogPosts: BlogPost[] = [
       <blockquote class="border-l-4 border-neutral-600 pl-4 my-3 text-neutral-400">"Delivery took too long"</blockquote>
       <p>Signal:</p>
       <blockquote class="border-l-4 border-neutral-600 pl-4 my-3 text-neutral-400">14 reviews in 2 weeks mention delivery delays</blockquote>
-      <p>That's not feedback anymore — that's a <strong>system problem</strong>.</p>
+      <p>That's not feedback anymore - that's a <strong>system problem</strong>.</p>
 
-      <h2 id="step-1">Step 1 — Group reviews by theme</h2>
+      <h2 id="step-1">Step 1 - Group reviews by theme</h2>
       <p>Start simple. Take your latest reviews and group them into categories: Delivery, Customer support, Product quality, Pricing, Onboarding.</p>
       <h3>Example output</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Delivery delays → 12 mentions
@@ -44,15 +44,15 @@ Customer support slow → 8 mentions
 Checkout confusion → 6 mentions</pre>
       <p>Now you're seeing patterns.</p>
 
-      <h2 id="step-2">Step 2 — Identify high-impact signals</h2>
+      <h2 id="step-2">Step 2 - Identify high-impact signals</h2>
       <p>Not all patterns matter equally. Focus on: frequency, severity, revenue impact.</p>
       <h3>Example</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Checkout confusion → 6 mentions → high impact (affects conversions)
 Delivery delay → 12 mentions → medium impact</pre>
       <p>Prioritize based on business impact, not volume alone.</p>
 
-      <h2 id="step-3">Step 3 — Turn signals into actions</h2>
-      <p>This is where most businesses fail. They observe — but don't act.</p>
+      <h2 id="step-3">Step 3 - Turn signals into actions</h2>
+      <p>This is where most businesses fail. They observe - but don't act.</p>
       <h3>Example</h3>
       <p><strong>Signal:</strong></p>
       <blockquote class="border-l-4 border-neutral-600 pl-4 my-3 text-neutral-400">Customers confused during checkout</blockquote>
@@ -73,7 +73,7 @@ Delivery delay → 12 mentions → medium impact</pre>
       </ul>
       <p>This is how reviews become <strong>growth drivers</strong>.</p>
 
-      <h2 id="step-4">Step 4 — Track changes over time</h2>
+      <h2 id="step-4">Step 4 - Track changes over time</h2>
       <p>After implementing changes, watch your reviews again.</p>
       <h3>Example</h3>
       <p>Before:</p>
@@ -131,7 +131,7 @@ Delivery delay → 12 mentions → medium impact</pre>
       <p>As your review volume grows, manual tracking becomes difficult. Platforms like Tellacity help by grouping reviews automatically, identifying patterns, surfacing insights, and tracking changes over time.</p>
 
       <h2 id="final-thoughts">Final thoughts</h2>
-      <p>Reviews are not just feedback. They are <strong>signals</strong>. The businesses that win in 2026 are not the ones with the most reviews — they are the ones who <strong>learn from them fastest</strong>.</p>
+      <p>Reviews are not just feedback. They are <strong>signals</strong>. The businesses that win in 2026 are not the ones with the most reviews - they are the ones who <strong>learn from them fastest</strong>.</p>
     `,
   },
   {
@@ -142,7 +142,7 @@ Delivery delay → 12 mentions → medium impact</pre>
     date: "2026-02-10",
     thumbnail: "/brand/cherry.png",
     content: `
-      <p>Smart businesses don't treat reviews as feedback alone — they treat them as <strong>public conversations</strong>. Every response you write is read not just by the original reviewer, but by future customers deciding whether to trust you.</p>
+      <p>Smart businesses don't treat reviews as feedback alone - they treat them as <strong>public conversations</strong>. Every response you write is read not just by the original reviewer, but by future customers deciding whether to trust you.</p>
       <p>This playbook shows you exactly how to respond to reviews in a way that builds credibility, recovers trust, and reinforces what you do well.</p>
 
       <h2 id="why-responses-matter">Why review responses matter more than ever</h2>
@@ -161,12 +161,12 @@ Delivery delay → 12 mentions → medium impact</pre>
       </ul>
 
       <h2 id="one-star">1-star reviews: acknowledge, clarify, and recover</h2>
-      <p>Negative reviews are where most businesses fail — and where you can stand out. The goal is not to "win" the argument. The goal is to <strong>show professionalism and accountability</strong>.</p>
+      <p>Negative reviews are where most businesses fail - and where you can stand out. The goal is not to "win" the argument. The goal is to <strong>show professionalism and accountability</strong>.</p>
 
       <h3>Example: Poor customer service</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Hi [Name],
 
-Thank you for your feedback. We're really sorry to hear about your experience with our team — this is not the level of service we aim to provide.
+Thank you for your feedback. We're really sorry to hear about your experience with our team - this is not the level of service we aim to provide.
 
 We're currently reviewing what happened so we can address it internally and prevent it from happening again.
 
@@ -177,7 +177,7 @@ If you're open to it, please reach out to us at [email/contact], we'd really app
       <h3>Example: Late delivery</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Hi [Name],
 
-We're sorry your order didn't arrive on time — we understand how frustrating that can be.
+We're sorry your order didn't arrive on time - we understand how frustrating that can be.
 
 We've looked into this and are already working on improving our delivery process to avoid delays like this in future.
 
@@ -188,12 +188,12 @@ Please contact us at [email] so we can resolve this for you directly.
       <p><strong>Key takeaway:</strong> Don't be defensive. Don't copy-paste generic apologies. Show action and ownership.</p>
 
       <h2 id="three-star">3-star reviews: turn "fine" into "great"</h2>
-      <p>3-star reviews are often overlooked, but they're the easiest wins. These customers are not unhappy — they're just <strong>not impressed yet</strong>.</p>
+      <p>3-star reviews are often overlooked, but they're the easiest wins. These customers are not unhappy - they're just <strong>not impressed yet</strong>.</p>
 
       <h3>Example response</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Hi [Name],
 
-Thank you for your feedback — we really appreciate you taking the time to share your experience.
+Thank you for your feedback - we really appreciate you taking the time to share your experience.
 
 It's helpful to hear where we can improve, especially around [specific point mentioned]. We're already working on refining this to make the experience smoother.
 
@@ -209,7 +209,7 @@ If there's anything else you'd like to share, we'd love to hear from you.
       <h3>Example response</h3>
       <pre class="my-4 overflow-x-auto rounded-lg border border-neutral-700 bg-neutral-900/50 p-4 text-sm text-neutral-300 whitespace-pre-wrap">Hi [Name],
 
-Thank you so much for your kind words — we're really glad you had a great experience with [specific detail].
+Thank you so much for your kind words - we're really glad you had a great experience with [specific detail].
 
 We appreciate your support and look forward to serving you again soon.
 
@@ -231,7 +231,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>The real advantage comes from consistency. Smart businesses: respond to every review, use structured templates, adapt responses based on context, track patterns in feedback.</p>
 
       <h2 id="turning-into-growth">Turning reviews into growth</h2>
-      <p>Reviews are not just reputation signals — they are <strong>data</strong>. They tell you what customers love, where you're failing, what needs improvement. When used correctly, reviews become a <strong>growth engine</strong>, not just feedback.</p>
+      <p>Reviews are not just reputation signals - they are <strong>data</strong>. They tell you what customers love, where you're failing, what needs improvement. When used correctly, reviews become a <strong>growth engine</strong>, not just feedback.</p>
       <h2 id="checklist">Final checklist</h2>
       <p>Before posting any response, ask:</p>
       <ul>
@@ -240,7 +240,7 @@ We appreciate your support and look forward to serving you again soon.
         <li>Would a new customer trust this response?</li>
         <li>Did I offer a path forward (if needed)?</li>
       </ul>
-      <p>If yes — you're doing it right.</p>
+      <p>If yes - you're doing it right.</p>
 
       <h2 id="final-thoughts">Final thoughts</h2>
       <p>Responding to reviews is no longer optional. It's one of the most visible signals of how your business operates. The brands that win are the ones that respond consistently, communicate clearly, and treat every review as an opportunity.</p>
@@ -289,7 +289,7 @@ We appreciate your support and look forward to serving you again soon.
         <li>Insights from reviews to improve product and experience</li>
         <li>Transparent pricing without long-term lock-in</li>
       </ul>
-      <p>It doesn't replace Google for visibility — use both if that matters. It gives you a dedicated place to own the review process and automate it without the cost and restrictions of traditional platforms.</p>
+      <p>It doesn't replace Google for visibility - use both if that matters. It gives you a dedicated place to own the review process and automate it without the cost and restrictions of traditional platforms.</p>
 
       <h2 id="which-option">Which option is right for you?</h2>
       <ul>
@@ -371,11 +371,11 @@ We appreciate your support and look forward to serving you again soon.
         <li>Insights from reviews to improve product and customer experience</li>
         <li>Transparent pricing so you know what you pay</li>
       </ul>
-      <p>It doesn't replace Google for visibility — you can still use Google for that. It gives you a place to own the review process, automate it, and use the data without the cost and restrictions of traditional review platforms.</p>
+      <p>It doesn't replace Google for visibility - you can still use Google for that. It gives you a place to own the review process, automate it, and use the data without the cost and restrictions of traditional review platforms.</p>
 
       <h2 id="which-option">Which option is right for you?</h2>
       <ul>
-        <li><strong>Use Google Reviews</strong> if your priority is visibility in search and local SEO — and you're fine with no automation or control.</li>
+        <li><strong>Use Google Reviews</strong> if your priority is visibility in search and local SEO - and you're fine with no automation or control.</li>
         <li><strong>Use Trustpilot</strong> if you need a structured review platform and have budget for higher-tier plans.</li>
         <li><strong>Use Tellacity</strong> if you want control, automation, and scalability without high fixed costs or long contracts.</li>
       </ul>
@@ -426,7 +426,7 @@ We appreciate your support and look forward to serving you again soon.
 
       <h2 id="which-option">Which option is right for you?</h2>
       <ul>
-        <li><strong>Use Google Reviews</strong> for visibility and local SEO — free, no automation.</li>
+        <li><strong>Use Google Reviews</strong> for visibility and local SEO - free, no automation.</li>
         <li><strong>Use Trustpilot</strong> if you need its structure and have budget for higher-tier plans.</li>
         <li><strong>Use Tellacity</strong> if you want control, automation, and scalability without high fixed costs.</li>
         <li>Use <strong>Yelp</strong> for local discovery; <strong>Feefo</strong> for enterprise needs; <strong>HelloPeter</strong> for South African audiences.</li>
@@ -455,7 +455,7 @@ We appreciate your support and look forward to serving you again soon.
         <li>They influence buying decisions</li>
         <li>They provide real feedback you can act on</li>
       </ul>
-      <p>Businesses with consistent reviews grow faster — it's that simple.</p>
+      <p>Businesses with consistent reviews grow faster - it's that simple.</p>
 
       <h2 id="ask-right-moment">1. Ask at the right moment</h2>
       <p>Timing is everything. The best time to ask for a review is:</p>
@@ -464,7 +464,7 @@ We appreciate your support and look forward to serving you again soon.
         <li>After a positive interaction</li>
         <li>When a customer expresses satisfaction</li>
       </ul>
-      <p>Avoid asking too early or too late — relevance matters.</p>
+      <p>Avoid asking too early or too late - relevance matters.</p>
 
       <h2 id="make-effortless">2. Make it effortless</h2>
       <p>If leaving a review feels like work, customers won't do it. Reduce friction by:</p>
@@ -524,7 +524,7 @@ We appreciate your support and look forward to serving you again soon.
       </ul>
 
       <h2 id="part-of-process">9. Make reviews part of your process</h2>
-      <p>The most successful businesses don't treat reviews as optional — they make them part of their workflow. Examples:</p>
+      <p>The most successful businesses don't treat reviews as optional - they make them part of their workflow. Examples:</p>
       <ul>
         <li>Automatically sending review requests after every purchase</li>
         <li>Training staff to ask for reviews</li>
@@ -533,7 +533,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>Consistency is key.</p>
 
       <h2 id="learn-from-reviews">10. Learn from your reviews</h2>
-      <p>Reviews are more than just ratings — they're insights. Use them to:</p>
+      <p>Reviews are more than just ratings - they're insights. Use them to:</p>
       <ul>
         <li>Identify common issues</li>
         <li>Improve your product or service</li>
@@ -542,14 +542,14 @@ We appreciate your support and look forward to serving you again soon.
       <p>Platforms like Tellacity help turn reviews into actionable insights, not just feedback.</p>
 
       <h2 id="final-thoughts">Final thoughts</h2>
-      <p>Getting more customer reviews isn't about luck — it's about systems. When you ask at the right time, reduce friction, and automate the process, you create a steady flow of reviews that builds trust and drives growth.</p>
+      <p>Getting more customer reviews isn't about luck - it's about systems. When you ask at the right time, reduce friction, and automate the process, you create a steady flow of reviews that builds trust and drives growth.</p>
     `,
   },
   {
     slug: "why-customers-dont-leave-reviews-how-to-fix",
     title: "Why Customers Don't Leave Reviews (And How to Fix It)",
     description:
-      "Most customers don't leave reviews — even when they're happy. Learn why and get practical fixes: reminders, automation, simple flows, and the right platform.",
+      "Most customers don't leave reviews - even when they're happy. Learn why and get practical fixes: reminders, automation, simple flows, and the right platform.",
     date: "2026-03-11",
     thumbnail: "/brand/customersnoreviews.png",
     content: `
@@ -557,7 +557,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>In this guide, we'll break down <strong>why customers don't leave reviews</strong> and show you exactly how to fix it.</p>
 
       <h2 id="they-forget">1. They forget</h2>
-      <p>Most customers have good intentions, but life gets in the way. After a purchase or service, they move on quickly and forget to leave a review — even if they had a great experience.</p>
+      <p>Most customers have good intentions, but life gets in the way. After a purchase or service, they move on quickly and forget to leave a review - even if they had a great experience.</p>
       <h3>How to fix it:</h3>
       <ul>
         <li>Send reminders shortly after the interaction</li>
@@ -575,7 +575,7 @@ We appreciate your support and look forward to serving you again soon.
       </ul>
 
       <h2 id="dont-know-where">3. They don't know where to leave a review</h2>
-      <p>Customers may be willing — they just don't know where to go. Without a clear direction, they do nothing.</p>
+      <p>Customers may be willing - they just don't know where to go. Without a clear direction, they do nothing.</p>
       <h3>How to fix it:</h3>
       <ul>
         <li>Send a direct link to your review page</li>
@@ -662,7 +662,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>Customers don't leave reviews because they forget, it's too much effort, or no one asked. Fix those three things, and your review volume will increase dramatically.</p>
     `,
   },
-  // Original static blog pages — listed here so they appear on /blog; content lives at app/blog/[slug]/page.tsx
+  // Original static blog pages - listed here so they appear on /blog; content lives at app/blog/[slug]/page.tsx
   {
     slug: "import-reviews",
     title: "Bringing Your Reviews to Tellacity: A Complete Import Guide",
@@ -689,19 +689,19 @@ We appreciate your support and look forward to serving you again soon.
     date: "2026-01-15",
     thumbnail: "/brand/first tellacity blog post.png",
     content: `
-      <p>Online shopping, digital services, and social media ads have made it easier than ever to discover new businesses. But they've also made it easier for fake companies to appear overnight. In 2026, knowing how to check if a business is legit is no longer optional—it's essential. Before you spend your money, here's a simple, practical guide to verifying whether a company is real, trustworthy, and worth your time.</p>
+      <p>Online shopping, digital services, and social media ads have made it easier than ever to discover new businesses. But they've also made it easier for fake companies to appear overnight. In 2026, knowing how to check if a business is legit is no longer optional-it's essential. Before you spend your money, here's a simple, practical guide to verifying whether a company is real, trustworthy, and worth your time.</p>
 
       <h2 id="search-reviews">1. Search the Business Name + "Reviews"</h2>
-      <p>The first step is simple: search the company name followed by the word "reviews." Example: "XYZ Store reviews." A legitimate business usually has: a digital footprint, multiple mentions across platforms, customer feedback from different dates, and consistent branding and contact details. If you find absolutely nothing—no reviews, no website history, no mentions—that's a red flag. Real businesses leave trails.</p>
+      <p>The first step is simple: search the company name followed by the word "reviews." Example: "XYZ Store reviews." A legitimate business usually has: a digital footprint, multiple mentions across platforms, customer feedback from different dates, and consistent branding and contact details. If you find absolutely nothing-no reviews, no website history, no mentions-that's a red flag. Real businesses leave trails.</p>
 
       <h2 id="verified-reviews">2. Check Verified Customer Reviews</h2>
       <p>Customer reviews are one of the strongest indicators of legitimacy. When checking reviews, look for: detailed experiences (not one-line generic praise), specific mentions of products or services, dates of experience (not just publish dates), and a mix of positive and negative feedback. No company is perfect. If a business has only 5-star reviews and zero complaints, that can sometimes be suspicious. Balanced feedback is normal. Transparency builds credibility.</p>
 
       <h2 id="examine-website">3. Examine the Business Website Carefully</h2>
-      <p>A professional website alone does not prove legitimacy—but it does provide clues. Look for: HTTPS security (🔒 in the browser), clear contact information, a physical address (if applicable), company registration details (where relevant), and consistent branding across pages. Also check: broken links, poor grammar everywhere, fake stock photos used excessively, and no clear return or refund policy. A serious business invests in trust signals.</p>
+      <p>A professional website alone does not prove legitimacy-but it does provide clues. Look for: HTTPS security (🔒 in the browser), clear contact information, a physical address (if applicable), company registration details (where relevant), and consistent branding across pages. Also check: broken links, poor grammar everywhere, fake stock photos used excessively, and no clear return or refund policy. A serious business invests in trust signals.</p>
 
       <h2 id="red-flags">4. Look for Online Red Flags</h2>
-      <p>Here are common warning signs in 2026: unrealistic discounts (90% off everything), pressure tactics ("Only 5 minutes left!" on every page), recently registered domains, no customer service contact, inconsistent company name usage, and fake-looking testimonials. If something feels rushed or manipulative, pause. Trust your instinct—but verify with evidence.</p>
+      <p>Here are common warning signs in 2026: unrealistic discounts (90% off everything), pressure tactics ("Only 5 minutes left!" on every page), recently registered domains, no customer service contact, inconsistent company name usage, and fake-looking testimonials. If something feels rushed or manipulative, pause. Trust your instinct-but verify with evidence.</p>
 
       <h2 id="country-presence">5. Check Country-Specific Presence</h2>
       <p>A legitimate company operating in countries like the United States, United Kingdom, South Africa, Australia, Canada, Ireland, and New Zealand should have some visible presence in those regions. This may include: local reviews, local listings, and customer feedback tied to real locations. If a company claims to operate globally but has zero regional footprint, that's worth investigating.</p>
@@ -710,7 +710,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>One of the most effective ways to verify a business in 2026 is by using a trusted, transparent review platform. Reliable review platforms allow you to <a href="/search">search businesses easily</a>, read real customer experiences, see patterns over time, and <a href="/write-review">write your own review to help others</a>. Transparency protects both consumers and honest businesses. Before you buy, always check what other customers are saying.</p>
 
       <h2 id="final-thoughts">Final Thoughts: Verify Before You Spend</h2>
-      <p>In today's digital economy, it only takes minutes to create a fake business—but it takes years to build a real reputation. Taking five minutes to verify a company can save you money, stress, fraud, delivery issues, and refund battles. Always research before purchasing. Search the business. Read reviews. Look for patterns. Verify the details. Smart consumers don't guess—they check.</p>
+      <p>In today's digital economy, it only takes minutes to create a fake business-but it takes years to build a real reputation. Taking five minutes to verify a company can save you money, stress, fraud, delivery issues, and refund battles. Always research before purchasing. Search the business. Read reviews. Look for patterns. Verify the details. Smart consumers don't guess-they check.</p>
     `,
   },
   {

@@ -59,7 +59,7 @@ export default function WhatMakesAReviewUseful2025Page() {
             explain what made it good. Was the staff member particularly attentive? Did they go
             above and beyond to solve a problem? Similarly, if a product &quot;didn&apos;t
             work,&quot; describe what happened. Did it break after one use? Were the instructions
-            unclear? Including specific details—the &quot;who, what, where, when, and why&quot;—transforms
+            unclear? Including specific details-the &quot;who, what, where, when, and why&quot;-transforms
             a simple opinion into a useful piece of evidence for other consumers and a clear piece
             of feedback for the business.
           </p>
@@ -258,7 +258,7 @@ export default function WhatMakesAReviewUseful2025Page() {
             marketplace. Your voice matters, and a well-crafted review is the best way to make it
             heard. You have the power to influence purchasing decisions, celebrate great service,
             and hold businesses accountable. Use that power thoughtfully, and you&apos;ll be helping
-            everyone—consumers and businesses alike—make better, more confident decisions every
+            everyone-consumers and businesses alike-make better, more confident decisions every
             day.
           </p>
         </section>

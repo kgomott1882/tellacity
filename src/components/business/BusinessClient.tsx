@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -681,7 +681,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
           <div className="flex w-full max-w-md items-start gap-3 rounded-xl bg-[#124541] px-4 py-3 text-sm text-white shadow-lg">
             <div className="flex-1">
-              <p className="font-semibold">You’ve already reviewed this business</p>
+              <p className="font-semibold">Youâ€™ve already reviewed this business</p>
               <p className="mt-1 text-xs text-white/80">
                 To manage or update your review, please sign in from the login page and edit it from your account.
               </p>
@@ -692,7 +692,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               className="ml-2 text-white/80 hover:text-white"
               aria-label="Close notice"
             >
-              ×
+              Ã-
             </button>
           </div>
         </div>
@@ -704,7 +704,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           </Link>
           {categoryTrail?.groupName && categoryTrail?.groupSlug && (
             <>
-              <span className="mx-2">›</span>
+              <span className="mx-2">â€º</span>
               <Link
                 href={`/categories/${categoryTrail.groupSlug}`}
                 className="hover:text-[#1FAF9E]"
@@ -715,7 +715,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           )}
           {categoryTrail?.categoryName && categoryTrail?.categorySlug && (
             <>
-              <span className="mx-2">›</span>
+              <span className="mx-2">â€º</span>
               <Link
                 href={`/categories/${categoryTrail.categorySlug}`}
                 className="hover:text-[#1FAF9E]"
@@ -724,7 +724,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               </Link>
             </>
           )}
-          <span className="mx-2">›</span>
+          <span className="mx-2">â€º</span>
           <span className="text-gray-700">{business?.name ?? "Business"}</span>
         </nav>
 
@@ -773,7 +773,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                     <span>
                       Reviews {derivedReviewCount.toLocaleString()}
                     </span>
-                    <span>•</span>
+                    <span>â€¢</span>
                     <div className="flex items-center gap-1">
                       <RatingStars rating={derivedAverageRating} size={14} />
                       <span className="font-semibold text-[#0E0E0E]">
@@ -939,7 +939,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
             </div>
 
             <div className="mt-10 space-y-6 text-sm text-gray-600">
-              {/* Company description – same as Profile page; fallback to category when empty */}
+              {/* Company description â€“ same as Profile page; fallback to category when empty */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Company description
@@ -952,7 +952,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 </p>
               </div>
 
-              {/* Address – full address + country name, else city + country name, else country name (never code) */}
+              {/* Address â€“ full address + country name, else city + country name, else country name (never code) */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Address
@@ -966,7 +966,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 </p>
               </div>
 
-              {/* Contact info – Email and Phone as separate fields, same as Profile page */}
+              {/* Contact info â€“ Email and Phone as separate fields, same as Profile page */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Contact info
@@ -1174,7 +1174,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       }}
                       className="rounded-full border border-[#1FAF9E] px-6 py-2 text-sm font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                     >
-                      {isLoadingMore ? "Loading…" : "Load more reviews"}
+                      {isLoadingMore ? "Loadingâ€¦" : "Load more reviews"}
                     </button>
                   </div>
                 )}
@@ -1275,7 +1275,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 className="absolute right-4 top-3 text-gray-500 hover:text-gray-700"
                 aria-label="Close"
               >
-                ×
+                Ã-
               </button>
             </div>
 
@@ -1285,22 +1285,22 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               </h3>
               {trustScoreStep === 0 && (
                 <p>
-                  Time span · Newer, recent reviews hold more weight in the
-                  TrustScore than older ones — they're a good indication of
+                  Time span Â· Newer, recent reviews hold more weight in the
+                  TrustScore than older ones â€” they're a good indication of
                   current customer satisfaction.
                 </p>
               )}
               {trustScoreStep === 1 && (
                 <p>
-                  Frequency · As recent reviews hold more weight, a TrustScore is
+                  Frequency Â· As recent reviews hold more weight, a TrustScore is
                   most stable when reviews come in regularly. Whether or not a
                   company asks for reviews can impact the TrustScore.
                 </p>
               )}
               {trustScoreStep === 2 && (
                 <p>
-                  Average · To ensure all companies start off with a balanced
-                  TrustScore, our weighted average includes neutral (3.5★)
+                  Average Â· To ensure all companies start off with a balanced
+                  TrustScore, our weighted average includes neutral (3.5â˜…)
                   reviews to the calculation. This has less impact as more
                   reviews come in.
                 </p>
@@ -1340,3 +1340,4 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     </>
   );
 }
+

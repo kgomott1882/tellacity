@@ -330,8 +330,8 @@ export default function ReviewerGuidelinesPage() {
               10. Final Word
             </h2>
             <p className="mt-3">
-              Tellacity is a community. We rely on you—our users and business
-              partners—to uphold these standards. Be honest, be fair, and help us
+              Tellacity is a community. We rely on you-our users and business
+              partners-to uphold these standards. Be honest, be fair, and help us
               create a marketplace where the truth wins.
             </p>
             <p className="mt-3">Thank you for being part of Tellacity.</p>

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Minimal Supabase client for server-side public reads (widgets, embeds).
- * Uses the anon key — no auth session needed.
+ * Uses the anon key - no auth session needed.
  */
 export function createWidgetClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

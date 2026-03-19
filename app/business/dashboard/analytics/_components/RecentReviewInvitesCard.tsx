@@ -16,7 +16,7 @@ type Invite = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     const d = new Date(iso);
     const day   = String(d.getDate()).padStart(2, "0");
@@ -26,12 +26,12 @@ function formatDate(iso: string | null | undefined): string {
     const m     = String(d.getMinutes()).padStart(2, "0");
     return `${day}/${month}/${year} ${h}:${m}`;
   } catch {
-    return "—";
+    return "-";
   }
 }
 
 function formatChannel(raw: string | null | undefined): string {
-  if (!raw) return "—";
+  if (!raw) return "-";
   const s = raw.toLowerCase();
   if (s === "email") return "Email";
   if (s === "qr")    return "QR";
@@ -109,7 +109,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
               >
                 <div className="min-w-0 flex-1 pr-3">
                   <p className="truncate text-sm text-white">
-                    {invite.recipient_email ?? "—"}
+                    {invite.recipient_email ?? "-"}
                   </p>
                   <p className="mt-0.5 text-xs text-white/40">
                     {formatChannel(invite.channel)} &bull; {formatDate(displayDate)}

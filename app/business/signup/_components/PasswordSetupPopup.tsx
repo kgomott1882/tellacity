@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -249,7 +249,7 @@ export default function PasswordSetupPopup({
           className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
           aria-label="Close"
         >
-          ×
+          Ã-
         </button>
 
         {step === "password" ? (
@@ -390,3 +390,4 @@ export default function PasswordSetupPopup({
     </div>
   );
 }
+

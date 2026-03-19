@@ -190,7 +190,7 @@ function ReviewActivityLineChart({ daily, totalReviews }: { daily: DailyReview[]
   const [drawn,   setDrawn]   = useState(false);
 
   // ── Build UTC-safe lookup from backend rows ──────────────────────────────
-  // DailyReview rows have review_date: "YYYY-MM-DD" — slice to 10 chars, no Date parsing.
+  // DailyReview rows have review_date: "YYYY-MM-DD" - slice to 10 chars, no Date parsing.
   const dense = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of daily) {
@@ -198,7 +198,7 @@ function ReviewActivityLineChart({ daily, totalReviews }: { daily: DailyReview[]
       map.set(key, (map.get(key) ?? 0) + r.review_count);
     }
 
-    // Build 90-day series entirely in UTC — no local timezone involvement
+    // Build 90-day series entirely in UTC - no local timezone involvement
     const endKey      = toUTCDateKey(new Date());
     const endDateUTC  = utcDateFromKey(endKey);
     const startDateUTC = addDaysUTC(endDateUTC, -89);
@@ -309,7 +309,7 @@ function ReviewActivityLineChart({ daily, totalReviews }: { daily: DailyReview[]
     setTooltip({
       x:     toX(idx),
       y:     toY(pt.count),
-      // Format date from UTC Date object — no timezone drift
+      // Format date from UTC Date object - no timezone drift
       label: pt.dateUTC.toLocaleDateString(undefined, {
         day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
       }),
@@ -601,7 +601,7 @@ export default function PerformancePage() {
     if (!businessId) { setInsightsLoading(false); return; }
     setInsightsLoading(true);
     try {
-      // 90-day window in UTC — matches the chart's dense series exactly
+      // 90-day window in UTC - matches the chart's dense series exactly
       const since90dUTC = new Date(Date.UTC(
         new Date().getUTCFullYear(),
         new Date().getUTCMonth(),
@@ -612,7 +612,7 @@ export default function PerformancePage() {
       const supabase = supabaseBrowser();
 
       const [rawReviewsRes, revRes, totalInvRes, inv30Res] = await Promise.all([
-        // Fetch created_at for published/approved reviews in last 90 days — aggregated into DailyReview[] below
+        // Fetch created_at for published/approved reviews in last 90 days - aggregated into DailyReview[] below
         supabase
           .from("reviews")
           .select("created_at")
@@ -620,7 +620,7 @@ export default function PerformancePage() {
           .in("status", ["published", "approved"])
           .gte("created_at", since90dUTC)
           .order("created_at", { ascending: true }),
-        // Recent reviews list — published/approved only
+        // Recent reviews list - published/approved only
         supabase
           .from("reviews")
           .select("id,rating,title,body,created_at,guest_name")
@@ -644,7 +644,7 @@ export default function PerformancePage() {
       // Aggregate raw review rows into DailyReview[] keyed by UTC date "YYYY-MM-DD"
       const dailyMap = new Map<string, number>();
       for (const row of (rawReviewsRes.data ?? []) as { created_at: string }[]) {
-        // Slice the ISO string to get the UTC date — no Date() parsing, no timezone shift
+        // Slice the ISO string to get the UTC date - no Date() parsing, no timezone shift
         const key = row.created_at.slice(0, 10);
         dailyMap.set(key, (dailyMap.get(key) ?? 0) + 1);
       }
@@ -725,7 +725,7 @@ export default function PerformancePage() {
 
   const isPageLoading = loading || insightsLoading;
 
-  // Trust Score display — always shows a number, never "--"
+  // Trust Score display - always shows a number, never "--"
   const trustValue = `${trustScore} / 100`;
   const trustSub   = trustScore > 0 ? "Reputation strength index" : "Insufficient data to calculate strength.";
 
@@ -775,7 +775,7 @@ export default function PerformancePage() {
               1) EXECUTIVE SUMMARY
           ════════════════════════════════════════════ */}
 
-          {/* Reputation Status Banner — only section that may use red */}
+          {/* Reputation Status Banner - only section that may use red */}
           <div className={`flex items-start gap-4 rounded-lg border border-neutral-700 border-l-4 ${rep.border} bg-neutral-800 px-6 py-5`}>
             <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${rep.dot}`} />
             <div className="min-w-0">

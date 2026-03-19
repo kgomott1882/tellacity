@@ -22,8 +22,8 @@ export default function DataProtectionPage() {
             </h2>
             <p className="mt-3">
               Tellacity takes data privacy and security seriously. We are
-              committed to protecting the personal data of our users—both
-              consumers and businesses—in accordance with applicable data
+              committed to protecting the personal data of our users-both
+              consumers and businesses-in accordance with applicable data
               protection laws and best practices. This Data Protection Policy
               outlines the technical and organizational measures we have
               implemented to ensure the confidentiality, integrity, and

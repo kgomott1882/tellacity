@@ -1,4 +1,10 @@
 import Link from "next/link";
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 import Image from "next/image";
 import ValuesTabs from "./ValuesTabs";
 import { JOBS } from "./jobs";
@@ -82,20 +88,24 @@ export default function CareersPage() {
             transparency, and impact.
           </p>
           <div className="mt-8 space-y-3">
-            {JOBS.map((job) => (
+            {JOBS.map((job) => {
+              const safeSlug = (job.slug ?? "").trim().toLowerCase();
+              if (!isValidSlug(safeSlug)) return null;
+              return (
               <div
-                key={job.slug}
+                key={safeSlug}
                 className="flex flex-col items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm text-gray-700 sm:flex-row"
               >
                 <span className="font-medium">{job.title}</span>
                 <Link
-                  href={`/careers/${job.slug}`}
+                  href={`/careers/${safeSlug}`}
                   className="rounded-full border border-[#0E3B36] px-4 py-1.5 text-xs font-semibold text-[#0E3B36] transition-colors hover:bg-[#0E3B36] hover:text-white"
                 >
                   Apply now →
                 </Link>
               </div>
-            ))}
+            );
+            })}
           </div>
           <p className="mt-4 text-xs text-gray-500">
             Don&apos;t see the right role?{" "}

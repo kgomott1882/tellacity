@@ -6,11 +6,11 @@ export const runtime = "nodejs";
  * Called every 5 minutes by Vercel Cron (see vercel.json).
  * Protected by Authorization: Bearer <CRON_SECRET> (Vercel Cron standard).
  *
- * Pass 1 — Due invites:
+ * Pass 1 - Due invites:
  *   sent_at IS NULL AND send_at <= now() AND status IN ('draft','scheduled')
  *   For each: render email, send via Resend, set sent_at + status='sent'.
  *
- * Pass 2 — Due reminders:
+ * Pass 2 - Due reminders:
  *   reminder_sent_at IS NULL AND reminder_at <= now() AND sent_at IS NOT NULL
  *   AND no review exists yet for this invite.
  *   For each: render reminder email, send via Resend, set reminder_sent_at.

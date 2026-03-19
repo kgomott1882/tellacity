@@ -1,4 +1,10 @@
 import Link from "next/link";
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 
 const integrations = [
   { name: "Zapier", slug: "zapier", logo: "Zapier.jpg" },
@@ -50,10 +56,13 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {integrations.map((integration) => (
+        {integrations.map((integration) => {
+          const safeSlug = (integration.slug ?? "").trim().toLowerCase();
+          if (!isValidSlug(safeSlug)) return null;
+          return (
           <Link
-            key={integration.slug}
-            href={`/integrations/${integration.slug}`}
+            key={safeSlug}
+            href={`/integrations/${safeSlug}`}
             className="border rounded-xl p-6 hover:shadow-lg transition block"
           >
             <div className="mb-4 h-12 flex items-center">
@@ -77,7 +86,8 @@ export default function IntegrationsPage() {
               View Details
             </span>
           </Link>
-        ))}
+        );
+        })}
       </div>
 
       <div className="mt-20 text-center">

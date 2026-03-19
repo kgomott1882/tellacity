@@ -113,7 +113,7 @@ export const reviewSeoPages: ReviewSeoPage[] = [
       {
         question: "How can I use MTN reviews when choosing a provider?",
         answer:
-          "Look for repeated themes in reviews—e.g. network reliability, data speeds, billing issues, or support quality. No provider is perfect; the goal is to see how they respond to problems and whether the overall pattern matches what you need.",
+          "Look for repeated themes in reviews-e.g. network reliability, data speeds, billing issues, or support quality. No provider is perfect; the goal is to see how they respond to problems and whether the overall pattern matches what you need.",
       },
       {
         question: "Are all review sites equally reliable?",
@@ -323,7 +323,7 @@ export const reviewSeoPages: ReviewSeoPage[] = [
       {
         question: "How can I use telecom reviews when choosing a provider?",
         answer:
-          "Look for repeated themes in reviews—e.g. coverage, data speeds, billing, or support quality. Cross-checking multiple sources helps you form a balanced view and set realistic expectations.",
+          "Look for repeated themes in reviews-e.g. coverage, data speeds, billing, or support quality. Cross-checking multiple sources helps you form a balanced view and set realistic expectations.",
       },
     ],
   },
@@ -423,7 +423,7 @@ export const reviewSeoPages: ReviewSeoPage[] = [
       {
         question: "How can I use retail reviews when choosing where to shop?",
         answer:
-          "Look for repeated themes in reviews—e.g. pricing, product quality, service, and convenience. Cross-checking multiple platforms helps you form a balanced view and set realistic expectations.",
+          "Look for repeated themes in reviews-e.g. pricing, product quality, service, and convenience. Cross-checking multiple platforms helps you form a balanced view and set realistic expectations.",
       },
     ],
   },
@@ -598,7 +598,7 @@ export const reviewSeoPages: ReviewSeoPage[] = [
       {
         question: "How can I use transport reviews when choosing a service?",
         answer:
-          "Look for repeated themes in reviews—e.g. pricing, wait times, driver quality, and dispute handling. A balanced view from multiple sources can help you set realistic expectations.",
+          "Look for repeated themes in reviews-e.g. pricing, wait times, driver quality, and dispute handling. A balanced view from multiple sources can help you set realistic expectations.",
       },
     ],
   },

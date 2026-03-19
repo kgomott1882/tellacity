@@ -771,7 +771,7 @@ export default function EmailTemplatesPage() {
                     {widgetSignature.signature_enabled && widgetSignature.signature_name && (
                       <div className="border-t border-gray-100 pt-3 text-xs text-gray-500">
                         <span className="font-medium text-gray-700">{widgetSignature.signature_name}</span>
-                        {" — email signature included"}
+                        {" - email signature included"}
                       </div>
                     )}
                   </div>

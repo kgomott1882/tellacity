@@ -21,7 +21,7 @@ function getDaysUntilReset(): number {
 }
 
 function formatSentAt(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     const d = new Date(iso);
     const day = String(d.getDate()).padStart(2, "0");
@@ -31,12 +31,12 @@ function formatSentAt(iso: string | null | undefined): string {
     const m = String(d.getMinutes()).padStart(2, "0");
     return `${day}/${month}/${year} ${h}:${m}`;
   } catch {
-    return "—";
+    return "-";
   }
 }
 
 function formatMethod(raw: string | null | undefined): string {
-  if (!raw) return "—";
+  if (!raw) return "-";
   const s = String(raw).toLowerCase();
   if (s === "email") return "Email";
   if (s === "qr") return "QR";
@@ -374,7 +374,7 @@ export default function GetReviewsOverviewPage() {
 
       <PlanStatusBanner plan={normalizedPlan} />
 
-      {/* Section A — KPI strip */}
+      {/* Section A - KPI strip */}
       <div className="mt-8">
         <div className="mb-6 flex flex-wrap gap-4 text-sm text-gray-700">
           <button
@@ -477,7 +477,7 @@ export default function GetReviewsOverviewPage() {
                   <span className="text-2xl font-semibold text-gray-900">
                     {metrics.averageRatingThisMonth > 0
                       ? metrics.averageRatingThisMonth.toFixed(1)
-                      : "—"}
+                      : "-"}
                   </span>
                   {metrics.averageRatingThisMonth > 0 && (
                     <RatingStars rating={metrics.averageRatingThisMonth} size={14} />
@@ -495,7 +495,7 @@ export default function GetReviewsOverviewPage() {
                   <span className="text-2xl font-semibold text-gray-900">
                     {metrics.averageRatingLifetime > 0
                       ? metrics.averageRatingLifetime.toFixed(1)
-                      : "—"}
+                      : "-"}
                   </span>
                   {metrics.averageRatingLifetime > 0 && (
                     <RatingStars rating={metrics.averageRatingLifetime} size={14} />
@@ -512,7 +512,7 @@ export default function GetReviewsOverviewPage() {
         </div>
       </div>
 
-      {/* Section B — Invites sent */}
+      {/* Section B - Invites sent */}
       <div className="mt-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-base font-semibold text-gray-900">
           Invites sent
@@ -550,7 +550,7 @@ export default function GetReviewsOverviewPage() {
                     {sentItems.map((row, i) => (
                       <tr key={i} className="border-b border-gray-100">
                         <td className="py-3 pr-4 text-gray-900">
-                          {row.recipient_email ?? "—"}
+                          {row.recipient_email ?? "-"}
                         </td>
                         <td className="py-3 pr-4 text-gray-700">
                           {formatMethod(row.invite_method ?? row.channel)}
@@ -560,7 +560,7 @@ export default function GetReviewsOverviewPage() {
                         </td>
                         <td className="py-3">
                           <span className="text-gray-700">
-                            {row.last_event_type ?? "—"}
+                            {row.last_event_type ?? "-"}
                           </span>
                           {row.last_event_at && (
                             <span className="ml-1 block text-xs text-gray-400">
@@ -601,7 +601,7 @@ export default function GetReviewsOverviewPage() {
         )}
       </div>
 
-      {/* Section C — QR code */}
+      {/* Section C - QR code */}
       {reviewUrl && (
         <div className="mt-10 rounded-xl border-2 border-[#2fb2a8] bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900">
@@ -640,7 +640,7 @@ export default function GetReviewsOverviewPage() {
         </div>
       )}
 
-      {/* Section D — Smart action block */}
+      {/* Section D - Smart action block */}
       <div className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-8">
         <div className="flex flex-col items-center text-center">
           <h2 className="text-lg font-semibold text-gray-900">

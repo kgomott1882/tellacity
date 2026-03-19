@@ -3,7 +3,7 @@ import WidgetStars from "./WidgetStars";
 
 export default function TrustBadge({ payload }: { payload: WidgetPayload }) {
   const url = `https://tellacity.com/b/${payload.slug}`;
-  const avg = payload.avg_rating != null ? (Number(payload.avg_rating) || 0).toFixed(1) : "—";
+  const avg = payload.avg_rating != null ? (Number(payload.avg_rating) || 0).toFixed(1) : "-";
 
   return (
     <a

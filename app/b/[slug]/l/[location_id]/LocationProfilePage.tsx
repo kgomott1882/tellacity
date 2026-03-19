@@ -57,6 +57,12 @@ const buildWebsiteHref = (value: string | null | undefined) => {
   return `https://${trimmed}`;
 };
 
+const isValidSlug = (slug: string) => {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+};
+
 export default function LocationProfilePage({
   initialBusiness = null,
   initialLocation = null,
@@ -223,6 +229,10 @@ export default function LocationProfilePage({
     );
   }
 
+  const safeBusinessSlug = isValidSlug(business.slug)
+    ? business.slug.trim().toLowerCase()
+    : null;
+
   return (
     <main className="min-h-screen bg-[#F8F4F0]">
       <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -231,9 +241,13 @@ export default function LocationProfilePage({
             Home
           </Link>
           <span className="mx-2">/</span>
-          <Link href={`/b/${business.slug}`} className="hover:text-[#124541] hover:underline">
-            {business.name}
-          </Link>
+          {safeBusinessSlug ? (
+            <Link href={`/b/${safeBusinessSlug}`} className="hover:text-[#124541] hover:underline">
+              {business.name}
+            </Link>
+          ) : (
+            <span>{business.name}</span>
+          )}
           <span className="mx-2">/</span>
           <span className="text-[#0E0E0E]">{locationName}</span>
         </nav>
@@ -321,12 +335,16 @@ export default function LocationProfilePage({
         </div>
 
         <div className="mt-8">
-          <Link
-            href={`/b/${business.slug}`}
-            className="text-sm font-medium text-[#124541] hover:underline"
-          >
-            ← Back to {business.name}
-          </Link>
+          {safeBusinessSlug ? (
+            <Link
+              href={`/b/${safeBusinessSlug}`}
+              className="text-sm font-medium text-[#124541] hover:underline"
+            >
+              ← Back to {business.name}
+            </Link>
+          ) : (
+            <span className="text-sm font-medium text-[#124541]">← Back to {business.name}</span>
+          )}
         </div>
       </section>
     </main>

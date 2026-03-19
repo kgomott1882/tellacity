@@ -1,225 +1,123 @@
 import Link from "next/link";
-import Image from "next/image";
-import { platformMeta } from "@/lib/platformMeta";
-
-const tableRows = [
-  { feature: "Free plan:", tellacity: "✔", trustpilot: "Limited", yelp: "✔", feefo: "✖", hellopeter: "✖", google: "✓" },
-  { feature: "Entry pricing:", tellacity: "$69/mo (clear, fixed tiers)", trustpilot: "From $299/mo", yelp: "From $150/mo", feefo: "£149–£299/mo", hellopeter: "From $42/mo", google: "Free (no subscription)" },
-  { feature: "Invite control:", tellacity: "Full", trustpilot: "Limited", yelp: "None", feefo: "Controlled", hellopeter: "Limited", google: "None" },
-  { feature: "Custom branding:", tellacity: "✔", trustpilot: "Limited", yelp: "✖", feefo: "✔", hellopeter: "Limited", google: "✕" },
-  { feature: "Widgets:", tellacity: "✔", trustpilot: "✔", yelp: "✔", feefo: "✔", hellopeter: "✔", google: "✕" },
-  { feature: "Analytics:", tellacity: "✔", trustpilot: "✔", yelp: "Basic", feefo: "✔", hellopeter: "Basic", google: "Basic" },
-  { feature: "Platform reach:", tellacity: "Global", trustpilot: "Global", yelp: "Strong local (US)", feefo: "Global (enterprise-focused)", hellopeter: "Regional (South Africa)", google: "Global (Google Search & Maps)" },
-  { feature: "SEO pages:", tellacity: "✔", trustpilot: "✔", yelp: "✔", feefo: "✔", hellopeter: "✔", google: "✓" },
-];
-
-const platformCards = [
-  { key: "tellacity" as const, text: "Full control, automation, and modern review management" },
-  { key: "trustpilot" as const, text: "Global brand visibility and reputation management" },
-  { key: "yelp" as const, text: "Local discovery and advertising for US businesses" },
-  { key: "feefo" as const, text: "Enterprise-level verified review systems" },
-  { key: "hellopeter" as const, text: "South African complaint-driven review platform" },
-  { key: "google" as const, text: "Search visibility and local SEO through Google Search and Maps" },
-];
 
 export default function BestReviewPlatformsPage() {
   return (
-    <div className="min-h-screen bg-[#0E0E0E] text-white px-6 py-16">
-      <div className="mx-auto max-w-6xl space-y-12">
-        <div className="text-xs text-neutral-400 mb-4">
-          <Link href="/" className="hover:text-white">Home</Link> /{" "}
-          <Link href="/compare" className="hover:text-white">Compare</Link> /{" "}
-          <span className="text-white">Best Review Platforms</span>
+    <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
+      <div className="mx-auto max-w-3xl space-y-12">
+        <div className="mb-4 text-xs text-neutral-400">
+          <Link href="/" className="hover:text-white">
+            Home
+          </Link>{" "}
+          /{" "}
+          <Link href="/compare" className="hover:text-white">
+            Compare
+          </Link>{" "}
+          / <span className="text-white">Best Review Platforms</span>
         </div>
-        {/* 1. Hero */}
+
         <section className="text-center">
-          <h1 className="text-2xl font-semibold text-white text-center md:text-3xl">
-            Best Review Platforms in 2026
-          </h1>
-          <p className="text-sm text-neutral-400 text-center mt-2 max-w-2xl mx-auto">
-            Compare the best review platforms including Tellacity, Trustpilot, Yelp, Feefo, HelloPeter and Google Reviews.
+          <h1 className="text-2xl font-semibold text-white md:text-3xl">Best review platforms in 2026</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-neutral-400">
+            A short guide to what to look for. For Tellacity vs Trustpilot, Yelp, Feefo, HelloPeter, and Google in one
+            matrix, use the main compare hub - that&apos;s where the full multi-platform breakdown lives.
           </p>
         </section>
 
-        {/* 2. Platform overview cards (6) */}
+        <section className="rounded-xl border border-[#1FAF9E]/40 bg-[#1FAF9E]/5 p-6 text-left">
+          <h2 className="mb-2 text-lg font-semibold text-white">Full side-by-side comparison</h2>
+          <p className="text-sm text-neutral-300">
+            The compare hub includes platform positioning, a feature matrix across all major platforms, and use-case
+            guidance in one place.
+          </p>
+          <Link
+            href="/compare#full-comparison"
+            className="mt-4 inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-black hover:opacity-90"
+          >
+            Open full comparison
+          </Link>
+        </section>
+
         <section>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            {platformCards.map(({ key, text }) => {
-              const platform = platformMeta[key];
-              return (
-                <div
-                  key={key}
-                  className="rounded-xl border border-white/10 p-4 bg-white/[0.02]"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <Image
-                      src={platform.logo}
-                      alt={platform.name}
-                      width={32}
-                      height={32}
-                      className="object-contain"
-                    />
-                    <p className="text-white font-medium">{platform.name}</p>
-                  </div>
-                  <p className="text-sm text-neutral-400">{text}</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 3. Comparison table */}
-        <section className="overflow-hidden rounded-xl border border-neutral-800">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="bg-neutral-900">
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    Feature
-                  </th>
-                  <th className="border-b border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.tellacity.logo} alt={platformMeta.tellacity.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.tellacity.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.trustpilot.logo} alt={platformMeta.trustpilot.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.trustpilot.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.yelp.logo} alt={platformMeta.yelp.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.yelp.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.feefo.logo} alt={platformMeta.feefo.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.feefo.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.hellopeter.logo} alt={platformMeta.hellopeter.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.hellopeter.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-neutral-800 px-4 py-3 text-left text-sm font-medium text-white">
-                    <div className="flex items-center gap-2">
-                      <Image src={platformMeta.google.logo} alt={platformMeta.google.name} width={36} height={36} className="object-contain" />
-                      <span>{platformMeta.google.name}</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((row, i) => (
-                  <tr key={i} className="border-b border-neutral-800 last:border-b-0">
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">{row.feature}</td>
-                    <td className="border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-sm text-neutral-300">{row.tellacity}</td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">{row.trustpilot}</td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">{row.yelp}</td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">{row.feefo}</td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">{row.hellopeter}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-300">{row.google}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* 4. Which platform is best for you */}
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Which review platform is best for you?
-          </h2>
+          <h2 className="mb-4 text-lg font-semibold text-white">Which review platform is best for you?</h2>
           <div className="space-y-3 text-sm text-neutral-400">
             <p>
-              Choose Tellacity if you want full control, transparent pricing, and automated review collection.
+              Choose <span className="text-neutral-200">Tellacity</span> if you want full control, transparent pricing,
+              and automated review collection.
             </p>
             <p>
-              Choose Trustpilot if your business needs global visibility and enterprise-level credibility.
+              Choose <span className="text-neutral-200">Trustpilot</span> if your business needs global visibility and
+              enterprise-level credibility.
             </p>
             <p>
-              Choose Yelp if your focus is local customers, especially in the United States.
+              Choose <span className="text-neutral-200">Yelp</span> if your focus is local customers, especially in the
+              United States.
             </p>
             <p>
-              Choose Feefo if you require enterprise integrations and verified review programs.
+              Choose <span className="text-neutral-200">Feefo</span> if you require enterprise integrations and
+              verified review programs.
             </p>
             <p>
-              Choose HelloPeter if your business operates primarily in South Africa.
+              Choose <span className="text-neutral-200">HelloPeter</span> if your business operates primarily in South
+              Africa.
             </p>
             <p>
-              Choose Google Reviews if your priority is search visibility and local SEO.
+              Choose <span className="text-neutral-200">Google Reviews</span> if your priority is search visibility and
+              local SEO.
             </p>
           </div>
         </section>
 
-        {/* 5. Key differences explained */}
         <section>
-          <h2 className="text-lg font-semibold text-white mb-4">Key differences explained</h2>
-          <div className="space-y-4 mt-4">
+          <h2 className="mb-4 text-lg font-semibold text-white">Key differences explained</h2>
+          <div className="space-y-4">
             <div className="rounded-xl border border-white/10 p-4">
-              <p className="text-white font-medium mb-1">Pricing</p>
+              <p className="mb-1 font-medium text-white">Pricing</p>
               <p className="text-sm text-neutral-400">
-                Tellacity offers clear, fixed pricing starting at $69/month.
-                Other platforms like Trustpilot and Feefo often start at higher entry prices and scale with usage.
+                Tellacity offers clear, fixed pricing starting at $69/month. Other platforms often start higher and scale
+                with usage - see the hub table for a direct comparison.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-4">
-              <p className="text-white font-medium mb-1">Control</p>
+              <p className="mb-1 font-medium text-white">Control</p>
               <p className="text-sm text-neutral-400">
-                Tellacity gives businesses control over branding, widgets, and review collection.
-                Google Reviews and Yelp offer limited customization.
+                Tellacity emphasizes branding, widgets, and review collection workflows. Google Reviews and Yelp offer
+                limited customization by design.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-4">
-              <p className="text-white font-medium mb-1">Automation</p>
+              <p className="mb-1 font-medium text-white">Automation</p>
               <p className="text-sm text-neutral-400">
-                Tellacity supports automated review invites and integrations.
-                Google and Yelp rely mostly on organic customer reviews.
+                Tellacity supports automated review invites and integrations. Google and Yelp rely mostly on organic
+                customer reviews.
               </p>
             </div>
           </div>
         </section>
 
-        {/* 6. FAQ */}
-        <section className="mt-12">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Frequently asked questions
-          </h2>
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-white">Frequently asked questions</h2>
           <div className="space-y-4 text-sm text-neutral-400">
             <div>
-              <p className="text-white font-medium">What is the best review platform?</p>
+              <p className="font-medium text-white">What is the best review platform?</p>
               <p className="mt-1">
-                The best platform depends on your needs. Tellacity focuses on automation and control,
-                while platforms like Google and Yelp focus on visibility.
+                It depends on your market, budget, and whether you need owned workflows or marketplace visibility.
               </p>
             </div>
             <div>
-              <p className="text-white font-medium">Is Trustpilot worth it?</p>
-              <p className="mt-1">
-                Trustpilot can be effective for large businesses, but it comes with higher pricing tiers.
-              </p>
+              <p className="font-medium text-white">Is Trustpilot worth it?</p>
+              <p className="mt-1">Trustpilot can work well for large brands, but entry pricing is typically higher.</p>
             </div>
             <div>
-              <p className="text-white font-medium">Are Google Reviews enough?</p>
+              <p className="font-medium text-white">Are Google Reviews enough?</p>
               <p className="mt-1">
-                Google Reviews are essential for SEO, but they lack advanced tools like automation and analytics.
+                Google Reviews are essential for SEO, but many teams add a platform for invites, analytics, and branding.
               </p>
             </div>
           </div>
         </section>
 
-        {/* 7. Internal linking */}
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Compare platforms in detail
-          </h2>
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-white">Compare platforms in detail</h2>
           <div className="flex flex-wrap gap-3 text-sm">
             <Link href="/compare/tellacity-vs-trustpilot" className="text-[#1FAF9E] hover:underline">
               Tellacity vs Trustpilot
@@ -239,25 +137,18 @@ export default function BestReviewPlatformsPage() {
           </div>
         </section>
 
-        <section className="mt-6">
+        <section>
           <Link href="/compare" className="text-sm text-neutral-400 hover:text-white">
-            ← View all comparison pages
+            ← Back to compare hub
           </Link>
         </section>
 
-        {/* 8. CTA */}
-        <div className="mt-12 text-center">
-          <p className="text-white font-medium mb-2">
-            Looking for a modern review platform?
-          </p>
-          <p className="text-sm text-neutral-400 mb-4">
-            Start collecting and managing customer feedback with Tellacity.
-          </p>
+        <div className="pt-4 text-center">
           <Link
             href="/business/signup"
-            className="inline-block bg-[#1FAF9E] text-black px-5 py-2 rounded-md font-medium hover:opacity-90"
+            className="inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-black hover:opacity-90"
           >
-            Get Started
+            Get started with Tellacity
           </Link>
         </div>
       </div>
@@ -268,7 +159,8 @@ export default function BestReviewPlatformsPage() {
             "@context": "https://schema.org",
             "@type": "WebPage",
             name: "Best Review Platforms in 2026",
-            description: "Compare the best review platforms including Tellacity, Trustpilot, Yelp, Feefo, HelloPeter and Google Reviews.",
+            description:
+              "Compare the best review platforms including Tellacity, Trustpilot, Yelp, Feefo, HelloPeter and Google Reviews.",
             url: "https://tellacity.com/compare/best-review-platforms",
           }),
         }}
@@ -334,7 +226,12 @@ export default function BestReviewPlatformsPage() {
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Home", item: "https://tellacity.com" },
               { "@type": "ListItem", position: 2, name: "Compare", item: "https://tellacity.com/compare" },
-              { "@type": "ListItem", position: 3, name: "Best Review Platforms", item: "https://tellacity.com/compare/best-review-platforms" },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: "Best Review Platforms",
+                item: "https://tellacity.com/compare/best-review-platforms",
+              },
             ],
           }),
         }}

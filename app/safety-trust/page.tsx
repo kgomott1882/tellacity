@@ -66,7 +66,7 @@ export default function SafetyTrustPage() {
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
               <Image
                 src="/brand/world.jpg"
-                alt="Tellacity everywhere — global trust"
+                alt="Tellacity everywhere - global trust"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover object-center"
@@ -197,7 +197,7 @@ export default function SafetyTrustPage() {
               <div className="relative mt-5 aspect-[16/9] w-full overflow-hidden rounded-xl bg-white">
                 <Image
                   src="/brand/anly%20white%20board.jpg"
-                  alt="Verified Businesses — analytics and tools"
+                  alt="Verified Businesses - analytics and tools"
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover object-center"
@@ -233,7 +233,7 @@ export default function SafetyTrustPage() {
               <div className="relative mt-5 aspect-[16/9] w-full overflow-hidden rounded-xl bg-white">
                 <Image
                   src="/brand/safe%20gurad.jpg"
-                  alt="Safeguarding trust — AI moderation and human oversight"
+                  alt="Safeguarding trust - AI moderation and human oversight"
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover object-center"
@@ -301,7 +301,7 @@ export default function SafetyTrustPage() {
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
               <Image
                 src="/brand/Green%20world.png"
-                alt="The future of verified trust — global impact"
+                alt="The future of verified trust - global impact"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover object-center"

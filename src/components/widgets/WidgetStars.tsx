@@ -1,7 +1,7 @@
 /**
  * Tellacity-style star rating for widgets.
  * Matches RatingStars.tsx: colored square boxes, color-coded by rating.
- * Pure inline styles — no Tailwind, no lucide, safe for iframe embedding.
+ * Pure inline styles - no Tailwind, no lucide, safe for iframe embedding.
  */
 
 const FILL_COLORS: Record<number, string> = {

@@ -15,7 +15,7 @@ function clampBody(text: string | null, max = 180) {
 }
 
 /**
- * Pure server component — no useState, no hydration mismatch.
+ * Pure server component - no useState, no hydration mismatch.
  * Renders all reviews in a horizontally scrollable row.
  * JavaScript-free navigation via CSS scroll-snap.
  */

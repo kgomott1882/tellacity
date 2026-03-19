@@ -51,7 +51,7 @@ const InternalLinkBlock = () => (
   </div>
 );
 
-/** Standard CTA — calm, one per post */
+/** Standard CTA - calm, one per post */
 const BlogCTA = () => (
   <section className="mt-12 rounded-xl border border-neutral-800 bg-neutral-900/30 px-6 py-8 text-center">
     <p className="text-neutral-300 text-sm mb-4">

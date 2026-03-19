@@ -151,7 +151,7 @@ function StepIcon({ name }: { name: string }) {
 export default function HowTellacityWorksPage() {
   return (
     <main className="bg-white">
-      {/* SECTION 1 — HERO VISUAL */}
+      {/* SECTION 1 - HERO VISUAL */}
       <section className="bg-[#F9F9F9] py-16 lg:py-24">
         <div className="mx-auto w-full max-w-6xl px-6">
           <div className="grid grid-cols-1 gap-12 items-center lg:grid-cols-2">
@@ -180,7 +180,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 2 — STEP FLOW TIMELINE */}
+      {/* SECTION 2 - STEP FLOW TIMELINE */}
       <section className="bg-white py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-6xl px-6">
           <h2 className="text-center text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
@@ -213,7 +213,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 3 — PRODUCT PREVIEW: Inside Tellacity */}
+      {/* SECTION 3 - PRODUCT PREVIEW: Inside Tellacity */}
       <section className="bg-[#F9F9F9] py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-6xl px-6">
           <h2 className="text-center text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
@@ -313,7 +313,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 4 — VERIFICATION SYSTEM (visual trust badges) */}
+      {/* SECTION 4 - VERIFICATION SYSTEM (visual trust badges) */}
       <section className="bg-gray-50 py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-6xl px-6 text-center">
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#0E3B36]">
@@ -341,7 +341,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 5 — TRUST SCORE VISUALIZATION */}
+      {/* SECTION 5 - TRUST SCORE VISUALIZATION */}
       <section className="bg-white py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-2xl px-6 text-center">
           <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
@@ -373,7 +373,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 6 — FEEDBACK LOOP DIAGRAM */}
+      {/* SECTION 6 - FEEDBACK LOOP DIAGRAM */}
       <section className="bg-gray-50 py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-5xl px-6 text-center">
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#0E3B36]">
@@ -414,7 +414,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 7 — REAL REVIEW EXAMPLE */}
+      {/* SECTION 7 - REAL REVIEW EXAMPLE */}
       <section className="bg-white py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-2xl px-6">
           <h2 className="text-center text-2xl font-semibold text-[#0E3B36]">
@@ -427,7 +427,7 @@ export default function HowTellacityWorksPage() {
               ))}
             </div>
             <p className="mt-3 text-lg font-medium text-[#0E0E0E]">&ldquo;Great service and fast support.&rdquo;</p>
-            <p className="mt-2 text-sm text-gray-600">— Verified Customer</p>
+            <p className="mt-2 text-sm text-gray-600">- Verified Customer</p>
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
               <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Verified review</span>
               <span className="text-xs text-gray-500">Example Business Ltd</span>
@@ -436,7 +436,7 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 8 — FINAL CTA */}
+      {/* SECTION 8 - FINAL CTA */}
       <section className="bg-gradient-to-r from-teal-500 to-emerald-600 py-20 lg:py-24">
         <div className="mx-auto w-full max-w-4xl px-6 text-center">
           <h2 className="text-3xl font-semibold text-white sm:text-4xl">

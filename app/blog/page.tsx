@@ -2,6 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { getAllBlogPosts } from "../../data/blogPosts";
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 export default async function BlogPage() {
   const posts = getAllBlogPosts();
   return (
@@ -21,14 +27,17 @@ export default async function BlogPage() {
       <section className="bg-white">
         <div className="mx-auto w-full max-w-5xl px-6 pb-14">
           <div className="mt-10 grid gap-6 sm:grid-cols-1 lg:grid-cols-3">
-            {posts.map((post) => (
+            {posts.map((post) => {
+              const safeSlug = (post.slug ?? "").trim().toLowerCase();
+              if (!isValidSlug(safeSlug)) return null;
+              return (
               <div
-                key={post.slug}
+                key={safeSlug}
                 className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
               >
                 <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl">
                   {post.thumbnail ? (
-                    <Link href={`/blog/${post.slug}`} className="block aspect-[16/9] w-full overflow-hidden">
+                    <Link href={`/blog/${safeSlug}`} className="block aspect-[16/9] w-full overflow-hidden">
                       <Image
                         src={post.thumbnail}
                         alt=""
@@ -59,14 +68,15 @@ export default async function BlogPage() {
                     {post.description}
                   </p>
                   <Link
-                    href={`/blog/${post.slug}`}
+                    href={`/blog/${safeSlug}`}
                     className="mt-4 inline-flex items-center text-sm font-semibold text-[#0B3B36] hover:underline"
                   >
                     Read article
                   </Link>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>

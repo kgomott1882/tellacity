@@ -21,7 +21,7 @@ export default function ResourcesPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm text-gray-600">
-            Everything you need to get the most out of Tellacity — from
+            Everything you need to get the most out of Tellacity - from
             understanding trust to applying it in your business.
           </p>
         </div>

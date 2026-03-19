@@ -17,7 +17,7 @@ import NavItem from "./NavItem";
 import BusinessSwitcher from "./BusinessSwitcher";
 import { useBusinessContext } from "../_context/BusinessContext";
 
-// Single flat array — rendered in this exact order, no splits (exported for mobile drawer)
+// Single flat array - rendered in this exact order, no splits (exported for mobile drawer)
 export const NAV_ITEMS = [
   {
     label: "Analytics",
@@ -188,7 +188,7 @@ export default function Sidebar({
             );
           }
 
-          // Section item — clicking opens secondary sidebar
+          // Section item - clicking opens secondary sidebar
           const isActive = activeSection === item.key;
           return (
             <button

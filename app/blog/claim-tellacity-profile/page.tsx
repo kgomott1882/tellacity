@@ -54,8 +54,8 @@ export default function ClaimTellacityProfilePage() {
             2. Engage Directly with Your Customers
           </h2>
           <p>
-            Claiming your profile allows you to respond to reviews. Engaging with feedback—both
-            positive and negative—is one of the most powerful ways to build trust. Thanking
+            Claiming your profile allows you to respond to reviews. Engaging with feedback-both
+            positive and negative-is one of the most powerful ways to build trust. Thanking
             customers for positive reviews shows appreciation, while responding to negative reviews
             demonstrates accountability and a commitment to customer service. This dialogue turns a
             static review page into a dynamic conversation, showing potential customers that you are

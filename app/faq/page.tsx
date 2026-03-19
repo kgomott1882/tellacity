@@ -12,7 +12,7 @@ const faqItems = [
   {
     question: "Can businesses respond to reviews?",
     answer:
-      "Yes. Businesses can publicly reply to customer reviews—both positive and negative. This encourages open communication and allows businesses to resolve issues directly with customers. When a business responds, the reply is marked with an “Owner Responded” badge so readers can clearly see the conversation.",
+      "Yes. Businesses can publicly reply to customer reviews-both positive and negative. This encourages open communication and allows businesses to resolve issues directly with customers. When a business responds, the reply is marked with an “Owner Responded” badge so readers can clearly see the conversation.",
   },
   {
     question: "What is a ‘Verified Review’?",

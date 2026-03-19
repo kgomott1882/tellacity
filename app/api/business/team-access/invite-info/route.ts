@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { makeSupabase } from "../_shared";
 
 /**
- * Public endpoint — no auth required.
+ * Public endpoint - no auth required.
  * Returns the email, role, and business name for a pending invite token
  * so the accept-invite page can display context before the user sets a password.
  */

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const inviteId = typeof body.inviteId === "string" ? body.inviteId.trim() : "";
     if (!inviteId) return badRequest("inviteId is required.");
 
-    // Fetch the invite — must belong to this business and still be pending
+    // Fetch the invite - must belong to this business and still be pending
     const { data: invite, error: fetchErr } = await supabase
       .from("business_member_invites")
       .select("id, email, role, token, status")

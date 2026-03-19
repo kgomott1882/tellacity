@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     const html = `
-      <h2>New Custom Plan Request — Tellacity</h2>
+      <h2>New Custom Plan Request - Tellacity</h2>
       <p><strong>Full Name:</strong> ${fullName}</p>
       <p><strong>Company Name:</strong> ${companyName}</p>
       <p><strong>Work Email:</strong> ${email}</p>
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       from: "Tellacity Custom Plan <notifications@tellacity.com>",
       to: ["sales@tellacity.com"],
       replyTo: email,
-      subject: "New Custom Plan Request — Tellacity",
+      subject: "New Custom Plan Request - Tellacity",
       html,
     });
 

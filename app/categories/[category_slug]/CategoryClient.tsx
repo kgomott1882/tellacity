@@ -33,6 +33,12 @@ type CountryOption = {
 
 const PAGE_SIZE = 10;
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 const COUNTRIES: CountryOption[] = [
   {
     code: "US",
@@ -455,11 +461,11 @@ export default function CategoryClient({
             <span>Categories</span>
             {groupName && (
               <>
-                <span className="mx-2">›</span>
+                <span className="mx-2">â€º</span>
                 <span className="text-gray-500">{groupName}</span>
               </>
             )}
-            <span className="mx-2">›</span>
+            <span className="mx-2">â€º</span>
             <span className="text-gray-700">{title}</span>
           </nav>
 
@@ -530,7 +536,7 @@ export default function CategoryClient({
                       type="button"
                       aria-label="Close rating"
                     >
-                      ×
+                      Ã-
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-4 gap-2">
@@ -584,7 +590,7 @@ export default function CategoryClient({
                     ? "Highest number of reviews"
                     : "Most recent reviews"}
                 </span>
-                <span className="text-gray-400">▼</span>
+                <span className="text-gray-400">â–¼</span>
               </button>
 
               {sortOpen && (
@@ -653,7 +659,7 @@ export default function CategoryClient({
           </div>
 
           {/* Loading / error (minimal) */}
-          {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses…</p>}
+          {loading && <p className="mt-6 text-sm text-gray-500">Loading businessesâ€¦</p>}
           {fetchError && <p className="mt-2 text-sm text-red-600">{fetchError}</p>}
 
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
@@ -671,6 +677,8 @@ export default function CategoryClient({
 
             {businessesList.length > 0 &&
               businessesList.map((business) => {
+                const safeSlug = (business.slug ?? "").trim().toLowerCase();
+                if (!isValidSlug(safeSlug)) return null;
                 const reviewCount = (Number(business.review_count ?? 0)) || 0;
                 const ratingValue =
                   typeof business.trust_score === "number" && business.trust_score > 0
@@ -684,7 +692,7 @@ export default function CategoryClient({
                   normalizeLogoUrl(business.resolved_logo_url) ?? getLogoDevUrl(domainFromWebsite(business.website));
 
                 return (
-                  <Link key={business.id} href={`/b/${business.slug}`} className="block w-full">
+                  <Link key={business.id} href={`/b/${safeSlug}`} className="block w-full">
                       <div className="flex flex-col gap-3 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
@@ -724,7 +732,7 @@ export default function CategoryClient({
                               {ratingValue.toFixed(1)}
                             </span>
                             <span className="text-gray-500">
-                              • {reviewCount.toLocaleString("en-US")} reviews
+                              â€¢ {reviewCount.toLocaleString("en-US")} reviews
                             </span>
                           </div>
                           {locationText && (
@@ -772,16 +780,20 @@ export default function CategoryClient({
             <section className="mt-12">
               <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
               <div className="mt-4 flex flex-wrap gap-3">
-                {popularSearches.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/categories/${item.slug}`}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E]"
-                  >
-                    <span className="text-gray-500">🔍</span>
-                    {item.name}
-                  </Link>
-                ))}
+                {popularSearches.map((item) => {
+                  const safeSlug = (item.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/categories/${safeSlug}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E]"
+                    >
+                      <span className="text-gray-500">ðŸ”</span>
+                      {item.name}
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -792,15 +804,19 @@ export default function CategoryClient({
                 Explore related categories
               </h3>
               <div className="flex flex-wrap gap-3">
-                {subcategories.map((cat) => (
-                  <Link
-                    key={cat.slug}
-                    href={`/categories/${cat.slug}?country=${derivedCountry ?? "ZA"}`}
-                    className="rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E] hover:bg-gray-50"
-                  >
-                    {cat.name}
-                  </Link>
-                ))}
+                {subcategories.map((cat) => {
+                  const safeSlug = (cat.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
+                  return (
+                    <Link
+                      key={safeSlug}
+                      href={`/categories/${safeSlug}?country=${derivedCountry ?? "ZA"}`}
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E] hover:bg-gray-50"
+                    >
+                      {cat.name}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -817,7 +833,7 @@ export default function CategoryClient({
                     disabled={!recentHasPrev}
                     aria-label="Previous companies"
                   >
-                    ‹
+                    â€¹
                   </button>
                   <button
                     type="button"
@@ -826,13 +842,15 @@ export default function CategoryClient({
                     disabled={!recentHasNext}
                     aria-label="Next companies"
                   >
-                    ›
+                    â€º
                   </button>
                 </div>
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {recentCompanies.map((company) => {
+                  const safeSlug = (company.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
                   const reviewCount = (Number(company.review_count ?? 0)) || 0;
                   const ratingValue =
                     typeof company.trust_score === "number" && company.trust_score > 0
@@ -844,7 +862,7 @@ export default function CategoryClient({
                   return (
                     <Link
                       key={company.id}
-                      href={`/b/${company.slug}`}
+                      href={`/b/${safeSlug}`}
                       className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
                     >
                       <div className="flex items-start gap-3">
@@ -905,7 +923,7 @@ export default function CategoryClient({
                     onClick={() => setFiltersOpen(false)}
                     type="button"
                   >
-                    ×
+                    Ã-
                   </button>
                 </div>
 
@@ -960,7 +978,7 @@ export default function CategoryClient({
                             "Select country"
                           )}
                         </span>
-                        <span className="text-gray-400">▼</span>
+                        <span className="text-gray-400">â–¼</span>
                       </button>
 
                       {countryOpen && (
@@ -990,16 +1008,20 @@ export default function CategoryClient({
                     <div>
                       <div className="text-xs font-semibold text-gray-600">Subcategories</div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {subcategories.map((category) => (
-                          <Link
-                            key={category.id}
-                            href={`/categories/${category.slug}`}
-                            className="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:border-[#1FAF9E]"
-                            onClick={() => setFiltersOpen(false)}
-                          >
-                            {category.name}
-                          </Link>
-                        ))}
+                        {subcategories.map((category) => {
+                          const safeSlug = (category.slug ?? "").trim().toLowerCase();
+                          if (!isValidSlug(safeSlug)) return null;
+                          return (
+                            <Link
+                              key={category.id}
+                              href={`/categories/${safeSlug}`}
+                              className="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:border-[#1FAF9E]"
+                              onClick={() => setFiltersOpen(false)}
+                            >
+                              {category.name}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1025,3 +1047,4 @@ export default function CategoryClient({
     </>
   );
 }
+

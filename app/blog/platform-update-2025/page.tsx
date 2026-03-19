@@ -220,8 +220,8 @@ export default function PlatformUpdate2025Page() {
           </h2>
           <p>
             This update also introduces a new &quot;Achievements&quot; system for businesses. As
-            you hit milestones—like collecting your first 100 reviews, achieving a certain Trust
-            Score, or responding to all your feedback—you&apos;ll earn badges and recognition.
+            you hit milestones-like collecting your first 100 reviews, achieving a certain Trust
+            Score, or responding to all your feedback-you&apos;ll earn badges and recognition.
             This gamified approach is designed to motivate continuous improvement and celebrate
             your successes in building a strong online reputation.
           </p>

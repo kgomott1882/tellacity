@@ -63,7 +63,7 @@ export default function ReviewList({ payload }: { payload: WidgetPayload }) {
               {clampBody(review.body)}
             </div>
             <div style={{ marginTop: 4, fontSize: 11, color: "#9ca3af" }}>
-              — {review.reviewer_name ?? "Anonymous"}
+              - {review.reviewer_name ?? "Anonymous"}
             </div>
           </div>
         ))

@@ -267,14 +267,14 @@ export default function EmailWidgetsPage() {
                     : ""
                 }`}
               >
-                {/* Lock badge — non-elite only */}
+                {/* Lock badge - non-elite only */}
                 {normalizedPlan !== "elite" && (
                   <div className="absolute right-4 top-4 flex items-center gap-1 rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white shadow-md">
                     🔒 Locked
                   </div>
                 )}
 
-                {/* Selected checkmark — elite + active */}
+                {/* Selected checkmark - elite + active */}
                 {normalizedPlan === "elite" && isEliteBranded && (
                   <span className="absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
                     <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -316,7 +316,7 @@ export default function EmailWidgetsPage() {
                   </div>
                 </div>
 
-                {/* Upgrade nudge — non-elite only */}
+                {/* Upgrade nudge - non-elite only */}
                 {normalizedPlan !== "elite" && (
                   <div className="mt-4 text-center">
                     <p className="text-xs text-gray-600">Upgrade to Elite to use branded email layout</p>
@@ -427,7 +427,7 @@ export default function EmailWidgetsPage() {
                     {hasSignature && (
                       <div className="border-t border-gray-100 pt-3 text-xs text-gray-500">
                         <span className="font-medium text-gray-700">{template?.signature_name}</span>
-                        {" — email signature included"}
+                        {" - email signature included"}
                       </div>
                     )}
                   </div>

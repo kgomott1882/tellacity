@@ -52,7 +52,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     sectionDesc: "Writing, editing, and managing reviews.",
     title: "When are reviews removed?",
     body:
-      "Reviews are removed only if they breach our policies — such as containing abuse, false information, spam, or conflicts of interest. Negative reviews are not removed simply because a business disagrees with them.",
+      "Reviews are removed only if they breach our policies - such as containing abuse, false information, spam, or conflicts of interest. Negative reviews are not removed simply because a business disagrees with them.",
   },
   {
     section: "Trust, Verification & Moderation",
@@ -80,7 +80,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     sectionDesc: "How we keep the platform safe.",
     title: "Can businesses pay to remove reviews?",
     body:
-      "No. Businesses cannot pay to remove, hide, or alter reviews. Trust on Tellacity is built through transparency and response — not suppression.",
+      "No. Businesses cannot pay to remove, hide, or alter reviews. Trust on Tellacity is built through transparency and response - not suppression.",
   },
   {
     section: "Businesses on Tellacity",
@@ -94,7 +94,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     sectionDesc: "Tools for business owners.",
     title: "How should I respond to reviews?",
     body:
-      "Businesses are encouraged to respond professionally and constructively — especially to negative feedback. Public responses show accountability and help build trust with future customers.",
+      "Businesses are encouraged to respond professionally and constructively - especially to negative feedback. Public responses show accountability and help build trust with future customers.",
   },
   {
     section: "Businesses on Tellacity",

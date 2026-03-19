@@ -323,7 +323,7 @@ export default function ImportLocationsPage() {
                   <strong>{parsed.length}</strong> location(s) ready to import.
                   {validationErrors.length > 0 && (
                     <span className="mt-2 block text-amber-700">
-                      {validationErrors.length} validation warning(s) — only rows with all required fields are imported.
+                      {validationErrors.length} validation warning(s) - only rows with all required fields are imported.
                     </span>
                   )}
                 </p>

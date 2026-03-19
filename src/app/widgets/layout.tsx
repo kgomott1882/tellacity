@@ -1,6 +1,6 @@
 /**
  * Minimal layout for widget embed pages.
- * Renders bare HTML — no global styles, no navbar, no providers.
+ * Renders bare HTML - no global styles, no navbar, no providers.
  * Widgets are designed to be embedded inside iframes.
  */
 export default function WidgetsLayout({ children }: { children: React.ReactNode }) {

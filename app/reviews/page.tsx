@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { getAllReviewSeoPages } from "../../data/reviewSeoPages";
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 export default async function ReviewsIndexPage() {
   const pages = getAllReviewSeoPages();
 
@@ -18,10 +24,13 @@ export default async function ReviewsIndexPage() {
 
         <section className="mt-12">
           <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-            {pages.map((page) => (
+            {pages.map((page) => {
+              const safeSlug = (page.slug ?? "").trim().toLowerCase();
+              if (!isValidSlug(safeSlug)) return null;
+              return (
               <Link
-                key={page.slug}
-                href={`/reviews/${page.slug}`}
+                key={safeSlug}
+                href={`/reviews/${safeSlug}`}
                 className="block rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:border-gray-300 hover:shadow-md"
               >
                 <h2 className="text-lg font-semibold text-[#0E0E0E]">
@@ -39,7 +48,8 @@ export default async function ReviewsIndexPage() {
                   Read guide →
                 </span>
               </Link>
-            ))}
+            );
+            })}
           </div>
         </section>
       </div>

@@ -2,27 +2,40 @@ import Link from "next/link";
 import Image from "next/image";
 import { platformMeta } from "@/lib/platformMeta";
 
+type CompetitorKey = "trustpilot" | "yelp" | "feefo" | "hellopeter";
+
 const comparisons = {
   "tellacity-vs-trustpilot": {
     title: "Tellacity vs Trustpilot",
     competitor: "Trustpilot",
+    competitorKey: "trustpilot" as CompetitorKey,
     description:
       "Compare Tellacity and Trustpilot across pricing, control, branding, and actionable insights to find the best review platform for your business.",
-    pricing: {
-      tellacity: "Start free, scale as you grow",
-      competitor: "$299/month+ entry pricing",
+    quickVerdict:
+      "Tellacity offers flexible monthly pricing and full control over invites and branding. Trustpilot brings strong consumer recognition but typically requires higher entry cost and longer commitments.",
+    pricingTellacity: {
+      entry: "Start free, scale as you grow",
+      billing: "Flexible monthly - no lock-in",
+      notes: "No long-term contracts; scales with your business.",
     },
-    pros: {
-      tellacity: [
-        "Start free, scale as you grow",
-        "Full control over review invites",
-        "Custom branding and widgets",
-      ],
-      competitor: [
-        "Established brand",
-        "Large consumer traffic",
-      ],
+    pricingCompetitor: {
+      entry: "From ~$299/month",
+      billing: "Often annual",
+      notes: "Per domain; pricing tiers and add-ons vary.",
     },
+    bestForCompetitor: [
+      "Businesses operating within Trustpilot's marketplace ecosystem",
+      "Teams with budget for enterprise-style reputation programs",
+      "Businesses that value a widely recognized trust badge",
+    ],
+    featureComparison: [
+      { feature: "Review invites", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Pricing flexibility", tellacity: "✅", competitor: "❌" },
+      { feature: "Analytics", tellacity: "✅", competitor: "✅" },
+      { feature: "Global reach", tellacity: "✅", competitor: "✅" },
+      { feature: "Custom branding", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Contract requirements", tellacity: "✅", competitor: "❌" },
+    ],
     cons: {
       tellacity: ["Newer platform"],
       competitor: [
@@ -36,136 +49,233 @@ const comparisons = {
   "tellacity-vs-yelp": {
     title: "Tellacity vs Yelp",
     competitor: "Yelp",
+    competitorKey: "yelp" as CompetitorKey,
     description:
       "Compare Tellacity and Yelp to understand differences in control, visibility, and business tools.",
-    pricing: {
-      tellacity: "Free + scalable pricing",
-      competitor: "Custom / Ads-based",
+    quickVerdict:
+      "Tellacity is built for owned review programs, invites, and analytics. Yelp excels at local discovery but ties visibility closely to ads and offers limited review workflow control.",
+    pricingTellacity: {
+      entry: "Start free, scale as you grow",
+      billing: "Flexible monthly - no lock-in",
+      notes: "Predictable SaaS-style tiers as you grow.",
     },
-    pros: {
-      tellacity: [
-        "Direct invite system",
-        "Full ownership of reviews",
-        "Actionable business insights",
-      ],
-      competitor: [
-        "High local visibility",
-        "Strong brand recognition",
-      ],
+    pricingCompetitor: {
+      entry: "From ~$150/month (ads)",
+      billing: "Ad-based",
+      notes: "Spend varies by market and competition.",
     },
+    bestForCompetitor: [
+      "Local US businesses focused on Yelp discovery",
+      "Brands already investing in Yelp advertising",
+      "Lead generation tied to Yelp search",
+    ],
+    featureComparison: [
+      { feature: "Review invites", tellacity: "✅", competitor: "❌" },
+      { feature: "Pricing flexibility", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Analytics", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Global reach", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Custom branding", tellacity: "✅", competitor: "❌" },
+      { feature: "Contract requirements", tellacity: "✅", competitor: "⚠️" },
+    ],
     cons: {
       tellacity: ["Growing ecosystem"],
-      competitor: [
-        "Limited control over reviews",
-        "Advertising-dependent model",
-      ],
+      competitor: ["Limited control over reviews", "Advertising-dependent model"],
     },
   },
 
   "tellacity-vs-feefo": {
     title: "Tellacity vs Feefo",
     competitor: "Feefo",
+    competitorKey: "feefo" as CompetitorKey,
     description:
       "Compare Tellacity and Feefo across pricing, enterprise features, and flexibility.",
-    pricing: {
-      tellacity: "Free + flexible tiers",
-      competitor: "Paid enterprise pricing",
+    quickVerdict:
+      "Tellacity keeps pricing approachable with strong automation and branding. Feefo is strong for verified enterprise programs but is typically costlier and less flexible for many teams.",
+    pricingTellacity: {
+      entry: "Start free, scale as you grow",
+      billing: "Flexible monthly - no lock-in",
+      notes: "Transparent tiers without enterprise-only lock-in.",
     },
-    pros: {
-      tellacity: [
-        "Accessible pricing",
-        "Custom widgets",
-        "Actionable analytics dashboard",
-      ],
-      competitor: [
-        "Enterprise integrations",
-        "Established platform",
-      ],
+    pricingCompetitor: {
+      entry: "£149–£299/month (typical entry)",
+      billing: "Monthly / annual packages",
+      notes: "Enterprise tiers and features affect total cost.",
     },
+    bestForCompetitor: [
+      "Enterprise verified purchase review programs",
+      "Retail and e‑commerce at scale",
+      "Teams prioritizing Feefo’s verification model",
+    ],
+    featureComparison: [
+      { feature: "Review invites", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Pricing flexibility", tellacity: "✅", competitor: "❌" },
+      { feature: "Analytics", tellacity: "✅", competitor: "✅" },
+      { feature: "Global reach", tellacity: "✅", competitor: "✅" },
+      { feature: "Custom branding", tellacity: "✅", competitor: "✅" },
+      { feature: "Contract requirements", tellacity: "✅", competitor: "❌" },
+    ],
     cons: {
       tellacity: ["Smaller brand footprint"],
-      competitor: [
-        "Higher cost",
-        "Less flexible for small businesses",
-      ],
+      competitor: ["Higher cost", "Less flexible for small businesses"],
     },
   },
 
   "tellacity-vs-hellopeter": {
     title: "Tellacity vs HelloPeter",
     competitor: "HelloPeter",
+    competitorKey: "hellopeter" as CompetitorKey,
     description:
       "Compare Tellacity and HelloPeter for South African businesses looking for modern review tools.",
-    pricing: {
-      tellacity: "Start free, scale as you grow",
-      competitor: "$42/month entry pricing",
+    quickVerdict:
+      "Tellacity scales globally with automation and modern tooling. HelloPeter is a strong South African name for public feedback but has narrower global reach and lighter analytics.",
+    pricingTellacity: {
+      entry: "Start free, scale as you grow",
+      billing: "Flexible monthly - no lock-in",
+      notes: "Scales with usage; no forced annual lock-in.",
     },
-    pros: {
-      tellacity: [
-        "Modern dashboard",
-        "Better automation",
-        "Global scalability",
-      ],
-      competitor: [
-        "Strong local presence (South Africa)",
-      ],
+    pricingCompetitor: {
+      entry: "From ~$42/month",
+      billing: "Monthly",
+      notes: "Entry plans; advanced features may cost more.",
     },
+    bestForCompetitor: [
+      "South African businesses and local consumers",
+      "Complaint-forward and public reputation threads",
+      "Teams prioritizing a known regional directory",
+    ],
+    featureComparison: [
+      { feature: "Review invites", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Pricing flexibility", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Analytics", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Global reach", tellacity: "✅", competitor: "❌" },
+      { feature: "Custom branding", tellacity: "✅", competitor: "⚠️" },
+      { feature: "Contract requirements", tellacity: "✅", competitor: "⚠️" },
+    ],
     cons: {
       tellacity: ["New in market"],
-      competitor: [
-        "Limited global reach",
-        "Basic tooling",
-      ],
+      competitor: ["Limited global reach", "Basic tooling"],
     },
   },
+} as const;
+
+const BEST_FOR_TELLACITY = [
+  "Businesses that want full control over their customer feedback ecosystem",
+  "Teams focused on growth, automation, and ownership of their data",
+  "Companies scaling across multiple regions without platform limitations",
+  "Brands that want flexible pricing aligned with actual usage",
+  "Businesses that prioritize actionable insights over vanity metrics",
+  "Teams that want to build trust without relying on third-party marketplaces",
+  "Companies looking for modern infrastructure, not legacy systems",
+] as const;
+
+const FEATURE_COMPARISON_ROWS = [
+  {
+    feature: "Review invites",
+    tellacityBadge: "Built for Growth",
+    tellacitySubtext: "Automated, flexible, and scalable invite flows",
+    competitorBadge: "Restricted",
+    competitorSubtext: "Limited by platform rules or plan constraints",
+  },
+  {
+    feature: "Pricing flexibility",
+    tellacityBadge: "Usage-based",
+    tellacitySubtext: "Pay only for what you actually use",
+    competitorBadge: "Rigid",
+    competitorSubtext: "Fixed pricing with limited adaptability",
+  },
+  {
+    feature: "Analytics",
+    tellacityBadge: "Actionable insights",
+    tellacitySubtext: "Real-time data designed for decision making",
+    competitorBadge: "Surface-level",
+    competitorSubtext: "Basic metrics with limited depth",
+  },
+  {
+    feature: "Global reach",
+    tellacityBadge: "Scalable",
+    tellacitySubtext: "Works across regions without restrictions",
+    competitorBadge: "Platform-bound",
+    competitorSubtext: "Reach depends on platform ecosystem",
+  },
+  {
+    feature: "Custom branding",
+    tellacityBadge: "Fully customizable",
+    tellacitySubtext: "Control your brand experience end-to-end",
+    competitorBadge: "Limited",
+    competitorSubtext: "Restricted customization options",
+  },
+  {
+    feature: "Contract requirements",
+    tellacityBadge: "No lock-ins",
+    tellacitySubtext: "Flexible usage without long-term commitments",
+    competitorBadge: "Contract-based",
+    competitorSubtext: "Requires commitment or structured plans",
+  },
+] as const;
+
+const COMPETITOR_BEST_FOR: Record<CompetitorKey, readonly string[]> = {
+  trustpilot: [
+    "Businesses comfortable operating inside a marketplace ecosystem",
+    "Teams willing to work within fixed pricing structures",
+    "Companies that rely on external platforms for visibility",
+    "Use cases where flexibility and customization are not a priority",
+  ],
+  yelp: [
+    "Businesses operating within Yelp’s local discovery ecosystem",
+    "Teams relying on Yelp visibility for customer acquisition",
+    "Companies comfortable with platform-controlled exposure",
+    "Use cases where flexibility and ownership are not a priority",
+  ],
+  feefo: [
+    "Businesses using verified purchase review systems",
+    "Teams operating within structured enterprise workflows",
+    "Companies prioritizing verification over flexibility",
+    "Use cases where customization is not a primary requirement",
+  ],
+  hellopeter: [
+    "Businesses focused on South African visibility",
+    "Teams relying on public complaint and feedback threads",
+    "Companies operating within a regional platform ecosystem",
+    "Use cases where global scalability is not required",
+  ],
 };
 
-const competitorFeatures: Record<string, Record<string, string>> = {
-  "tellacity-vs-trustpilot": {
-    freePlan: "Limited / paid",
-    invites: "50–200 on lower tiers",
-    control: "Limited",
-    branding: "Limited",
-    widgets: "✓",
-    analytics: "✓",
-    contracts: "Annual",
-    seo: "✓",
-  },
-  "tellacity-vs-yelp": {
-    freePlan: "Free + Ads",
-    invites: "None",
-    control: "None",
-    branding: "✗",
-    widgets: "✓",
-    analytics: "Basic",
-    contracts: "Ad-based",
-    seo: "✓",
-  },
-  "tellacity-vs-feefo": {
-    freePlan: "Paid",
-    invites: "200–500",
-    control: "Controlled",
-    branding: "✓",
-    widgets: "✓",
-    analytics: "Strong",
-    contracts: "Often annual",
-    seo: "✓",
-  },
-  "tellacity-vs-hellopeter": {
-    freePlan: "$42/mo entry",
-    invites: "Limited",
-    control: "Limited",
-    branding: "Limited",
-    widgets: "✓",
-    analytics: "Basic",
-    contracts: "Monthly",
-    seo: "✓",
-  },
+const TELLACITY_DIFFERENTIATORS = [
+  "Designed for ownership - your reviews, your data, your customer relationships",
+  "Built for flexibility - no rigid plans, no forced upgrades",
+  "Focused on growth - tools that help you collect, understand, and act on feedback",
+  "Scalable by design - works across regions without platform restrictions",
+] as const;
+
+const COMPETITOR_LIMITATIONS: Record<CompetitorKey, readonly string[]> = {
+  yelp: [
+    "Limited control over how reviews are displayed",
+    "Visibility often tied to advertising spend",
+    "Customer access influenced by platform algorithms",
+  ],
+  trustpilot: [
+    "Higher entry pricing compared to flexible alternatives",
+    "Limited customization in lower tiers",
+    "Structured plans that may not adapt to all business needs",
+  ],
+  feefo: [
+    "Higher cost structure for scaling businesses",
+    "Less flexibility outside verified purchase workflows",
+    "Customization depends on plan level",
+  ],
+  hellopeter: [
+    "Limited reach outside South Africa",
+    "Basic tooling compared to modern platforms",
+    "Focused on public complaints rather than full feedback systems",
+  ],
 };
 
-function getCompetitorFeature(slug: string, key: string): string {
-  return competitorFeatures[slug]?.[key] ?? "—";
-}
+const EXPLORE_LINKS = [
+  { href: "/compare/tellacity-vs-trustpilot", competitorKey: "trustpilot" as CompetitorKey, competitorName: "Trustpilot" },
+  { href: "/compare/tellacity-vs-yelp", competitorKey: "yelp" as CompetitorKey, competitorName: "Yelp" },
+  { href: "/compare/tellacity-vs-feefo", competitorKey: "feefo" as CompetitorKey, competitorName: "Feefo" },
+  { href: "/compare/tellacity-vs-hellopeter", competitorKey: "hellopeter" as CompetitorKey, competitorName: "HelloPeter" },
+] as const;
 
 export default async function CompareSlugPage({
   params,
@@ -183,27 +293,17 @@ export default async function CompareSlugPage({
     );
   }
 
-  const featureRows = [
-    { feature: "Free Plan", tellacity: "Start free, scale as you grow", competitor: getCompetitorFeature(slug, "freePlan") },
-    { feature: "Review Invites", tellacity: "Full control, scalable", competitor: getCompetitorFeature(slug, "invites") },
-    { feature: "Control Over Reviews", tellacity: "Full", competitor: getCompetitorFeature(slug, "control") },
-    { feature: "Custom Branding", tellacity: "✓", competitor: getCompetitorFeature(slug, "branding") },
-    { feature: "Widgets", tellacity: "✓", competitor: getCompetitorFeature(slug, "widgets") },
-    { feature: "Actionable insights", tellacity: "Actionable business insights", competitor: getCompetitorFeature(slug, "analytics") },
-    { feature: "Contracts", tellacity: "Flexible monthly pricing — no lock-in", competitor: getCompetitorFeature(slug, "contracts") },
-    { feature: "SEO Benefits", tellacity: "✓", competitor: getCompetitorFeature(slug, "seo") },
-  ];
+  const competitorMeta = platformMeta[data.competitorKey];
+  const competitorBestFor = COMPETITOR_BEST_FOR[data.competitorKey];
 
   return (
     <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
-      <div className="sticky top-0 z-40 bg-[#0E0E0E]/90 backdrop-blur border-b border-neutral-800 py-3 -mx-6 mb-8">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-          <span className="text-sm text-neutral-300">
-            Start collecting verified reviews today
-          </span>
+      <div className="sticky top-0 z-40 -mx-6 mb-8 border-b border-neutral-800 bg-[#0E0E0E]/90 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
+          <span className="text-sm text-neutral-300">Start collecting verified reviews today</span>
           <Link
             href="/business/signup"
-            className="bg-[#1FAF9E] text-black px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+            className="rounded-md bg-[#1FAF9E] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
           >
             Get Started
           </Link>
@@ -211,11 +311,17 @@ export default async function CompareSlugPage({
       </div>
 
       <div className="mx-auto max-w-4xl space-y-12">
-        <div className="text-xs text-neutral-400 mb-4">
-          <Link href="/" className="hover:text-white">Home</Link> /{" "}
-          <Link href="/compare" className="hover:text-white">Compare</Link> /{" "}
-          <span className="text-white">{data.title}</span>
+        <div className="mb-4 text-xs text-neutral-400">
+          <Link href="/" className="hover:text-white">
+            Home
+          </Link>{" "}
+          /{" "}
+          <Link href="/compare" className="hover:text-white">
+            Compare
+          </Link>{" "}
+          / <span className="text-white">{data.title}</span>
         </div>
+
         <div className="space-y-4 text-center">
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-2">
@@ -226,48 +332,31 @@ export default async function CompareSlugPage({
                 height={40}
                 className="object-contain"
               />
-              <span className="text-xl font-semibold md:text-2xl">
-                {platformMeta.tellacity.name}
-              </span>
+              <span className="text-xl font-semibold md:text-2xl">{platformMeta.tellacity.name}</span>
             </div>
             <span className="text-2xl font-semibold md:text-3xl">vs</span>
             <div className="flex items-center gap-2">
               <Image
-                src={
-                  platformMeta[
-                    data.competitor.toLowerCase() as
-                      | "trustpilot"
-                      | "yelp"
-                      | "feefo"
-                      | "hellopeter"
-                  ].logo
-                }
+                src={competitorMeta.logo}
                 alt={data.competitor}
                 width={40}
                 height={40}
                 className="object-contain"
               />
-              <span className="text-xl font-semibold md:text-2xl">
-                {data.competitor}
-              </span>
+              <span className="text-xl font-semibold md:text-2xl">{data.competitor}</span>
             </div>
           </div>
           <p className="mx-auto max-w-2xl text-neutral-400">{data.description}</p>
         </div>
 
-        <section className="mb-10 border border-[#1FAF9E] rounded-xl p-5 bg-[#1FAF9E]/5">
-          <p className="text-sm text-neutral-300 leading-relaxed">
-            <span className="text-white font-medium">Quick verdict:</span>{" "}
-            Tellacity is a modern alternative with flexible monthly pricing, full control over
-            reviews, and powerful analytics — while competitors like Trustpilot and Feefo require
-            long-term contracts and higher costs.
+        <section className="mb-10 rounded-xl border border-[#1FAF9E] bg-[#1FAF9E]/5 p-5">
+          <p className="text-sm leading-relaxed text-neutral-300">
+            <span className="font-medium text-white">Quick verdict:</span> {data.quickVerdict}
           </p>
         </section>
 
         <section className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold md:text-3xl">
-            Pricing comparison
-          </h2>
+          <h2 className="mb-6 text-2xl font-semibold md:text-3xl">Pricing comparison</h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-sm">
               <thead>
@@ -280,274 +369,44 @@ export default async function CompareSlugPage({
               </thead>
               <tbody className="text-white">
                 <tr className="border-b border-neutral-800">
-                  <td className="py-3 font-semibold text-[#1FAF9E] bg-[#1FAF9E]/10 rounded-l-md">
-                    Tellacity
-                  </td>
-                  <td className="py-3 text-[#1FAF9E] bg-[#1FAF9E]/5">
-                    Start free, scale as you grow
-                  </td>
-                  <td className="py-3 bg-[#1FAF9E]/5">
-                    Flexible monthly pricing — no lock-in
-                  </td>
-                  <td className="py-3 text-neutral-400 bg-[#1FAF9E]/5 rounded-r-md">
-                    No contracts. Scales with your business.
-                  </td>
-                </tr>
-                <tr className="border-b border-neutral-800">
-                  <td className="py-3">Trustpilot</td>
-                  <td className="py-3">From $299/month</td>
-                  <td className="py-3">Annual contract</td>
-                  <td className="py-3 text-neutral-400">
-                    Per domain. Billed annually.
-                  </td>
-                </tr>
-                <tr className="border-b border-neutral-800">
-                  <td className="py-3">Feefo</td>
-                  <td className="py-3">£149–£299/month</td>
-                  <td className="py-3">Monthly</td>
-                  <td className="py-3 text-neutral-400">
-                    Pricing varies by package and features.
-                  </td>
-                </tr>
-                <tr className="border-b border-neutral-800">
-                  <td className="py-3">HelloPeter</td>
-                  <td className="py-3">From $42/month</td>
-                  <td className="py-3">Monthly</td>
-                  <td className="py-3 text-neutral-400">
-                    Entry-level pricing. Features limited.
+                  <td className="rounded-l-md bg-[#1FAF9E]/10 py-3 font-semibold text-[#1FAF9E]">Tellacity</td>
+                  <td className="bg-[#1FAF9E]/5 py-3 text-[#1FAF9E]">{data.pricingTellacity.entry}</td>
+                  <td className="bg-[#1FAF9E]/5 py-3">{data.pricingTellacity.billing}</td>
+                  <td className="rounded-r-md bg-[#1FAF9E]/5 py-3 text-neutral-400">
+                    {data.pricingTellacity.notes}
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-3">Yelp</td>
-                  <td className="py-3">From $150/month (ads)</td>
-                  <td className="py-3">Ad-based</td>
-                  <td className="py-3 text-neutral-400">
-                    Ad spend varies based on competition.
-                  </td>
+                  <td className="py-3 font-semibold">{data.competitor}</td>
+                  <td className="py-3">{data.pricingCompetitor.entry}</td>
+                  <td className="py-3">{data.pricingCompetitor.billing}</td>
+                  <td className="py-3 text-neutral-400">{data.pricingCompetitor.notes}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-neutral-500 mt-3">
-            Pricing shown is based on publicly available entry-level plans. Actual costs may increase
-            depending on features, usage, and contract terms.
-          </p>
-          <p className="text-xs text-neutral-500 mt-2">
-            Platform reach affects visibility, customer trust, and scalability across markets.
+          <p className="mt-3 text-xs text-neutral-500">
+            Pricing shown is based on publicly available entry-level plans. Actual costs may increase depending on
+            features, usage, and contract terms.
           </p>
         </section>
 
-        <div className="mb-12 border border-[#1FAF9E] rounded-xl p-5 bg-[#1FAF9E]/5">
-          <h3 className="font-semibold mb-2 text-white">Transparent pricing matters</h3>
-
-          <p className="text-sm text-neutral-300 leading-relaxed">
-            Many review platforms advertise &quot;starting from&quot; pricing, but actual costs can
-            increase significantly based on features, usage, and long-term contracts. Tellacity
-            offers clear, flexible monthly pricing so you always know what you&apos;re paying.
+        <div className="mb-12 rounded-xl border border-[#1FAF9E] bg-[#1FAF9E]/5 p-5">
+          <h3 className="mb-2 font-semibold text-white">Transparent pricing matters</h3>
+          <p className="text-sm leading-relaxed text-neutral-300">
+            Many platforms advertise &quot;starting from&quot; pricing while total cost grows with add-ons and
+            contracts. Tellacity uses clear, flexible monthly pricing so you know what you&apos;re paying.
           </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-xl border border-[#1FAF9E] bg-[#1FAF9E]/10 p-6">
-            <div className="mb-2 flex items-center gap-2">
-              <Image
-                src={platformMeta.tellacity.logo}
-                alt={platformMeta.tellacity.name}
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-              <h3 className="font-semibold">{platformMeta.tellacity.name}</h3>
-            </div>
-            <p className="text-neutral-300">{data.pricing.tellacity}</p>
-          </div>
-          <div className="rounded-xl border border-neutral-800 p-6">
-            <div className="mb-2 flex items-center gap-2">
-              <Image
-                src={
-                  platformMeta[
-                    data.competitor.toLowerCase() as
-                      | "trustpilot"
-                      | "yelp"
-                      | "feefo"
-                      | "hellopeter"
-                  ].logo
-                }
-                alt={data.competitor}
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-              <h3 className="font-semibold">{data.competitor}</h3>
-            </div>
-            <p className="text-neutral-400">{data.pricing.competitor}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4">
-            <h3 className="font-semibold">Why choose Tellacity</h3>
-            <ul className="space-y-2 text-neutral-300">
-              {data.pros.tellacity.map((item, i) => (
-                <li key={i}>• {item}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-4">
-            <h3 className="font-semibold">Why choose {data.competitor}</h3>
-            <ul className="space-y-2 text-neutral-400">
-              {data.pros.competitor.map((item, i) => (
-                <li key={i}>• {item}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="text-center my-12">
-          <Link
-            href="/business/signup"
-            className="bg-[#1FAF9E] text-black px-6 py-3 rounded-lg font-medium hover:opacity-90"
-          >
-            Start with Tellacity
-          </Link>
-          <p className="text-xs text-neutral-500 mt-2">
-            No hidden fees. No long-term contracts.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="mb-2 font-semibold">Limitations of Tellacity</h3>
-            <ul className="space-y-2 text-neutral-400">
-              {data.cons.tellacity.map((item, i) => (
-                <li key={i}>• {item}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="mb-2 font-semibold">Limitations of {data.competitor}</h3>
-            <ul className="space-y-2 text-neutral-400">
-              {data.cons.competitor.map((item, i) => (
-                <li key={i}>• {item}</li>
-              ))}
-            </ul>
-          </div>
         </div>
 
         <section className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold md:text-3xl">
-            What you actually get
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src={platformMeta.tellacity.logo}
-                  alt={platformMeta.tellacity.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="font-semibold text-[#1FAF9E]">
-                  {platformMeta.tellacity.name}
-                </h3>
-              </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
-                <li>Unlimited review invites (plan-based scaling)</li>
-                <li>Full control over reviews</li>
-                <li>Custom branding &amp; widgets</li>
-                <li>Actionable analytics dashboard</li>
-                <li>Flexible monthly pricing — no lock-in</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src={platformMeta.trustpilot.logo}
-                  alt={platformMeta.trustpilot.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="font-semibold">{platformMeta.trustpilot.name}</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
-                <li>50–200 invites on lower tiers</li>
-                <li>High monthly cost ($299+)</li>
-                <li>Limited customization</li>
-                <li>Add-ons required for advanced features</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src={platformMeta.feefo.logo}
-                  alt={platformMeta.feefo.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="font-semibold">{platformMeta.feefo.name}</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
-                <li>200–500 invites</li>
-                <li>Strong analytics tools</li>
-                <li>Enterprise-focused pricing</li>
-                <li>Extra features cost more</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src={platformMeta.yelp.logo}
-                  alt={platformMeta.yelp.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="font-semibold">{platformMeta.yelp.name}</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
-                <li>Free listing</li>
-                <li>Pay for ads to gain visibility</li>
-                <li>No control over review system</li>
-                <li>Lead-generation focused</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-              <div className="mb-3 flex items-center gap-2">
-                <Image
-                  src={platformMeta.hellopeter.logo}
-                  alt={platformMeta.hellopeter.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="font-semibold">{platformMeta.hellopeter.name}</h3>
-              </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
-                <li>Review collection tools</li>
-                <li>Social proof features</li>
-                <li>Limited analytics</li>
-                <li>South Africa-focused</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-16 border border-neutral-800 rounded-xl p-6 text-center bg-[#111]">
-          <p className="text-sm text-neutral-400">
-            Trusted by growing businesses looking for a modern review platform.
-          </p>
-        </section>
-
-        <section className="mb-16 overflow-hidden rounded-xl border border-neutral-800">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[400px] text-sm">
+          <h2 className="text-2xl font-semibold mb-6">Feature comparison</h2>
+          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
+            <table className="w-full min-w-[780px] text-sm">
               <thead>
-                <tr className="border-b border-neutral-800 bg-neutral-900/50 text-neutral-400">
-                  <th className="py-3 pl-4 text-left font-medium">Feature</th>
-                  <th className="py-3 pl-4 text-left font-medium">
+                <tr className="border-b border-white/5">
+                  <th className="py-5 pl-6 text-left font-medium text-white/70">Feature</th>
+                  <th className="border-l border-r border-emerald-500/20 bg-emerald-500/5 py-5 pl-6 text-left font-medium text-white">
                     <div className="flex items-center gap-2">
                       <Image
                         src={platformMeta.tellacity.logo}
@@ -559,36 +418,30 @@ export default async function CompareSlugPage({
                       <span>{platformMeta.tellacity.name}</span>
                     </div>
                   </th>
-                  <th className="py-3 pl-4 text-left font-medium">
+                  <th className="py-5 pl-6 text-left font-medium text-white/70">
                     <div className="flex items-center gap-2">
-                      <Image
-                        src={
-                          platformMeta[
-                            data.competitor.toLowerCase() as
-                              | "trustpilot"
-                              | "yelp"
-                              | "feefo"
-                              | "hellopeter"
-                          ].logo
-                        }
-                        alt={data.competitor}
-                        width={36}
-                        height={36}
-                        className="object-contain"
-                      />
+                      <Image src={competitorMeta.logo} alt={data.competitor} width={36} height={36} className="object-contain" />
                       <span>{data.competitor}</span>
                     </div>
                   </th>
                 </tr>
               </thead>
-              <tbody className="text-white">
-                {featureRows.map((row, i) => (
-                  <tr key={i} className="border-b border-neutral-800 last:border-b-0">
-                    <td className="py-3 pl-4 text-neutral-400">{row.feature}</td>
-                    <td className="py-3 pl-4 text-[#1FAF9E] bg-[#1FAF9E]/10 font-semibold">
-                      {row.tellacity}
+              <tbody>
+                {FEATURE_COMPARISON_ROWS.map((row) => (
+                  <tr key={row.feature} className="border-b border-white/5 transition hover:bg-white/5 last:border-b-0">
+                    <td className="py-5 pl-6 align-top text-white/80">{row.feature}</td>
+                    <td className="border-l border-r border-emerald-500/20 bg-emerald-500/5 py-5 pl-6 align-top">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {row.tellacityBadge}
+                      </span>
+                      <p className="mt-2 text-sm text-neutral-300">{row.tellacitySubtext}</p>
                     </td>
-                    <td className="py-3 pl-4">{row.competitor}</td>
+                    <td className="py-5 pl-6 align-top">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                        {row.competitorBadge}
+                      </span>
+                      <p className="mt-2 text-sm text-neutral-400">{row.competitorSubtext}</p>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -596,14 +449,11 @@ export default async function CompareSlugPage({
           </div>
         </section>
 
-        <section className="mt-16">
-          <h2 className="text-2xl font-semibold mb-6">
-            Platform positioning &amp; focus
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="border border-[#1FAF9E] rounded-xl p-6 bg-[#1FAF9E]/5">
-              <div className="flex items-center gap-2 mb-3">
+        <section className="mb-16">
+          <h2 className="text-2xl font-semibold mb-6 mt-20">Best for</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/5 to-transparent p-6 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+              <div className="mb-3 flex items-center gap-2">
                 <Image
                   src={platformMeta.tellacity.logo}
                   alt={platformMeta.tellacity.name}
@@ -611,181 +461,131 @@ export default async function CompareSlugPage({
                   height={40}
                   className="object-contain"
                 />
-                <h3 className="text-sm font-semibold text-[#1FAF9E]">
-                  {platformMeta.tellacity.name}
-                </h3>
+                <h3 className="font-semibold text-white">Tellacity</h3>
               </div>
-
-              <p className="text-sm text-neutral-300 mb-2">
-                Modern, global review platform built for flexibility and growth.
-              </p>
-
-              <ul className="text-xs text-neutral-400 space-y-1">
-                <li>• Global-first platform</li>
-                <li>• Monthly pricing (no contracts)</li>
-                <li>• Built for startups → enterprise scaling</li>
-                <li>• Focus on analytics + control</li>
-                <li>• Designed as a modern global alternative</li>
+              <ul className="space-y-2 text-neutral-300">
+                {BEST_FOR_TELLACITY.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
               </ul>
             </div>
-
-            <div className="border border-neutral-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Image
-                  src={platformMeta.trustpilot.logo}
-                  alt={platformMeta.trustpilot.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="text-sm font-semibold">
-                  {platformMeta.trustpilot.name}
-                </h3>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-80">
+              <div className="mb-3 flex items-center gap-2">
+                <Image src={competitorMeta.logo} alt={data.competitor} width={40} height={40} className="object-contain" />
+                <h3 className="font-semibold text-white">{data.competitor}</h3>
               </div>
-
-              <p className="text-sm text-neutral-300 mb-2">
-                Established global review platform focused on enterprise trust and brand reputation.
-              </p>
-
-              <ul className="text-xs text-neutral-400 space-y-1">
-                <li>• Global presence</li>
-                <li>• Strong brand recognition</li>
-                <li>• Enterprise-focused pricing</li>
-                <li>• Long-term contracts common</li>
-              </ul>
-            </div>
-
-            <div className="border border-neutral-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Image
-                  src={platformMeta.yelp.logo}
-                  alt={platformMeta.yelp.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="text-sm font-semibold">
-                  {platformMeta.yelp.name}
-                </h3>
-              </div>
-
-              <p className="text-sm text-neutral-300 mb-2">
-                Local discovery and advertising platform centered around visibility and lead generation.
-              </p>
-
-              <ul className="text-xs text-neutral-400 space-y-1">
-                <li>• Strong local search presence</li>
-                <li>• Ad-driven business model</li>
-                <li>• Limited control over reviews</li>
-                <li>• Focus on US and local markets</li>
-              </ul>
-            </div>
-
-            <div className="border border-neutral-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Image
-                  src={platformMeta.feefo.logo}
-                  alt={platformMeta.feefo.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="text-sm font-semibold">
-                  {platformMeta.feefo.name}
-                </h3>
-              </div>
-
-              <p className="text-sm text-neutral-300 mb-2">
-                Verified review platform focused on transactional feedback and enterprise insights.
-              </p>
-
-              <ul className="text-xs text-neutral-400 space-y-1">
-                <li>• UK-origin platform with global clients</li>
-                <li>• Strong verification model</li>
-                <li>• Enterprise-oriented pricing</li>
-                <li>• Analytics-focused</li>
-              </ul>
-            </div>
-
-            <div className="border border-neutral-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Image
-                  src={platformMeta.hellopeter.logo}
-                  alt={platformMeta.hellopeter.name}
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                />
-                <h3 className="text-sm font-semibold">
-                  {platformMeta.hellopeter.name}
-                </h3>
-              </div>
-
-              <p className="text-sm text-neutral-300 mb-2">
-                Regional review platform focused on customer complaints and public feedback.
-              </p>
-
-              <ul className="text-xs text-neutral-400 space-y-1">
-                <li>• Strong presence in South Africa</li>
-                <li>• Complaint-driven reviews</li>
-                <li>• Limited global reach</li>
-                <li>• Basic analytics tools</li>
+              <ul className="space-y-2 text-neutral-300">
+                {competitorBestFor.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
               </ul>
             </div>
           </div>
         </section>
 
-        <section className="mb-16">
-          <h2 className="text-2xl font-semibold mb-6">
-            Why businesses switch to Tellacity
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="border border-neutral-800 rounded-xl p-5">
-              <h3 className="font-medium mb-2">No long-term contracts</h3>
-              <p className="text-sm text-neutral-400">
-                Unlike competitors, Tellacity uses flexible monthly pricing with no lock-in.
-              </p>
-            </div>
-
-            <div className="border border-neutral-800 rounded-xl p-5">
-              <h3 className="font-medium mb-2">Full control over reviews</h3>
-              <p className="text-sm text-neutral-400">
-                Own your customer feedback and manage your reputation on your terms.
-              </p>
-            </div>
-
-            <div className="border border-neutral-800 rounded-xl p-5">
-              <h3 className="font-medium mb-2">Built for growth</h3>
-              <p className="text-sm text-neutral-400">
-                Advanced analytics, invite systems, and automation to scale your business.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-16">
-          <div className="rounded-xl border border-neutral-800 bg-[#111] p-6">
-            <h2 className="mb-4 text-xl font-semibold">
-              A new approach to review management
-            </h2>
-            <p className="text-sm leading-relaxed text-neutral-400">
-              Tellacity focuses on control, automation, and transparent pricing. You get full control over reviews, flexible monthly pricing without long-term contracts, and tools designed to scale with your business. If you want visibility in search, use Google alongside a dedicated platform; if you want to own the review process without high fixed costs, Tellacity is built for that.
+        <section className="mt-24">
+          <div className="max-w-6xl mx-auto px-6">
+            <h2 className="text-3xl font-semibold text-white mb-4">Why businesses switch to Tellacity</h2>
+            <p className="text-white/60 max-w-2xl mb-10">
+              Most businesses start with traditional platforms - then move to Tellacity when they need more control,
+              flexibility, and real growth.
             </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
+                <h3 className="text-lg font-semibold text-white mb-2">From platform dependency → full ownership</h3>
+                <p className="text-neutral-300">
+                  Stop relying on third-party marketplaces to manage your reputation. Tellacity gives you full control
+                  over your reviews, data, and customer relationships.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
+                <h3 className="text-lg font-semibold text-white mb-2">From rigid pricing → flexible growth</h3>
+                <p className="text-neutral-300">
+                  Traditional platforms lock you into fixed plans. Tellacity adapts to your business with usage-based
+                  pricing that scales as you grow.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
+                <h3 className="text-lg font-semibold text-white mb-2">From passive reviews → active insights</h3>
+                <p className="text-neutral-300">
+                  Go beyond collecting reviews. Turn feedback into real-time insights that help you improve, respond,
+                  and grow faster.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
+                <h3 className="text-lg font-semibold text-white mb-2">From limitations → scalability</h3>
+                <p className="text-neutral-300">
+                  Whether you&apos;re operating locally or globally, Tellacity is built to scale without restrictions,
+                  contracts, or platform limitations.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-12 text-center">
+              <a
+                href="/get-started"
+                className="inline-flex items-center px-6 py-3 rounded-xl bg-emerald-500 text-black font-medium hover:bg-emerald-400 transition"
+              >
+                Get started with Tellacity
+              </a>
+            </div>
           </div>
         </section>
 
-        <p className="text-sm text-neutral-400 mb-8">
-          <Link href="/compare" className="text-[#1FAF9E] hover:underline">
-            View all comparison pages
-          </Link>
-        </p>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+            <h3 className="mb-2 font-semibold">Why Tellacity is built differently</h3>
+            <ul className="space-y-2 text-neutral-300">
+              {TELLACITY_DIFFERENTIATORS.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-90">
+            <h3 className="mb-2 font-semibold">Limitations of {data.competitor}</h3>
+            <ul className="space-y-2 text-neutral-300">
+              {COMPETITOR_LIMITATIONS[data.competitorKey].map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <section className="border-t border-neutral-800 pt-12">
+          <h2 className="mb-4 text-xl font-semibold">Explore other comparisons</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {EXPLORE_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-label={`Tellacity vs ${l.competitorName}`}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
+              >
+                <Image
+                  src={platformMeta[l.competitorKey].logo}
+                  alt={l.competitorName}
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                />
+                <span className="font-medium text-white">{l.competitorName}</span>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-neutral-400">
+            <Link href="/compare" className="text-[#1FAF9E] hover:underline">
+              View all platforms on the compare hub
+            </Link>
+          </p>
+        </section>
 
         <div className="space-y-4 pt-8 text-center">
-          <h2 className="text-2xl font-semibold mb-3">
-            Ready to switch to a better review platform?
-          </h2>
-          <p className="text-neutral-400 mb-6">
+          <h2 className="mb-3 text-2xl font-semibold">Ready to switch to a better review platform?</h2>
+          <p className="mb-6 text-neutral-400">
             Join businesses choosing flexibility, transparency, and growth with Tellacity.
           </p>
           <Link
@@ -794,9 +594,7 @@ export default async function CompareSlugPage({
           >
             Get Started
           </Link>
-          <p className="text-xs text-neutral-500 mt-2">
-            No hidden fees. No long-term contracts.
-          </p>
+          <p className="mt-2 text-xs text-neutral-500">No hidden fees. No long-term contracts.</p>
         </div>
       </div>
       <script

@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+const isValidSlug = (slug: string) => {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+};
+
 import { MapPin, Search, Building2, Shield, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -149,9 +155,9 @@ export default function LocationsPage() {
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {selectedBusiness?.slug && (
+                    {selectedBusiness?.slug && isValidSlug(selectedBusiness.slug) && (
                       <Link
-                        href={`/b/${selectedBusiness.slug}/l/${loc.id}`}
+                        href={`/b/${selectedBusiness.slug.trim().toLowerCase()}/l/${loc.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 hover:text-[#124541]"

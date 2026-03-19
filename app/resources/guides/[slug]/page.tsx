@@ -75,8 +75,8 @@ export default async function GuideCategoryPage(
             </h2>
             <p className="text-gray-600 leading-relaxed mb-6">
               Trust is no longer a soft metric. Consumers and B2B buyers rely on
-              transparent signals—verified reviews, clear policies, and consistent
-              evidence—before committing. Organizations that invest in trust
+              transparent signals-verified reviews, clear policies, and consistent
+              evidence-before committing. Organizations that invest in trust
               infrastructure see stronger retention, higher conversion, and
               more resilient reputations.
             </p>

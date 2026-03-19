@@ -10,7 +10,7 @@ export default function WidgetsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // No <html>/<body> — the root layout provides those.
+  // No <html>/<body> - the root layout provides those.
   // This layout simply strips out navbar/footer (handled via ConditionalNavbar/Footer)
   // and wraps widget content in a clean, isolated container.
   return (

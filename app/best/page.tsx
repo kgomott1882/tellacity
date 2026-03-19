@@ -7,6 +7,12 @@ type GroupRow = {
   name: string | null;
 };
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 export async function generateMetadata() {
   return {
     title: "Best Companies by Category | Tellacity",
@@ -31,9 +37,13 @@ export default async function BestPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     itemListElement: list
-      .filter((g) => g.group_slug ?? g.slug)
+      .filter((g) => {
+        const raw = g.group_slug ?? g.slug ?? "";
+        const safeSlug = raw.trim().toLowerCase();
+        return isValidSlug(safeSlug);
+      })
       .map((g, index) => {
-        const slug = g.group_slug ?? g.slug ?? "";
+        const slug = (g.group_slug ?? g.slug ?? "").trim().toLowerCase();
         return {
           "@type": "ListItem",
           position: index + 1,
@@ -60,7 +70,8 @@ export default async function BestPage() {
 
           <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3">
             {list.map((group) => {
-              const slug = group.group_slug ?? group.slug ?? "";
+              const slug = (group.group_slug ?? group.slug ?? "").trim().toLowerCase();
+              if (!isValidSlug(slug)) return null;
               const name = (group.name ?? slug) || "Category group";
               return (
                 <Link

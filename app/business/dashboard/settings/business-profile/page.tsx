@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Business Profile — consolidated settings page.
+ * Business Profile - consolidated settings page.
  * Sections: Basic Info · Description · Contact Info · Categories · Locations · Review Settings (reference number)
  *
  * All logic is preserved from the original split pages:

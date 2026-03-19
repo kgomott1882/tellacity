@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       }
       invite = updated;
     } else {
-      // No existing row — insert fresh
+      // No existing row - insert fresh
       const { data: inserted, error: insertErr } = await supabase
         .from("business_member_invites")
         .insert({

@@ -2,8 +2,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { platformMeta } from "@/lib/platformMeta";
 
+const GOOGLE_LOGO_SIZE = 160;
+
 export default function ComparePage() {
   const platforms = ["tellacity", "trustpilot", "yelp", "feefo", "hellopeter"] as const;
+
+  const platformPositioning: Record<(typeof platforms)[number], string> = {
+    tellacity: "Modern review management, automation, and global scale",
+    trustpilot: "Enterprise-grade trust signals and consumer marketplace reach",
+    yelp: "Local discovery and advertising (especially US)",
+    feefo: "Verified purchase reviews for enterprise programs",
+    hellopeter: "South Africa–focused public feedback and complaints",
+  };
 
   const tableRows = [
     {
@@ -82,20 +92,26 @@ export default function ComparePage() {
 
   const bestFor = [
     { platform: "Tellacity", text: "Businesses that want full control and automation" },
-    { platform: "Trustpilot", text: "Large brands needing global visibility" },
+    { platform: "Trustpilot", text: "Businesses using marketplace visibility at scale" },
     { platform: "Yelp", text: "Local discovery and advertising" },
     { platform: "Feefo", text: "Enterprise verified review programs" },
     { platform: "Hellopeter", text: "South African complaint-driven reviews" },
   ];
 
+  const individualCompareLinks = [
+    { href: "/compare/tellacity-vs-trustpilot", label: "Tellacity vs Trustpilot", competitorKey: "trustpilot" as const },
+    { href: "/compare/tellacity-vs-yelp", label: "Tellacity vs Yelp", competitorKey: "yelp" as const },
+    { href: "/compare/tellacity-vs-feefo", label: "Tellacity vs Feefo", competitorKey: "feefo" as const },
+    { href: "/compare/tellacity-vs-hellopeter", label: "Tellacity vs HelloPeter", competitorKey: "hellopeter" as const },
+    { href: "/compare/tellacity-vs-google", label: "Tellacity vs Google Reviews", competitorKey: "google" as const, wide: true },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-[#0E0E0E] text-white px-6 py-16">
+    <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
       <div className="mx-auto max-w-6xl">
-        {/* 1. HERO SECTION */}
+        {/* 1. Hero */}
         <section className="mb-16 text-center">
-          <h1 className="text-3xl font-semibold text-white md:text-4xl">
-            Compare Review Platforms
-          </h1>
+          <h1 className="text-3xl font-semibold text-white md:text-4xl">Compare review platforms</h1>
           <p className="mx-auto mt-4 max-w-2xl text-neutral-400">
             See how Tellacity compares with Trustpilot, Yelp, Feefo, HelloPeter and Google Reviews
           </p>
@@ -107,8 +123,14 @@ export default function ComparePage() {
           </Link>
         </section>
 
-        {/* 2. PLATFORM CARDS */}
-        <section className="mb-16">
+        {/* 2. Platform grid (positioning) */}
+        <section className="mb-16" aria-labelledby="platform-overview-heading">
+          <h2 id="platform-overview-heading" className="mb-2 text-2xl font-semibold text-white md:text-3xl">
+            Platform overview
+          </h2>
+          <p className="mb-8 max-w-3xl text-sm text-neutral-400">
+            How each platform is positioned - use the full comparison table below for feature-by-feature detail.
+          </p>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
             {platforms.map((key) => {
               const platform = platformMeta[key];
@@ -116,7 +138,7 @@ export default function ComparePage() {
               return (
                 <div
                   key={key}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center text-neutral-300 transition-colors hover:border-[#1FAF9E] ${
+                  className={`flex flex-col items-center justify-start gap-2 rounded-xl border p-4 text-center transition-colors hover:border-[#1FAF9E] ${
                     isTellacity ? "border-[#1FAF9E]/40 bg-[#1FAF9E]/5" : "border-neutral-800"
                   }`}
                 >
@@ -127,191 +149,158 @@ export default function ComparePage() {
                     height={80}
                     className="object-contain"
                   />
-                  <span className="text-sm">{platform.name}</span>
+                  <span className="text-sm font-medium text-neutral-200">{platform.name}</span>
+                  <span className="text-xs leading-snug text-neutral-500">{platformPositioning[key]}</span>
                 </div>
               );
             })}
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-neutral-800 p-4 text-center text-neutral-300 transition-colors hover:border-[#1FAF9E]">
+            <div className="flex flex-col items-center justify-start gap-2 rounded-xl border border-neutral-800 p-4 text-center transition-colors hover:border-[#1FAF9E]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/googlereviews.png"
                 alt="Google Reviews"
-                className="mb-2 h-6 w-6 object-contain object-center"
+                className="mb-1 h-40 w-40 object-contain object-center"
               />
+              <span className="text-sm font-medium text-neutral-200">Google Reviews</span>
+              <span className="text-xs leading-snug text-neutral-500">
+                Search &amp; Maps visibility; no subscription for reviews
+              </span>
             </div>
           </div>
         </section>
 
-        <div className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold">
-            Compare Tellacity vs Other Platforms
+        {/* 3. Full comparison table */}
+        <section id="full-comparison" className="mb-8" aria-labelledby="full-comparison-heading">
+          <h2 id="full-comparison-heading" className="mb-6 text-2xl font-semibold md:text-3xl">
+            Full comparison
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Link
-              href="/compare/tellacity-vs-trustpilot"
-              className="block rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-white/20 hover:bg-white/[0.03]"
-            >
-              Tellacity vs Trustpilot
-            </Link>
-            <Link
-              href="/compare/tellacity-vs-yelp"
-              className="block rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-white/20 hover:bg-white/[0.03]"
-            >
-              Tellacity vs Yelp
-            </Link>
-            <Link
-              href="/compare/tellacity-vs-feefo"
-              className="block rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-white/20 hover:bg-white/[0.03]"
-            >
-              Tellacity vs Feefo
-            </Link>
-            <Link
-              href="/compare/tellacity-vs-hellopeter"
-              className="block rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-white/20 hover:bg-white/[0.03]"
-            >
-              Tellacity vs HelloPeter
-            </Link>
-            <div className="md:col-span-2">
-              <Link
-                href="/compare/tellacity-vs-google"
-                className="block rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-white/20 hover:bg-white/[0.03]"
-              >
-                Tellacity vs Google Reviews
-              </Link>
+          <div className="mb-16 overflow-hidden rounded-xl border border-neutral-800">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="bg-neutral-900">
+                    <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      Feature
+                    </th>
+                    <th className="border-b border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.tellacity.logo}
+                          alt={platformMeta.tellacity.name}
+                          width={72}
+                          height={72}
+                          className="object-contain"
+                        />
+                        <span className="hidden sm:inline">{platformMeta.tellacity.name}</span>
+                      </div>
+                    </th>
+                    <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.trustpilot.logo}
+                          alt={platformMeta.trustpilot.name}
+                          width={72}
+                          height={72}
+                          className="object-contain"
+                        />
+                        <span className="hidden sm:inline">{platformMeta.trustpilot.name}</span>
+                      </div>
+                    </th>
+                    <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.yelp.logo}
+                          alt={platformMeta.yelp.name}
+                          width={72}
+                          height={72}
+                          className="object-contain"
+                        />
+                        <span className="hidden sm:inline">{platformMeta.yelp.name}</span>
+                      </div>
+                    </th>
+                    <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.feefo.logo}
+                          alt={platformMeta.feefo.name}
+                          width={72}
+                          height={72}
+                          className="object-contain"
+                        />
+                        <span className="hidden sm:inline">{platformMeta.feefo.name}</span>
+                      </div>
+                    </th>
+                    <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.hellopeter.logo}
+                          alt={platformMeta.hellopeter.name}
+                          width={72}
+                          height={72}
+                          className="object-contain"
+                        />
+                        <span className="hidden sm:inline">{platformMeta.hellopeter.name}</span>
+                      </div>
+                    </th>
+                    <th className="border-b border-neutral-800 px-4 py-3 text-left text-sm font-medium text-white">
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src={platformMeta.google.logo}
+                          alt={platformMeta.google.name}
+                          width={GOOGLE_LOGO_SIZE}
+                          height={GOOGLE_LOGO_SIZE}
+                          className="h-40 w-40 object-contain"
+                        />
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.map((row, i) => (
+                    <tr key={i} className="border-b border-neutral-800 last:border-b-0">
+                      <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
+                        {row.feature}
+                      </td>
+                      <td className="border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-sm text-neutral-300">
+                        {row.tellacity}
+                      </td>
+                      <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
+                        {row.trustpilot}
+                      </td>
+                      <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
+                        {row.yelp}
+                      </td>
+                      <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
+                        {row.feefo}
+                      </td>
+                      <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
+                        {row.hellopeter}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-300">{row.google}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-
-        {/* 3. COMPARISON TABLE */}
-        <section className="mb-16 overflow-hidden rounded-xl border border-neutral-800">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="bg-neutral-900">
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    Feature
-                  </th>
-                  <th className="border-b border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.tellacity.logo}
-                        alt={platformMeta.tellacity.name}
-                        width={72}
-                        height={72}
-                        className="object-contain"
-                      />
-                      <span>{platformMeta.tellacity.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.trustpilot.logo}
-                        alt={platformMeta.trustpilot.name}
-                        width={72}
-                        height={72}
-                        className="object-contain"
-                      />
-                      <span>{platformMeta.trustpilot.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.yelp.logo}
-                        alt={platformMeta.yelp.name}
-                        width={72}
-                        height={72}
-                        className="object-contain"
-                      />
-                      <span>{platformMeta.yelp.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.feefo.logo}
-                        alt={platformMeta.feefo.name}
-                        width={72}
-                        height={72}
-                        className="object-contain"
-                      />
-                      <span>{platformMeta.feefo.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-r border-neutral-800 px-4 py-3 text-left text-sm font-medium text-neutral-300">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.hellopeter.logo}
-                        alt={platformMeta.hellopeter.name}
-                        width={72}
-                        height={72}
-                        className="object-contain"
-                      />
-                      <span>{platformMeta.hellopeter.name}</span>
-                    </div>
-                  </th>
-                  <th className="border-b border-neutral-800 px-4 py-3 text-left text-sm font-medium text-white">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={platformMeta.google.logo}
-                        alt={platformMeta.google.name}
-                        width={144}
-                        height={144}
-                        className="object-contain"
-                      />
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((row, i) => (
-                  <tr key={i} className="border-b border-neutral-800 last:border-b-0">
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
-                      {row.feature}
-                    </td>
-                    <td className="border-r border-neutral-800 bg-[#1FAF9E]/10 px-4 py-3 text-sm text-neutral-300">
-                      {row.tellacity}
-                    </td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
-                      {row.trustpilot}
-                    </td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
-                      {row.yelp}
-                    </td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
-                      {row.feefo}
-                    </td>
-                    <td className="border-r border-neutral-800 px-4 py-3 text-sm text-neutral-300">
-                      {row.hellopeter}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-neutral-300">{row.google}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mb-16 space-y-2">
+            <p className="text-xs text-neutral-500">
+              Pricing shown is based on publicly available entry-level plans. Actual costs may increase depending on
+              features, usage, and contract terms.
+            </p>
+            <p className="text-xs text-neutral-500">
+              *Yelp pricing is based on advertising packages rather than subscription-based review management tools.*
+            </p>
+            <p className="text-xs text-neutral-500">
+              Platform reach affects visibility, customer trust, and scalability across markets.
+            </p>
           </div>
         </section>
 
-        {/* 4. FOOTNOTES */}
-        <section className="mb-16">
-          <p className="text-xs text-neutral-500">
-            Pricing shown is based on publicly available entry-level plans. Actual costs may
-            increase depending on features, usage, and contract terms.
-          </p>
-          <p className="mt-2 text-xs text-neutral-500">
-            *Yelp pricing is based on advertising packages rather than subscription-based
-            review management tools.*
-          </p>
-          <p className="mt-2 text-xs text-neutral-500">
-            Platform reach affects visibility, customer trust, and scalability across markets.
-          </p>
-        </section>
-
-        {/* 5. BEST FOR SECTION */}
-        <section className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold text-white md:text-3xl">
-            What each platform is best for
+        {/* 4. Use-case breakdown */}
+        <section className="mb-16" aria-labelledby="use-case-heading">
+          <h2 id="use-case-heading" className="mb-6 text-2xl font-semibold text-white md:text-3xl">
+            Best platform by use case
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {bestFor.map((item) => {
@@ -322,18 +311,9 @@ export default function ComparePage() {
               const platform = platformMeta[key];
 
               return (
-                <div
-                  key={item.platform}
-                  className="rounded-xl border border-neutral-800 p-4"
-                >
+                <div key={item.platform} className="rounded-xl border border-neutral-800 p-4">
                   <div className="mb-2 flex items-center gap-2">
-                    <Image
-                      src={platform.logo}
-                      alt={platform.name}
-                      width={64}
-                      height={64}
-                      className="object-contain"
-                    />
+                    <Image src={platform.logo} alt={platform.name} width={64} height={64} className="object-contain" />
                     <p className="font-medium text-white">{platform.name}</p>
                   </div>
                   <p className="mt-1 text-neutral-400">{item.text}</p>
@@ -345,149 +325,131 @@ export default function ComparePage() {
                 <Image
                   src={platformMeta.google.logo}
                   alt={platformMeta.google.name}
-                  width={128}
-                  height={128}
-                  className="object-contain"
+                  width={GOOGLE_LOGO_SIZE}
+                  height={GOOGLE_LOGO_SIZE}
+                  className="h-40 w-40 object-contain"
                 />
               </div>
-              <p className="mt-1 text-neutral-400">
-                Search visibility and local reputation
-              </p>
+              <p className="mt-1 text-neutral-400">Search visibility and local reputation</p>
             </div>
           </div>
-        </section>
 
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            When should you use each platform?
-          </h2>
-
+          <h3 className="mt-10 mb-4 text-lg font-semibold text-white">When should you use each platform?</h3>
           <div className="space-y-3 text-sm text-neutral-400">
-            <p>
-              Choose Tellacity if you want full control, transparent pricing, and scalable automation.
-            </p>
-            <p>
-              Choose Trustpilot if your business needs global visibility and you have a larger budget.
-            </p>
-            <p>
-              Choose Yelp if your focus is local discovery and US-based customers.
-            </p>
-            <p>
-              Choose Feefo if you require enterprise-level verified review programs.
-            </p>
-            <p>
-              Choose HelloPeter if your business operates primarily in South Africa.
-            </p>
-            <p>
-              Choose Google Reviews if your priority is search visibility and local SEO presence.
-            </p>
+            <p>Choose Tellacity if you want full control, transparent pricing, and scalable automation.</p>
+            <p>Choose Trustpilot if your business needs global visibility and you have a larger budget.</p>
+            <p>Choose Yelp if your focus is local discovery and US-based customers.</p>
+            <p>Choose Feefo if you require enterprise-level verified review programs.</p>
+            <p>Choose HelloPeter if your business operates primarily in South Africa.</p>
+            <p>Choose Google Reviews if your priority is search visibility and local SEO presence.</p>
           </div>
         </section>
 
-        {/* 6. KEY DIFFERENCES SECTION */}
-        <section className="mb-16">
-          <h2 className="mb-6 text-2xl font-semibold text-white md:text-3xl">
-            Key differences
+        {/* 5. Head-to-head comparisons */}
+        <section className="mb-16" aria-labelledby="head-to-head-heading">
+          <h2 id="head-to-head-heading" className="mb-6 text-2xl font-semibold">
+            Head-to-head comparisons
           </h2>
+          <p className="mb-6 max-w-2xl text-sm text-neutral-400">
+            Deep dives compare Tellacity with one competitor at a time - focused pricing, features, and trade-offs.
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {individualCompareLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3 text-white transition-all hover:border-[#1FAF9E] hover:bg-white/[0.03] ${
+                  "wide" in link && link.wide ? "md:col-span-2" : ""
+                }`}
+              >
+                <Image
+                  src={platformMeta[link.competitorKey].logo}
+                  alt={platformMeta[link.competitorKey].name}
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Supporting content */}
+        <section className="mb-16">
+          <h2 className="mb-6 text-2xl font-semibold text-white md:text-3xl">Key differences</h2>
           <div className="space-y-4">
-            <div className="rounded-xl border border-white/10 p-4 bg-white/[0.02]">
-              <p className="text-white font-medium mb-1">Pricing philosophy</p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="mb-1 font-medium text-white">Pricing philosophy</p>
               <p className="text-sm text-neutral-400">
-                Tellacity offers clear, fixed pricing starting at $69/month with no hidden tiers.
-                Other platforms like Trustpilot and Feefo typically start at higher entry prices
-                (around $299/month) with additional costs based on features and volume.
+                Tellacity offers clear, fixed pricing starting at $69/month with no hidden tiers. Other platforms like
+                Trustpilot and Feefo typically start at higher entry prices (around $299/month) with additional costs
+                based on features and volume.
               </p>
             </div>
-
-            <div className="rounded-xl border border-white/10 p-4 bg-white/[0.02]">
-              <p className="text-white font-medium mb-1">Control and ownership</p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="mb-1 font-medium text-white">Control and ownership</p>
               <p className="text-sm text-neutral-400">
-                Tellacity gives businesses full control over how reviews are collected, displayed,
-                and branded. Other platforms may limit customization or require higher-tier plans
-                for full control.
+                Tellacity gives businesses full control over how reviews are collected, displayed, and branded. Other
+                platforms may limit customization or require higher-tier plans for full control.
               </p>
             </div>
-
-            <div className="rounded-xl border border-white/10 p-4 bg-white/[0.02]">
-              <p className="text-white font-medium mb-1">Automation and scalability</p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="mb-1 font-medium text-white">Automation and scalability</p>
               <p className="text-sm text-neutral-400">
-                Tellacity is built for automated review collection through integrations and
-                invite systems. Some platforms rely more on manual processes or restrict
-                automation features to enterprise plans.
+                Tellacity is built for automated review collection through integrations and invite systems. Some
+                platforms rely more on manual processes or restrict automation features to enterprise plans.
               </p>
             </div>
           </div>
         </section>
 
         <section className="mt-12">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Frequently asked questions
-          </h2>
-
+          <h2 className="mb-4 text-lg font-semibold text-white">Frequently asked questions</h2>
           <div className="space-y-4 text-sm text-neutral-400">
             <div>
-              <p className="text-white font-medium">
-                Is Trustpilot free for businesses?
-              </p>
+              <p className="font-medium text-white">Is Trustpilot free for businesses?</p>
               <p>
-                Trustpilot offers a limited free plan, but most features require paid subscriptions
-                starting at around $299/month.
+                Trustpilot offers a limited free plan, but most features require paid subscriptions starting at around
+                $299/month.
               </p>
             </div>
-
             <div>
-              <p className="text-white font-medium">
-                Is Yelp really free?
-              </p>
+              <p className="font-medium text-white">Is Yelp really free?</p>
+              <p>Yelp allows businesses to list for free, but many visibility and advertising features are paid.</p>
+            </div>
+            <div>
+              <p className="font-medium text-white">What is the best review platform?</p>
               <p>
-                Yelp allows businesses to list for free, but many visibility and advertising
-                features are paid.
+                The best platform depends on your needs. Tellacity focuses on control and automation, while others focus
+                on visibility or regional markets.
               </p>
             </div>
-
             <div>
-              <p className="text-white font-medium">
-                What is the best review platform?
-              </p>
+              <p className="font-medium text-white">Is Google Reviews enough for a business?</p>
               <p>
-                The best platform depends on your needs. Tellacity focuses on control and automation,
-                while others focus on visibility or regional markets.
+                Google Reviews is important for local SEO, but it lacks advanced tools like automation, analytics, and
+                branding control.
               </p>
             </div>
-
             <div>
-              <p className="text-white font-medium">
-                Is Google Reviews enough for a business?
-              </p>
+              <p className="font-medium text-white">What is the difference between Tellacity and Trustpilot?</p>
               <p>
-                Google Reviews is important for local SEO, but it lacks advanced tools like
-                automation, analytics, and branding control.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-white font-medium">
-                What is the difference between Tellacity and Trustpilot?
-              </p>
-              <p>
-                Tellacity focuses on transparency, automation, and affordability, while Trustpilot
-                focuses on global brand visibility with higher pricing tiers.
+                Tellacity focuses on transparency, automation, and affordability, while Trustpilot focuses on global
+                brand visibility with higher pricing tiers.
               </p>
             </div>
           </div>
         </section>
 
-        <p className="text-sm text-neutral-400 mt-10">
+        <p className="mt-10 text-sm text-neutral-400">
           <Link href="/compare/best-review-platforms" className="text-[#1FAF9E] hover:underline">
-            View best review platforms →
+            How to choose among the best review platforms →
           </Link>
         </p>
 
-        {/* Final CTA — one only */}
-        <section className="text-center pt-8">
-          <p className="mx-auto max-w-xl text-neutral-400 mb-6">
-            Start collecting and managing customer feedback.
-          </p>
+        <section className="pt-8 text-center">
+          <p className="mx-auto mb-6 max-w-xl text-neutral-400">Start collecting and managing customer feedback.</p>
           <Link
             href="/business/signup"
             className="inline-block rounded-lg bg-[#1FAF9E] px-6 py-3 font-medium text-black hover:opacity-90"

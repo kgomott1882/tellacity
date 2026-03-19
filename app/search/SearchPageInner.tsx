@@ -1,6 +1,12 @@
 "use client";
 
 import Link from "next/link";
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -203,10 +209,13 @@ export default function SearchPageInner() {
           )}
 
           {!isLoading &&
-            results.map((business) => (
+            results.map((business) => {
+              const safeSlug = (business.slug ?? "").trim().toLowerCase();
+              if (!isValidSlug(safeSlug)) return null;
+              return (
               <Link
                 key={business.id}
-                href={`/b/${business.slug}`}
+                href={`/b/${safeSlug}`}
                 className="flex flex-wrap items-center gap-4 px-4 py-5 transition-all hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
               >
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
@@ -260,7 +269,8 @@ export default function SearchPageInner() {
                   {business.location}
                 </div>
               </Link>
-            ))}
+            );
+            })}
         </div>
       </section>
     </main>

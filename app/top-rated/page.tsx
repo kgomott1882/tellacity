@@ -11,6 +11,12 @@ type Row = {
   review_count: number | null;
 };
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 export async function generateMetadata() {
   return {
     title: "Top Rated Companies | Tellacity",
@@ -36,12 +42,15 @@ export default async function TopRatedPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     itemListElement: list
-      .filter((row) => row.business_slug)
+      .filter((row) => {
+        const safeSlug = (row.business_slug ?? "").trim().toLowerCase();
+        return isValidSlug(safeSlug);
+      })
       .map((row) => ({
         "@type": "ListItem",
         position: row.rank_position ?? 0,
         name: row.business_name ?? row.business_slug ?? "Business",
-        url: `${siteUrl}/b/${row.business_slug}`,
+        url: `${siteUrl}/b/${(row.business_slug ?? "").trim().toLowerCase()}`,
       })),
   };
 
@@ -67,7 +76,8 @@ export default async function TopRatedPage() {
           ) : (
             <ul className="mt-8 space-y-4">
               {list.map((row) => {
-                const slug = row.business_slug ?? "";
+                const slug = (row.business_slug ?? "").trim().toLowerCase();
+                const hasValidSlug = isValidSlug(slug);
                 const name = (row.business_name ?? slug) || "Business";
                 const rank = row.rank_position ?? 0;
                 const rating = Number(row.rating_value ?? 0);
@@ -101,7 +111,7 @@ export default async function TopRatedPage() {
 
                 return (
                   <li key={slug || `rank-${rank}`}>
-                    {slug ? (
+                    {hasValidSlug ? (
                       <Link href={`/b/${slug}`} className={cardClass}>
                         {content}
                       </Link>

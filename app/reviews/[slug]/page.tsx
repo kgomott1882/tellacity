@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 import { notFound } from "next/navigation";
 import {
   getAllReviewSeoPages,
@@ -150,7 +156,7 @@ export default async function ReviewSeoPage(props: PageProps) {
                   Customers often search for reviews, complaints, service quality, and real experiences before buying or signing up. Whether they are comparing banks, telecoms, or other services, review research helps set expectations and spot patterns.
                 </p>
                 <p>
-                  Reviews can reveal service patterns, support quality, delivery or billing concerns, and positive experiences depending on the company. Looking at a range of feedback—and how the business responds—gives a clearer picture than a single opinion.
+                  Reviews can reveal service patterns, support quality, delivery or billing concerns, and positive experiences depending on the company. Looking at a range of feedback-and how the business responds-gives a clearer picture than a single opinion.
                 </p>
               </div>
             </section>
@@ -205,11 +211,11 @@ export default async function ReviewSeoPage(props: PageProps) {
                   When evaluating a company, consider the following:
                 </p>
                 <ul className="list-disc space-y-2 pl-6">
-                  <li><strong>Review patterns over time</strong> — Are issues one-off or repeated? Has feedback improved or worsened?</li>
-                  <li><strong>Complaint themes</strong> — Do the same topics (e.g. billing, support) come up often?</li>
-                  <li><strong>Response quality</strong> — Does the business respond to negative reviews in a clear, constructive way?</li>
-                  <li><strong>Transparency</strong> — Does the company share information about how it handles disputes or feedback?</li>
-                  <li><strong>Independent sources</strong> — Cross-check with more than one platform or source to get a balanced view.</li>
+                  <li><strong>Review patterns over time</strong> - Are issues one-off or repeated? Has feedback improved or worsened?</li>
+                  <li><strong>Complaint themes</strong> - Do the same topics (e.g. billing, support) come up often?</li>
+                  <li><strong>Response quality</strong> - Does the business respond to negative reviews in a clear, constructive way?</li>
+                  <li><strong>Transparency</strong> - Does the company share information about how it handles disputes or feedback?</li>
+                  <li><strong>Independent sources</strong> - Cross-check with more than one platform or source to get a balanced view.</li>
                 </ul>
                 <p>
                   No single review or site tells the full story. Combining multiple sources and looking for patterns will give you a more reliable picture before you buy or sign up.
@@ -226,16 +232,20 @@ export default async function ReviewSeoPage(props: PageProps) {
                 Other review guides you may find useful:
               </p>
               <ul className="mt-6 space-y-3">
-                {related.map((p) => (
-                  <li key={p.slug}>
-                    <Link
-                      href={`/reviews/${p.slug}`}
-                      className="block rounded-lg border border-gray-200 bg-white px-4 py-3 text-[#0B3B36] font-medium hover:bg-gray-50 hover:border-gray-300"
-                    >
-                      {p.brandName} reviews &amp; feedback
-                    </Link>
-                  </li>
-                ))}
+                {related.map((p) => {
+                  const safeSlug = (p.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
+                  return (
+                    <li key={safeSlug}>
+                      <Link
+                        href={`/reviews/${safeSlug}`}
+                        className="block rounded-lg border border-gray-200 bg-white px-4 py-3 text-[#0B3B36] font-medium hover:bg-gray-50 hover:border-gray-300"
+                      >
+                        {p.brandName} reviews &amp; feedback
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
 

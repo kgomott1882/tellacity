@@ -85,7 +85,7 @@ function AcceptInviteInner() {
     try {
       const email = inviteInfo!.email;
 
-      // 1. Try to sign in — if the account already exists, sign them in
+      // 1. Try to sign in - if the account already exists, sign them in
       //    so they can accept with their existing credentials.
       const { data: signInData, error: signInErr } =
         await supabaseBrowser().auth.signInWithPassword({ email, password });
@@ -93,14 +93,14 @@ function AcceptInviteInner() {
       let session = signInData?.session ?? null;
 
       if (signInErr) {
-        // Account doesn't exist yet — create it
+        // Account doesn't exist yet - create it
         const { data: signUpData, error: signUpErr } =
           await supabaseBrowser().auth.signUp({
             email,
             password,
             options: {
               data: { display_name: name.trim() },
-              // Skip email confirmation — the invite itself is proof of email ownership
+              // Skip email confirmation - the invite itself is proof of email ownership
               emailRedirectTo: undefined,
             },
           });
@@ -119,7 +119,7 @@ function AcceptInviteInner() {
           const { data: retryData, error: retryErr } =
             await supabaseBrowser().auth.signInWithPassword({ email, password });
           if (retryErr || !retryData.session) {
-            // Email confirmation is required — tell the user
+            // Email confirmation is required - tell the user
             setStep("done");
             setSubmitting(false);
             return;
@@ -146,7 +146,7 @@ function AcceptInviteInner() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        // "already used" is fine — the member row was already created
+        // "already used" is fine - the member row was already created
         if (!body?.error?.includes("already used")) {
           setFormError(body?.error ?? "Failed to accept invite. Please try again.");
           setSubmitting(false);

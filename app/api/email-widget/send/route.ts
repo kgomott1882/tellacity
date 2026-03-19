@@ -167,7 +167,7 @@ function buildEliteBrandedHtml(opts: {
         Leave a Review
       </a>
 
-      <!-- Tellacity branding — always visible -->
+      <!-- Tellacity branding - always visible -->
       <div style="margin-top:24px; display:inline-flex; align-items:center; gap:4px;">
         <span style="font-size:11px; color:#666666; vertical-align:middle; font-family:Arial, sans-serif;">Verified reviews powered by</span>
         <img src="${iconUrl}" alt="Tellacity" style="height:16px; width:16px; vertical-align:middle;" />

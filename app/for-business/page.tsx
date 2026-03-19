@@ -97,7 +97,7 @@ export default function ForBusinessPage() {
         </div>
       </section>
 
-      {/* EVERYTHING YOU NEED — single card with border #124541, shadow, luminous animation */}
+      {/* EVERYTHING YOU NEED - single card with border #124541, shadow, luminous animation */}
       <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div
           className="overflow-hidden rounded-3xl border-2 bg-white p-8 shadow-[0_25px_50px_-12px_rgba(18,69,65,0.25)] animate-card-luminate"

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import Link from "next/link";
 
 const websites: Record<string, string> = {
@@ -70,7 +70,7 @@ export default async function IntegrationPage(
     <main className="bg-gray-50 min-h-screen">
       <section className="max-w-6xl mx-auto px-6 py-8">
         <Link href="/integrations" className="text-sm text-gray-500 hover:text-gray-700">
-          ← Back to Integrations
+          â† Back to Integrations
         </Link>
       </section>
 
@@ -135,7 +135,7 @@ export default async function IntegrationPage(
             {/* Features */}
             <section>
               <h2 className="text-2xl font-semibold mb-6 text-[#0E0E0E]">
-                {name} × Tellacity
+                {name} Ã- Tellacity
               </h2>
               <div className="grid gap-6 md:grid-cols-2">
                 {[
@@ -256,4 +256,5 @@ export default async function IntegrationPage(
     </main>
   );
 }
+
 

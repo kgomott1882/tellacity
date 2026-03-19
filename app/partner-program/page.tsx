@@ -130,7 +130,7 @@ export default function PartnerProgramPage() {
               </h3>
               <p>
                 Tellacity operates across South Africa, United Kingdom, United States, Australia, Canada, New Zealand,
-                and Ireland—helping partners support clients in multiple regions.
+                and Ireland-helping partners support clients in multiple regions.
               </p>
             </div>
           </div>

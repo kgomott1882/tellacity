@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -111,7 +111,7 @@ function FloatingReview({ delay = 0 }: { delay?: number }) {
         <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
       </div>
       <div>
-        <p className="font-semibold text-gray-800">“Excellent support”</p>
+        <p className="font-semibold text-gray-800">â€œExcellent supportâ€</p>
         <p className="text-[11px] text-gray-600">
           We saw more reviews in 90 days than the previous 18 months.
         </p>
@@ -145,7 +145,7 @@ export default function SolutionPage() {
               Turn Customer Feedback Into Business Growth.
             </h1>
             <p className="max-w-xl text-sm md:text-base text-gray-600">
-              Collect, manage, and showcase verified reviews to build trust that drives conversions—across
+              Collect, manage, and showcase verified reviews to build trust that drives conversionsâ€”across
               every touchpoint in the customer journey.
             </p>
 
@@ -234,7 +234,7 @@ export default function SolutionPage() {
                   icon: MessageSquareText,
                   title: "Engage with feedback",
                   copy:
-                    "Respond to reviews publicly, resolve issues transparently, and show customers you’re listening.",
+                    "Respond to reviews publicly, resolve issues transparently, and show customers youâ€™re listening.",
                 },
                 {
                   icon: TrendingUp,
@@ -290,7 +290,7 @@ export default function SolutionPage() {
                   icon: Sparkles,
                   title: "Small & Growing Businesses",
                   copy:
-                    "Get started quickly, build early credibility, and compete with larger brands on trust — not just ad spend.",
+                    "Get started quickly, build early credibility, and compete with larger brands on trust â€” not just ad spend.",
                 },
                 {
                   icon: ShieldCheck,
@@ -382,7 +382,7 @@ export default function SolutionPage() {
                 </h3>
                 <ul className="mt-3 space-y-2 text-sm text-gray-600">
                   {capability.bullets.map((bullet) => (
-                    <li key={bullet}>• {bullet}</li>
+                    <li key={bullet}>â€¢ {bullet}</li>
                   ))}
                 </ul>
               </div>
@@ -402,16 +402,16 @@ export default function SolutionPage() {
               Trust that shows up in the numbers.
             </h2>
             <p className="mt-3 text-sm text-gray-300 max-w-xl">
-              Teams use Tellacity to improve how customers experience their brand—and it&apos;s reflected across key
+              Teams use Tellacity to improve how customers experience their brandâ€”and it&apos;s reflected across key
               metrics.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-4">
             {[
               { label: "conversion lift", value: "+42%" },
-              { label: "faster issue resolution", value: "3×" },
+              { label: "faster issue resolution", value: "3Ã-" },
               { label: "trust verified feedback", value: "78%" },
-              { label: "higher repeat purchases", value: "↑" },
+              { label: "higher repeat purchases", value: "â†‘" },
             ].map((metric) => (
               <motion.div
                 key={metric.label}
@@ -469,4 +469,5 @@ export default function SolutionPage() {
     </main>
   );
 }
+
 

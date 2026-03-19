@@ -48,6 +48,12 @@ type CategoryGroup = {
   categories: Category[];
 };
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 const ICON_MATCHES: { match: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { match: "animal", icon: Dog },
   { match: "pet", icon: Dog },
@@ -199,24 +205,26 @@ export default function CategoriesPage() {
       } else {
         const sanitized = (data ?? [])
           .map((group) => {
+            const safeGroupSlug = (group.slug ?? "").trim().toLowerCase();
             const filteredCategories = (group.categories ?? [])
               .filter((category) => category.group === group.slug)
               .map((category) => ({
               id: category.id,
               name: category.name,
-              slug: category.slug,
+              slug: (category.slug ?? "").trim().toLowerCase(),
                 group: category.group,
           }))
+              .filter((category) => isValidSlug(category.slug))
               .sort((a, b) => a.name.localeCompare(b.name));
 
             return {
               id: group.id,
               name: group.name,
-              slug: group.slug,
+              slug: safeGroupSlug,
               categories: filteredCategories,
             };
           })
-          .filter((group) => group.categories.length > 0)
+          .filter((group) => group.categories.length > 0 && isValidSlug(group.slug))
           .sort((a, b) => a.name.localeCompare(b.name));
 
         setGroups(sanitized);
@@ -309,27 +317,31 @@ export default function CategoriesPage() {
                   </div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  {group.categories.map((category) => (
-                    <li key={category.id}>
-                      <Link
-                        href={`/categories/${category.slug}`}
-                        className="flex items-center justify-between gap-3 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = accentColor;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = "";
-                        }}
-                      >
-                        <span>{category.name}</span>
-                        <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-                      </Link>
-                    </li>
-                  ))}
+                  {group.categories.map((category) => {
+                    const safeCategorySlug = (category.slug ?? "").trim().toLowerCase();
+                    if (!isValidSlug(safeCategorySlug)) return null;
+                    return (
+                      <li key={category.id}>
+                        <Link
+                          href={`/categories/${safeCategorySlug}`}
+                          className="flex items-center justify-between gap-3 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = accentColor;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "";
+                          }}
+                        >
+                          <span>{category.name}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <div className="mt-5 border-t border-gray-100 pt-4 text-right">
                   <Link
-                    href={`/categories/${group.slug}`}
+                    href={`/categories/${(group.slug ?? "").trim().toLowerCase()}`}
                     className="inline-flex items-center gap-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                     style={{
                       color: accentColor,

@@ -90,6 +90,12 @@ const normalizeCountryCode = (code: string | null | undefined): CountryCode => {
   return (found?.code ?? "ZA") as CountryCode;
 };
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 // 24 items for the rotating marquee: 8 existing + 16 additional (all use existing slugs)
 const ROTATING_MARQUEE_CATEGORIES: CategoryCard[] = (() => {
   const base = [
@@ -221,7 +227,7 @@ export default function HomePageClient({
     {
       question: "Can businesses respond to reviews?",
       answer:
-        "Yes. Businesses can publicly reply to customer reviews—both positive and negative. This encourages open communication and allows businesses to resolve issues directly with customers. When a business responds, the reply is marked with an “Owner Responded” badge so readers can clearly see the conversation.",
+        "Yes. Businesses can publicly reply to customer reviews-both positive and negative. This encourages open communication and allows businesses to resolve issues directly with customers. When a business responds, the reply is marked with an “Owner Responded” badge so readers can clearly see the conversation.",
     },
     {
       question: "What is a ‘Verified Review’?",
@@ -1128,12 +1134,13 @@ export default function HomePageClient({
               {[0, 1].map((copy) => (
                 <div key={copy} className="flex shrink-0 gap-6">
                   {ROTATING_MARQUEE_CATEGORIES.map((category, index) => (
+                    isValidSlug((category.slug ?? "").trim().toLowerCase()) ? (
                     <motion.div
                       key={`${copy}-${category.id}`}
                       className="shrink-0"
                     >
                       <Link
-                        href={`/categories/${category.slug}`}
+                        href={`/categories/${(category.slug ?? "").trim().toLowerCase()}`}
                         className="group flex flex-col items-center gap-2 text-center transition-colors duration-200 hover:text-[#1FAF9E]"
                       >
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 transition-colors duration-200 group-hover:text-[#1FAF9E] sm:h-12 sm:w-12">
@@ -1144,6 +1151,7 @@ export default function HomePageClient({
                         </span>
                       </Link>
                     </motion.div>
+                    ) : null
                   ))}
                 </div>
               ))}

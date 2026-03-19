@@ -352,7 +352,7 @@ export default function AdminClaimsPage() {
                             {claim.requester_email}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {claim.requester_business_name ?? "—"}
+                            {claim.requester_business_name ?? "-"}
                           </p>
                           <p className="text-xs text-gray-400">
                             {formatDate(claim.created_at)}

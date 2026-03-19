@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
@@ -418,8 +424,8 @@ export default function ConsumerDashboard() {
                           >
                             {deletingId === review.id ? "Deleting…" : "Delete"}
                           </button>
-                          {review.business?.slug && (
-                            <Link href={`/b/${review.business.slug}`}>View</Link>
+                          {review.business?.slug && isValidSlug(review.business.slug) && (
+                            <Link href={`/b/${review.business.slug.trim().toLowerCase()}`}>View</Link>
                           )}
                         </div>
                       </div>
