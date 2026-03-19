@@ -36,11 +36,15 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { slug } = await props.params;
-  const page = getReviewSeoPageBySlug(slug);
+  const safeSlug = slug.trim().toLowerCase();
+  if (!isValidSlug(safeSlug)) {
+    return { title: "Review guide not found | Tellacity" };
+  }
+  const page = getReviewSeoPageBySlug(safeSlug);
   if (!page) {
     return { title: "Review guide not found | Tellacity" };
   }
-  const url = `${SITE_URL}/reviews/${page.slug}`;
+  const url = `${SITE_URL}/b/${safeSlug}`;
   return {
     title: page.metaTitle,
     description: page.metaDescription,

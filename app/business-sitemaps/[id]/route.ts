@@ -7,7 +7,14 @@ const SHARD_SIZE = 10000;
 type BusinessRow = {
   slug: string | null;
   updated_at?: string | null;
+  review_count?: number | null;
 };
+
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +33,9 @@ export async function GET(
 
   const { data, error } = await supabaseServer
     .from("businesses")
-    .select("slug, updated_at")
+    .select("slug, updated_at, review_count")
     .eq("status", "active")
+    .gte("review_count", 3)
     .not("slug", "is", null)
     .order("id", { ascending: true })
     .range(offset, offset + SHARD_SIZE - 1);
@@ -39,10 +47,13 @@ export async function GET(
   const rows = (Array.isArray(data) ? data : []) as BusinessRow[];
 
   const urls = rows
-    .filter((row) => row.slug)
+    .filter((row) => {
+      const safeSlug = String(row.slug ?? "").trim().toLowerCase();
+      return isValidSlug(safeSlug);
+    })
     .map((row) => {
-      const slug = String(row.slug);
-      const loc = `${BASE_URL}/b/${encodeURIComponent(slug)}`;
+      const slug = String(row.slug ?? "").trim().toLowerCase();
+      const loc = `${BASE_URL}/b/${slug}`;
       const lastmod = row.updated_at
         ? new Date(row.updated_at).toISOString()
         : null;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { platformMeta } from "@/lib/platformMeta";
+import { createClient } from "@/utils/supabase/server";
 
 type CompetitorKey = "trustpilot" | "yelp" | "feefo" | "hellopeter";
 
@@ -277,6 +278,12 @@ const EXPLORE_LINKS = [
   { href: "/compare/tellacity-vs-hellopeter", competitorKey: "hellopeter" as CompetitorKey, competitorName: "HelloPeter" },
 ] as const;
 
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
+
 export default async function CompareSlugPage({
   params,
 }: {
@@ -295,6 +302,49 @@ export default async function CompareSlugPage({
 
   const competitorMeta = platformMeta[data.competitorKey];
   const competitorBestFor = COMPETITOR_BEST_FOR[data.competitorKey];
+  const supabase = createClient();
+
+  const { data: alternativesData } = await supabase
+    .from("businesses")
+    .select("id, slug, name")
+    .eq("status", "active")
+    .gte("review_count", 3)
+    .not("slug", "is", null)
+    .order("review_count", { ascending: false })
+    .limit(8);
+
+  const topAlternatives = (Array.isArray(alternativesData) ? alternativesData : [])
+    .map((item) => {
+      const safeSlug = String(item.slug ?? "").trim().toLowerCase();
+      if (!isValidSlug(safeSlug)) return null;
+      return {
+        id: String(item.id ?? safeSlug),
+        slug: safeSlug,
+        name: String(item.name ?? "").trim() || "Business",
+      };
+    })
+    .filter((item): item is { id: string; slug: string; name: string } => Boolean(item))
+    .slice(0, 8);
+
+  const { data: categoriesData } = await supabase
+    .from("categories")
+    .select("id, slug, name")
+    .not("slug", "is", null)
+    .order("name", { ascending: true })
+    .limit(8);
+
+  const exploreCategories = (Array.isArray(categoriesData) ? categoriesData : [])
+    .map((item) => {
+      const safeSlug = String(item.slug ?? "").trim().toLowerCase();
+      if (!isValidSlug(safeSlug)) return null;
+      return {
+        id: String(item.id ?? safeSlug),
+        slug: safeSlug,
+        name: String(item.name ?? "").trim() || safeSlug.replace(/-/g, " "),
+      };
+    })
+    .filter((item): item is { id: string; slug: string; name: string } => Boolean(item))
+    .slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
@@ -555,6 +605,40 @@ export default async function CompareSlugPage({
           </div>
         </div>
 
+        {topAlternatives.length > 0 && (
+          <section className="mt-12">
+            <h2 className="mb-4 text-2xl font-semibold">Top alternatives</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {topAlternatives.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/b/${item.slug}`}
+                  className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {exploreCategories.length > 0 && (
+          <section className="mt-12">
+            <h2 className="mb-4 text-2xl font-semibold">Explore categories</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {exploreCategories.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/categories/${item.slug}`}
+                  className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="border-t border-neutral-800 pt-12">
           <h2 className="mb-4 text-xl font-semibold">Explore other comparisons</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -581,6 +665,21 @@ export default async function CompareSlugPage({
               View all platforms on the compare hub
             </Link>
           </p>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="mb-4 text-2xl font-semibold">Popular comparisons</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {EXPLORE_LINKS.map((l) => (
+              <Link
+                key={`popular-${l.href}`}
+                href={l.href}
+                className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
+              >
+                Tellacity vs {l.competitorName}
+              </Link>
+            ))}
+          </div>
         </section>
 
         <div className="space-y-4 pt-8 text-center">

@@ -129,6 +129,21 @@ export default function CategoryClient({
   const RECENT_PAGE_SIZE = 3;
 
   const businessesList = rows ?? [];
+  const topRatedBusinesses = useMemo(() => {
+    const seed = (businesses ?? []) as Array<{ id?: string; slug?: string; name?: string }>;
+    return seed
+      .map((business, index) => {
+        const safeSlug = (business.slug ?? "").trim().toLowerCase();
+        if (!isValidSlug(safeSlug)) return null;
+        return {
+          id: business.id ?? `top-${index}-${safeSlug}`,
+          slug: safeSlug,
+          name: (business.name ?? "").trim() || "Business",
+        };
+      })
+      .filter((business): business is { id: string; slug: string; name: string } => Boolean(business))
+      .slice(0, 10);
+  }, [businesses]);
 
   // Keep selectedCountry in sync with URL and global country
   useEffect(() => {
@@ -478,6 +493,23 @@ export default function CategoryClient({
               Browse verified customer reviews for {title} companies. Compare ratings, read real customer experiences, and discover the top rated {title} providers before choosing who to trust.
             </p>
           </div>
+
+          {topRatedBusinesses.length > 0 && (
+            <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {topRatedBusinesses.map((business) => (
+                  <Link
+                    key={business.id}
+                    href={`/b/${business.slug}`}
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                  >
+                    {business.name}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* How this page works (desktop / tablet only) */}
           <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
