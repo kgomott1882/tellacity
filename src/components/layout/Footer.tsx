@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  DEFAULT_COUNTRY,
+  getStoredCountry,
+  setStoredCountry,
+} from "@/lib/country";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -25,7 +29,6 @@ function normalizeCountryCodeForUi(raw: string | null, fallback = "US"): string 
 
 export default function Footer() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [countryCode, setCountryCode] = useState("US");
@@ -44,19 +47,9 @@ export default function Footer() {
       setCountryCode(normalizeCountryCodeForUi(fromUrl));
       return;
     }
-    const stored = getActiveCountry();
-    setCountryCode(normalizeCountryCodeForUi(stored, "US"));
+    const stored = getStoredCountry();
+    setCountryCode(normalizeCountryCodeForUi(stored, DEFAULT_COUNTRY));
   }, [searchParams]);
-
-  // Stay in sync when country is changed from Navbar or elsewhere
-  useEffect(() => {
-    const handler = () => {
-      const code = getActiveCountry();
-      if (code) setCountryCode(normalizeCountryCodeForUi(code, "US"));
-    };
-    window.addEventListener("tellacity-country-change", handler);
-    return () => window.removeEventListener("tellacity-country-change", handler);
-  }, []);
 
   const openCountryMenu = () => {
     if (closeTimeoutRef.current) {
@@ -78,8 +71,10 @@ export default function Footer() {
 
   const handleCountrySelect = (code: string) => {
     setCountryCode(code);
-    setActiveCountry(code);
-    router.push(`?country=${code}`);
+    setStoredCountry(code);
+    const url = new URL(window.location.href);
+    url.searchParams.set("country", code);
+    window.location.href = url.toString();
     setIsCountryOpen(false);
   };
 

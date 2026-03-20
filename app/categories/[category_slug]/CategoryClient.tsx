@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, domainFromWebsite, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 
@@ -178,10 +178,10 @@ export default function CategoryClient({
     setPage(0);
   }, [derivedCountry, categorySlug]);
 
-  // When no URL country param, apply stored country from nav/footer so all three stay in sync
+  // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
     if (!queryCountry && typeof window !== "undefined") {
-      const stored = getActiveCountry();
+      const stored = getStoredCountry();
       if (stored) {
         const params = new URLSearchParams(searchParams.toString());
         params.set("country", stored);
@@ -189,24 +189,6 @@ export default function CategoryClient({
       }
     }
   }, [queryCountry, searchParams, router]);
-
-  // When user changes country in nav or footer, update this page's URL and selection
-  useEffect(() => {
-    const handler = () => {
-      const code = getActiveCountry();
-      const params = new URLSearchParams(searchParams.toString());
-      if (code) {
-        params.set("country", code);
-      } else {
-        params.delete("country");
-      }
-      router.replace(`?${params.toString()}`, { scroll: false });
-      setSelectedCountry(code ?? initialCountryCode ?? "US");
-      setPage(0);
-    };
-    window.addEventListener("tellacity-country-change", handler);
-    return () => window.removeEventListener("tellacity-country-change", handler);
-  }, [searchParams, router, initialCountryCode]);
 
   const popularSearches = useMemo(() => {
     if (subcategories.length > 0) return subcategories.slice(0, 8);
@@ -464,10 +446,13 @@ export default function CategoryClient({
   }, [categorySlug]);
 
   const updateCountry = (code: string | null) => {
-    setActiveCountry(code);
     const params = new URLSearchParams(searchParams.toString());
-    if (code) params.set("country", code);
-    else params.delete("country");
+    if (code) {
+      setStoredCountry(code);
+      params.set("country", code);
+    } else {
+      params.delete("country");
+    }
     router.push(`?${params.toString()}`);
   };
 

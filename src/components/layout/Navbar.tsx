@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
+import { setStoredCountry } from "@/lib/country";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -282,7 +283,10 @@ export default function Navbar() {
 
   const handleCountryChange = (code: string) => {
     setCountryCode(code);
-    router.push(`?country=${code}`);
+    setStoredCountry(code);
+    const url = new URL(window.location.href);
+    url.searchParams.set("country", code);
+    window.location.href = url.toString();
   };
 
   if (isBusinessNav) {

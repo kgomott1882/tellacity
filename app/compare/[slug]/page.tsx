@@ -398,12 +398,8 @@ export default async function ComparePage(props: {
         </div>
 
         <div className="space-y-4 text-center">
-          <h1 className="text-3xl font-semibold md:text-4xl">{data.title}</h1>
-          <p className="mt-3 text-sm text-gray-600 max-w-2xl mx-auto">
-            Looking for the difference between Tellacity and {competitorName}? This comparison breaks down features, pricing, control, and flexibility to help businesses choose the right customer review platform.
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <div className="flex items-center gap-2">
+          <h1 className="text-3xl font-semibold md:text-4xl">
+            <span className="inline-flex items-center justify-center gap-3">
               <Image
                 src={platformMeta.tellacity.logo}
                 alt={platformMeta.tellacity.name}
@@ -411,10 +407,8 @@ export default async function ComparePage(props: {
                 height={40}
                 className="object-contain"
               />
-              <span className="text-xl font-semibold md:text-2xl">{platformMeta.tellacity.name}</span>
-            </div>
-            <span className="text-2xl font-semibold md:text-3xl">vs</span>
-            <div className="flex items-center gap-2">
+              <span>{platformMeta.tellacity.name}</span>
+              <span>vs</span>
               <Image
                 src={competitorMeta.logo}
                 alt={data.competitor}
@@ -422,9 +416,12 @@ export default async function ComparePage(props: {
                 height={40}
                 className="object-contain"
               />
-              <span className="text-xl font-semibold md:text-2xl">{data.competitor}</span>
-            </div>
-          </div>
+              <span>{data.competitor}</span>
+            </span>
+          </h1>
+          <p className="mt-3 text-sm text-gray-600 max-w-2xl mx-auto">
+            Looking for the difference between Tellacity and {competitorName}? This comparison breaks down features, pricing, control, and flexibility to help businesses choose the right customer review platform.
+          </p>
           <p className="mx-auto max-w-2xl text-neutral-400">{data.description}</p>
         </div>
 

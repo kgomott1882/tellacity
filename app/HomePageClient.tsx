@@ -9,7 +9,11 @@ import RotatingBestCategorySection from "@/components/home/RotatingBestCategoryS
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import {
+  DEFAULT_COUNTRY,
+  getStoredCountry,
+  setStoredCountry,
+} from "@/lib/country";
 import { normalizeLogoUrl, getLogoDevUrl, domainFromWebsite } from "@/lib/logo";
 import { isAbortError } from "@/lib/authErrors";
 import { getAllBlogPosts } from "../data/blogPosts";
@@ -207,7 +211,7 @@ export default function HomePageClient({
 
   const handleCountryChange = (code: CountryCode) => {
     setSelectedCountry(code);
-    setActiveCountry(code);
+    setStoredCountry(code);
     const params = new URLSearchParams(searchParams.toString());
     params.set("country", code);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -354,34 +358,31 @@ export default function HomePageClient({
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
-      setSelectedCountry(normalizeCountryCode(fromUrl));
+      const normalized = normalizeCountryCode(fromUrl);
+      setSelectedCountry(normalized);
+      setStoredCountry(normalized);
     } else {
-      const stored = getActiveCountry();
+      const stored = getStoredCountry();
       if (stored) setSelectedCountry(normalizeCountryCode(stored));
     }
-
-    const handleSync = () => {
-      const updated = getActiveCountry();
-      if (updated) setSelectedCountry(normalizeCountryCode(updated));
-    };
-
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("tellacity-country-change", handleSync);
-    return () => {
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("tellacity-country-change", handleSync);
-    };
   }, [searchParams]);
 
-  // Apply stored country to URL when on landing page with no ?country= so "Best in" and nav/footer stay in sync (e.g. after refresh or back to home).
+  // First visit: if URL and storage are both empty, set default once.
   useEffect(() => {
     if (pathname !== "/") return;
     const fromUrl = searchParams.get("country");
+    const stored = getStoredCountry();
+    if (!fromUrl && !stored) {
+      setStoredCountry(DEFAULT_COUNTRY);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("country", DEFAULT_COUNTRY);
+      router.replace(`/?${params.toString()}`, { scroll: false });
+      return;
+    }
     if (fromUrl) return;
-    const stored = getActiveCountry();
     if (stored) {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("country", stored);
+      params.set("country", normalizeCountryCode(stored));
       router.replace(`/?${params.toString()}`, { scroll: false });
     }
   }, [pathname, searchParams, router]);
