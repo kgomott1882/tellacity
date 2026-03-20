@@ -101,13 +101,22 @@ const EXPLORE_LINKS = [
 
 export default function TellacityVsGooglePage() {
   return (
-    <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
-      <div className="sticky top-0 z-40 -mx-6 mb-8 border-b border-neutral-800 bg-[#0E0E0E]/90 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
-          <span className="text-sm text-neutral-300">Start collecting verified reviews today</span>
+    <div className="min-h-screen bg-[#2C2C2C] px-6 py-16 text-white">
+      <div className="sticky top-0 z-40 -mx-6 mb-8 border-b border-neutral-700 bg-[#2C2C2C]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3">
+          <div className="min-w-0 text-xs text-white">
+            <Link href="/" className="hover:text-white">
+              Home
+            </Link>{" "}
+            /{" "}
+            <Link href="/compare" className="hover:text-white">
+              Compare
+            </Link>{" "}
+            / <span className="text-white">Tellacity vs Google Reviews</span>
+          </div>
           <Link
             href="/business/signup"
-            className="rounded-md bg-[#1FAF9E] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+            className="shrink-0 rounded-md bg-[#1FAF9E] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             Get Started
           </Link>
@@ -115,17 +124,6 @@ export default function TellacityVsGooglePage() {
       </div>
 
       <div className="mx-auto max-w-4xl space-y-12">
-        <div className="mb-4 text-xs text-neutral-400">
-          <Link href="/" className="hover:text-white">
-            Home
-          </Link>{" "}
-          /{" "}
-          <Link href="/compare" className="hover:text-white">
-            Compare
-          </Link>{" "}
-          / <span className="text-white">Tellacity vs Google Reviews</span>
-        </div>
-
         <section className="text-center">
           <div className="mb-4 flex items-center justify-center gap-4">
             <div className="flex items-center gap-2">
@@ -150,13 +148,13 @@ export default function TellacityVsGooglePage() {
               <span className="sr-only">Google Reviews</span>
             </div>
           </div>
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-neutral-400 md:text-base">
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-white md:text-base">
             Compare Tellacity and Google Reviews to find the right mix of owned review programs and search visibility.
           </p>
         </section>
 
         <section className="rounded-xl border border-[#1FAF9E] bg-[#1FAF9E]/5 p-5">
-          <p className="text-sm leading-relaxed text-neutral-300">
+          <p className="text-sm leading-relaxed text-white">
             <span className="font-medium text-white">Quick verdict:</span> Use Google Reviews for how customers find you in
             Search and Maps; use Tellacity when you need invites, branding, widgets, and analytics around your review
             program.
@@ -164,45 +162,58 @@ export default function TellacityVsGooglePage() {
         </section>
 
         <section>
-          <h2 className="mb-6 text-2xl font-semibold md:text-3xl">Pricing comparison</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-sm">
+          <h2 className="mb-6 text-2xl font-semibold text-white md:text-3xl">Pricing comparison</h2>
+          <div className="overflow-x-auto rounded-lg border border-stone-400 bg-[#F0E8DC]">
+            <table className="w-full min-w-[600px] border-collapse text-sm text-black">
+              <caption className="sr-only">Pricing comparison for Tellacity and Google Reviews</caption>
               <thead>
-                <tr className="border-b border-neutral-800 text-neutral-400">
-                  <th className="py-3 text-left">Platform</th>
-                  <th className="py-3 text-left">Entry Price</th>
-                  <th className="py-3 text-left">Billing</th>
-                  <th className="py-3 text-left">Notes</th>
+                <tr>
+                  <th scope="col" className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-left font-semibold text-black">
+                    Platform
+                  </th>
+                  <th scope="col" className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-left font-semibold text-black">
+                    Entry Price
+                  </th>
+                  <th scope="col" className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-left font-semibold text-black">
+                    Billing
+                  </th>
+                  <th scope="col" className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-left font-semibold text-black">
+                    Notes
+                  </th>
                 </tr>
               </thead>
-              <tbody className="text-white">
-                <tr className="border-b border-neutral-800">
-                  <td className="rounded-l-md bg-[#1FAF9E]/10 py-3 font-semibold text-[#1FAF9E]">Tellacity</td>
-                  <td className="bg-[#1FAF9E]/5 py-3 text-[#1FAF9E]">{pricingTellacity.entry}</td>
-                  <td className="bg-[#1FAF9E]/5 py-3">{pricingTellacity.billing}</td>
-                  <td className="rounded-r-md bg-[#1FAF9E]/5 py-3 text-neutral-400">{pricingTellacity.notes}</td>
+              <tbody>
+                <tr>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 font-semibold text-black">
+                    Tellacity
+                  </td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingTellacity.entry}</td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingTellacity.billing}</td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingTellacity.notes}</td>
                 </tr>
                 <tr>
-                  <td className="py-3 font-semibold">Google Reviews</td>
-                  <td className="py-3">{pricingGoogle.entry}</td>
-                  <td className="py-3">{pricingGoogle.billing}</td>
-                  <td className="py-3 text-neutral-400">{pricingGoogle.notes}</td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 font-semibold text-black">
+                    Google Reviews
+                  </td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingGoogle.entry}</td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingGoogle.billing}</td>
+                  <td className="border border-stone-400 bg-[#F0E8DC] px-4 py-3 text-black">{pricingGoogle.notes}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs text-white">
             Google Reviews has no platform fee; Tellacity pricing reflects review management features.
           </p>
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-6">Feature comparison</h2>
+          <h2 className="text-2xl font-semibold text-white mb-6">Feature comparison</h2>
           <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
             <table className="w-full min-w-[780px] text-sm">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="py-5 pl-6 text-left font-medium text-white/70">Feature</th>
+                  <th className="py-5 pl-6 text-left font-medium text-white">Feature</th>
                   <th className="border-l border-r border-emerald-500/20 bg-emerald-500/5 py-5 pl-6 text-left font-medium text-white">
                     <div className="flex items-center gap-2">
                       <Image
@@ -215,7 +226,7 @@ export default function TellacityVsGooglePage() {
                       <span>Tellacity</span>
                     </div>
                   </th>
-                  <th className="py-5 pl-6 text-left font-medium text-white/70">
+                  <th className="py-5 pl-6 text-left font-medium text-white">
                     <div className="flex items-center gap-2">
                       <Image
                         src={platformMeta.google.logo}
@@ -232,18 +243,18 @@ export default function TellacityVsGooglePage() {
               <tbody>
                 {featureComparison.map((row) => (
                   <tr key={row.feature} className="border-b border-white/5 transition hover:bg-white/5 last:border-b-0">
-                    <td className="py-5 pl-6 align-top text-white/80">{row.feature}</td>
+                    <td className="py-5 pl-6 align-top text-white">{row.feature}</td>
                     <td className="border-l border-r border-emerald-500/20 bg-emerald-500/5 py-5 pl-6 align-top">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-white border border-emerald-500/20">
                         {row.tellacityBadge}
                       </span>
-                      <p className="mt-2 text-sm text-neutral-300">{row.tellacitySubtext}</p>
+                      <p className="mt-2 text-sm text-white">{row.tellacitySubtext}</p>
                     </td>
                     <td className="py-5 pl-6 align-top">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-white border border-yellow-500/20">
                         {row.competitorBadge}
                       </span>
-                      <p className="mt-2 text-sm text-neutral-400">{row.competitorSubtext}</p>
+                      <p className="mt-2 text-sm text-white">{row.competitorSubtext}</p>
                     </td>
                   </tr>
                 ))}
@@ -253,7 +264,7 @@ export default function TellacityVsGooglePage() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-6 mt-20">Best for</h2>
+          <h2 className="text-2xl font-semibold text-white mb-6 mt-20">Best for</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/5 to-transparent p-6 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
               <div className="mb-3 flex items-center gap-2">
@@ -266,13 +277,13 @@ export default function TellacityVsGooglePage() {
                 />
                 <h3 className="font-semibold text-white">Tellacity</h3>
               </div>
-              <ul className="space-y-2 text-neutral-300">
+              <ul className="space-y-2 text-white">
                 {BEST_FOR_TELLACITY.map((item) => (
                   <li key={item}>• {item}</li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-80">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
               <div className="mb-3 flex items-center gap-2">
                 <Image
                   src={platformMeta.google.logo}
@@ -283,7 +294,7 @@ export default function TellacityVsGooglePage() {
                 />
                 <h3 className="sr-only">Google Reviews</h3>
               </div>
-              <ul className="space-y-2 text-neutral-300">
+              <ul className="space-y-2 text-white">
                 {BEST_FOR_GOOGLE.map((item) => (
                   <li key={item}>• {item}</li>
                 ))}
@@ -295,7 +306,7 @@ export default function TellacityVsGooglePage() {
         <section className="mt-24">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-3xl font-semibold text-white mb-4">Why businesses switch to Tellacity</h2>
-            <p className="text-white/60 max-w-2xl mb-10">
+            <p className="text-white max-w-2xl mb-10">
               Most businesses start with traditional platforms - then move to Tellacity when they need more control,
               flexibility, and real growth.
             </p>
@@ -303,7 +314,7 @@ export default function TellacityVsGooglePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
                 <h3 className="text-lg font-semibold text-white mb-2">From platform dependency → full ownership</h3>
-                <p className="text-neutral-300">
+                <p className="text-white">
                   Stop relying on third-party marketplaces to manage your reputation. Tellacity gives you full control
                   over your reviews, data, and customer relationships.
                 </p>
@@ -311,7 +322,7 @@ export default function TellacityVsGooglePage() {
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
                 <h3 className="text-lg font-semibold text-white mb-2">From rigid pricing → flexible growth</h3>
-                <p className="text-neutral-300">
+                <p className="text-white">
                   Traditional platforms lock you into fixed plans. Tellacity adapts to your business with usage-based
                   pricing that scales as you grow.
                 </p>
@@ -319,7 +330,7 @@ export default function TellacityVsGooglePage() {
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
                 <h3 className="text-lg font-semibold text-white mb-2">From passive reviews → active insights</h3>
-                <p className="text-neutral-300">
+                <p className="text-white">
                   Go beyond collecting reviews. Turn feedback into real-time insights that help you improve, respond,
                   and grow faster.
                 </p>
@@ -327,7 +338,7 @@ export default function TellacityVsGooglePage() {
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 transition">
                 <h3 className="text-lg font-semibold text-white mb-2">From limitations → scalability</h3>
-                <p className="text-neutral-300">
+                <p className="text-white">
                   Whether you&apos;re operating locally or globally, Tellacity is built to scale without restrictions,
                   contracts, or platform limitations.
                 </p>
@@ -337,7 +348,7 @@ export default function TellacityVsGooglePage() {
             <div className="mt-12 text-center">
               <a
                 href="/get-started"
-                className="inline-flex items-center px-6 py-3 rounded-xl bg-emerald-500 text-black font-medium hover:bg-emerald-400 transition"
+                className="inline-flex items-center px-6 py-3 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-400 transition"
               >
                 Get started with Tellacity
               </a>
@@ -347,16 +358,16 @@ export default function TellacityVsGooglePage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
-            <h3 className="mb-2 font-semibold">Why Tellacity is built differently</h3>
-            <ul className="space-y-2 text-neutral-300">
+            <h3 className="mb-2 font-semibold text-white">Why Tellacity is built differently</h3>
+            <ul className="space-y-2 text-white">
               {TELLACITY_DIFFERENTIATORS.map((item) => (
                 <li key={item}>• {item}</li>
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-90">
-            <h3 className="mb-2 font-semibold">Limitations of Google Reviews</h3>
-            <ul className="space-y-2 text-neutral-300">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <h3 className="mb-2 font-semibold text-white">Limitations of Google Reviews</h3>
+            <ul className="space-y-2 text-white">
               {GOOGLE_LIMITATIONS.map((item) => (
                 <li key={item}>• {item}</li>
               ))}
@@ -365,7 +376,7 @@ export default function TellacityVsGooglePage() {
         </div>
 
         <section className="mt-10">
-          <h2 className="mb-4 text-xl font-semibold">Explore other comparisons</h2>
+          <h2 className="mb-4 text-xl font-semibold text-white">Explore other comparisons</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {EXPLORE_LINKS.map((l) => (
               <Link
@@ -385,8 +396,8 @@ export default function TellacityVsGooglePage() {
               </Link>
             ))}
           </div>
-          <p className="mt-6 text-sm text-neutral-400">
-            <Link href="/compare" className="text-[#1FAF9E] hover:underline">
+          <p className="mt-6 text-sm text-white">
+            <Link href="/compare" className="text-white hover:underline">
               View all platforms on the compare hub
             </Link>
           </p>
@@ -394,7 +405,7 @@ export default function TellacityVsGooglePage() {
 
         <section className="mt-10">
           <h2 className="text-lg font-semibold text-white mb-4">Frequently asked questions</h2>
-          <div className="space-y-4 text-sm text-neutral-400">
+          <div className="space-y-4 text-sm text-white">
             <div>
               <p className="text-white font-medium">Is Google Reviews free?</p>
               <p className="mt-1">Yes, Google Reviews is free for businesses and customers.</p>
@@ -418,14 +429,14 @@ export default function TellacityVsGooglePage() {
 
         <div className="space-y-4 pt-8 text-center">
           <p className="text-white font-medium">Looking for more control over your reviews?</p>
-          <p className="text-sm text-neutral-400">Start collecting and managing customer feedback with Tellacity.</p>
+          <p className="text-sm text-white">Start collecting and managing customer feedback with Tellacity.</p>
           <Link
             href="/business/signup"
-            className="inline-block rounded-lg bg-[#1FAF9E] px-6 py-3 font-medium text-black hover:opacity-90"
+            className="inline-block rounded-lg bg-[#1FAF9E] px-6 py-3 font-medium text-white hover:opacity-90"
           >
             Get Started
           </Link>
-          <p className="mt-2 text-xs text-neutral-500">No hidden fees. No long-term contracts.</p>
+          <p className="mt-2 text-xs text-white">No hidden fees. No long-term contracts.</p>
         </div>
       </div>
       <script

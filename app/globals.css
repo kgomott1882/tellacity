@@ -97,3 +97,64 @@
     opacity: 1;
   }
 }
+
+/* Landing hero — twinkling stars (softer luminance on desktop + mobile) */
+@keyframes heroStarTwinkle {
+  0% {
+    opacity: 0.28;
+    transform: translate(-50%, -50%) scale(0.65);
+    filter: blur(0.2px);
+  }
+  25% {
+    opacity: 0.68;
+    transform: translate(-50%, -50%) scale(1.08);
+    filter: blur(0);
+  }
+  45% {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(0.82);
+    filter: blur(0.12px);
+  }
+  70% {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(1.12);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.32;
+    transform: translate(-50%, -50%) scale(0.68);
+    filter: blur(0.2px);
+  }
+}
+
+/* One-shot shooting star (HeroStarField — client-triggered) */
+@keyframes heroShootingStarFly {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle, -42deg)) translateX(-48px);
+  }
+  7% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+    transform: rotate(var(--angle, -42deg)) translateX(var(--travel, 380px));
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle, -42deg)) translateX(calc(var(--travel, 380px) + 72px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-star-field .hero-star {
+    animation: none !important;
+    opacity: 0.28 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    filter: none !important;
+  }
+
+  .hero-star-field .hero-shooting-star-instance {
+    display: none !important;
+  }
+}

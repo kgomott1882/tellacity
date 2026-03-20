@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
+import HeroStarField from "@/components/home/HeroStarField";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
@@ -986,13 +987,14 @@ export default function HomePageClient({
     <main className="bg-white">
       {/* HERO */}
       <section
-        className="bg-[#0E0E0E] bg-cover bg-center bg-no-repeat"
+        className="relative overflow-hidden bg-[#0E0E0E] bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage:
             "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
         }}
       >
-        <div className="mx-auto flex min-h-[440px] max-w-7xl flex-col items-center px-6 pb-14 pt-20 text-center sm:min-h-[520px] sm:pt-24 md:pt-32 md:pb-16">
+        <HeroStarField />
+        <div className="relative z-10 mx-auto flex min-h-[440px] max-w-7xl flex-col items-center px-6 pb-14 pt-20 text-center sm:min-h-[520px] sm:pt-24 md:pt-32 md:pb-16">
           <div className="w-full max-w-md sm:max-w-lg md:max-w-4xl">
           <motion.h1
             initial={{ opacity: 0, y: 40 }}
@@ -1524,14 +1526,11 @@ export default function HomePageClient({
               Insights, guides, and stories on building trust and growing your
               business.
             </p>
-            <a href="/categories" className="text-sm text-blue-600 hover:underline">
-              Browse all categories
-            </a>
             <Link
               href="/blog"
               className="mt-3 inline-block text-sm font-semibold text-[#2fb2a8] hover:underline"
             >
-              View all posts →
+              View All Blog Posts
             </Link>
           </div>
 

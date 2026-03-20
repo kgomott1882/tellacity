@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function BestReviewPlatformsPage() {
   return (
-    <div className="min-h-screen bg-[#0E0E0E] px-6 py-16 text-white">
+    <div className="min-h-screen bg-[#2C2C2C] px-6 py-16 text-white">
       <div className="mx-auto max-w-3xl space-y-12">
-        <div className="mb-4 text-xs text-neutral-400">
+        <div className="mb-4 text-xs text-white">
           <Link href="/" className="hover:text-white">
             Home
           </Link>{" "}
@@ -17,7 +17,7 @@ export default function BestReviewPlatformsPage() {
 
         <section className="text-center">
           <h1 className="text-2xl font-semibold text-white md:text-3xl">Best review platforms in 2026</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-neutral-400">
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-white">
             A short guide to what to look for. For Tellacity vs Trustpilot, Yelp, Feefo, HelloPeter, and Google in one
             matrix, use the main compare hub - that&apos;s where the full multi-platform breakdown lives.
           </p>
@@ -25,13 +25,13 @@ export default function BestReviewPlatformsPage() {
 
         <section className="rounded-xl border border-[#1FAF9E]/40 bg-[#1FAF9E]/5 p-6 text-left">
           <h2 className="mb-2 text-lg font-semibold text-white">Full side-by-side comparison</h2>
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-white">
             The compare hub includes platform positioning, a feature matrix across all major platforms, and use-case
             guidance in one place.
           </p>
           <Link
             href="/compare#full-comparison"
-            className="mt-4 inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-black hover:opacity-90"
+            className="mt-4 inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
           >
             Open full comparison
           </Link>
@@ -39,29 +39,29 @@ export default function BestReviewPlatformsPage() {
 
         <section>
           <h2 className="mb-4 text-lg font-semibold text-white">Which review platform is best for you?</h2>
-          <div className="space-y-3 text-sm text-neutral-400">
+          <div className="space-y-3 text-sm text-white">
             <p>
-              Choose <span className="text-neutral-200">Tellacity</span> if you want full control, transparent pricing,
+              Choose <span className="text-white">Tellacity</span> if you want full control, transparent pricing,
               and automated review collection.
             </p>
             <p>
-              Choose <span className="text-neutral-200">Trustpilot</span> if your business needs global visibility and
+              Choose <span className="text-white">Trustpilot</span> if your business needs global visibility and
               enterprise-level credibility.
             </p>
             <p>
-              Choose <span className="text-neutral-200">Yelp</span> if your focus is local customers, especially in the
+              Choose <span className="text-white">Yelp</span> if your focus is local customers, especially in the
               United States.
             </p>
             <p>
-              Choose <span className="text-neutral-200">Feefo</span> if you require enterprise integrations and
+              Choose <span className="text-white">Feefo</span> if you require enterprise integrations and
               verified review programs.
             </p>
             <p>
-              Choose <span className="text-neutral-200">HelloPeter</span> if your business operates primarily in South
+              Choose <span className="text-white">HelloPeter</span> if your business operates primarily in South
               Africa.
             </p>
             <p>
-              Choose <span className="text-neutral-200">Google Reviews</span> if your priority is search visibility and
+              Choose <span className="text-white">Google Reviews</span> if your priority is search visibility and
               local SEO.
             </p>
           </div>
@@ -72,21 +72,21 @@ export default function BestReviewPlatformsPage() {
           <div className="space-y-4">
             <div className="rounded-xl border border-white/10 p-4">
               <p className="mb-1 font-medium text-white">Pricing</p>
-              <p className="text-sm text-neutral-400">
+              <p className="text-sm text-white">
                 Tellacity offers clear, fixed pricing starting at $69/month. Other platforms often start higher and scale
                 with usage - see the hub table for a direct comparison.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-4">
               <p className="mb-1 font-medium text-white">Control</p>
-              <p className="text-sm text-neutral-400">
+              <p className="text-sm text-white">
                 Tellacity emphasizes branding, widgets, and review collection workflows. Google Reviews and Yelp offer
                 limited customization by design.
               </p>
             </div>
             <div className="rounded-xl border border-white/10 p-4">
               <p className="mb-1 font-medium text-white">Automation</p>
-              <p className="text-sm text-neutral-400">
+              <p className="text-sm text-white">
                 Tellacity supports automated review invites and integrations. Google and Yelp rely mostly on organic
                 customer reviews.
               </p>
@@ -96,7 +96,7 @@ export default function BestReviewPlatformsPage() {
 
         <section>
           <h2 className="mb-4 text-lg font-semibold text-white">Frequently asked questions</h2>
-          <div className="space-y-4 text-sm text-neutral-400">
+          <div className="space-y-4 text-sm text-white">
             <div>
               <p className="font-medium text-white">What is the best review platform?</p>
               <p className="mt-1">
@@ -119,26 +119,26 @@ export default function BestReviewPlatformsPage() {
         <section>
           <h2 className="mb-4 text-lg font-semibold text-white">Compare platforms in detail</h2>
           <div className="flex flex-wrap gap-3 text-sm">
-            <Link href="/compare/tellacity-vs-trustpilot" className="text-[#1FAF9E] hover:underline">
+            <Link href="/compare/tellacity-vs-trustpilot" className="text-white hover:underline">
               Tellacity vs Trustpilot
             </Link>
-            <Link href="/compare/tellacity-vs-yelp" className="text-[#1FAF9E] hover:underline">
+            <Link href="/compare/tellacity-vs-yelp" className="text-white hover:underline">
               Tellacity vs Yelp
             </Link>
-            <Link href="/compare/tellacity-vs-feefo" className="text-[#1FAF9E] hover:underline">
+            <Link href="/compare/tellacity-vs-feefo" className="text-white hover:underline">
               Tellacity vs Feefo
             </Link>
-            <Link href="/compare/tellacity-vs-hellopeter" className="text-[#1FAF9E] hover:underline">
+            <Link href="/compare/tellacity-vs-hellopeter" className="text-white hover:underline">
               Tellacity vs HelloPeter
             </Link>
-            <Link href="/compare/tellacity-vs-google" className="text-[#1FAF9E] hover:underline">
+            <Link href="/compare/tellacity-vs-google" className="text-white hover:underline">
               Tellacity vs Google Reviews
             </Link>
           </div>
         </section>
 
         <section>
-          <Link href="/compare" className="text-sm text-neutral-400 hover:text-white">
+          <Link href="/compare" className="text-sm text-white hover:text-white">
             ← Back to compare hub
           </Link>
         </section>
@@ -146,7 +146,7 @@ export default function BestReviewPlatformsPage() {
         <div className="pt-4 text-center">
           <Link
             href="/business/signup"
-            className="inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-black hover:opacity-90"
+            className="inline-block rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
           >
             Get started with Tellacity
           </Link>

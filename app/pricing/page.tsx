@@ -941,17 +941,17 @@ export default function PricingPage() {
 
       {/* UPGRADE CONFIRMATION MODAL */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-2">Confirm Your Plan</h2>
-            <p className="text-neutral-600 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#2C2C2C] p-6 shadow-2xl sm:p-8">
+            <h2 className="mb-2 text-2xl font-bold text-white">Confirm Your Plan</h2>
+            <p className="mb-6 text-sm text-neutral-300 sm:text-base">
               You selected the{" "}
-              <span className="font-semibold capitalize">{selectedPlan}</span> plan.
+              <span className="font-semibold capitalize text-white">{selectedPlan}</span> plan.
             </p>
 
-            <div className="rounded-xl border p-4 mb-6 bg-neutral-50">
+            <div className="mb-6 rounded-xl border border-stone-300 bg-[#F8F4F0] p-4">
               {selectedPlan === "free" && (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-sm text-black">
                   <li>✓ 20 review invites/month</li>
                   <li>✓ Basic dashboard</li>
                   <li>✓ Email invites</li>
@@ -959,7 +959,7 @@ export default function PricingPage() {
               )}
 
               {selectedPlan === "grow" && (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-sm text-black">
                   <li>✓ 150 review invites/month</li>
                   <li>✓ Email &amp; SMS invites</li>
                   <li>✓ Performance analytics</li>
@@ -967,7 +967,7 @@ export default function PricingPage() {
               )}
 
               {selectedPlan === "premium" && (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-sm text-black">
                   <li>✓ 500 review invites/month</li>
                   <li>✓ Multi-location management</li>
                   <li>✓ Advanced analytics</li>
@@ -976,7 +976,7 @@ export default function PricingPage() {
               )}
 
               {selectedPlan === "elite" && (
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-sm text-black">
                   <li>✓ 3,000 review invites/month</li>
                   <li>✓ White-label options</li>
                   <li>✓ API access</li>
@@ -985,18 +985,18 @@ export default function PricingPage() {
               )}
             </div>
 
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-wrap justify-end gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => setShowUpgradeModal(false)}
-                className="px-5 py-2 rounded-lg border"
+                className="rounded-lg border border-white/25 bg-white px-5 py-2 text-sm font-medium text-black hover:bg-neutral-100"
               >
                 Cancel
               </button>
 
               <a
                 href={`/business/signup?plan=${selectedPlan ?? ""}`}
-                className="px-6 py-2 rounded-lg bg-black text-white font-semibold shadow-lg shadow-black/20 hover:shadow-xl transition-all"
+                className="inline-flex items-center justify-center rounded-lg bg-black px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-black/30 transition-all hover:bg-neutral-900 hover:shadow-xl"
               >
                 Confirm &amp; Continue
               </a>

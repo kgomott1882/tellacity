@@ -507,15 +507,15 @@ export default function BusinessSignupClient() {
               </div>
 
               <div className="max-w-md mx-auto lg:mx-0">
-                <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                  <h1 className="text-xl font-semibold text-[#0E0E0E] mb-3 sm:text-2xl">
+                <div className="mb-6 rounded-xl border border-stone-300 bg-[#F8F4F0] p-4">
+                  <h1 className="mb-3 text-xl font-semibold text-black sm:text-2xl">
                     Create a free account
                   </h1>
-                  <p className="text-sm text-neutral-600">Selected Plan:</p>
-                  <p className="text-lg font-semibold capitalize">
+                  <p className="text-sm text-black">Selected Plan:</p>
+                  <p className="text-lg font-semibold capitalize text-black">
                     {selectedPlan}
                   </p>
-                  <p className="text-xs text-neutral-500 mt-2">
+                  <p className="mt-2 text-xs text-black">
                     You can change your plan later inside your dashboard.
                   </p>
                 </div>
