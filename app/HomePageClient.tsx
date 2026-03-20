@@ -1375,7 +1375,7 @@ export default function HomePageClient({
               return (
                 <div
                   key={item.question}
-                  className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#2fb2a8]/5 hover:border-[#2fb2a8] ${
+                  className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#F6C400]/10 hover:border-[#F6C400] ${
                     isOpen ? "shadow-md border-[#2fb2a8]" : ""
                   }`}
                 >
@@ -1431,7 +1431,7 @@ export default function HomePageClient({
                   return (
                     <div
                       key={item.question}
-                      className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#2fb2a8]/5 hover:border-[#2fb2a8] ${
+                      className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#F6C400]/10 hover:border-[#F6C400] ${
                         isOpen ? "shadow-md border-[#2fb2a8]" : ""
                       }`}
                     >

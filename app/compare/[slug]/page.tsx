@@ -287,10 +287,25 @@ function isValidSlug(slug: string) {
 
 export default async function CompareSlugPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ country?: string }>;
 }) {
   const { slug } = await params;
+  const resolvedSearchParams = await (searchParams ?? Promise.resolve({}));
+  const rawCountry = String(resolvedSearchParams.country ?? "").trim().toUpperCase();
+  const allowedCountries = new Set(["US", "ZA", "GB", "AU", "CA", "NZ", "IE"]);
+  const countryCode = allowedCountries.has(rawCountry) ? rawCountry : null;
+  const companyCountrySegment = countryCode
+    ? countryCode === "GB"
+      ? "uk"
+      : countryCode.toLowerCase()
+    : null;
+  const categoriesHref = countryCode ? `/categories?country=${countryCode}` : "/categories";
+  const companiesHref = companyCountrySegment
+    ? `/companies/${companyCountrySegment}?country=${countryCode}`
+    : "/companies";
   const data = comparisons[slug as keyof typeof comparisons];
 
   if (!data) {
@@ -303,6 +318,7 @@ export default async function CompareSlugPage({
 
   const competitorMeta = platformMeta[data.competitorKey];
   const competitorBestFor = COMPETITOR_BEST_FOR[data.competitorKey];
+  const competitorName = data.competitor;
   const supabase = createClient();
 
   const { data: alternativesData } = await supabase
@@ -374,6 +390,10 @@ export default async function CompareSlugPage({
         </div>
 
         <div className="space-y-4 text-center">
+          <h1 className="text-3xl font-semibold md:text-4xl">{data.title}</h1>
+          <p className="mt-3 text-sm text-gray-600 max-w-2xl mx-auto">
+            Looking for the difference between Tellacity and {competitorName}? This comparison breaks down features, pricing, control, and flexibility to help businesses choose the right customer review platform.
+          </p>
           <div className="flex items-center justify-center gap-4">
             <div className="flex items-center gap-2">
               <Image
@@ -440,6 +460,17 @@ export default async function CompareSlugPage({
             Pricing shown is based on publicly available entry-level plans. Actual costs may increase depending on
             features, usage, and contract terms.
           </p>
+          <div className="mt-10 border-t pt-6">
+            <h2 className="text-lg font-semibold mb-2">
+              Looking for alternatives to {competitorName}?
+            </h2>
+
+            <p className="text-sm text-gray-600 max-w-2xl">
+              If you're exploring alternatives to {competitorName}, Tellacity offers
+              greater control, flexible integrations, and a modern approach to
+              customer feedback and business intelligence.
+            </p>
+          </div>
         </section>
 
         <div className="mb-12 rounded-xl border border-[#1FAF9E] bg-[#1FAF9E]/5 p-5">
@@ -695,6 +726,22 @@ export default async function CompareSlugPage({
             Get Started
           </Link>
           <p className="mt-2 text-xs text-neutral-500">No hidden fees. No long-term contracts.</p>
+        </div>
+
+        <div className="mt-10 border-t pt-6 text-sm space-y-2">
+          <p>
+            Explore more customer review platforms or browse businesses already using Tellacity.
+          </p>
+
+          <div className="flex gap-4">
+            <a href={categoriesHref} className="text-blue-600 hover:underline">
+              Browse categories
+            </a>
+
+            <a href={companiesHref} className="text-blue-600 hover:underline">
+              Browse companies
+            </a>
+          </div>
         </div>
       </div>
       <script

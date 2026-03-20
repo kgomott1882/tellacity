@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import {
@@ -109,7 +109,7 @@ async function fetchBusinessesByLetter(
 
 export default async function CompaniesCountryLetterPage(props: {
   params: Promise<PageParams>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; country?: string }>;
 }) {
   const { country: rawCountry, letter: rawLetter } = await props.params;
   const searchParams = await props.searchParams;
@@ -122,9 +122,21 @@ export default async function CompaniesCountryLetterPage(props: {
     notFound();
   }
 
+  const queryCountry = normalizeCountryParam(searchParams?.country);
   const normalizedLetter = (rawLetter || "").charAt(0).toUpperCase();
   if (!/^[A-Z]$/.test(normalizedLetter)) {
     notFound();
+  }
+
+  if (queryCountry && queryCountry !== normalizedCountry) {
+    const params = new URLSearchParams();
+    params.set("country", toStorageCountryCode(queryCountry));
+    if (searchParams?.page) {
+      params.set("page", searchParams.page);
+    }
+    redirect(
+      `/companies/${queryCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?${params.toString()}`
+    );
   }
 
   let businesses: BusinessRow[] = [];
@@ -143,6 +155,7 @@ export default async function CompaniesCountryLetterPage(props: {
   const label = COUNTRY_LABELS[normalizedCountry];
   const flagCode = COUNTRY_FLAG_CODE[normalizedCountry];
   const flagUrl = `${FLAG_BASE}/${flagCode}.svg`;
+  const currentCountryCode = toStorageCountryCode(normalizedCountry);
 
   return (
     <main className="bg-white">
@@ -198,7 +211,7 @@ export default async function CompaniesCountryLetterPage(props: {
               <div className="inline-flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white text-sm">
                 {page > 1 ? (
                   <a
-                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page - 1}`}
+                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?country=${currentCountryCode}&page=${page - 1}`}
                     className="border-r border-gray-200 px-4 py-2.5 text-gray-800 hover:bg-gray-50"
                   >
                     Previous
@@ -215,7 +228,7 @@ export default async function CompaniesCountryLetterPage(props: {
 
                 {businesses.length === PAGE_LIMIT ? (
                   <a
-                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?page=${page + 1}`}
+                    href={`/companies/${rawCountry.toLowerCase()}/${normalizedLetter.toLowerCase()}?country=${currentCountryCode}&page=${page + 1}`}
                     className="px-4 py-2.5 text-gray-800 hover:bg-gray-50"
                   >
                     Next

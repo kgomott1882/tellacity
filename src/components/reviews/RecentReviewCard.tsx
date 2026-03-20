@@ -120,7 +120,7 @@ export default function RecentReviewCard({
     <div
       onClick={handleCardClick}
       className={cn(
-        "flex flex-col h-full rounded-xl border border-[#124541] bg-white shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden",
+        "flex flex-col h-full rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all cursor-pointer overflow-hidden",
         bgColor,
         isMobile ? "h-[320px]" : "",
         className

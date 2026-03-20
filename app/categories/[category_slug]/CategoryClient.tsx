@@ -115,11 +115,9 @@ export default function CategoryClient({
   const [minRating, setMinRating] = useState<number | null>(null);
 
   const queryCountry = searchParams.get("country");
-  // Sync with nav/footer: URL param first, then localStorage (getActiveCountry), then server default
-  const storedCountry =
-    typeof window !== "undefined" ? getActiveCountry() : null;
+  // URL + server-provided country only during render to avoid hydration mismatch.
   const derivedCountry =
-    queryCountry ?? storedCountry ?? initialCountryCode ?? "US";
+    queryCountry ?? initialCountryCode ?? "US";
 
   const [selectedCountry, setSelectedCountry] = useState<string | null>(
     derivedCountry
@@ -232,6 +230,11 @@ export default function CategoryClient({
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }, [categorySlug, categoryName]);
+  const countryName =
+    COUNTRIES.find((country) => country.code === (derivedCountry ?? ""))?.name ??
+    derivedCountry ??
+    "United States";
+  const countryCode = derivedCountry ?? "US";
 
   // ---------- FIXED CATEGORY INFO (uses group_slug) ----------
   useEffect(() => {
@@ -504,6 +507,12 @@ export default function CategoryClient({
           {topRatedBusinesses.length > 0 && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
+              <p className="mt-2 text-sm text-gray-600 max-w-2xl">
+                Discover trusted {categoryName || title} companies in {countryName}. Read real customer reviews, compare ratings, and find the best businesses based on real experiences from people like you.
+              </p>
+              <p className="mt-2 text-sm text-gray-600 max-w-2xl">
+                Top-rated {categoryName} companies in {countryName} based on real customer reviews, trust scores, and verified feedback from customers.
+              </p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {topRatedBusinesses.map((business) => (
                   <Link
@@ -730,6 +739,9 @@ export default function CategoryClient({
           {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
           {fetchError && <p className="mt-2 text-sm text-red-600">{fetchError}</p>}
 
+          <h2 className="text-lg font-semibold mt-6 mb-3">
+            Best {categoryName} companies in {countryName}
+          </h2>
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
             {businessesList.length === 0 && !loading && (
               <div className="px-4 py-6 text-sm text-gray-500">
@@ -846,7 +858,7 @@ export default function CategoryClient({
 
           {popularSearches.length > 0 && (
             <section className="mt-12">
-              <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
+              <h2 className="text-sm font-semibold text-[#0E0E0E]">Explore related categories</h2>
               <div className="mt-4 flex flex-wrap gap-3">
                 {popularSearches.map((item) => {
                   const safeSlug = (item.slug ?? "").trim().toLowerCase();
@@ -957,6 +969,15 @@ export default function CategoryClient({
               </div>
             </section>
           )}
+
+          <div className="mt-10 border-t pt-6 text-sm">
+            <a
+              href={`/companies/${countryCode.toLowerCase()}`}
+              className="text-blue-600 hover:underline"
+            >
+              Browse more businesses in {countryName}
+            </a>
+          </div>
 
           {filtersOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

@@ -218,6 +218,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     average: number;
     counts: RatingCounts;
   } | null>(null);
+  const [relatedBusinesses, setRelatedBusinesses] = useState<any[]>([]);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -439,6 +440,27 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     return () => {
       isMounted = false;
     };
+  }, [business?.id]);
+
+  useEffect(() => {
+    if (!business?.categorySlug || !business?.countryCode) return;
+
+    const fetchRelated = async () => {
+      const { data, error } = await supabase()
+        .from("businesses")
+        .select("id, name, slug")
+        .eq("category_slug", business.categorySlug)
+        .eq("country_code", business.countryCode)
+        .neq("id", business.id)
+        .eq("status", "active")
+        .limit(6);
+
+      if (!error && data) {
+        setRelatedBusinesses(data);
+      }
+    };
+
+    fetchRelated();
   }, [business?.id]);
 
   useEffect(() => {
@@ -1221,16 +1243,6 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                   Explore Rankings
                 </h3>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {business?.categorySlug && (
-                    <Link
-                      href={`/best/${business.categorySlug}`}
-                      className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
-                    >
-                      <span className="font-semibold text-[#0E0E0E]">
-                        Best {sanitizeText(business.categoryName || "Companies")} Companies
-                      </span>
-                    </Link>
-                  )}
                   <Link
                     href="/top-rated"
                     className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
@@ -1239,18 +1251,28 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       Top Rated Companies
                     </span>
                   </Link>
-                  {business?.categoryGroupSlug && (
-                    <Link
-                      href={`/best/${business.categoryGroupSlug}`}
-                      className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
-                    >
-                      <span className="font-semibold text-[#0E0E0E]">
-                        Best {sanitizeText(business.categoryGroupName || "Categories")} Categories
-                      </span>
-                    </Link>
-                  )}
                 </div>
               </div>
+
+              {relatedBusinesses.length > 0 && (
+                <div className="mt-10 border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">
+                    More businesses like this
+                  </h3>
+
+                  <div className="space-y-2">
+                    {relatedBusinesses.map((b) => (
+                      <a
+                        key={b.id}
+                        href={`/b/${b.slug}`}
+                        className="block text-sm text-gray-700 hover:text-black transition"
+                      >
+                        {b.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -16,6 +16,13 @@ const COUNTRIES = [
   { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
+function normalizeCountryCodeForUi(raw: string | null, fallback = "US"): string {
+  if (!raw) return fallback;
+  const upper = raw.trim().toUpperCase();
+  if (upper === "UK") return "GB";
+  return COUNTRIES.some((item) => item.code === upper) ? upper : fallback;
+}
+
 export default function Footer() {
   const pathname = usePathname();
   const router = useRouter();
@@ -25,23 +32,27 @@ export default function Footer() {
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
+  const companiesCountrySegment = countryCode === "GB" ? "uk" : countryCode.toLowerCase();
+  const categoriesHref = `/categories?country=${countryCode}`;
+  const companiesHref = `/companies/${companiesCountrySegment}?country=${countryCode}`;
+  const compareBaseQuery = `?country=${countryCode}`;
 
   // Sync country from URL (single source of truth), then local fallback.
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
-      setCountryCode(fromUrl);
+      setCountryCode(normalizeCountryCodeForUi(fromUrl));
       return;
     }
     const stored = getActiveCountry();
-    setCountryCode(stored ?? "US");
+    setCountryCode(normalizeCountryCodeForUi(stored, "US"));
   }, [searchParams]);
 
   // Stay in sync when country is changed from Navbar or elsewhere
   useEffect(() => {
     const handler = () => {
       const code = getActiveCountry();
-      if (code) setCountryCode(code);
+      if (code) setCountryCode(normalizeCountryCodeForUi(code, "US"));
     };
     window.addEventListener("tellacity-country-change", handler);
     return () => window.removeEventListener("tellacity-country-change", handler);
@@ -126,12 +137,12 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/categories" className="hover:text-white">
+                  <Link href={categoriesHref} className="hover:text-white">
                     Browse Categories
                   </Link>
                 </li>
                 <li>
-                  <Link href="/companies" className="hover:text-white">
+                  <Link href={companiesHref} className="hover:text-white">
                     Browse Businesses by Country
                   </Link>
                 </li>
@@ -254,32 +265,32 @@ export default function Footer() {
               <h4 className="mb-4 text-sm font-semibold">COMPARE</h4>
               <ul className="space-y-2 text-sm text-neutral-400">
                 <li>
-                  <Link href="/compare/tellacity-vs-trustpilot" className="hover:text-white">
+                  <Link href={`/compare/tellacity-vs-trustpilot${compareBaseQuery}`} className="hover:text-white">
                     Tellacity vs Trustpilot
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compare/tellacity-vs-yelp" className="hover:text-white">
+                  <Link href={`/compare/tellacity-vs-yelp${compareBaseQuery}`} className="hover:text-white">
                     Tellacity vs Yelp
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compare/tellacity-vs-feefo" className="hover:text-white">
+                  <Link href={`/compare/tellacity-vs-feefo${compareBaseQuery}`} className="hover:text-white">
                     Tellacity vs Feefo
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compare/tellacity-vs-hellopeter" className="hover:text-white">
+                  <Link href={`/compare/tellacity-vs-hellopeter${compareBaseQuery}`} className="hover:text-white">
                     Tellacity vs HelloPeter
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compare/tellacity-vs-google" className="hover:text-white">
+                  <Link href={`/compare/tellacity-vs-google${compareBaseQuery}`} className="hover:text-white">
                     Tellacity vs Google Reviews
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compare" className="hover:text-white">
+                  <Link href={`/compare${compareBaseQuery}`} className="hover:text-white">
                     All comparisons
                   </Link>
                 </li>

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   COUNTRY_LABELS,
   SUPPORTED_COUNTRY_CODES,
   normalizeCountryParam,
+  toStorageCountryCode,
   type SupportedCountryCode,
 } from "@/lib/seoCountries";
 
@@ -54,18 +55,28 @@ export async function generateMetadata(props: {
 
 export default async function CompaniesCountryIndexPage(props: {
   params: Promise<PageParams>;
+  searchParams: Promise<{ country?: string }>;
 }) {
   const { country: rawCountry } = await props.params;
+  const searchParams = await props.searchParams;
 
   const normalized = normalizeCountryParam(rawCountry.toUpperCase());
   if (!normalized || !SUPPORTED_COUNTRY_CODES.includes(normalized)) {
     notFound();
   }
 
+  const queryCountry = normalizeCountryParam(searchParams?.country);
+  if (queryCountry && queryCountry !== normalized) {
+    redirect(
+      `/companies/${queryCountry.toLowerCase()}?country=${toStorageCountryCode(queryCountry)}`
+    );
+  }
+
   const label = COUNTRY_LABELS[normalized];
   const flagCode = COUNTRY_FLAG_CODE[normalized];
   const flagUrl = `${FLAG_BASE}/${flagCode}.svg`;
   const country = normalized.toLowerCase();
+  const queryCountryCode = toStorageCountryCode(normalized);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const basePath = `/companies/${country}`;
 
@@ -90,7 +101,7 @@ export default async function CompaniesCountryIndexPage(props: {
             {letters.map((letter) => (
               <Link
                 key={letter}
-                href={`${basePath}/${letter.toLowerCase()}`}
+                href={`${basePath}/${letter.toLowerCase()}?country=${queryCountryCode}`}
                 className="flex h-10 items-center justify-center rounded-md border border-gray-200 bg-white text-sm font-semibold text-[#0E0E0E] hover:border-[#1FAF9E] hover:text-[#1FAF9E] transition-colors"
               >
                 {letter}

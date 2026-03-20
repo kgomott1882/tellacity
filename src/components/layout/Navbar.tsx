@@ -19,6 +19,13 @@ const COUNTRIES = [
   { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
+function normalizeCountryCodeForUi(raw: string | null): string {
+  if (!raw) return "US";
+  const upper = raw.trim().toUpperCase();
+  if (upper === "UK") return "GB";
+  return COUNTRIES.some((item) => item.code === upper) ? upper : "US";
+}
+
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -64,12 +71,7 @@ export default function Navbar() {
 
   // URL is the source of truth for country.
   useEffect(() => {
-    const fromUrl = searchParams.get("country");
-    if (fromUrl) {
-      setCountryCode(fromUrl);
-      return;
-    }
-    setCountryCode("US");
+    setCountryCode(normalizeCountryCodeForUi(searchParams.get("country")));
   }, [searchParams]);
 
   // Close user menu when clicking outside
@@ -589,7 +591,7 @@ export default function Navbar() {
                 Write a Review
               </Link>
               <Link
-                href="/categories"
+                href={`/categories?country=${countryCode}`}
                 className={`border-b-2 pb-1 ${
                   pathname === "/categories"
                     ? "border-[#1FAF9E] text-white"
@@ -742,7 +744,7 @@ export default function Navbar() {
                   Write a Review
                 </Link>
                 <Link
-                  href="/categories"
+                  href={`/categories?country=${countryCode}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Categories

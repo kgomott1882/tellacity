@@ -24,7 +24,8 @@ export function normalizeCountryParam(
   raw: string | null | undefined
 ): SupportedCountryCode | null {
   if (!raw) return null;
-  const code = raw.trim().toUpperCase();
+  const upper = raw.trim().toUpperCase();
+  const code = upper === "GB" ? "UK" : upper;
   return (SUPPORTED_COUNTRY_CODES as readonly string[]).includes(code)
     ? (code as SupportedCountryCode)
     : null;
