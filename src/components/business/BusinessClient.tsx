@@ -109,6 +109,46 @@ const buildWebsiteHref = (value: string | null | undefined) => {
 
 const reviewSkeletons = Array.from({ length: 3 });
 
+async function resolveBusinessRowBySlug(rawSlug: string) {
+  const safeSlug = String(rawSlug ?? "").trim().toLowerCase();
+  if (!safeSlug) return null;
+  const sb = supabaseBrowser();
+
+  const fetchBySlug = async (candidate: string) => {
+    const { data, error } = await sb.rpc("get_business_by_slug", {
+      p_slug: candidate,
+    });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row && typeof row === "object" ? row : null;
+  };
+
+  const exact = await fetchBySlug(safeSlug);
+  if (exact) return exact;
+
+  const baseSlug = safeSlug.replace(/-\d+$/, "");
+  if (baseSlug && baseSlug !== safeSlug) {
+    const baseMatch = await fetchBySlug(baseSlug);
+    if (baseMatch) return baseMatch;
+  }
+
+  const prefix = (baseSlug || safeSlug).trim();
+  if (!prefix) return null;
+
+  const { data: nearest } = await sb
+    .from("businesses")
+    .select("slug")
+    .eq("status", "active")
+    .ilike("slug", `${prefix}%`)
+    .order("review_count", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nearestSlug = String(nearest?.slug ?? "").trim().toLowerCase();
+  if (!nearestSlug) return null;
+  return await fetchBySlug(nearestSlug);
+}
+
 type BusinessClientProps = {
   initialBusiness?: BusinessRow | null;
 };
@@ -219,16 +259,11 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       setNotFound(false);
       setBusiness(null);
 
-      const supabase = supabaseBrowser();
-      const { data, error } = await supabase.rpc("get_business_by_slug", {
-        p_slug: slug,
-      });
+      const businessRow = await resolveBusinessRowBySlug(slug);
 
       if (!isMounted) return;
 
-      const businessRow = Array.isArray(data) ? data[0] : data;
-
-      if (error || !businessRow || typeof businessRow !== "object") {
+      if (!businessRow || typeof businessRow !== "object") {
         setNotFound(true);
         setBusiness(null);
         setIsLoadingBusiness(false);

@@ -8,6 +8,7 @@ import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
 import CookieBar from "@/components/CookieBar";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
+import CountrySync from "@/components/common/CountrySync";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
 export const metadata = {};
@@ -43,6 +44,7 @@ export default function RootLayout({
         <ScrollProgress />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
+        <CountrySync />
         <Suspense fallback={null}>
           <ConditionalNavbar />
         </Suspense>

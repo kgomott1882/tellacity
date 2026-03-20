@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import { sanitizeText } from "@/lib/sanitizeText";
 
@@ -21,6 +22,44 @@ function getSafeSlug(slug: string): string | null {
   return /^[a-z0-9-]+$/.test(safeSlug) ? safeSlug : null;
 }
 
+async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, safeSlug: string) {
+  const fetchBySlug = async (candidate: string) => {
+    const { data } = await supabase.rpc("get_business_by_slug", {
+      p_slug: candidate,
+    });
+    return Array.isArray(data) ? data[0] : data;
+  };
+
+  const exact = await fetchBySlug(safeSlug);
+  if (exact) return exact;
+
+  // Fallback for copied/share links with numeric suffixes (e.g. brand-2).
+  const baseSlug = safeSlug.replace(/-\d+$/, "");
+  if (baseSlug && baseSlug !== safeSlug) {
+    const baseMatch = await fetchBySlug(baseSlug);
+    if (baseMatch) return baseMatch;
+  }
+
+  // Last fallback: pick closest active business slug by prefix.
+  const prefix = (baseSlug || safeSlug).trim();
+  if (prefix) {
+    const { data: nearest } = await supabase
+      .from("businesses")
+      .select("slug")
+      .eq("status", "active")
+      .ilike("slug", `${prefix}%`)
+      .order("review_count", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    const nearestSlug = getSafeSlug(String(nearest?.slug ?? ""));
+    if (nearestSlug) {
+      return await fetchBySlug(nearestSlug);
+    }
+  }
+
+  return null;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -37,11 +76,7 @@ export async function generateMetadata({
 
   const supabase = getSupabase();
 
-  const { data } = await supabase.rpc("get_business_by_slug", {
-    p_slug: safeSlug,
-  });
-
-  const business = Array.isArray(data) ? data[0] : data;
+  const business = await resolveBusinessBySlug(supabase, safeSlug);
 
   if (!business) {
     return {
@@ -80,14 +115,15 @@ export default async function BusinessPage({
   }
   const supabase = getSupabase();
 
-  const { data } = await supabase.rpc("get_business_by_slug", {
-    p_slug: safeSlug,
-  });
-
-  const business = Array.isArray(data) ? data[0] : data;
+  const business = await resolveBusinessBySlug(supabase, safeSlug);
 
   if (!business) {
     return <BusinessClient />;
+  }
+
+  const resolvedSlug = getSafeSlug(String(business.slug ?? ""));
+  if (resolvedSlug && resolvedSlug !== safeSlug) {
+    redirect(`/b/${resolvedSlug}`);
   }
 
   const { data: reviewSchema } = await supabase

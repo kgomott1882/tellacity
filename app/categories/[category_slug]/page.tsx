@@ -101,7 +101,7 @@ export default async function Page(props: PageProps) {
       .split("-")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
-  const countryCode = searchParams?.country ?? "ZA";
+  const countryCode = searchParams?.country ?? "US";
   const countryName =
     countryCode === "US"
       ? "United States"

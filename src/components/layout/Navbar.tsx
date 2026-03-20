@@ -7,7 +7,6 @@ import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
-import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -63,26 +62,15 @@ export default function Navbar() {
     pathname?.startsWith("/auth/") ||
     pathname?.startsWith("/business/reset-password");
 
-  // Sync country from URL or stored preference on mount (same default ZA as Footer)
+  // URL is the source of truth for country.
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
       setCountryCode(fromUrl);
       return;
     }
-    const stored = getActiveCountry();
-    setCountryCode(stored ?? "ZA");
+    setCountryCode("US");
   }, [searchParams]);
-
-  // Stay in sync when country is changed from Footer or elsewhere
-  useEffect(() => {
-    const handler = () => {
-      const code = getActiveCountry();
-      if (code) setCountryCode(code);
-    };
-    window.addEventListener("tellacity-country-change", handler);
-    return () => window.removeEventListener("tellacity-country-change", handler);
-  }, []);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -291,15 +279,8 @@ export default function Navbar() {
   };
 
   const handleCountryChange = (code: string) => {
-    // Persist for other UIs that still read local storage,
-    // and broadcast the custom event for listeners.
     setCountryCode(code);
-    setActiveCountry(code);
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("country", code);
-
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`?country=${code}`);
   };
 
   if (isBusinessNav) {
