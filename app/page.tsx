@@ -27,7 +27,7 @@ type PageProps = {
 };
 
 export default async function HomePage(props: PageProps) {
-  let country = "ZA";
+  let country = "US";
   let bestInByCategory: Record<string, unknown[]> = {};
   let rpcDebug: Record<
     string,
@@ -36,7 +36,7 @@ export default async function HomePage(props: PageProps) {
 
   try {
     const searchParams = await props.searchParams;
-    country = searchParams?.country ?? "ZA";
+    country = searchParams?.country ?? "US";
 
     const supabase = createSupabaseServerClient();
     if (!supabase) {
@@ -99,7 +99,7 @@ export default async function HomePage(props: PageProps) {
     }
   } catch (error) {
     console.error("Homepage fetch failed:", error);
-    country = "ZA";
+    country = "US";
     bestInByCategory = {};
     rpcDebug = {};
   }
@@ -125,7 +125,7 @@ export default async function HomePage(props: PageProps) {
   try {
     return (
       <HomePageClient
-        initialSelectedCountry={country ?? "ZA"}
+        initialSelectedCountry={country ?? "US"}
         rotatingCategorySlugs={safeRotatingSlugs}
         bestInByCategory={safeBestInByCategory}
         bestInCategoryLabels={safeLabels}

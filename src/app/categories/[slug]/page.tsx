@@ -32,7 +32,7 @@ export default function CategoryDetailPage() {
       : null;
 
   const searchParams = useSearchParams();
-  const country = searchParams.get("country") ?? "ZA";
+  const country = searchParams.get("country") ?? "US";
 
   const [businesses, setBusinesses] = useState<CategoryBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);

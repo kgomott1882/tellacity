@@ -119,7 +119,7 @@ export default function CategoryClient({
   const storedCountry =
     typeof window !== "undefined" ? getActiveCountry() : null;
   const derivedCountry =
-    queryCountry ?? storedCountry ?? initialCountryCode ?? "ZA";
+    queryCountry ?? storedCountry ?? initialCountryCode ?? "US";
 
   const [selectedCountry, setSelectedCountry] = useState<string | null>(
     derivedCountry
@@ -203,7 +203,7 @@ export default function CategoryClient({
         params.delete("country");
       }
       router.replace(`?${params.toString()}`, { scroll: false });
-      setSelectedCountry(code ?? initialCountryCode ?? "ZA");
+      setSelectedCountry(code ?? initialCountryCode ?? "US");
       setPage(0);
     };
     window.addEventListener("tellacity-country-change", handler);
@@ -324,7 +324,7 @@ export default function CategoryClient({
       setFetchError(null);
 
       const offset = page * PAGE_SIZE;
-      const countryCode = derivedCountry ?? "ZA";
+      const countryCode = derivedCountry ?? "US";
       const min = typeof minRating === "number" ? minRating : 0;
 
       const supabase = supabaseBrowser();

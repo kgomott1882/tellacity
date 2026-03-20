@@ -21,12 +21,12 @@ export default function Footer() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("ZA");
+  const [countryCode, setCountryCode] = useState("US");
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
 
-  // Sync country from URL or stored preference (same logic as Navbar; default ZA)
+  // Sync country from URL (single source of truth), then local fallback.
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
@@ -34,7 +34,7 @@ export default function Footer() {
       return;
     }
     const stored = getActiveCountry();
-    setCountryCode(stored ?? "ZA");
+    setCountryCode(stored ?? "US");
   }, [searchParams]);
 
   // Stay in sync when country is changed from Navbar or elsewhere
@@ -67,12 +67,8 @@ export default function Footer() {
 
   const handleCountrySelect = (code: string) => {
     setCountryCode(code);
-    // Persist and notify listeners (home sections, etc.)
     setActiveCountry(code);
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("country", code);
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`?country=${code}`);
     setIsCountryOpen(false);
   };
 

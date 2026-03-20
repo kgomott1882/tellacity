@@ -84,10 +84,10 @@ const COUNTRIES = [
 type CountryCode = (typeof COUNTRIES)[number]["code"];
 
 const normalizeCountryCode = (code: string | null | undefined): CountryCode => {
-  const upper = (code ?? "ZA").toUpperCase();
+  const upper = (code ?? "US").toUpperCase();
   if (upper === "UK") return "GB";
   const found = COUNTRIES.find((country) => country.code === upper);
-  return (found?.code ?? "ZA") as CountryCode;
+  return (found?.code ?? "US") as CountryCode;
 };
 
 function isValidSlug(slug: string) {
@@ -206,6 +206,7 @@ export default function HomePageClient({
 
 
   const handleCountryChange = (code: CountryCode) => {
+    setSelectedCountry(code);
     setActiveCountry(code);
     const params = new URLSearchParams(searchParams.toString());
     params.set("country", code);
@@ -351,14 +352,17 @@ export default function HomePageClient({
     (activeBestInSlug ?? "").replace(/-/g, " ");
 
   useEffect(() => {
-    const stored = getActiveCountry();
-    if (stored) {
-      setSelectedCountry(stored);
+    const fromUrl = searchParams.get("country");
+    if (fromUrl) {
+      setSelectedCountry(normalizeCountryCode(fromUrl));
+    } else {
+      const stored = getActiveCountry();
+      if (stored) setSelectedCountry(normalizeCountryCode(stored));
     }
 
     const handleSync = () => {
       const updated = getActiveCountry();
-      setSelectedCountry(updated || null);
+      if (updated) setSelectedCountry(normalizeCountryCode(updated));
     };
 
     window.addEventListener("storage", handleSync);
@@ -367,7 +371,7 @@ export default function HomePageClient({
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("tellacity-country-change", handleSync);
     };
-  }, []);
+  }, [searchParams]);
 
   // Apply stored country to URL when on landing page with no ?country= so "Best in" and nav/footer stay in sync (e.g. after refresh or back to home).
   useEffect(() => {
@@ -387,7 +391,7 @@ export default function HomePageClient({
     let isMounted = true;
 
     const fetchData = async () => {
-      const country = getActiveCountry();
+      const country = activeCountryCode;
       setIsLoading(true);
       setError(null);
 
@@ -398,6 +402,7 @@ export default function HomePageClient({
           .select(
             "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url, resolved_logo_url, review_count)"
           )
+          .eq("businesses.country_code", country)
           .or("status.is.null,status.eq.published")
           .order("created_at", { ascending: false })
           .limit(56);
@@ -496,7 +501,7 @@ export default function HomePageClient({
     return () => {
       isMounted = false;
     };
-  }, [selectedCountry]);
+  }, [activeCountryCode]);
 
   // Keep a local copy of Best-in data and fill gaps with a direct businesses fallback
   // when the RPC returns no rows for a given category/country.
@@ -504,7 +509,7 @@ export default function HomePageClient({
     setClientBestInByCategory(bestInByCategory);
 
     const fetchFallbackForEmptyCategories = async () => {
-      const country = selectedCountry ?? initialSelectedCountry ?? "ZA";
+      const country = activeCountryCode;
       const emptySlugs = Object.entries(bestInByCategory ?? {})
         .filter(
           ([, list]) => !Array.isArray(list) || (list as BestInBusiness[]).length === 0,
@@ -542,7 +547,7 @@ export default function HomePageClient({
     };
 
     fetchFallbackForEmptyCategories();
-  }, [bestInByCategory, selectedCountry, initialSelectedCountry]);
+  }, [bestInByCategory, activeCountryCode]);
 
   useEffect(() => {
     if (reviewPage >= totalReviewPages) {
@@ -1055,7 +1060,7 @@ export default function HomePageClient({
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
         metricsByBusinessId={bestInMetrics}
-        countryCode={selectedCountry ?? initialSelectedCountry ?? "ZA"}
+        countryCode={selectedCountry ?? initialSelectedCountry ?? "US"}
         onPrevious={() =>
           setBestInIndex((prev) =>
             rotatingCategorySlugs?.length
