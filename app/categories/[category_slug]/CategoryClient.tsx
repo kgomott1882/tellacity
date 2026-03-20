@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, domainFromWebsite, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
 import { getActiveCountry, setActiveCountry } from "@/lib/getActiveCountry";
+import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 
 type BusinessRow = {
@@ -130,19 +131,47 @@ export default function CategoryClient({
 
   const businessesList = rows ?? [];
   const topRatedBusinesses = useMemo(() => {
-    const seed = (businesses ?? []) as Array<{ id?: string; slug?: string; name?: string }>;
+    const seed = (businesses ?? []) as Array<{
+      id?: string;
+      slug?: string;
+      name?: string;
+      website?: string | null;
+      resolved_logo_url?: string | null;
+      trust_score?: number | null;
+      review_count?: number | null;
+    }>;
     return seed
       .map((business, index) => {
         const safeSlug = (business.slug ?? "").trim().toLowerCase();
         if (!isValidSlug(safeSlug)) return null;
+        const logoUrl =
+          normalizeLogoUrl(business.resolved_logo_url ?? null) ??
+          getLogoDevUrl(domainFromWebsite(business.website ?? null));
         return {
           id: business.id ?? `top-${index}-${safeSlug}`,
           slug: safeSlug,
           name: (business.name ?? "").trim() || "Business",
+          logoUrl,
+          trustScore:
+            typeof business.trust_score === "number" ? business.trust_score : 0,
+          reviewCount:
+            typeof business.review_count === "number" ? business.review_count : 0,
         };
       })
-      .filter((business): business is { id: string; slug: string; name: string } => Boolean(business))
-      .slice(0, 10);
+      .filter(
+        (
+          business
+        ): business is {
+          id: string;
+          slug: string;
+          name: string;
+          logoUrl: string | null;
+          trustScore: number;
+          reviewCount: number;
+        } =>
+          Boolean(business)
+      )
+      .slice(0, 8);
   }, [businesses]);
 
   // Keep selectedCountry in sync with URL and global country
@@ -472,39 +501,46 @@ export default function CategoryClient({
       />
       <main className="bg-white">
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <nav className="text-sm text-gray-500">
-            <span>Categories</span>
-            {groupName && (
-              <>
-                <span className="mx-2">â€º</span>
-                <span className="text-gray-500">{groupName}</span>
-              </>
-            )}
-            <span className="mx-2">â€º</span>
-            <span className="text-gray-700">{title}</span>
-          </nav>
-
-          <div className="mt-4">
-            <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
-              {title} Reviews in {COUNTRIES.find((c) => c.code === derivedCountry)?.name ?? derivedCountry ?? "South Africa"}
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">Top rated {title} companies based on verified customer reviews.</p>
-            <p className="mt-3 max-w-2xl text-sm text-gray-600">
-              Browse verified customer reviews for {title} companies. Compare ratings, read real customer experiences, and discover the top rated {title} providers before choosing who to trust.
-            </p>
-          </div>
-
           {topRatedBusinesses.length > 0 && (
-            <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
+            <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 {topRatedBusinesses.map((business) => (
                   <Link
                     key={business.id}
                     href={`/b/${business.slug}`}
-                    className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                    className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
                   >
-                    {business.name}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                      {business.logoUrl ? (
+                        <img
+                          src={business.logoUrl}
+                          alt={`${sanitizeText(business.name)} logo`}
+                          className="h-full w-full object-contain"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate">{sanitizeText(business.name)}</div>
+                      <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        <RatingStars
+                          rating={business.trustScore}
+                          reviewCount={business.reviewCount}
+                          size={11}
+                        />
+                        <span className="font-medium text-[#0E0E0E]">
+                          {business.trustScore.toFixed(1)}
+                        </span>
+                        <span>
+                          • {business.reviewCount.toLocaleString("en-US")} reviews
+                        </span>
+                      </div>
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -568,7 +604,7 @@ export default function CategoryClient({
                       type="button"
                       aria-label="Close rating"
                     >
-                      Ã-
+                      ×
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-4 gap-2">
@@ -622,7 +658,7 @@ export default function CategoryClient({
                     ? "Highest number of reviews"
                     : "Most recent reviews"}
                 </span>
-                <span className="text-gray-400">â–¼</span>
+                <span className="text-gray-400">▼</span>
               </button>
 
               {sortOpen && (
@@ -691,7 +727,7 @@ export default function CategoryClient({
           </div>
 
           {/* Loading / error (minimal) */}
-          {loading && <p className="mt-6 text-sm text-gray-500">Loading businessesâ€¦</p>}
+          {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
           {fetchError && <p className="mt-2 text-sm text-red-600">{fetchError}</p>}
 
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
@@ -731,7 +767,7 @@ export default function CategoryClient({
                           {logoUrl ? (
                             <img
                               src={logoUrl}
-                              alt={`${business.name} logo`}
+                              alt={`${sanitizeText(business.name)} logo`}
                               className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
@@ -744,7 +780,7 @@ export default function CategoryClient({
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <div className="text-base font-semibold text-[#0E0E0E] truncate">{business.name}</div>
+                            <div className="text-base font-semibold text-[#0E0E0E] truncate">{sanitizeText(business.name)}</div>
                             {reviewCount > 0 && (
                               <img
                                 src="/brand/Tellacity%20Vefication%20Batch.png"
@@ -753,7 +789,7 @@ export default function CategoryClient({
                               />
                             )}
                           </div>
-                          {business.website && <div className="text-sm text-gray-500 truncate">{business.website}</div>}
+                          {business.website && <div className="text-sm text-gray-500 truncate">{sanitizeText(business.website)}</div>}
                           <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
                             <RatingStars
                               rating={ratingValue}
@@ -764,12 +800,12 @@ export default function CategoryClient({
                               {ratingValue.toFixed(1)}
                             </span>
                             <span className="text-gray-500">
-                              â€¢ {reviewCount.toLocaleString("en-US")} reviews
+                              • {reviewCount.toLocaleString("en-US")} reviews
                             </span>
                           </div>
                           {locationText && (
                             <div className="mt-1 text-xs text-gray-500 sm:hidden">
-                              {locationText}
+                              {sanitizeText(locationText)}
                             </div>
                           )}
                         </div>
@@ -777,7 +813,7 @@ export default function CategoryClient({
 
                       {locationText && (
                         <div className="hidden text-sm text-gray-500 sm:block sm:text-right sm:min-w-[180px]">
-                          {locationText}
+                          {sanitizeText(locationText)}
                         </div>
                       )}
                     </div>
@@ -821,36 +857,13 @@ export default function CategoryClient({
                       href={`/categories/${safeSlug}`}
                       className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E]"
                     >
-                      <span className="text-gray-500">ðŸ”</span>
-                      {item.name}
+                      <span className="text-gray-500">🔍</span>
+                      {sanitizeText(item.name)}
                     </Link>
                   );
                 })}
               </div>
             </section>
-          )}
-
-          {subcategories.length > 0 && (
-            <div className="mt-12">
-              <h3 className="text-lg font-semibold text-[#0E0E0E] mb-4">
-                Explore related categories
-              </h3>
-              <div className="flex flex-wrap gap-3">
-                {subcategories.map((cat) => {
-                  const safeSlug = (cat.slug ?? "").trim().toLowerCase();
-                  if (!isValidSlug(safeSlug)) return null;
-                  return (
-                    <Link
-                      key={safeSlug}
-                      href={`/categories/${safeSlug}?country=${derivedCountry ?? "ZA"}`}
-                      className="rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E] hover:bg-gray-50"
-                    >
-                      {cat.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
           )}
 
           {recentCompanies.length > 0 && (
@@ -865,7 +878,7 @@ export default function CategoryClient({
                     disabled={!recentHasPrev}
                     aria-label="Previous companies"
                   >
-                    â€¹
+                    ‹
                   </button>
                   <button
                     type="button"
@@ -874,7 +887,7 @@ export default function CategoryClient({
                     disabled={!recentHasNext}
                     aria-label="Next companies"
                   >
-                    â€º
+                    ›
                   </button>
                 </div>
               </div>
@@ -902,7 +915,7 @@ export default function CategoryClient({
                           {logoUrl ? (
                             <img
                               src={logoUrl}
-                              alt={`${company.name} logo`}
+                              alt={`${sanitizeText(company.name)} logo`}
                               className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
@@ -915,7 +928,7 @@ export default function CategoryClient({
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <div className="text-sm font-semibold text-[#0E0E0E]">{company.name}</div>
+                            <div className="text-sm font-semibold text-[#0E0E0E]">{sanitizeText(company.name)}</div>
                             {reviewCount > 0 && (
                               <img
                                 src="/brand/Tellacity%20Vefication%20Batch.png"
@@ -924,7 +937,7 @@ export default function CategoryClient({
                               />
                             )}
                           </div>
-                          {company.website && <div className="text-xs text-gray-500">{company.website}</div>}
+                          {company.website && <div className="text-xs text-gray-500">{sanitizeText(company.website)}</div>}
                           <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
                             <RatingStars
                               rating={ratingValue}
@@ -955,7 +968,7 @@ export default function CategoryClient({
                     onClick={() => setFiltersOpen(false)}
                     type="button"
                   >
-                    Ã-
+                    ×
                   </button>
                 </div>
 
@@ -1010,7 +1023,7 @@ export default function CategoryClient({
                             "Select country"
                           )}
                         </span>
-                        <span className="text-gray-400">â–¼</span>
+                        <span className="text-gray-400">▼</span>
                       </button>
 
                       {countryOpen && (
@@ -1028,7 +1041,7 @@ export default function CategoryClient({
                               }}
                             >
                               <img src={country.flagUrl} alt="" className="h-4 w-5 rounded-[2px] object-cover" />
-                              {country.name}
+                              {sanitizeText(country.name)}
                             </button>
                           ))}
                         </div>
@@ -1050,7 +1063,7 @@ export default function CategoryClient({
                               className="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:border-[#1FAF9E]"
                               onClick={() => setFiltersOpen(false)}
                             >
-                              {category.name}
+                              {sanitizeText(category.name)}
                             </Link>
                           );
                         })}

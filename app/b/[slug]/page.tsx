@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
 import Link from "next/link";
 import BusinessClient from "@/components/business/BusinessClient";
+import { sanitizeText } from "@/lib/sanitizeText";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -48,9 +49,9 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${business.name} Reviews | Customer Reviews & Ratings | Tellacity`;
+  const title = `${sanitizeText(business.name)} Reviews | Customer Reviews & Ratings | Tellacity`;
 
-  const description = `Read verified customer reviews of ${business.name}. See ratings, feedback and real experiences from customers on Tellacity.`;
+  const description = `Read verified customer reviews of ${sanitizeText(business.name)}. See ratings, feedback and real experiences from customers on Tellacity.`;
 
   return {
     title,
@@ -161,7 +162,7 @@ export default async function BusinessPage({
   const schema = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    name: business.name,
+    name: sanitizeText(business.name),
     url: `https://tellacity.com/b/${business.slug}`,
     ...(business.website ? { sameAs: business.website } : {}),
     ...(hasReviews &&
@@ -192,7 +193,7 @@ export default async function BusinessPage({
               href={`/categories/${safeCategorySlug}`}
               className="font-medium text-[#124541] hover:underline"
             >
-              {categoryName || safeCategorySlug.replace(/-/g, " ")}
+              {sanitizeText(categoryName || safeCategorySlug.replace(/-/g, " "))}
             </Link>
           </p>
         </div>
@@ -208,7 +209,7 @@ export default async function BusinessPage({
                 href={`/b/${item.slug}`}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
               >
-                <p className="font-semibold text-[#0E0E0E]">{item.name}</p>
+                <p className="font-semibold text-[#0E0E0E]">{sanitizeText(item.name)}</p>
                 {(item.trustScore || item.reviewCount !== null) && (
                   <p className="mt-1 text-xs text-gray-500">
                     {item.trustScore ? `TrustScore ${item.trustScore}` : "Unrated"}

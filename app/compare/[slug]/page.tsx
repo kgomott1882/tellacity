@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { platformMeta } from "@/lib/platformMeta";
 import { createClient } from "@/utils/supabase/server";
+import { sanitizeText } from "@/lib/sanitizeText";
 
 type CompetitorKey = "trustpilot" | "yelp" | "feefo" | "hellopeter";
 
@@ -615,7 +616,7 @@ export default async function CompareSlugPage({
                   href={`/b/${item.slug}`}
                   className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
                 >
-                  {item.name}
+                  {sanitizeText(item.name)}
                 </Link>
               ))}
             </div>
@@ -632,7 +633,7 @@ export default async function CompareSlugPage({
                   href={`/categories/${item.slug}`}
                   className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white transition-colors hover:border-[#1FAF9E] hover:bg-white/[0.03]"
                 >
-                  {item.name}
+                  {sanitizeText(item.name)}
                 </Link>
               ))}
             </div>

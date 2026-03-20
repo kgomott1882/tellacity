@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { getActiveCountry } from "@/lib/getActiveCountry";
+import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 
@@ -681,7 +682,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
           <div className="flex w-full max-w-md items-start gap-3 rounded-xl bg-[#124541] px-4 py-3 text-sm text-white shadow-lg">
             <div className="flex-1">
-              <p className="font-semibold">Youâ€™ve already reviewed this business</p>
+              <p className="font-semibold">You've already reviewed this business</p>
               <p className="mt-1 text-xs text-white/80">
                 To manage or update your review, please sign in from the login page and edit it from your account.
               </p>
@@ -692,7 +693,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               className="ml-2 text-white/80 hover:text-white"
               aria-label="Close notice"
             >
-              Ã-
+              ×
             </button>
           </div>
         </div>
@@ -704,28 +705,28 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           </Link>
           {categoryTrail?.groupName && categoryTrail?.groupSlug && (
             <>
-              <span className="mx-2">â€º</span>
+              <span className="mx-2">›</span>
               <Link
                 href={`/categories/${categoryTrail.groupSlug}`}
                 className="hover:text-[#1FAF9E]"
               >
-                {categoryTrail.groupName}
+                {sanitizeText(categoryTrail.groupName)}
               </Link>
             </>
           )}
           {categoryTrail?.categoryName && categoryTrail?.categorySlug && (
             <>
-              <span className="mx-2">â€º</span>
+              <span className="mx-2">›</span>
               <Link
                 href={`/categories/${categoryTrail.categorySlug}`}
                 className="hover:text-[#1FAF9E]"
               >
-                {categoryTrail.categoryName}
+                {sanitizeText(categoryTrail.categoryName)}
               </Link>
             </>
           )}
-          <span className="mx-2">â€º</span>
-          <span className="text-gray-700">{business?.name ?? "Business"}</span>
+          <span className="mx-2">›</span>
+          <span className="text-gray-700">{sanitizeText(business?.name ?? "Business")}</span>
         </nav>
 
         <div className="mt-6 flex flex-col gap-6 border-b border-gray-200 pb-10">
@@ -759,7 +760,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 <>
                   <div className="mt-3 flex items-center gap-2">
                     <h1 className="text-3xl font-semibold text-[#0E0E0E]">
-                      {business?.name ?? ""} Reviews
+                      {sanitizeText(business?.name ?? "")} Reviews
                     </h1>
                     {derivedReviewCount > 0 && (
                       <img
@@ -773,7 +774,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                     <span>
                       Reviews {derivedReviewCount.toLocaleString()}
                     </span>
-                    <span>â€¢</span>
+                    <span>•</span>
                     <div className="flex items-center gap-1">
                       <RatingStars rating={derivedAverageRating} size={14} />
                       <span className="font-semibold text-[#0E0E0E]">
@@ -830,31 +831,31 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           </div>
           {business && (
             <p className="mt-4 mb-6 max-w-2xl text-sm text-gray-600">
-              Tellacity collects verified customer reviews to help people make informed decisions. Read real {business.name} reviews, see customer ratings, and share your experience with {business.name} on Tellacity.
+              Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews, see customer ratings, and share your experience with {sanitizeText(business.name)} on Tellacity.
             </p>
           )}
           {business && (
             <div className="mt-6 max-w-2xl text-sm text-gray-600 space-y-3">
               <h2 className="text-base font-semibold text-[#0E0E0E]">
-                Customer reviews of {business.name}
+                Customer reviews of {sanitizeText(business.name)}
               </h2>
 
               <p>
-                Looking for honest customer reviews of {business.name}? Tellacity
+                Looking for honest customer reviews of {sanitizeText(business.name)}? Tellacity
                 collects real feedback, ratings, and complaints from customers who
-                have interacted with {business.name}.
+                have interacted with {sanitizeText(business.name)}.
               </p>
 
               <p>
                 Before choosing a company, many people search for experiences from
                 other customers. Explore verified reviews, ratings, and service
-                feedback about {business.name} to help you make an informed decision.
+                feedback about {sanitizeText(business.name)} to help you make an informed decision.
               </p>
 
               <p>
-                Have you used {business.name}? Share your experience and help other
+                Have you used {sanitizeText(business.name)}? Share your experience and help other
                 customers understand the service quality, reliability, and reputation
-                of {business.name}.
+                of {sanitizeText(business.name)}.
               </p>
             </div>
           )}
@@ -939,34 +940,34 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
             </div>
 
             <div className="mt-10 space-y-6 text-sm text-gray-600">
-              {/* Company description â€“ same as Profile page; fallback to category when empty */}
+              {/* Company description - same as Profile page; fallback to category when empty */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Company description
                 </h3>
                 <p className="mt-3 whitespace-pre-wrap">
-                  {business?.description?.trim() ||
+                  {sanitizeText(business?.description?.trim()) ||
                     (categoryTrail?.categoryName || categoryTrail?.groupName
-                      ? `This business is in the ${categoryTrail?.categoryName ?? categoryTrail?.groupName} category.`
+                      ? `This business is in the ${sanitizeText(categoryTrail?.categoryName ?? categoryTrail?.groupName)} category.`
                       : "No description provided.")}
                 </p>
               </div>
 
-              {/* Address â€“ full address + country name, else city + country name, else country name (never code) */}
+              {/* Address - full address + country name, else city + country name, else country name (never code) */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Address
                 </h3>
                 <p className="mt-3">
-                  {formatBusinessAddress(
+                  {sanitizeText(formatBusinessAddress(
                     business?.address,
                     business?.city,
                     business?.countryCode
-                  ) || "Not provided."}
+                  )) || "Not provided."}
                 </p>
               </div>
 
-              {/* Contact info â€“ Email and Phone as separate fields, same as Profile page */}
+              {/* Contact info - Email and Phone as separate fields, same as Profile page */}
               <div className="border-b border-gray-200 pb-6">
                 <h3 className="text-base font-semibold text-[#0E0E0E]">
                   Contact info
@@ -980,7 +981,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         href={`mailto:${business.email.trim()}`}
                         className="mt-1 block text-[#1FAF9E] hover:underline"
                       >
-                        {business.email.trim()}
+                        {sanitizeText(business.email.trim())}
                       </a>
                     ) : (
                       <p className="mt-1 text-gray-500">Not provided.</p>
@@ -993,7 +994,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         href={`tel:${business.phone.trim().replace(/\s/g, "")}`}
                         className="mt-1 block text-[#1FAF9E] hover:underline"
                       >
-                        {business.phone.trim()}
+                        {sanitizeText(business.phone.trim())}
                       </a>
                     ) : (
                       <p className="mt-1 text-gray-500">Not provided.</p>
@@ -1008,7 +1009,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         rel="noreferrer"
                         className="mt-1 block text-[#1FAF9E] hover:underline"
                       >
-                        {business.website}
+                        {sanitizeText(business.website)}
                       </a>
                     ) : (
                       <p className="mt-1 text-gray-500">Not provided.</p>
@@ -1072,11 +1073,11 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           review_id: review.id,
                           id: review.id,
                           rating: review.rating,
-                          title: review.title,
-                          body: review.body,
-                          reviewer_name: review.reviewerName,
+                          title: sanitizeText(review.title),
+                          body: sanitizeText(review.body),
+                          reviewer_name: sanitizeText(review.reviewerName),
                           created_at: review.createdAtRaw ?? undefined,
-                          business_name: business?.name ?? "Business",
+                          business_name: sanitizeText(business?.name ?? "Business"),
                           business_slug: business?.slug ?? null,
                           website: business?.website ?? "",
                           resolved_logo_url: businessLogoUrl,
@@ -1174,7 +1175,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       }}
                       className="rounded-full border border-[#1FAF9E] px-6 py-2 text-sm font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                     >
-                      {isLoadingMore ? "Loadingâ€¦" : "Load more reviews"}
+                      {isLoadingMore ? "Loading..." : "Load more reviews"}
                     </button>
                   </div>
                 )}
@@ -1191,7 +1192,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
                     >
                       <span className="font-semibold text-[#0E0E0E]">
-                        Best {business.categoryName || "Companies"} Companies
+                        Best {sanitizeText(business.categoryName || "Companies")} Companies
                       </span>
                     </Link>
                   )}
@@ -1209,7 +1210,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
                     >
                       <span className="font-semibold text-[#0E0E0E]">
-                        Best {business.categoryGroupName || "Categories"} Categories
+                        Best {sanitizeText(business.categoryGroupName || "Categories")} Categories
                       </span>
                     </Link>
                   )}
@@ -1275,7 +1276,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 className="absolute right-4 top-3 text-gray-500 hover:text-gray-700"
                 aria-label="Close"
               >
-                Ã-
+                ×
               </button>
             </div>
 
@@ -1285,22 +1286,22 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               </h3>
               {trustScoreStep === 0 && (
                 <p>
-                  Time span Â· Newer, recent reviews hold more weight in the
-                  TrustScore than older ones â€” they're a good indication of
+                  Time span · Newer, recent reviews hold more weight in the
+                  TrustScore than older ones — they're a good indication of
                   current customer satisfaction.
                 </p>
               )}
               {trustScoreStep === 1 && (
                 <p>
-                  Frequency Â· As recent reviews hold more weight, a TrustScore is
+                  Frequency · As recent reviews hold more weight, a TrustScore is
                   most stable when reviews come in regularly. Whether or not a
                   company asks for reviews can impact the TrustScore.
                 </p>
               )}
               {trustScoreStep === 2 && (
                 <p>
-                  Average Â· To ensure all companies start off with a balanced
-                  TrustScore, our weighted average includes neutral (3.5â˜…)
+                  Average · To ensure all companies start off with a balanced
+                  TrustScore, our weighted average includes neutral (3.5★)
                   reviews to the calculation. This has less impact as more
                   reviews come in.
                 </p>

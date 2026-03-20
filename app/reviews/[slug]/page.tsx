@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { sanitizeText } from "@/lib/sanitizeText";
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
@@ -127,14 +128,14 @@ export default async function ReviewSeoPage(props: PageProps) {
             {/* Hero */}
             <header className="border-b border-gray-200 pb-8">
               <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E] sm:text-4xl">
-                {page.brandName} Reviews, Complaints &amp; Customer Feedback
+                {sanitizeText(page.brandName)} Reviews, Complaints &amp; Customer Feedback
               </h1>
               <p className="mt-4 text-lg text-gray-700 leading-relaxed">
-                {page.summary}
+                {sanitizeText(page.summary)}
               </p>
               {(page.category || page.country) && (
                 <p className="mt-3 text-sm text-gray-500">
-                  {[page.category, page.country].filter(Boolean).join(" · ")}
+                  {sanitizeText([page.category, page.country].filter(Boolean).join(" · "))}
                 </p>
               )}
             </header>
@@ -144,7 +145,7 @@ export default async function ReviewSeoPage(props: PageProps) {
               <h2 className="text-sm font-semibold text-gray-900">On this page</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 <li><a href="#overview" className="text-gray-600 hover:text-[#0B3B36]">Overview</a></li>
-                <li><a href="#why-people-search" className="text-gray-600 hover:text-[#0B3B36]">Why people search for {page.brandName}</a></li>
+                <li><a href="#why-people-search" className="text-gray-600 hover:text-[#0B3B36]">Why people search for {sanitizeText(page.brandName)}</a></li>
                 <li><a href="#common-topics" className="text-gray-600 hover:text-[#0B3B36]">Common topics customers look for</a></li>
                 <li><a href="#how-to-research" className="text-gray-600 hover:text-[#0B3B36]">How to research a business before buying</a></li>
                 <li><a href="#related-guides" className="text-gray-600 hover:text-[#0B3B36]">Related review guides</a></li>
@@ -168,19 +169,19 @@ export default async function ReviewSeoPage(props: PageProps) {
             {/* Section 2: Why people search */}
             <section id="why-people-search" className="mt-12 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-                Why people search for {page.brandName}
+                Why people search for {sanitizeText(page.brandName)}
               </h2>
               <p className="mt-4 text-gray-700 leading-relaxed">
                 Common search intents include checking legitimacy, complaints, and customer experiences. People often look for phrases such as:
               </p>
               <ul className="mt-4 list-disc space-y-2 pl-6 text-gray-700">
-                <li>“Is {page.brandName} legit?”</li>
-                <li>“{page.brandName} complaints”</li>
-                <li>“{page.brandName} customer service reviews”</li>
-                <li>“{page.brandName} experiences”</li>
+                <li>“Is {sanitizeText(page.brandName)} legit?”</li>
+                <li>“{sanitizeText(page.brandName)} complaints”</li>
+                <li>“{sanitizeText(page.brandName)} customer service reviews”</li>
+                <li>“{sanitizeText(page.brandName)} experiences”</li>
               </ul>
               <p className="mt-4 text-gray-700 leading-relaxed">
-                These searches reflect a desire to research before committing. Understanding search intent helps you know what kind of information other customers are looking for when they evaluate {page.brandName}.
+                These searches reflect a desire to research before committing. Understanding search intent helps you know what kind of information other customers are looking for when they evaluate {sanitizeText(page.brandName)}.
               </p>
             </section>
 
@@ -199,7 +200,7 @@ export default async function ReviewSeoPage(props: PageProps) {
                     className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-gray-700"
                   >
                     <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B3B36]" aria-hidden />
-                    {topic}
+                    {sanitizeText(topic)}
                   </li>
                 ))}
               </ul>
@@ -245,7 +246,7 @@ export default async function ReviewSeoPage(props: PageProps) {
                         href={`/reviews/${safeSlug}`}
                         className="block rounded-lg border border-gray-200 bg-white px-4 py-3 text-[#0B3B36] font-medium hover:bg-gray-50 hover:border-gray-300"
                       >
-                        {p.brandName} reviews &amp; feedback
+                        {sanitizeText(p.brandName)} reviews &amp; feedback
                       </Link>
                     </li>
                   );
@@ -264,13 +265,13 @@ export default async function ReviewSeoPage(props: PageProps) {
                       className="group rounded-xl border border-gray-200 bg-white"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-4 font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
-                        {faq.question}
+                        {sanitizeText(faq.question)}
                         <span className="shrink-0 text-gray-400 transition-transform group-open:rotate-180" aria-hidden>
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </span>
                       </summary>
                       <div className="border-t border-gray-100 px-5 pb-4 pt-2 text-gray-700 leading-relaxed">
-                        {faq.answer}
+                        {sanitizeText(faq.answer)}
                       </div>
                     </details>
                   ))}

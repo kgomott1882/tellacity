@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 export default function CustomerStoriesPage() {
   return (
@@ -25,7 +25,7 @@ export default function CustomerStoriesPage() {
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-2xl font-bold text-[#0E0E0E]">2.3Ã-</p>
+              <p className="text-2xl font-bold text-[#0E0E0E]">2.3×</p>
               <p className="mt-1 text-xs text-gray-600">
                 More verified reviews collected in first 90 days
               </p>
@@ -78,9 +78,9 @@ export default function CustomerStoriesPage() {
               Automated post-purchase review collection and surfaced trust badges across product pages and checkout.
             </p>
             <ul className="mt-4 space-y-1 text-xs text-gray-700">
-              <li>â€¢ +18% checkout conversion</li>
-              <li>â€¢ 2.4Ã- more verified reviews in 90 days</li>
-              <li>â€¢ 27% increase in repeat purchase rate</li>
+              <li>• +18% checkout conversion</li>
+              <li>• 2.4× more verified reviews in 90 days</li>
+              <li>• 27% increase in repeat purchase rate</li>
             </ul>
           </article>
 
@@ -96,9 +96,9 @@ export default function CustomerStoriesPage() {
               Centralised fragmented customer feedback and used trust scores to reduce churn and strengthen renewal rates.
             </p>
             <ul className="mt-4 space-y-1 text-xs text-gray-700">
-              <li>â€¢ 22% reduction in churn</li>
-              <li>â€¢ +35 NPS improvement</li>
-              <li>â€¢ Faster regulatory reporting transparency</li>
+              <li>• 22% reduction in churn</li>
+              <li>• +35 NPS improvement</li>
+              <li>• Faster regulatory reporting transparency</li>
             </ul>
           </article>
 
@@ -114,9 +114,9 @@ export default function CustomerStoriesPage() {
               Invited feedback after every appointment and publicly responded to reviews to strengthen patient trust.
             </p>
             <ul className="mt-4 space-y-1 text-xs text-gray-700">
-              <li>â€¢ 94% reviews rated 4â˜… or higher</li>
-              <li>â€¢ 48h average response time</li>
-              <li>â€¢ Stronger referral growth</li>
+              <li>• 94% reviews rated 4★ or higher</li>
+              <li>• 48h average response time</li>
+              <li>• Stronger referral growth</li>
             </ul>
           </article>
         </div>
@@ -146,13 +146,13 @@ export default function CustomerStoriesPage() {
                 <p>Review Volume</p>
                 <p>120/month</p>
                 <p>420/month</p>
-                <p>3.5Ã- more reviews</p>
+                <p>3.5× more reviews</p>
               </div>
               <div className="grid gap-4 md:grid-cols-4">
                 <p>Response Time</p>
                 <p>72 hours</p>
                 <p>18 hours</p>
-                <p>4Ã- faster responses</p>
+                <p>4× faster responses</p>
               </div>
               <div className="grid gap-4 md:grid-cols-4">
                 <p>Conversion Rate</p>
@@ -182,8 +182,8 @@ export default function CustomerStoriesPage() {
               1. Automate Review Invitations
             </p>
             <p>
-              Trigger review requests after key events like purchases, signâ€‘ups, or completed projectsâ€”without manual
-              followâ€‘ups.
+              Trigger review requests after key events like purchases, sign-ups, or completed projects—without manual
+              follow-ups.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -191,7 +191,7 @@ export default function CustomerStoriesPage() {
               2. Respond &amp; Close the Loop
             </p>
             <p>
-              Give teams visibility on feedback, respond publicly, and resolve issues quickly to build longâ€‘term trust.
+              Give teams visibility on feedback, respond publicly, and resolve issues quickly to build long-term trust.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -209,10 +209,10 @@ export default function CustomerStoriesPage() {
       <section className="border-y border-gray-100 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6 py-16 text-center">
           <p className="text-2xl md:text-3xl font-semibold text-[#0E0E0E] leading-relaxed max-w-3xl mx-auto">
-            â€œTellacity didnâ€™t just help us collect reviews. It helped us operationalise trust.â€
+            “Tellacity didn’t just help us collect reviews. It helped us operationalise trust.”
           </p>
           <p className="mt-4 text-sm text-gray-600">
-            â€” Head of CX, Brightline Retail
+            — Head of CX, Brightline Retail
           </p>
         </div>
       </section>
@@ -275,13 +275,13 @@ export default function CustomerStoriesPage() {
               company: "Nova Clinics",
               country: "Australia",
               industry: "Healthcare",
-              result: "94% 4â˜…+ review consistency across all branches.",
+              result: "94% 4★+ review consistency across all branches.",
             },
             {
               company: "Atlas Logistics",
               country: "United States",
               industry: "Logistics",
-              result: "2.1Ã- faster issue resolution after public review responses.",
+              result: "2.1× faster issue resolution after public review responses.",
             },
             {
               company: "GreenRoot Energy",
@@ -304,7 +304,7 @@ export default function CustomerStoriesPage() {
                 {story.company}
               </h3>
               <p className="mt-1 text-xs text-gray-500">
-                {story.country} Â· {story.industry}
+                {story.country} · {story.industry}
               </p>
               <p className="mt-3 text-sm text-gray-700">
                 {story.result}

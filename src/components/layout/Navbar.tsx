@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -172,7 +172,7 @@ export default function Navbar() {
         const user = session?.user ?? null;
 
         // During password reset / auth flows we always behave as if
-        // logged out in the navbar â€“ no dashboard access.
+        // logged out in the navbar - no dashboard access.
         if (!session || isAuthFlow) {
           setUserInitials(null);
           setDashboardHref("/dashboard");
@@ -220,7 +220,7 @@ export default function Navbar() {
           setUserInitials(null);
           setDashboardHref("/dashboard");
         }
-        // Do not redirect when user is on the password reset page â€“ they must set a new password first
+        // Do not redirect when user is on the password reset page - they must set a new password first
         if (pathname === "/auth/reset-password") return;
 
         const shouldRedirect =
@@ -232,7 +232,7 @@ export default function Navbar() {
           setIsLoginOpen(false);
           setIsSignupOpen(false);
           
-          // Redirect by account type: business (by id or email) â†’ business dashboard, else consumer
+          // Redirect by account type: business (by id or email) -> business dashboard, else consumer
           if (!user) return;
 
           (async () => {
@@ -820,7 +820,7 @@ export default function Navbar() {
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
               aria-label="Close"
             >
-              Ã-
+              ×
             </button>
             <div className="text-center">
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">Sign in</h2>
@@ -1048,7 +1048,7 @@ export default function Navbar() {
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
               aria-label="Close"
             >
-              Ã-
+              ×
             </button>
             <div className="text-center">
               <h2 className="text-2xl font-semibold text-[#0E0E0E]">Sign up</h2>
