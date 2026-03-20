@@ -11,9 +11,10 @@ const supabase = createClient(
 const PAGE_SIZE = 1000;
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const page = parseInt(params.id || "1", 10);
 

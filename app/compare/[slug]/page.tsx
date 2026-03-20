@@ -285,16 +285,24 @@ function isValidSlug(slug: string) {
   return /^[a-z0-9-]+$/.test(clean);
 }
 
-export default async function CompareSlugPage({
-  params,
-  searchParams,
-}: {
+export default async function ComparePage(props: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ country?: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { slug } = await params;
-  const resolvedSearchParams = await (searchParams ?? Promise.resolve({}));
-  const rawCountry = String(resolvedSearchParams.country ?? "").trim().toUpperCase();
+  const params = await props.params;
+  const rawSearchParams = (await (props.searchParams ?? Promise.resolve({}))) as Record<
+    string,
+    string | string[] | undefined
+  >;
+
+  const { slug } = params;
+  const countryParam = rawSearchParams["country"];
+
+  const rawCountry = String(
+    Array.isArray(countryParam) ? countryParam[0] : countryParam ?? ""
+  )
+    .trim()
+    .toUpperCase();
   const allowedCountries = new Set(["US", "ZA", "GB", "AU", "CA", "NZ", "IE"]);
   const countryCode = allowedCountries.has(rawCountry) ? rawCountry : null;
   const companyCountrySegment = countryCode

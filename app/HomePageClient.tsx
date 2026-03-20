@@ -1523,6 +1523,9 @@ export default function HomePageClient({
               Insights, guides, and stories on building trust and growing your
               business.
             </p>
+            <a href="/categories" className="text-sm text-blue-600 hover:underline">
+              Browse all categories
+            </a>
             <Link
               href="/blog"
               className="mt-3 inline-block text-sm font-semibold text-[#2fb2a8] hover:underline"
