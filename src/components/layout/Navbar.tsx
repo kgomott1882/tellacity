@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import { setStoredCountry } from "@/lib/country";
+import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -155,6 +156,17 @@ export default function Navbar() {
       setSignupStep("form");
     }
   }, [isSignupOpen]);
+
+  // Ephemeral “Continue with Google” for helpful votes signs out after voting; clear avatar immediately.
+  useEffect(() => {
+    const clearAfterHelpfulOAuth = () => {
+      setUserInitials(null);
+      setDashboardHref("/dashboard");
+    };
+    window.addEventListener(HELPFUL_SIGNOUT_EVENT, clearAfterHelpfulOAuth);
+    return () =>
+      window.removeEventListener(HELPFUL_SIGNOUT_EVENT, clearAfterHelpfulOAuth);
+  }, []);
 
   useEffect(() => {
     const supabase = supabaseBrowser();

@@ -8,6 +8,9 @@
 --   4. Click Run (or Ctrl+Enter)
 --
 -- Safe to run more than once (IF NOT EXISTS / DROP IF EXISTS).
+--
+-- If you ran an older version that created UNIQUE indexes on helpful votes,
+-- also run: supabase/migrations/20260321180000_review_helpful_allow_multiple_votes.sql
 -- =============================================================================
 
 -- Review "Helpful" likes: one vote per authenticated user or per guest email per review.
@@ -29,11 +32,12 @@ create table if not exists public.review_helpful_votes (
   )
 );
 
-create unique index if not exists review_helpful_votes_review_user_uniq
+-- Non-unique: many helpful votes per review (same user or email can vote more than once).
+create index if not exists review_helpful_votes_review_user_idx
   on public.review_helpful_votes (review_id, user_id)
   where user_id is not null;
 
-create unique index if not exists review_helpful_votes_review_guest_email_uniq
+create index if not exists review_helpful_votes_review_guest_idx
   on public.review_helpful_votes (review_id, lower(guest_email))
   where guest_email is not null;
 
@@ -55,7 +59,7 @@ create table if not exists public.review_helpful_otps (
 create index if not exists review_helpful_otps_lookup_idx
   on public.review_helpful_otps (review_id, lower(email));
 
-comment on table public.review_helpful_votes is 'Public "was this helpful" votes; one per user or guest email per review.';
+comment on table public.review_helpful_votes is 'Public helpful votes; many rows per review; like_count on reviews is maintained by triggers.';
 comment on table public.review_helpful_otps is 'Email verification before recording a guest helpful vote.';
 
 -- Maintain reviews.like_count

@@ -79,6 +79,82 @@ async function fetchLikeCount(supabase: any, reviewId: string): Promise<number> 
   return Number((data as { like_count?: number } | null)?.like_count ?? 0);
 }
 
+const HELPFUL_REVIEW_ID_IN_CHUNK = 150;
+
+/** True if this guest email already has a helpful vote on any review for the same business. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function guestHasHelpfulForBusiness(
+  supabase: any,
+  reviewId: string,
+  guestEmail: string,
+): Promise<boolean> {
+  const { data: target, error: e1 } = await supabase
+    .from("reviews")
+    .select("business_id")
+    .eq("id", reviewId)
+    .maybeSingle();
+  if (e1 || !(target as { business_id?: string } | null)?.business_id) {
+    return false;
+  }
+  const businessId = (target as { business_id: string }).business_id;
+
+  const { data: idRows, error: e2 } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("business_id", businessId);
+  if (e2 || !idRows?.length) return false;
+
+  const ids = (idRows as { id: string }[]).map((r) => r.id);
+  for (let i = 0; i < ids.length; i += HELPFUL_REVIEW_ID_IN_CHUNK) {
+    const slice = ids.slice(i, i + HELPFUL_REVIEW_ID_IN_CHUNK);
+    const { data: found } = await supabase
+      .from("review_helpful_votes")
+      .select("id")
+      .eq("guest_email", guestEmail)
+      .in("review_id", slice)
+      .limit(1);
+    if (found?.length) return true;
+  }
+  return false;
+}
+
+/** True if this user already has a helpful vote on any review for the same business. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function userHasHelpfulForBusiness(
+  supabase: any,
+  reviewId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data: target, error: e1 } = await supabase
+    .from("reviews")
+    .select("business_id")
+    .eq("id", reviewId)
+    .maybeSingle();
+  if (e1 || !(target as { business_id?: string } | null)?.business_id) {
+    return false;
+  }
+  const businessId = (target as { business_id: string }).business_id;
+
+  const { data: idRows, error: e2 } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("business_id", businessId);
+  if (e2 || !idRows?.length) return false;
+
+  const ids = (idRows as { id: string }[]).map((r) => r.id);
+  for (let i = 0; i < ids.length; i += HELPFUL_REVIEW_ID_IN_CHUNK) {
+    const slice = ids.slice(i, i + HELPFUL_REVIEW_ID_IN_CHUNK);
+    const { data: found } = await supabase
+      .from("review_helpful_votes")
+      .select("id")
+      .eq("user_id", userId)
+      .in("review_id", slice)
+      .limit(1);
+    if (found?.length) return true;
+  }
+  return false;
+}
+
 type Body = {
   action?: string;
   reviewId?: string;
@@ -119,13 +195,13 @@ export async function GET(req: Request) {
         const { data: userData } = await authClient.auth.getUser();
         const uid = userData.user?.id;
         if (uid) {
-          const { data: row } = await supabase
+          const { data: rows } = await supabase
             .from("review_helpful_votes")
             .select("id")
             .eq("review_id", reviewId)
             .eq("user_id", uid)
-            .maybeSingle();
-          hasVoted = !!row;
+            .limit(1);
+          hasVoted = !!rows?.length;
         }
       }
     }
@@ -179,6 +255,14 @@ export async function POST(req: Request) {
 
       const userId = userData.user.id;
 
+      if (await userHasHelpfulForBusiness(supabase, reviewId, userId)) {
+        const likeCount = await fetchLikeCount(supabase, reviewId);
+        return NextResponse.json(
+          { error: "already_liked_business", likeCount },
+          { status: 409 },
+        );
+      }
+
       const { error: insErr } = await supabase.from("review_helpful_votes").insert({
         review_id: reviewId,
         user_id: userId,
@@ -189,11 +273,10 @@ export async function POST(req: Request) {
       if (insErr) {
         if (insErr.code === "23505") {
           const likeCount = await fetchLikeCount(supabase, reviewId);
-          return NextResponse.json({
-            likeCount,
-            hasVoted: true,
-            alreadyVoted: true,
-          });
+          return NextResponse.json(
+            { error: "already_liked_business", likeCount },
+            { status: 409 },
+          );
         }
         console.error("helpful vote_auth insert:", insErr);
         return NextResponse.json({ error: "vote_failed" }, { status: 500 });
@@ -217,20 +300,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "invalid_email" }, { status: 400 });
       }
 
-      const { data: existingVote } = await supabase
-        .from("review_helpful_votes")
-        .select("id")
-        .eq("review_id", reviewId)
-        .eq("guest_email", guestEmail)
-        .maybeSingle();
-
-      if (existingVote) {
+      if (await guestHasHelpfulForBusiness(supabase, reviewId, guestEmail)) {
         const likeCount = await fetchLikeCount(supabase, reviewId);
-        return NextResponse.json({
-          error: "already_voted",
-          likeCount,
-          hasVoted: true,
-        });
+        return NextResponse.json(
+          { error: "already_liked_business", likeCount },
+          { status: 409 },
+        );
       }
 
       await supabase
@@ -350,6 +425,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "otp_invalid" }, { status: 400 });
       }
 
+      if (await guestHasHelpfulForBusiness(supabase, reviewId, guestEmail)) {
+        await supabase.from("review_helpful_otps").update({ used: true }).eq("id", otp.id);
+        const likeCount = await fetchLikeCount(supabase, reviewId);
+        return NextResponse.json(
+          { error: "already_liked_business", likeCount },
+          { status: 409 },
+        );
+      }
+
       const { error: voteErr } = await supabase.from("review_helpful_votes").insert({
         review_id: reviewId,
         user_id: null,
@@ -359,16 +443,12 @@ export async function POST(req: Request) {
 
       if (voteErr) {
         if (voteErr.code === "23505") {
-          await supabase
-            .from("review_helpful_otps")
-            .update({ used: true })
-            .eq("id", otp.id);
+          await supabase.from("review_helpful_otps").update({ used: true }).eq("id", otp.id);
           const likeCount = await fetchLikeCount(supabase, reviewId);
-          return NextResponse.json({
-            likeCount,
-            hasVoted: true,
-            alreadyVoted: true,
-          });
+          return NextResponse.json(
+            { error: "already_liked_business", likeCount },
+            { status: 409 },
+          );
         }
         console.error("helpful confirm vote insert:", voteErr);
         return NextResponse.json({ error: "vote_failed" }, { status: 500 });
