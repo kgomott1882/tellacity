@@ -283,7 +283,7 @@ export default function ContactChannelPage({ intent }: Props) {
 
           <form action={formAction} className="space-y-0">
             <input type="hidden" name="contact_role" value={contactRole} />
-            <input type="hidden" name="contact_intent" value={intent} />
+            <input type="hidden" name="type" value={intent} />
 
             <h1 className="text-2xl font-semibold text-black md:text-[1.65rem]">
               {copy.title}

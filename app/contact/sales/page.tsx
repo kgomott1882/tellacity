@@ -79,6 +79,7 @@ export default function ContactSalesPage() {
         </header>
 
         <form action={formAction} className="space-y-0">
+          <input type="hidden" name="type" value="sales" />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label

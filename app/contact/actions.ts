@@ -96,12 +96,18 @@ export async function submitSalesLeadForm(
       message,
     ].join("\n");
 
+    const type = formData.get("type")?.toString()?.trim() || "sales";
+    const isSales = type === "sales";
+    const recipient = isSales
+      ? "sales@tellacity.com"
+      : "support@tellacity.com";
+
     const supabase = createSupabaseServerClient();
     let emailSent = false;
     let dbInserted = false;
 
     emailSent = await deliverContactChannelEmail({
-      to: "sales@tellacity.com",
+      to: recipient,
       channelLabel: "Sales",
       contactRole: "Business",
       name,
@@ -144,16 +150,21 @@ export async function submitSalesLeadForm(
 
     return {
       success: false,
-      message:
-        "Something went wrong. Please try again or email us directly at sales@tellacity.com.",
+      message: `Something went wrong. Please try again or email us directly at ${
+        isSales ? "sales@tellacity.com" : "support@tellacity.com"
+      }.`,
     };
   } catch (error) {
     console.error("Unhandled sales lead form error:", error);
 
+    const type = formData.get("type")?.toString()?.trim() || "sales";
+    const isSales = type === "sales";
+
     return {
       success: false,
-      message:
-        "Something went wrong. Please try again or email us directly at sales@tellacity.com.",
+      message: `Something went wrong. Please try again or email us directly at ${
+        isSales ? "sales@tellacity.com" : "support@tellacity.com"
+      }.`,
     };
   }
 }
@@ -174,8 +185,11 @@ export async function submitGeneralContactForm(
         : roleRaw === "reviewer"
           ? "Reviewer"
           : "Not specified";
-    const intentRaw = String(formData.get("contact_intent") || "support").trim();
-    const isSales = intentRaw === "sales";
+    const type = formData.get("type")?.toString()?.trim() || "support";
+    const isSales = type === "sales";
+    const recipient = isSales
+      ? "sales@tellacity.com"
+      : "support@tellacity.com";
     const channelLabel = isSales ? "Sales" : "Support";
 
     if (!name || !email || !subject || !message) {
@@ -191,7 +205,7 @@ export async function submitGeneralContactForm(
     let dbInserted = false;
 
     emailSent = await deliverContactChannelEmail({
-      to: isSales ? "sales@tellacity.com" : "support@tellacity.com",
+      to: recipient,
       channelLabel,
       contactRole,
       name,
@@ -237,10 +251,14 @@ export async function submitGeneralContactForm(
   } catch (error) {
     console.error("Unhandled contact form error:", error);
 
+    const type = formData.get("type")?.toString()?.trim() || "support";
+    const isSales = type === "sales";
+
     return {
       success: false,
-      message:
-        `Something went wrong. Please try again or email us directly at ${isSales ? "sales@tellacity.com" : "support@tellacity.com"}.`,
+      message: `Something went wrong. Please try again or email us directly at ${
+        isSales ? "sales@tellacity.com" : "support@tellacity.com"
+      }.`,
     };
   }
 }
