@@ -169,6 +169,11 @@ export default function CategoryClient({
         } =>
           Boolean(business)
       )
+      .sort((a, b) => {
+        if (b.trustScore !== a.trustScore) return b.trustScore - a.trustScore;
+        if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      })
       .slice(0, 8);
   }, [businesses]);
 

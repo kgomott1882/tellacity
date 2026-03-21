@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
-import { normalizeLogoUrl, getLogoDevUrl } from "@/lib/logo";
+import { normalizeLogoUrl, getLogoDevUrl, similarBusinessLogoUrl } from "@/lib/logo";
+import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { sanitizeText } from "@/lib/sanitizeText";
@@ -74,6 +75,23 @@ type CategoryTrail = {
   groupSlug: string | null;
   categoryName: string | null;
   categorySlug: string | null;
+};
+
+type RelatedBusiness = {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+};
+
+/** Top slice from get_top_businesses_for_category_global — same source as category page. */
+type TopRatedInCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  trustScore: number;
+  reviewCount: number;
 };
 
 const cleanDomain = (value: string | null | undefined) => {
@@ -218,7 +236,14 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     average: number;
     counts: RatingCounts;
   } | null>(null);
-  const [relatedBusinesses, setRelatedBusinesses] = useState<any[]>([]);
+  const [relatedBusinesses, setRelatedBusinesses] = useState<RelatedBusiness[]>(
+    []
+  );
+  const [topRatedInCategory, setTopRatedInCategory] = useState<
+    TopRatedInCategory[]
+  >([]);
+  const [topRatedInCategoryLoading, setTopRatedInCategoryLoading] =
+    useState(false);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -448,7 +473,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     const fetchRelated = async () => {
       const { data, error } = await supabase()
         .from("businesses")
-        .select("id, name, slug")
+        .select(
+          "id, name, slug, logo_url, resolved_logo_url, website, website_display"
+        )
         .eq("category_slug", business.categorySlug)
         .eq("country_code", business.countryCode)
         .neq("id", business.id)
@@ -456,12 +483,100 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         .limit(6);
 
       if (!error && data) {
-        setRelatedBusinesses(data);
+        const mapped: RelatedBusiness[] = data
+          .map((row) => {
+            const slug = String(row.slug ?? "").trim();
+            if (!slug) return null;
+            return {
+              id: String(row.id ?? slug),
+              name: String(row.name ?? "").trim() || "Business",
+              slug,
+              logoUrl: similarBusinessLogoUrl(row),
+            };
+          })
+          .filter((row): row is RelatedBusiness => row !== null);
+        setRelatedBusinesses(mapped);
       }
     };
 
     fetchRelated();
-  }, [business?.id]);
+  }, [business?.id, business?.categorySlug, business?.countryCode]);
+
+  useEffect(() => {
+    const cat = business?.categorySlug?.trim();
+    if (!cat || !business?.id) {
+      setTopRatedInCategory([]);
+      setTopRatedInCategoryLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setTopRatedInCategoryLoading(true);
+
+    const country =
+      (business.countryCode || "US").trim().toUpperCase() || "US";
+
+    const run = async () => {
+      const { data, error } = await supabase().rpc(
+        "get_top_businesses_for_category_global",
+        {
+          p_category_slug: cat,
+          p_country_code: country,
+          p_min_rating: null,
+          p_limit: 40,
+          p_offset: 0,
+        }
+      );
+
+      if (!isMounted) return;
+      setTopRatedInCategoryLoading(false);
+
+      if (error || !Array.isArray(data)) {
+        setTopRatedInCategory([]);
+        return;
+      }
+
+      const mapped: TopRatedInCategory[] = (
+        data as Array<Record<string, unknown>>
+      )
+        .map((row, index) => {
+          const slug = String(row.slug ?? "").trim().toLowerCase();
+          if (!/^[a-z0-9-]+$/.test(slug)) return null;
+          return {
+            id: String(row.id ?? `top-${index}-${slug}`),
+            slug,
+            name: String(row.name ?? "").trim() || "Business",
+            logoUrl: similarBusinessLogoUrl({
+              resolved_logo_url: row.resolved_logo_url as string | null,
+              logo_url: row.resolved_logo_url as string | null,
+              website: row.website as string | null,
+              website_display: null,
+            }),
+            trustScore: Number(row.trust_score ?? 0),
+            reviewCount: Number(row.review_count ?? 0),
+          };
+        })
+        .filter((row): row is TopRatedInCategory => row !== null)
+        .sort((a, b) => {
+          if (b.trustScore !== a.trustScore) {
+            return b.trustScore - a.trustScore;
+          }
+          if (b.reviewCount !== a.reviewCount) {
+            return b.reviewCount - a.reviewCount;
+          }
+          return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        })
+        .slice(0, 8);
+
+      setTopRatedInCategory(mapped);
+    };
+
+    void run();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [business?.id, business?.categorySlug, business?.countryCode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1238,21 +1353,126 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 )}
               </div>
 
-              <div className="mt-10">
-                <h3 className="text-lg font-semibold text-[#0E0E0E]">
-                  Explore Rankings
-                </h3>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <Link
-                    href="/top-rated"
-                    className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-emerald-500"
-                  >
-                    <span className="font-semibold text-[#0E0E0E]">
-                      Top Rated Companies
-                    </span>
-                  </Link>
+              {business?.categorySlug?.trim() && (
+                <div className="mt-10">
+                  <h3 className="text-lg font-semibold text-[#0E0E0E]">
+                    Explore Rankings
+                  </h3>
+                  <div className="mt-4">
+                    <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="font-semibold text-[#0E0E0E]">
+                            Top rated companies
+                          </h4>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {sanitizeText(
+                              business.categoryName ??
+                                categoryTrail?.categoryName ??
+                                business.categorySlug.replace(/-/g, " ")
+                            )}{" "}
+                            ·{" "}
+                            {(business.countryCode || "US")
+                              .trim()
+                              .toUpperCase() || "US"}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/categories/${encodeURIComponent(
+                            business.categorySlug.trim()
+                          )}?country=${encodeURIComponent(
+                            (business.countryCode || "US")
+                              .trim()
+                              .toUpperCase() || "US"
+                          )}`}
+                          className="shrink-0 text-sm font-medium text-[#1FAF9E] hover:underline"
+                        >
+                          View category rankings →
+                        </Link>
+                      </div>
+
+                      {topRatedInCategoryLoading ? (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {Array.from({ length: 8 }).map((_, i) => (
+                            <div
+                              key={`top-rated-sk-${i}`}
+                              className="flex animate-pulse gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
+                            >
+                              <div className="h-8 w-8 shrink-0 rounded-md bg-gray-200" />
+                              <div className="min-w-0 flex-1 space-y-2 py-0.5">
+                                <div className="h-4 w-3/4 rounded bg-gray-200" />
+                                <div className="h-3 w-1/2 rounded bg-gray-200" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : topRatedInCategory.length > 0 ? (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {topRatedInCategory.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`/b/${item.slug}`}
+                              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                                {item.logoUrl ? (
+                                  <img
+                                    src={
+                                      normalizeLogoUrl(item.logoUrl) ??
+                                      item.logoUrl
+                                    }
+                                    alt={`${sanitizeText(item.name)} logo`}
+                                    className="h-full w-full object-contain"
+                                    referrerPolicy="no-referrer"
+                                    crossOrigin="anonymous"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate">
+                                  {sanitizeText(item.name)}
+                                </div>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                  <RatingStars
+                                    rating={item.trustScore}
+                                    size={11}
+                                  />
+                                  <span className="font-medium text-[#0E0E0E]">
+                                    {item.trustScore.toFixed(1)}
+                                  </span>
+                                  <span>
+                                    ·{" "}
+                                    {item.reviewCount.toLocaleString("en-US")}{" "}
+                                    reviews
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-sm text-gray-500">
+                          <Link
+                            href={`/categories/${encodeURIComponent(
+                              business.categorySlug.trim()
+                            )}?country=${encodeURIComponent(
+                              (business.countryCode || "US")
+                                .trim()
+                                .toUpperCase() || "US"
+                            )}`}
+                            className="font-medium text-[#1FAF9E] hover:underline"
+                          >
+                            Browse rankings on the category page
+                          </Link>
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {relatedBusinesses.length > 0 && (
                 <div className="mt-10 border-t pt-6">
@@ -1262,13 +1482,18 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
 
                   <div className="space-y-2">
                     {relatedBusinesses.map((b) => (
-                      <a
+                      <Link
                         key={b.id}
                         href={`/b/${b.slug}`}
-                        className="block text-sm text-gray-700 hover:text-black transition"
+                        className="flex items-center gap-2.5 text-sm text-[#2563EB] transition hover:text-[#1d4ed8] hover:underline"
                       >
-                        {b.name}
-                      </a>
+                        <SimilarBusinessLogo
+                          variant="mini"
+                          logoUrl={b.logoUrl}
+                          nameForAlt={sanitizeText(b.name)}
+                        />
+                        <span className="min-w-0">{sanitizeText(b.name)}</span>
+                      </Link>
                     ))}
                   </div>
                 </div>

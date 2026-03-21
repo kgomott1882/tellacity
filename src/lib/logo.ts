@@ -54,6 +54,23 @@ export function getLogoDevUrl(domain: string | null) {
   return `https://img.logo.dev/${clean}?token=${token}&fallback=404`;
 }
 
+/** Logo URL for related/similar business cards (DB logos + Logo.dev fallback). Matches business profile header logic. */
+export function similarBusinessLogoUrl(row: {
+  resolved_logo_url?: string | null;
+  logo_url?: string | null;
+  website?: string | null;
+  website_display?: string | null;
+}): string | null {
+  const manualOrResolved =
+    (String(row.resolved_logo_url ?? "").trim() ||
+      String(row.logo_url ?? "").trim()) ||
+    null;
+  const fromDb = normalizeLogoUrl(manualOrResolved);
+  const websiteRaw = String(row.website_display ?? row.website ?? "").trim();
+  const domain = domainFromWebsite(websiteRaw);
+  return fromDb ?? (domain ? getLogoDevUrl(domain) : null);
+}
+
 /** Supabase client type for invoke (avoid hard dependency on full type). */
 type SupabaseClientLike = {
   functions: {

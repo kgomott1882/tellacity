@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
+import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
+import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import { sanitizeText } from "@/lib/sanitizeText";
 
 function getSupabase() {
@@ -140,7 +142,9 @@ export default async function BusinessPage({
     safeCategorySlug && safeCountryCode
       ? await supabase
           .from("businesses")
-          .select("id, slug, name, trust_score, review_count")
+          .select(
+            "id, slug, name, trust_score, review_count, logo_url, resolved_logo_url, website, website_display"
+          )
           .eq("status", "active")
           .eq("category_slug", safeCategorySlug)
           .eq("country_code", safeCountryCode)
@@ -148,7 +152,19 @@ export default async function BusinessPage({
           .not("slug", "is", null)
           .order("trust_score", { ascending: false, nullsFirst: false })
           .limit(8)
-      : { data: [] as Array<{ id?: string | null; slug?: string | null; name?: string | null; trust_score?: number | null; review_count?: number | null }> };
+      : {
+          data: [] as Array<{
+            id?: string | null;
+            slug?: string | null;
+            name?: string | null;
+            trust_score?: number | null;
+            review_count?: number | null;
+            logo_url?: string | null;
+            resolved_logo_url?: string | null;
+            website?: string | null;
+            website_display?: string | null;
+          }>,
+        };
 
   const relatedBusinesses = (Array.isArray(relatedRows) ? relatedRows : [])
     .map((row) => {
@@ -162,11 +178,20 @@ export default async function BusinessPage({
           typeof row.trust_score === "number" ? row.trust_score.toFixed(1) : null,
         reviewCount:
           typeof row.review_count === "number" ? row.review_count : null,
+        logoUrl: similarBusinessLogoUrl(row),
       };
     })
     .filter(
-      (row): row is { id: string; slug: string; name: string; trustScore: string | null; reviewCount: number | null } =>
-        Boolean(row)
+      (
+        row
+      ): row is {
+        id: string;
+        slug: string;
+        name: string;
+        trustScore: string | null;
+        reviewCount: number | null;
+        logoUrl: string | null;
+      } => Boolean(row)
     )
     .slice(0, 8);
 
@@ -243,15 +268,23 @@ export default async function BusinessPage({
               <Link
                 key={item.id}
                 href={`/b/${item.slug}`}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
               >
-                <p className="font-semibold text-[#0E0E0E]">{sanitizeText(item.name)}</p>
-                {(item.trustScore || item.reviewCount !== null) && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {item.trustScore ? `TrustScore ${item.trustScore}` : "Unrated"}
-                    {item.reviewCount !== null ? ` · ${item.reviewCount.toLocaleString("en-US")} reviews` : ""}
-                  </p>
-                )}
+                <SimilarBusinessLogo
+                  logoUrl={item.logoUrl}
+                  nameForAlt={sanitizeText(item.name)}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-[#0E0E0E]">{sanitizeText(item.name)}</p>
+                  {(item.trustScore || item.reviewCount !== null) && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {item.trustScore ? `TrustScore ${item.trustScore}` : "Unrated"}
+                      {item.reviewCount !== null
+                        ? ` · ${item.reviewCount.toLocaleString("en-US")} reviews`
+                        : ""}
+                    </p>
+                  )}
+                </div>
               </Link>
             ))}
           </div>

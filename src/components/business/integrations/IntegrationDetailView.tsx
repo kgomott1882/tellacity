@@ -96,7 +96,7 @@ export default function IntegrationDetailView({
           )}
           {state === "enterprise" && (
             <Link
-              href="/contact"
+              href="/contact/sales"
               className="text-xs font-medium text-[#1FAF9E] hover:underline"
             >
               Contact sales
