@@ -102,59 +102,59 @@
   }
 }
 
-/* Landing hero — twinkling stars (softer luminance on desktop + mobile) */
+/* Landing hero — twinkling stars (scale-only on .hero-star; translate lives on .hero-star-anchor) */
 @keyframes heroStarTwinkle {
   0% {
-    opacity: 0.28;
-    transform: translate(-50%, -50%) scale(0.65);
-    filter: blur(0.2px);
+    opacity: 0.42;
+    transform: scale(0.72);
+    filter: blur(0.15px);
   }
   25% {
-    opacity: 0.68;
-    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 1;
+    transform: scale(1.18);
     filter: blur(0);
   }
   45% {
-    opacity: 0.42;
-    transform: translate(-50%, -50%) scale(0.82);
-    filter: blur(0.12px);
+    opacity: 0.55;
+    transform: scale(0.88);
+    filter: blur(0.1px);
   }
   70% {
-    opacity: 0.72;
-    transform: translate(-50%, -50%) scale(1.12);
+    opacity: 1;
+    transform: scale(1.22);
     filter: blur(0);
   }
   100% {
-    opacity: 0.32;
-    transform: translate(-50%, -50%) scale(0.68);
-    filter: blur(0.2px);
+    opacity: 0.48;
+    transform: scale(0.76);
+    filter: blur(0.15px);
   }
 }
 
-/* One-shot shooting star (HeroStarField — client-triggered) */
+/* One-shot shooting star (HeroStarField — client-triggered; duration set inline) */
 @keyframes heroShootingStarFly {
   0% {
     opacity: 0;
-    transform: rotate(var(--angle, -42deg)) translateX(-48px);
+    transform: rotate(var(--angle, 0deg)) translateX(-36px);
   }
-  7% {
+  10% {
     opacity: 1;
   }
-  78% {
+  85% {
     opacity: 1;
-    transform: rotate(var(--angle, -42deg)) translateX(var(--travel, 380px));
+    transform: rotate(var(--angle, 0deg)) translateX(var(--travel, 380px));
   }
   100% {
     opacity: 0;
-    transform: rotate(var(--angle, -42deg)) translateX(calc(var(--travel, 380px) + 72px));
+    transform: rotate(var(--angle, 0deg)) translateX(calc(var(--travel, 380px) + 56px));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-star-field .hero-star {
     animation: none !important;
-    opacity: 0.28 !important;
-    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 0.42 !important;
+    transform: scale(1) !important;
     filter: none !important;
   }
 

@@ -6,7 +6,9 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
-import HeroStarField from "@/components/home/HeroStarField";
+import HeroStarField, {
+  type HeroStarFieldHandle,
+} from "@/components/home/HeroStarField";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
@@ -166,6 +168,7 @@ export default function HomePageClient({
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
+  const heroStarFieldRef = useRef<HeroStarFieldHandle | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
   const [bestInMetrics, setBestInMetrics] = useState<
     Record<string, { review_count: number; trust_score: number }>
@@ -992,8 +995,9 @@ export default function HomePageClient({
           backgroundImage:
             "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
         }}
+        onPointerDown={() => heroStarFieldRef.current?.triggerShot()}
       >
-        <HeroStarField />
+        <HeroStarField ref={heroStarFieldRef} />
         <div className="relative z-10 mx-auto flex min-h-[440px] max-w-7xl flex-col items-center px-6 pb-14 pt-20 text-center sm:min-h-[520px] sm:pt-24 md:pt-32 md:pb-16">
           <div className="w-full max-w-md sm:max-w-lg md:max-w-4xl">
           <motion.h1
@@ -1003,9 +1007,12 @@ export default function HomePageClient({
               duration: 0.9,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="bg-gradient-to-r from-[#9CA3AF] via-[#D1D5DB] to-[#F3F4F6] bg-clip-text text-transparent text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-[3.25rem]"
+            className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl lg:text-[3.25rem]"
           >
-            Customer Reviews &amp; Feedback
+            <span className="bg-gradient-to-r from-[#9CA3AF] via-[#D1D5DB] to-[#F3F4F6] bg-clip-text text-transparent">
+              Customer{" "}
+            </span>
+            <span className="text-[#EDE6DC]">Reviews &amp; Feedback</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -1015,7 +1022,7 @@ export default function HomePageClient({
               delay: 0.2,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-5 text-sm font-semibold tracking-wide text-[#F9FAFB]/90 sm:mt-6 sm:text-base"
+            className="mt-5 text-sm font-normal tracking-wide text-[#F9FAFB]/90 sm:mt-6 sm:text-base"
           >
             Discover honest experiences. Read and write real customer reviews. Gain trusted business insights.
           </motion.p>
@@ -1378,7 +1385,7 @@ export default function HomePageClient({
               return (
                 <div
                   key={item.question}
-                  className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#F6C400]/10 hover:border-[#F6C400] ${
+                  className={`rounded-md border border-gray-200 bg-white transition-colors duration-200 hover:bg-[#F5F1EB] ${
                     isOpen ? "shadow-md border-[#2fb2a8]" : ""
                   }`}
                 >
@@ -1434,7 +1441,7 @@ export default function HomePageClient({
                   return (
                     <div
                       key={item.question}
-                      className={`rounded-md border border-gray-200 bg-white transition-all duration-200 hover:bg-[#F6C400]/10 hover:border-[#F6C400] ${
+                      className={`rounded-md border border-gray-200 bg-white transition-colors duration-200 hover:bg-[#F5F1EB] ${
                         isOpen ? "shadow-md border-[#2fb2a8]" : ""
                       }`}
                     >
