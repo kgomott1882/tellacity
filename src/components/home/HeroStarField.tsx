@@ -24,9 +24,10 @@ function r(n: number, dp: number): number {
 }
 
 const STAR_COUNT = 72;
-/** Deterministic count in [20, 30] — a small subset of stars render warm orange. */
-const ORANGE_STAR_COUNT =
-  20 + Math.floor(seeded(777) * 11);
+/** Below `md`, only the first N stars render (less clutter + calmer on phones). */
+const MOBILE_STAR_VISIBLE = 26;
+/** Sparse yellow accents: 5–7 stars (~7–10% of field, under 1 in 10). */
+const ORANGE_STAR_COUNT = 5 + Math.floor(seeded(777) * 3);
 
 const LOAD_DELAY_MS = 2000;
 /** Shooting star animation length (ms) — slower so the streak reads clearly; matches inline CSS animation. */
@@ -178,11 +179,16 @@ const HeroStarField = forwardRef<HeroStarFieldHandle>(function HeroStarField(
         const boxShadow = isOrange
           ? `0 0 ${glow}px ${glowSpread}px rgba(253, 224, 71, 0.92), 0 0 ${halo}px ${haloSpread}px rgba(250, 204, 21, 0.58), 0 0 ${haloOuter}px rgba(245, 158, 11, 0.38)`
           : `0 0 ${glow}px ${glowSpread}px rgba(255, 255, 255, 0.62), 0 0 ${halo}px ${haloSpread}px rgba(186, 230, 253, 0.42), 0 0 ${haloOuter}px rgba(255, 255, 255, 0.22)`;
+        const boxShadowMobile = isOrange
+          ? `0 0 ${glow}px ${glowSpread}px rgba(253, 224, 71, 0.48), 0 0 ${halo}px ${haloSpread}px rgba(250, 204, 21, 0.3), 0 0 ${haloOuter}px rgba(245, 158, 11, 0.18)`
+          : `0 0 ${glow}px ${glowSpread}px rgba(255, 255, 255, 0.32), 0 0 ${halo}px ${haloSpread}px rgba(186, 230, 253, 0.22), 0 0 ${haloOuter}px rgba(255, 255, 255, 0.1)`;
 
         return (
           <span
             key={s.id}
-            className="hero-star-anchor absolute"
+            className={`hero-star-anchor absolute ${
+              s.id >= MOBILE_STAR_VISIBLE ? "max-md:hidden" : ""
+            }`}
             style={{
               left: `${s.leftPct}%`,
               top: `${s.topPct}%`,
@@ -190,18 +196,21 @@ const HeroStarField = forwardRef<HeroStarFieldHandle>(function HeroStarField(
             }}
           >
             <span
-              className={`hero-star block rounded-full ${
+              className={`hero-star hero-star-glow block rounded-full ${
                 isOrange ? "bg-[#FDE047]/98" : "bg-white/90"
               }`}
-              style={{
-                width: `${s.sizePx}px`,
-                height: `${s.sizePx}px`,
-                opacity: s.baseOpacity,
-                transformOrigin: "center center",
-                boxShadow,
-                animation: `heroStarTwinkle ${s.durationS}s ease-in-out ${s.delayS}s infinite alternate both`,
-                willChange: "opacity, transform, filter",
-              }}
+              style={
+                {
+                  width: `${s.sizePx}px`,
+                  height: `${s.sizePx}px`,
+                  opacity: s.baseOpacity,
+                  transformOrigin: "center center",
+                  ["--hero-star-glow-mobile" as string]: boxShadowMobile,
+                  boxShadow,
+                  animation: `heroStarTwinkle ${s.durationS}s ease-in-out ${s.delayS}s infinite alternate both`,
+                  willChange: "opacity, transform, filter",
+                } as CSSProperties
+              }
             />
           </span>
         );

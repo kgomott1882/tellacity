@@ -131,6 +131,45 @@
   }
 }
 
+/* Hero stars — fewer + calmer glow on small viewports (see HeroStarField max-md:hidden) */
+@keyframes heroStarTwinkleMobile {
+  0% {
+    opacity: 0.28;
+    transform: scale(0.72);
+    filter: blur(0.15px);
+  }
+  25% {
+    opacity: 0.62;
+    transform: scale(1.1);
+    filter: blur(0);
+  }
+  45% {
+    opacity: 0.36;
+    transform: scale(0.86);
+    filter: blur(0.1px);
+  }
+  70% {
+    opacity: 0.64;
+    transform: scale(1.12);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(0.74);
+    filter: blur(0.15px);
+  }
+}
+
+@media not (min-width: 48rem) {
+  .hero-star-field .hero-star {
+    animation-name: heroStarTwinkleMobile !important;
+  }
+
+  .hero-star-field .hero-star-glow {
+    box-shadow: var(--hero-star-glow-mobile) !important;
+  }
+}
+
 /* One-shot shooting star (HeroStarField — client-triggered; duration set inline) */
 @keyframes heroShootingStarFly {
   0% {
