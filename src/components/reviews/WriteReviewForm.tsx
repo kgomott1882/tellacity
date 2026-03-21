@@ -805,14 +805,48 @@ export default function WriteReviewForm({
     }
   };
 
-  const handleResendCode = () => {
-    if (!otpEmail) return;
-    showToast({
-      title: "Check your email",
-      description:
-        "If you can't find the code, please check your spam or promotions folder.",
-      variant: "success",
-    });
+  const handleResendCode = async () => {
+    if (!otpEmail || !otpReviewId) return;
+    try {
+      const res = await fetch("/api/reviews/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: otpReviewId, email: otpEmail }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+
+      if (!res.ok) {
+        let description = "Please try again in a moment.";
+        if (data.error === "email_unavailable") {
+          description = "Email isn’t configured. Please try again later.";
+        } else if (data.error === "email_failed") {
+          description = "We couldn’t send the email. Please try again.";
+        } else if (data.error === "email_mismatch" || data.error === "not_found") {
+          description = "Refresh the page and submit your review again.";
+        } else if (data.error === "not_draft") {
+          description = "This review may already be published.";
+        }
+        showToast({
+          title: "Couldn’t resend code",
+          description,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      showToast({
+        title: "New code sent",
+        description:
+          "Check your inbox for a fresh 6-digit code. Spam or promotions folders too.",
+        variant: "success",
+      });
+    } catch {
+      showToast({
+        title: "Couldn’t resend code",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGoogleContinue = async () => {

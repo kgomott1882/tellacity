@@ -20,8 +20,10 @@ export default function ReviewOtpModal({
 }: ReviewOtpModalProps) {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!successToast) return;
@@ -40,6 +42,41 @@ export default function ReviewOtpModal({
     setCode(next);
     if (error) {
       setError(null);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendMessage(null);
+    setError(null);
+    setResending(true);
+    try {
+      const res = await fetch("/api/reviews/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId, email }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+
+      if (!res.ok) {
+        if (data.error === "email_unavailable") {
+          setResendMessage("Email isn’t configured. Please try again later.");
+        } else if (data.error === "email_failed") {
+          setResendMessage("Couldn’t send the email. Please try again.");
+        } else if (data.error === "email_mismatch" || data.error === "not_found") {
+          setResendMessage("This session doesn’t match that review. Refresh the page and try again.");
+        } else if (data.error === "not_draft") {
+          setResendMessage("This review is already published or can’t be verified again.");
+        } else {
+          setResendMessage("Couldn’t resend the code. Please try again.");
+        }
+        return;
+      }
+
+      setResendMessage("We sent a new code to your email.");
+    } catch {
+      setResendMessage("Something went wrong. Please try again.");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -153,12 +190,23 @@ export default function ReviewOtpModal({
             </Button>
             <button
               type="button"
-              className="w-full text-center text-xs font-medium text-[#1FAF9E] hover:text-[#169786]"
-              // Resend behavior can be wired up later when backend exists
-              disabled={submitting}
+              onClick={handleResend}
+              className="w-full text-center text-xs font-medium text-[#1FAF9E] hover:text-[#169786] disabled:opacity-50"
+              disabled={submitting || resending}
             >
-              Resend code
+              {resending ? "Sending…" : "Resend code"}
             </button>
+            {resendMessage && (
+              <p
+                className={`text-center text-xs ${
+                  resendMessage.startsWith("We sent")
+                    ? "text-emerald-700"
+                    : "text-amber-700"
+                }`}
+              >
+                {resendMessage}
+              </p>
+            )}
           </div>
         </form>
 

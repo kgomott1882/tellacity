@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ForBusinessMotionSection from "./ForBusinessMotionSection";
-import AnimatedLine from "./AnimatedLine";
+import HeroStarField from "@/components/home/HeroStarField";
 import DashboardMock from "@/components/for-business/DashboardMock";
 import ReviewFlowGraphic from "@/components/for-business/ReviewFlowGraphic";
 import ReviewFlowSteps from "@/components/for-business/ReviewFlowSteps";
@@ -357,8 +357,9 @@ export default function ForBusinessPage() {
         </div>
       </ForBusinessMotionSection>
 
-      <ForBusinessMotionSection className="bg-[#0F1F1E] py-24">
-        <div className="mx-auto w-full max-w-5xl px-6 text-center">
+      <ForBusinessMotionSection className="relative overflow-hidden bg-[#0F1F1E] py-24">
+        <HeroStarField />
+        <div className="relative z-10 mx-auto w-full max-w-5xl px-6 text-center">
           <h2 className="text-4xl font-semibold text-white sm:text-5xl">
             Trust Isn’t Marketing.
             <br />
@@ -369,10 +370,6 @@ export default function ForBusinessPage() {
             Reviews aren’t campaigns. They’re signals. 
             Tellacity helps you build a reputation system that compounds over time.
           </p>
-
-          <div className="mt-16" aria-hidden="true">
-            <AnimatedLine d="M40 140c80-120 160-140 240-100 80 40 160 30 240-40 80-70 160-80 240-20" />
-          </div>
         </div>
       </ForBusinessMotionSection>
 
@@ -551,66 +548,6 @@ export default function ForBusinessPage() {
         </div>
       </ForBusinessMotionSection>
 
-      {/* SIMPLE SETUP */}
-      <ForBusinessMotionSection
-        className="mx-auto w-full max-w-7xl px-6 pb-16"
-        id="pricing"
-      >
-        <div className="rounded-3xl border border-gray-200 bg-white p-8">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
-            <div className="order-2 md:order-1">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-                <svg
-                  viewBox="0 0 640 400"
-                  className="h-full w-full"
-                  role="img"
-                  aria-hidden="true"
-                >
-                  <rect width="640" height="400" rx="24" fill="#F8FAFC" />
-                  <path
-                    d="M96 276c60-88 120-120 180-96 60 24 112 16 160-24 48-40 96-48 148-24"
-                    fill="none"
-                    stroke="#1FAF9E"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="140" cy="240" r="10" fill="#CBD5F5" />
-                  <circle cx="276" cy="204" r="10" fill="#C7EFD9" />
-                  <circle cx="408" cy="176" r="10" fill="#FADBB4" />
-                </svg>
-              </div>
-            </div>
-            <div className="order-1 md:order-2">
-              <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-                <span className="relative inline-block">
-                  <span className="relative z-10">
-                    Simple Setup. Immediate Impact.
-                  </span>
-                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
-                </span>
-              </h2>
-              <div className="mt-6 grid gap-6 md:grid-cols-3">
-                {["Connect your business", "Collect feedback", "Grow with trust"].map(
-                  (item, index) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)] active:scale-95 hover:bg-teal-50"
-                    >
-                      <span className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1FAF9E] text-xs font-semibold text-white">
-                        {index + 1}
-                      </span>
-                      <p className="text-sm font-semibold text-[#0E0E0E]">
-                        {item}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </ForBusinessMotionSection>
-
       {/* FINAL CTA */}
       <ForBusinessMotionSection className="bg-[#F6FBFA]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-14 md:flex-row md:items-center md:justify-between">
@@ -632,7 +569,7 @@ export default function ForBusinessPage() {
               Get Started for Free
             </Link>
             <Link
-              href="/for-business#pricing"
+              href="/pricing"
               className="inline-flex items-center justify-center rounded-full border border-[#1FAF9E] px-6 py-3 text-sm font-semibold text-[#1FAF9E]"
             >
               View Pricing

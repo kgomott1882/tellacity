@@ -57,6 +57,7 @@ type Review = {
   body: string;
   createdAt: string;
   createdAtRaw: string | null;
+  likeCount: number;
 };
 
 type ReviewReply = {
@@ -626,7 +627,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       const sb = supabase();
       const { data, error, count } = await sb
         .from("reviews")
-        .select("id, guest_name, rating, title, body, created_at, status", {
+        .select("id, guest_name, rating, title, body, created_at, status, like_count", {
           count: "exact",
         })
         .eq("business_id", businessId)
@@ -647,6 +648,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
           body: review.body ?? "",
           createdAt: formatDate(review.created_at),
           createdAtRaw: review.created_at ?? null,
+          likeCount: Number((review as { like_count?: number }).like_count ?? 0),
         }));
         setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
         const reviewIds = mapped.map((item) => item.id);
@@ -1253,6 +1255,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           business_slug: business?.slug ?? null,
                           website: business?.website ?? "",
                           resolved_logo_url: businessLogoUrl,
+                          like_count: review.likeCount,
                         }}
                         businessReplies={
                           repliesByReviewId[review.id]?.map((r) => ({
@@ -1279,7 +1282,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         const { data, error, count } = await sb
                           .from("reviews")
                           .select(
-                            "id, guest_name, rating, title, body, created_at, status",
+                            "id, guest_name, rating, title, body, created_at, status, like_count",
                             { count: "exact" }
                           )
                           .eq("business_id", business.id)
@@ -1296,6 +1299,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                             body: review.body ?? "",
                             createdAt: formatDate(review.created_at),
                             createdAtRaw: review.created_at ?? null,
+                            likeCount: Number(
+                              (review as { like_count?: number }).like_count ?? 0
+                            ),
                           }));
                           setReviews((prevReviews) => [
                             ...prevReviews,

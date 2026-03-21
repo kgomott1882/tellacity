@@ -225,12 +225,14 @@ serve(async (req) => {
     }
 
     // After creating the draft review, generate and send a verification OTP
+    let otpRowId: string | null = null;
     try {
       const otp = generateOtp();
 
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-      const { error: otpError } = await supabase.from("review_email_otps")
+      const { data: otpRow, error: otpError } = await supabase
+        .from("review_email_otps")
         .insert({
           email: guest_email,
           code: otp,
@@ -238,9 +240,11 @@ serve(async (req) => {
           attempts: 0,
           used: false,
           expires_at: expiresAt,
-        });
+        })
+        .select("id")
+        .single();
 
-      if (otpError) {
+      if (otpError || !otpRow?.id) {
         console.error("Failed to insert review_email_otps row:", otpError);
         return json(
           { error: "unexpected_error" },
@@ -248,14 +252,20 @@ serve(async (req) => {
         );
       }
 
+      otpRowId = otpRow.id;
+
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
         console.error("RESEND_API_KEY is not set");
+        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
         return json(
           { error: "unexpected_error" },
           500,
         );
       }
+
+      const resendFrom = Deno.env.get("RESEND_FROM_EMAIL")?.trim() ||
+        "Tellacity <notifications@tellacity.com>";
 
       const subject = "Verify your Tellacity review";
       const html = `
@@ -283,7 +293,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Tellacity <notifications@tellacity.com>",
+          from: resendFrom,
           to: guest_email,
           subject,
           html,
@@ -297,6 +307,7 @@ serve(async (req) => {
           emailResponse.status,
           errorBody,
         );
+        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
         return json(
           { error: "unexpected_error" },
           500,
@@ -304,6 +315,9 @@ serve(async (req) => {
       }
     } catch (err) {
       console.error("OTP generation/email error:", err);
+      if (otpRowId) {
+        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
+      }
       return json(
         { error: "unexpected_error" },
         500,

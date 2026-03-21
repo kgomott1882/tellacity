@@ -35,6 +35,7 @@ type HomeReview = {
   resolved_logo_url: string | null;
   /** Used for verification badge next to business name (same logic as category cards). */
   review_count?: number | null;
+  like_count?: number | null;
 };
 
 const cleanDomain = (value: string | null | undefined) =>
@@ -405,7 +406,7 @@ export default function HomePageClient({
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("reviews")
           .select(
-            "id, rating, title, body, created_at, guest_name, businesses(name, slug, website, logo_url, resolved_logo_url, review_count)"
+            "id, rating, title, body, created_at, guest_name, like_count, businesses(name, slug, website, logo_url, resolved_logo_url, review_count)"
           )
           .eq("businesses.country_code", country)
           .or("status.is.null,status.eq.published")
@@ -448,6 +449,7 @@ export default function HomePageClient({
             resolved_logo_url: businessLogoUrl,
             reviewer_name: guestName,
             review_count: biz?.review_count ?? null,
+            like_count: (row.like_count as number | null) ?? null,
           };
         });
         setReviews(mapped);
