@@ -42,6 +42,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://js.paystack.co/v1/inline.js"></script>
+      </head>
       <body>
         <ScrollProgress />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
