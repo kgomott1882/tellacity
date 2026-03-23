@@ -11,7 +11,9 @@ import AnalyticsGate from "@/components/common/AnalyticsGate";
 import CountrySync from "@/components/common/CountrySync";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
-export const metadata = {};
+export const metadata = {
+  metadataBase: new URL("https://tellacity.com"),
+};
 
 const abortErrorHandlerScript = `
   (function() {

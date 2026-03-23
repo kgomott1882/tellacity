@@ -76,6 +76,7 @@ export async function generateMetadata(
   }
 ): Promise<Metadata> {
   const { slug } = await props.params;
+
   return {
     title: `${slug} Reviews | Tellacity`,
     alternates: {
