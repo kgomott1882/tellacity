@@ -112,7 +112,6 @@ export async function POST(req: Request) {
     const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8" /></head>
 <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
   <p>Hi ${guestName.replace(/</g, "&lt;")},</p>
 

@@ -271,7 +271,6 @@ serve(async (req) => {
       const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8" /></head>
 <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
   <p>Hi ${guest_name},</p>
 

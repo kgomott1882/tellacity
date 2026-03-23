@@ -96,7 +96,6 @@ function buildWidgetHtml(opts: {
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f8f8f8;">
 <div style="font-family:Arial, sans-serif; padding:20px; background:#f8f8f8;">
   <div style="max-width:600px; margin:auto; background:#ffffff; padding:24px; border-radius:8px;">
@@ -145,7 +144,6 @@ function buildEliteBrandedHtml(opts: {
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f4f6f8;">
 <div style="font-family:Arial, sans-serif; background:#f4f6f8; padding:30px;">
   <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
