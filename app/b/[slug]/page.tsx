@@ -109,6 +109,24 @@ export default async function BusinessPage(
   const business = await resolveBusinessBySlug(supabase, safeSlug);
 
   if (!business) {
+    const possibleName = safeSlug
+      .replace(/unitedstates|australia|uk|canada|ireland|nz/gi, "")
+      .replace(/-/g, " ")
+      .trim();
+
+    if (possibleName) {
+      const { data: fallback } = await supabase
+        .from("businesses")
+        .select("slug")
+        .ilike("name", `%${possibleName}%`)
+        .limit(1)
+        .maybeSingle();
+
+      const fallbackSlug = getSafeSlug(String(fallback?.slug ?? ""));
+      if (fallbackSlug) {
+        redirect(`/b/${fallbackSlug}`);
+      }
+    }
     return notFound();
   }
 
