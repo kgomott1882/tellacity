@@ -91,7 +91,6 @@ export default async function BusinessPage(
   }
 ) {
   const { slug } = await props.params;
-  console.log("DEBUG SLUG:", slug);
   const searchParams = await props.searchParams;
   const { country } = searchParams;
   // Fallback guard: redirect before any validation or data fetch.
@@ -100,7 +99,6 @@ export default async function BusinessPage(
   }
   const safeSlug = getSafeSlug(slug);
   if (!safeSlug) {
-    console.log("NOT FOUND SLUG:", slug);
     return notFound();
   }
   const supabase = getSupabase();
@@ -108,7 +106,6 @@ export default async function BusinessPage(
   const business = await resolveBusinessBySlug(supabase, safeSlug);
 
   if (!business) {
-    console.log("NOT FOUND SLUG:", slug);
     return notFound();
   }
 
