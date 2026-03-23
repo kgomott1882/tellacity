@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 
 const COUNTRY_OPTIONS = [
   "South Africa","United States","United Kingdom","Australia","Canada",
@@ -95,7 +96,9 @@ export default function AccountPage() {
   };
 
   const handleChangePassword = () => {
-    supabaseBrowser().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset-password` })
+    supabaseBrowser().auth.resetPasswordForEmail(email, {
+      redirectTo: `${getBaseUrl()}/auth/reset-password`,
+    })
       .then(({ error }) => {
         if (error) setMessage({ type: "error", text: error.message });
         else setMessage({ type: "success", text: "Check your email for a password reset link." });

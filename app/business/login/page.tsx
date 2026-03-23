@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 
 export default function BusinessLoginPage() {
   const router = useRouter();
@@ -120,17 +121,13 @@ export default function BusinessLoginPage() {
                     );
                   }
                   const supabase = supabaseBrowser();
-                  const { error: oauthError } = await supabase.auth.signInWithOAuth(
-                    {
-                      provider: "google",
-                      options: {
-                        redirectTo:
-                          typeof window !== "undefined"
-                            ? `${window.location.origin}/auth/callback?next=/business/dashboard`
-                            : undefined,
-                      },
-                    }
-                  );
+                  const baseUrl = getBaseUrl();
+                  const { error: oauthError } = await supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                      redirectTo: `${baseUrl}/auth/callback?next=/business/dashboard`,
+                    },
+                  });
                   if (oauthError) {
                     setError(oauthError.message);
                   }

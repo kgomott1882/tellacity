@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
 
 type Review = {
@@ -57,6 +58,7 @@ export default function ReviewPage() {
         .select("id, guest_name, rating, title, body, created_at, business_id, businesses(name, slug)")
         .eq("id", id)
         .or("status.is.null,status.eq.published")
+        .or(REVIEWS_PUBLIC_VISIBILITY_OR)
         .single();
 
       if (!mounted) return;

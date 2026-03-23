@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
 import { MapPin, Phone, Globe } from "lucide-react";
 
@@ -88,6 +89,7 @@ export default function LocationProfilePage({
           .select("id, guest_name, rating, title, body, created_at")
           .eq("location_id", locationId)
           .eq("status", "published")
+          .or(REVIEWS_PUBLIC_VISIBILITY_OR)
           .order("created_at", { ascending: false })
           .limit(50)
           .then(({ data }) => setReviews((data ?? []) as Review[]));
@@ -133,6 +135,7 @@ export default function LocationProfilePage({
         .select("id, guest_name, rating, title, body, created_at")
         .eq("location_id", locationId)
         .eq("status", "published")
+        .or(REVIEWS_PUBLIC_VISIBILITY_OR)
         .order("created_at", { ascending: false })
         .limit(50);
       if (mounted) setReviews((revData ?? []) as Review[]);

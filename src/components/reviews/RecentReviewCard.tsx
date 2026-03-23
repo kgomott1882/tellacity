@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Share2 } from "lucide-react";
@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import ReviewShareMenu from "@/components/ReviewShareMenu";
-import { normalizeLogoUrl } from "@/lib/logo";
+import { similarBusinessLogoUrl } from "@/lib/logo";
 
 type BusinessReply = { body: string; createdAt: string };
 
@@ -40,6 +40,7 @@ export default function RecentReviewCard({
   const router = useRouter();
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [logoImageError, setLogoImageError] = useState(false);
 
   const hasReply = businessReplies && businessReplies.length > 0;
   const firstReply = hasReply ? businessReplies[0] : null;
@@ -51,6 +52,22 @@ export default function RecentReviewCard({
 
   const reviewId = review.review_id || review.id;
 
+  const logoUrl = similarBusinessLogoUrl({
+    resolved_logo_url:
+      review.resolved_logo_url ?? review.business?.resolved_logo_url ?? null,
+    logo_url: review.logo_url ?? review.business?.logo_url ?? null,
+    website: review.website ?? review.business?.website ?? null,
+    website_display:
+      review.website_display ??
+      review.business_website ??
+      review.business?.website_display ??
+      null,
+  });
+
+  useEffect(() => {
+    setLogoImageError(false);
+  }, [reviewId, logoUrl]);
+
   const businessName =
     review.business_name ||
     review.business?.name ||
@@ -60,14 +77,6 @@ export default function RecentReviewCard({
     review.business_slug ||
     review.business?.slug ||
     null;
-
-  const rawLogoUrl =
-    review.resolved_logo_url ||
-    review.logo_url ||
-    review.business?.resolved_logo_url ||
-    review.business?.logo_url ||
-    null;
-  const logoUrl = normalizeLogoUrl(rawLogoUrl) ?? rawLogoUrl ?? null;
 
   const reviewerName = review.reviewer_name;
   
@@ -127,18 +136,19 @@ export default function RecentReviewCard({
       )}
     >
       <div className="flex gap-3 p-4">
-        <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden">
-          {logoUrl && (
+        <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
+          {logoUrl && !logoImageError ? (
             <img
               src={logoUrl}
               alt={businessName}
               className="h-full w-full object-contain"
               referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
+              onError={() => setLogoImageError(true)}
             />
+          ) : (
+            <span className="text-sm font-semibold uppercase text-slate-500">
+              {(businessName?.trim()?.[0] ?? "?").toUpperCase()}
+            </span>
           )}
         </div>
 

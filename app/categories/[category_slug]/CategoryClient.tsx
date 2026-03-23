@@ -9,6 +9,7 @@ import { normalizeLogoUrl, domainFromWebsite, getLogoDevUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
 import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
+import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
 
 type BusinessRow = {
@@ -364,7 +365,8 @@ export default function CategoryClient({
             .from("reviews")
             .select("business_id, rating")
             .in("business_id", ids)
-            .eq("status", "published");
+            .eq("status", "published")
+            .or(REVIEWS_PUBLIC_VISIBILITY_OR);
 
           if (!reviewError && reviews) {
             const agg: Record<string, { count: number; sum: number }> = {};

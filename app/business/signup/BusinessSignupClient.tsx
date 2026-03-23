@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import PasswordSetupPopup from "./_components/PasswordSetupPopup";
 
 const COUNTRIES = [
@@ -322,13 +323,11 @@ export default function BusinessSignupClient() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("tellacity_auth_redirect", "true");
       }
+      const baseUrl = getBaseUrl();
       const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback?next=/business/dashboard`
-              : undefined,
+          redirectTo: `${baseUrl}/auth/callback?next=/business/dashboard`,
         },
       });
       if (oauthError) {

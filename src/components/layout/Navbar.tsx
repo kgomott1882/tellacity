@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
+import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import { setStoredCountry } from "@/lib/country";
@@ -32,6 +34,17 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const consumerAuthNext = useMemo(() => {
+    if (pathname.startsWith("/admin")) {
+      const q = searchParams.toString();
+      return sanitizeAuthNext(`${pathname}${q ? `?${q}` : ""}`, "/dashboard");
+    }
+    return "/dashboard";
+  }, [pathname, searchParams]);
+  const consumerLoginHref =
+    consumerAuthNext === "/dashboard"
+      ? "/auth/login"
+      : `/auth/login?next=${encodeURIComponent(consumerAuthNext)}`;
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
@@ -238,6 +251,15 @@ export default function Navbar() {
           // Redirect by account type: business (by id or email) -> business dashboard, else consumer
           if (!user) return;
 
+          // Callback + admin: those routes control navigation (e.g. ?next=/admin). Do not race router.push.
+          if (
+            pathname === "/auth/callback" ||
+            pathname === "/admin" ||
+            pathname?.startsWith("/admin/")
+          ) {
+            return;
+          }
+
           (async () => {
             const supabase = supabaseBrowser();
             const { data: byId } = await supabase
@@ -257,7 +279,7 @@ export default function Navbar() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [isLoginOpen, isSignupOpen, router]);
+  }, [isLoginOpen, isSignupOpen, router, pathname]);
 
   useEffect(() => {
     if (!isLoginOpen && !isSignupOpen) {
@@ -651,7 +673,7 @@ export default function Navbar() {
               ) : (
                 <>
                   <Link
-                    href="/auth/login"
+                    href={consumerLoginHref}
                     className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
                   >
                     Log in
@@ -777,7 +799,7 @@ export default function Navbar() {
                 {userInitials && !isAuthFlow ? null : (
                   <>
                     <Link
-                      href="/auth/login"
+                      href={consumerLoginHref}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Log in
@@ -839,10 +861,11 @@ export default function Navbar() {
                         "tellacity_auth_redirect",
                         "true"
                       );
+                      const baseUrl = getBaseUrl();
                       const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
-                          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+                          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(consumerAuthNext)}`,
                         },
                       });
                       if (error) {
@@ -904,10 +927,11 @@ export default function Navbar() {
                       "tellacity_auth_redirect",
                       "true"
                     );
+                    const baseUrl = getBaseUrl();
                     const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
-                        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+                        emailRedirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(consumerAuthNext)}`,
                       },
                     });
                     setIsLoginSubmitting(false);
@@ -1067,10 +1091,11 @@ export default function Navbar() {
                         "tellacity_auth_redirect",
                         "true"
                       );
+                      const baseUrl = getBaseUrl();
                       const { error } = await supabaseBrowser().auth.signInWithOAuth({
                         provider: "google",
                         options: {
-                          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+                          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(consumerAuthNext)}`,
                         },
                       });
                       if (error) {
@@ -1132,10 +1157,11 @@ export default function Navbar() {
                       "tellacity_auth_redirect",
                       "true"
                     );
+                    const baseUrl = getBaseUrl();
                     const { error } = await supabaseBrowser().auth.signInWithOtp({
                       email: trimmedEmail,
                       options: {
-                        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+                        emailRedirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(consumerAuthNext)}`,
                       },
                     });
                     setIsSignupSubmitting(false);

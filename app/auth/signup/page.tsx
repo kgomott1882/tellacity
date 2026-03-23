@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -187,14 +188,12 @@ export default function SignupPage() {
                           "true"
                         );
                       }
+                      const baseUrl = getBaseUrl();
                       const { error: oauthError } =
                         await supabaseBrowser().auth.signInWithOAuth({
                           provider: "google",
                           options: {
-                            redirectTo:
-                              typeof window !== "undefined"
-                                ? `${window.location.origin}/auth/callback?next=/dashboard`
-                                : undefined,
+                            redirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
                           },
                         });
                       if (oauthError) {

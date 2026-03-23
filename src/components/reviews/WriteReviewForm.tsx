@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import RatingStars from "@/components/RatingStars";
@@ -872,10 +873,12 @@ export default function WriteReviewForm({
 
     window.localStorage.setItem(PENDING_REVIEW_KEY, JSON.stringify(draft));
 
+    const baseUrl = getBaseUrl();
+    const nextPath = `${window.location.pathname}${window.location.search}`;
     const { error } = await supabaseBrowser().auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.href,
+        redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
       },
     });
 

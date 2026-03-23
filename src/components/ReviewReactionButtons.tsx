@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ThumbsUp } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
 
 const MSG_ALREADY_LIKED_BUSINESS =
@@ -198,10 +199,12 @@ export default function ReviewReactionButtons({
     try {
       window.localStorage.setItem(PENDING_HELPFUL_VOTE_KEY, reviewId);
       window.localStorage.setItem(HELPFUL_GOOGLE_EPHEMERAL_KEY, "1");
+      const baseUrl = getBaseUrl();
+      const nextPath = `${window.location.pathname}${window.location.search}`;
       const { error } = await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.href,
+          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) {

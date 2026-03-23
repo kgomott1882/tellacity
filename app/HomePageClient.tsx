@@ -17,7 +17,7 @@ import {
   getStoredCountry,
   setStoredCountry,
 } from "@/lib/country";
-import { normalizeLogoUrl, getLogoDevUrl, domainFromWebsite } from "@/lib/logo";
+import { similarBusinessLogoUrl } from "@/lib/logo";
 import { isAbortError } from "@/lib/authErrors";
 import { getAllBlogPosts } from "../data/blogPosts";
 
@@ -32,11 +32,58 @@ type HomeReview = {
   business_name: string | null;
   business_slug: string | null;
   website: string | null;
+  website_display?: string | null;
+  logo_url?: string | null;
   resolved_logo_url: string | null;
   /** Used for verification badge next to business name (same logic as category cards). */
   review_count?: number | null;
   like_count?: number | null;
 };
+
+/** Same logo resolution as BusinessClient / related-business cards (DB + Logo.dev). */
+function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
+  const website =
+    typeof row.website === "string" && row.website.trim() !== ""
+      ? row.website
+      : null;
+  const websiteDisplay =
+    typeof row.website_display === "string" && row.website_display.trim() !== ""
+      ? row.website_display
+      : null;
+  const logoUrl =
+    row.logo_url != null && String(row.logo_url).trim() !== ""
+      ? String(row.logo_url)
+      : null;
+  const resolvedRaw =
+    row.resolved_logo_url != null && String(row.resolved_logo_url).trim() !== ""
+      ? String(row.resolved_logo_url)
+      : null;
+
+  const resolved_logo_url = similarBusinessLogoUrl({
+    resolved_logo_url: resolvedRaw,
+    logo_url: logoUrl,
+    website,
+    website_display: websiteDisplay,
+  });
+
+  return {
+    review_id: String(row.review_id ?? ""),
+    rating: (row.rating as number) ?? null,
+    title: (row.title as string) ?? null,
+    body: (row.body as string) ?? null,
+    created_at: (row.created_at as string) ?? null,
+    guest_name: (row.guest_name as string) ?? null,
+    reviewer_name: (row.reviewer_name as string) ?? (row.guest_name as string) ?? null,
+    business_name: (row.business_name as string) ?? null,
+    business_slug: (row.business_slug as string) ?? null,
+    website,
+    website_display: websiteDisplay,
+    logo_url: logoUrl,
+    resolved_logo_url,
+    review_count: row.review_count != null ? Number(row.review_count) : null,
+    like_count: row.like_count != null ? Number(row.like_count) : null,
+  };
+}
 
 const cleanDomain = (value: string | null | undefined) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
@@ -406,35 +453,44 @@ export default function HomePageClient({
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("reviews")
           .select(
-            "id, rating, title, body, created_at, guest_name, like_count, businesses(name, slug, website, logo_url, resolved_logo_url, review_count)"
+            "id, rating, title, body, created_at, guest_name, like_count, visibility, businesses(name, slug, website, website_display, logo_url, resolved_logo_url, review_count)"
           )
           .eq("businesses.country_code", country)
           .or("status.is.null,status.eq.published")
+          .eq("visibility", "visible")
           .order("created_at", { ascending: false })
           .limit(56);
 
         if (!isMounted) return false;
-        if (fallbackError || !fallbackData || fallbackData.length === 0) return false;
 
-        const mapped: HomeReview[] = fallbackData.map((row: Record<string, unknown>) => {
+        const safeReviews = (fallbackData || []).filter(
+          (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
+        );
+
+        if (fallbackError || safeReviews.length === 0) return false;
+
+        const mapped: HomeReview[] = safeReviews.map((row: Record<string, unknown>) => {
           const biz = row.businesses as {
             name?: string;
             slug?: string;
             website?: string | null;
+            website_display?: string | null;
             logo_url?: string | null;
             resolved_logo_url?: string | null;
             review_count?: number | null;
           } | null;
           const guestName = (row.guest_name as string) ?? null;
 
-          const rawLogo =
-            biz?.resolved_logo_url ??
-            biz?.logo_url ??
-            null;
-          const domain = domainFromWebsite(biz?.website ?? null);
-          const businessLogoUrl =
-            normalizeLogoUrl(rawLogo) ??
-            getLogoDevUrl(domain);
+          const website = biz?.website?.trim() ? biz.website : null;
+          const websiteDisplay = biz?.website_display?.trim() ? biz.website_display : null;
+          const logoUrl = biz?.logo_url?.trim() ? biz.logo_url : null;
+          const resolvedRaw = biz?.resolved_logo_url?.trim() ? biz.resolved_logo_url : null;
+          const resolved_logo_url = similarBusinessLogoUrl({
+            resolved_logo_url: resolvedRaw,
+            logo_url: logoUrl,
+            website,
+            website_display: websiteDisplay,
+          });
 
           return {
             review_id: row.id as string,
@@ -445,8 +501,10 @@ export default function HomePageClient({
             guest_name: guestName,
             business_name: biz?.name ?? null,
             business_slug: biz?.slug ?? null,
-            website: biz?.website ?? null,
-            resolved_logo_url: businessLogoUrl,
+            website,
+            website_display: websiteDisplay,
+            logo_url: logoUrl,
+            resolved_logo_url,
             reviewer_name: guestName,
             review_count: biz?.review_count ?? null,
             like_count: (row.like_count as number | null) ?? null,
@@ -474,11 +532,24 @@ export default function HomePageClient({
           const result = await query.limit(56);
           if (!isMounted) return;
           err = result.error;
-          if (!result.error && result.data && result.data.length > 0) {
-            setReviews(result.data as HomeReview[]);
+          const visibleReviews = (result.data || []).filter(
+            (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
+          );
+          if (!result.error && visibleReviews.length > 0) {
+            setReviews(
+              visibleReviews.map((r) =>
+                mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
+              )
+            );
             return;
           }
-          data = (result.data ?? null) as HomeReview[] | null;
+          /* View returned no visible rows — use table fallback. */
+          data =
+            visibleReviews.length > 0
+              ? visibleReviews.map((r) =>
+                  mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
+                )
+              : null;
         } catch (viewErr) {
           if (!isMounted) return;
           if (isAbortError(viewErr)) return;

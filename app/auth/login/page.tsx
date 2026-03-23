@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
+import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = useMemo(
+    () => sanitizeAuthNext(searchParams.get("next"), "/dashboard"),
+    [searchParams]
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +49,7 @@ export default function LoginPage() {
           return;
         }
       }
-      router.push("/dashboard");
+      router.push(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -79,17 +86,13 @@ export default function LoginPage() {
                       "true"
                     );
                   }
-                  const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth(
-                    {
-                      provider: "google",
-                      options: {
-                        redirectTo:
-                          typeof window !== "undefined"
-                            ? `${window.location.origin}/auth/callback?next=/dashboard`
-                            : undefined,
-                      },
-                    }
-                  );
+                  const baseUrl = getBaseUrl();
+                  const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                      redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+                    },
+                  });
                   if (oauthError) {
                     setError(oauthError.message);
                   }

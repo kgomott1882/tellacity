@@ -1,3 +1,4 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -10,17 +11,58 @@ function normalizeCountry(raw: string | null | undefined): string | null {
   return ALLOWED_COUNTRIES.includes(normalized) ? normalized : null;
 }
 
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl;
+/**
+ * Internal admin app only: `/admin` and `/admin/*`.
+ * Does not match `/administrator` or other prefixes.
+ */
+function isAdminPathname(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
 
-  // Skip static files + API routes
+export async function middleware(request: NextRequest) {
+  const url = request.nextUrl;
+  const pathname = url.pathname;
+
+  // Skip static files + API routes (unchanged)
   if (
-    url.pathname.startsWith("/_next") ||
-    url.pathname.startsWith("/api") ||
-    url.pathname.includes(".")
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".")
   ) {
     return NextResponse.next();
   }
+
+  // -------------------------------------------------------------------------
+  // Admin: isolated from consumer country redirects and any dashboard routing.
+  // Session refresh only; layout + RequireAdmin handle access control.
+  // -------------------------------------------------------------------------
+  if (isAdminPathname(pathname)) {
+    let response = NextResponse.next({ request });
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+    await supabase.auth.getUser();
+    return response;
+  }
+
+  // -------------------------------------------------------------------------
+  // Consumer / marketing country handling (unchanged for non-admin routes)
+  // -------------------------------------------------------------------------
 
   // If country already in URL -> respect it
   const countryParam = url.searchParams.get("country");

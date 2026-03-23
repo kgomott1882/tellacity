@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { supabase } from "@/lib/supabaseClient";
-import { normalizeLogoUrl, getLogoDevUrl, similarBusinessLogoUrl } from "@/lib/logo";
+import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
+import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { getActiveCountry } from "@/lib/getActiveCountry";
@@ -431,7 +432,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         .from("reviews")
         .select("rating", { count: "exact" })
         .eq("business_id", business.id)
-        .or("status.is.null,status.eq.published");
+        .or("status.is.null,status.eq.published")
+        .or(REVIEWS_PUBLIC_VISIBILITY_OR);
 
       if (!isMounted || error) {
         return;
@@ -632,6 +634,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         })
         .eq("business_id", businessId)
         .or("status.is.null,status.eq.published")
+        .or(REVIEWS_PUBLIC_VISIBILITY_OR)
         .order("created_at", { ascending: false })
         .range(offset, offset + 4);
 
@@ -786,9 +789,11 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     reviews.length,
   ]);
 
-  const businessLogoUrl =
-    business?.logoUrl ??
-    (business?.website ? getLogoDevUrl(business.website) : null);
+  const businessLogoUrl = similarBusinessLogoUrl({
+    resolved_logo_url: business?.logoUrl,
+    logo_url: null,
+    website: business?.website,
+  });
 
   if (notFound && !isLoadingBusiness) {
     return (
@@ -1287,6 +1292,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           )
                           .eq("business_id", business.id)
                           .or("status.is.null,status.eq.published")
+                          .or(REVIEWS_PUBLIC_VISIBILITY_OR)
                           .order("created_at", { ascending: false })
                           .range(offset, offset + 4);
 

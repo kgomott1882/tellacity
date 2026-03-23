@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 
 /**
  * OAuth callback: Supabase redirects here with hash (#access_token=...).
@@ -13,6 +14,10 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const safeNext = useMemo(
+    () => sanitizeAuthNext(searchParams.get("next"), "/dashboard"),
+    [searchParams]
+  );
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
 
   useEffect(() => {
@@ -27,8 +32,6 @@ function CallbackInner() {
           return;
         }
       }
-
-      const next = searchParams.get("next")?.trim() || "/dashboard";
       // Give Supabase a moment to read the URL hash and set the session
       await new Promise((r) => setTimeout(r, 100));
       if (!isMounted) return;
@@ -61,11 +64,13 @@ function CallbackInner() {
               return;
             }
           }
-          router.replace(next);
+          router.replace(safeNext);
         } else {
           // No session (e.g. user closed OAuth) – send to login with return url
-          const loginPath = next.startsWith("/business") ? "/business/login" : "/auth/login";
-          router.replace(`${loginPath}?next=${encodeURIComponent(next)}`);
+          const loginPath = safeNext.startsWith("/business")
+            ? "/business/login"
+            : "/auth/login";
+          router.replace(`${loginPath}?next=${encodeURIComponent(safeNext)}`);
         }
         setStatus("done");
       } catch {
@@ -77,13 +82,16 @@ function CallbackInner() {
     return () => {
       isMounted = false;
     };
-  }, [router, searchParams]);
+  }, [router, safeNext]);
 
   if (status === "error") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
         <p className="text-sm text-red-600">Something went wrong signing you in.</p>
-        <Link href="/auth/login" className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline">
+        <Link
+          href={`/auth/login?next=${encodeURIComponent(safeNext)}`}
+          className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline"
+        >
           Back to sign in
         </Link>
       </main>
