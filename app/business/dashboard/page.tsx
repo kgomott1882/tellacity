@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import UpgradeButton from "@/components/billing/UpgradeButton";
+import { useBusinessContext } from "./_context/BusinessContext";
+import { useBusinessAuth } from "@/lib/useBusinessAuth";
 
 /**
  * Business dashboard root: redirect to the default tab (Analytics).
@@ -10,13 +13,23 @@ import { useRouter } from "next/navigation";
  */
 export default function BusinessDashboardPage() {
   const router = useRouter();
+  const { selectedBusiness: business } = useBusinessContext();
+  const { user } = useBusinessAuth();
 
   useEffect(() => {
     router.replace("/business/dashboard/analytics/performance");
   }, [router]);
 
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
+    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
+      {business && user?.email ? (
+        <UpgradeButton
+          businessId={business.id}
+          planCode="premium"
+          amount={5000}
+          email={user.email}
+        />
+      ) : null}
       <p className="text-sm text-neutral-500">Taking you to your dashboard…</p>
     </div>
   );
