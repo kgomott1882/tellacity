@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
@@ -59,70 +59,30 @@ async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, s
     }
   }
 
+  // Temporary fallback check to detect slug-format mismatches in raw table data.
+  const { data: ilikeMatch } = await supabase
+    .from("businesses")
+    .select("*")
+    .ilike("slug", safeSlug)
+    .maybeSingle();
+  if (ilikeMatch) return ilikeMatch;
+
   return null;
 }
 
 export async function generateMetadata({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ country?: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { country } = await searchParams;
-  const safeSlug = getSafeSlug(slug);
-  const hasCountryParam = Boolean(country);
-
-  if (!safeSlug) {
-    return {
-      title: "Business Not Found | Tellacity",
-      robots: {
-        index: false,
-        follow: true,
-      },
-    };
-  }
-
-  const supabase = getSupabase();
-
-  const business = await resolveBusinessBySlug(supabase, safeSlug);
-
-  if (!business) {
-    return {
-      title: "Business Not Found | Tellacity",
-      robots: {
-        index: false,
-        follow: true,
-      },
-    };
-  }
-
-  const title = `${sanitizeText(business.name)} Reviews | Customer Reviews & Ratings | Tellacity`;
-
-  const description = `Read verified customer reviews of ${sanitizeText(business.name)}. See ratings, feedback and real experiences from customers on Tellacity.`;
+  const canonicalUrl = `https://tellacity.com/b/${slug}`;
 
   return {
-    title,
-    description,
+    title: `${slug} Reviews | Tellacity`,
     alternates: {
-      canonical: `https://tellacity.com/b/${safeSlug}`,
-    },
-    openGraph: {
-      title,
-      description,
-      url: `https://tellacity.com/b/${safeSlug}`,
-      type: "website",
-    },
-    robots: hasCountryParam
-      ? {
-          index: false,
-          follow: true,
-        }
-      : {
-          index: true,
-          follow: true,
-        },
+      canonical: canonicalUrl,
+    }
   };
 }
 
@@ -134,6 +94,7 @@ export default async function BusinessPage({
   searchParams: Promise<{ country?: string }>;
 }) {
   const { slug } = await params;
+  console.log("DEBUG SLUG:", slug);
   const { country } = await searchParams;
   // Fallback guard: redirect before any validation or data fetch.
   if (country) {
@@ -141,14 +102,16 @@ export default async function BusinessPage({
   }
   const safeSlug = getSafeSlug(slug);
   if (!safeSlug) {
-    return <BusinessClient />;
+    console.log("NOT FOUND SLUG:", slug);
+    return notFound();
   }
   const supabase = getSupabase();
 
   const business = await resolveBusinessBySlug(supabase, safeSlug);
 
   if (!business) {
-    return <BusinessClient />;
+    console.log("NOT FOUND SLUG:", slug);
+    return notFound();
   }
 
   const resolvedSlug = getSafeSlug(String(business.slug ?? ""));

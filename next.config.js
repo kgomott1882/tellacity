@@ -1,6 +1,18 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   async redirects() {
     return [
+      {
+        source: "/b/:slug",
+        has: [
+          {
+            type: "query",
+            key: "country",
+          },
+        ],
+        destination: "/b/:slug",
+        permanent: true,
+      },
       // AUTH / PRIVATE (block from index)
       {
         source: "/login",
