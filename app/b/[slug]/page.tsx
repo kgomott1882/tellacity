@@ -70,32 +70,30 @@ async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, s
   return null;
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const canonicalUrl = `https://tellacity.com/b/${slug}`;
-
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+): Promise<Metadata> {
+  const { slug } = await props.params;
   return {
     title: `${slug} Reviews | Tellacity`,
     alternates: {
-      canonical: canonicalUrl,
-    }
+      canonical: `https://tellacity.com/b/${slug}`,
+    },
   };
 }
 
-export default async function BusinessPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ country?: string }>;
-}) {
-  const { slug } = await params;
+export default async function BusinessPage(
+  props: {
+    params: Promise<{ slug: string }>;
+    searchParams: Promise<{ country?: string }>;
+  }
+) {
+  const { slug } = await props.params;
   console.log("DEBUG SLUG:", slug);
-  const { country } = await searchParams;
+  const searchParams = await props.searchParams;
+  const { country } = searchParams;
   // Fallback guard: redirect before any validation or data fetch.
   if (country) {
     redirect(`/b/${slug}`);
