@@ -21,18 +21,24 @@ const UUID_RE =
 
 type AdminBusinessDetailRow = {
   id: string;
-  slug: string;
-  name: string;
-  website: string;
-  email: string;
-  phone: string;
-  country_code: string;
-  category_slug: string;
-  category_name: string;
-  source: string;
-  status: string;
-  submission_status: string;
-  owner_user_id: string | null;
+  slug?: string | null;
+  name: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  country_code: string | null;
+  category_slug: string | null;
+  category_name?: string | null;
+  source: string | null;
+  status: string | null;
+  submission_status: string | null;
+  owner_id: string | null;
+  review_count?: number | null;
+  plan_code?: string | null;
+  profiles?: {
+    email?: string | null;
+    display_name?: string | null;
+  } | null;
   created_at: string | null;
 };
 
@@ -135,23 +141,47 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
 
   let rpcError: string | null = null;
   let business: AdminBusinessDetailRow | null = null;
+  const businessId = params.id;
 
   if (idValid) {
-    const { data, error } = await supabase.rpc("admin_get_business_by_id", {
-      business_id: params.id,
-    });
+    const { data, error } = await supabase
+      .from("businesses")
+      .select(`
+        id,
+        name,
+        website,
+        status,
+        submission_status,
+        created_at,
+        owner_id,
+        review_count,
+        plan_code,
+        email,
+        phone,
+        country_code,
+        category_slug,
+        source,
+        slug,
+        profiles!businesses_owner_id_fkey (
+          email,
+          display_name
+        )
+      `)
+      .eq("id", businessId)
+      .single();
 
     if (error) {
       rpcError = error.message;
-    } else {
-      const row = data?.[0] as AdminBusinessDetailRow | undefined;
-      if (row?.id) {
-        business = row;
-      }
+    } else if (data?.id) {
+      business = data as AdminBusinessDetailRow;
     }
   }
 
   const notFound = !idValid || (!rpcError && !business);
+  const ownerName =
+    business?.profiles?.display_name?.trim() ||
+    business?.profiles?.email ||
+    null;
 
   return (
     <div className="space-y-4">
@@ -311,15 +341,20 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 Ownership
               </h3>
-              <dl className="grid gap-6 sm:grid-cols-2">
-                <Field label="Owner ID">
-                  {business!.owner_user_id ? (
-                    <span className="font-mono text-xs">{business!.owner_user_id}</span>
-                  ) : (
-                    <span className="text-neutral-500">Unclaimed</span>
-                  )}
-                </Field>
-              </dl>
+              <div>
+                <div className="text-sm text-gray-500">Owner</div>
+
+                {business!.owner_id ? (
+                  <>
+                    <div className="font-medium">{ownerName || "—"}</div>
+                    <div className="text-sm text-gray-500">
+                      {business!.profiles?.email || "—"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500">Unclaimed</div>
+                )}
+              </div>
             </section>
 
             <section>

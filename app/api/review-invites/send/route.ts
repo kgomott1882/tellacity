@@ -4,13 +4,17 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import crypto from "crypto";
-import {
-  type PlanKey,
-  PLAN_INVITE_LIMITS,
-  getActivePlanKeyForBusiness,
-} from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
 import { renderInviteEmail } from "@/lib/inviteEmail";
+
+type PlanKey = "free" | "grow" | "premium" | "elite";
+
+const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
+  free: 25,
+  grow: 100,
+  premium: 500,
+  elite: 3000,
+};
 
 export async function POST(req: Request) {
   try {
@@ -56,10 +60,16 @@ export async function POST(req: Request) {
     }
 
     // ── Plan + monthly limit check ───────────────────────────────────────────
-    const effectivePlan: PlanKey = await getActivePlanKeyForBusiness(
-      businessId,
-      supabase
-    );
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan_code")
+      .eq("business_id", businessId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const effectivePlan: PlanKey =
+      (subscription?.plan_code as PlanKey) ?? "free";
+
     const limit = PLAN_INVITE_LIMITS[effectivePlan] ?? 25;
 
     const startOfMonth = new Date();

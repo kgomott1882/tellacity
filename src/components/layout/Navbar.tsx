@@ -9,7 +9,7 @@ import { getBaseUrl } from "@/lib/getBaseUrl";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
-import { setStoredCountry } from "@/lib/country";
+import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
@@ -84,9 +84,23 @@ export default function Navbar() {
     pathname?.startsWith("/auth/") ||
     pathname?.startsWith("/business/reset-password");
 
-  // URL is the source of truth for country.
+  // Prefer URL country; fall back to persisted selection when URL has none.
   useEffect(() => {
-    setCountryCode(normalizeCountryCodeForUi(searchParams.get("country")));
+    const queryCountry = searchParams.get("country");
+    if (queryCountry) {
+      const normalized = normalizeCountryCodeForUi(queryCountry);
+      setCountryCode(normalized);
+      setStoredCountry(normalized);
+      return;
+    }
+
+    const stored = getStoredCountry();
+    if (stored) {
+      setCountryCode(normalizeCountryCodeForUi(stored));
+      return;
+    }
+
+    setCountryCode(normalizeCountryCodeForUi(null));
   }, [searchParams]);
 
   // Close user menu when clicking outside
