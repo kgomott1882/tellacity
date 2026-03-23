@@ -204,9 +204,9 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
           title="Business Details"
           controls={
             <div className="flex flex-wrap items-center gap-2">
-              {business!.slug?.trim() ? (
+              {business?.slug?.trim() ? (
                 <Link
-                  href={`/b/${business!.slug.trim()}`}
+                  href={`/b/${business?.slug?.trim() ?? ""}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex rounded-md border border-[#1FAF9E] bg-white px-3 py-1.5 text-xs font-semibold text-[#0B3B36] hover:bg-[#E6F6F1]"
@@ -218,30 +218,30 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                 label="Approve"
                 formAction={adminDetailApproveAction.bind(
                   null,
-                  business!.id,
-                  business!.status || "active"
+                  business?.id ?? "",
+                  business?.status ?? "active"
                 )}
               />
               <DetailActionBtn
                 label="Set Under Review"
                 formAction={adminDetailUnderReviewAction.bind(
                   null,
-                  business!.id,
-                  business!.status || "active"
+                  business?.id ?? "",
+                  business?.status ?? "active"
                 )}
               />
               <DetailActionBtn
                 label="Suspend"
                 formAction={adminDetailSuspendAction.bind(
                   null,
-                  business!.id,
-                  business!.submission_status || ""
+                  business?.id ?? "",
+                  business?.submission_status ?? ""
                 )}
               />
               <AdminDangerButton
                 label="Delete"
                 confirmMessage="Permanently delete this business? This cannot be undone."
-                action={adminDetailDeleteAction.bind(null, business!.id)}
+                action={adminDetailDeleteAction.bind(null, business?.id ?? "")}
               />
             </div>
           }
@@ -257,13 +257,13 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Business ID">
-                  <span className="font-mono text-xs">{business!.id}</span>
+                  <span className="font-mono text-xs">{business?.id ?? ""}</span>
                 </Field>
-                <Field label="Name">{business!.name?.trim() || "—"}</Field>
+                <Field label="Name">{business?.name?.trim() || "—"}</Field>
                 <Field label="Website">
                   {(() => {
-                    const href = websiteHref(business!.website);
-                    const w = business!.website?.trim();
+                    const href = websiteHref(business?.website);
+                    const w = business?.website?.trim();
                     return href ? (
                       <a
                         href={href}
@@ -279,24 +279,24 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                   })()}
                 </Field>
                 <Field label="Email">
-                  {business!.email?.trim() ? (
+                  {business?.email?.trim() ? (
                     <a
-                      href={`mailto:${business!.email.trim()}`}
+                      href={`mailto:${business?.email?.trim() ?? ""}`}
                       className="text-[#1FAF9E] hover:underline"
                     >
-                      {business!.email.trim()}
+                      {business?.email?.trim() ?? ""}
                     </a>
                   ) : (
                     "—"
                   )}
                 </Field>
                 <Field label="Phone">
-                  {business!.phone?.trim() ? (
+                  {business?.phone?.trim() ? (
                     <a
-                      href={`tel:${business!.phone.trim()}`}
+                      href={`tel:${business?.phone?.trim() ?? ""}`}
                       className="text-neutral-900 hover:underline"
                     >
-                      {business!.phone.trim()}
+                      {business?.phone?.trim() ?? ""}
                     </a>
                   ) : (
                     "—"
@@ -311,12 +311,15 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Country">
-                  {adminCountryDisplay(business!.country_code)}
+                  {adminCountryDisplay(business?.country_code ?? "")}
                 </Field>
                 <Field label="Category">
-                  {formatCategory(business!.category_name, business!.category_slug)}
+                  {formatCategory(
+                    business?.category_name ?? "",
+                    business?.category_slug ?? ""
+                  )}
                 </Field>
-                <Field label="Source">{formatSource(business!.source)}</Field>
+                <Field label="Source">{formatSource(business?.source)}</Field>
               </dl>
             </section>
 
@@ -326,12 +329,12 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2">
                 <Field label="Status">
-                  <StatusPill label="Status" value={business!.status || "—"} />
+                  <StatusPill label="Status" value={business?.status ?? "—"} />
                 </Field>
                 <Field label="Submission Status">
                   <StatusPill
                     label="Submission"
-                    value={business!.submission_status || "—"}
+                    value={business?.submission_status ?? "—"}
                   />
                 </Field>
               </dl>
@@ -344,11 +347,11 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               <div>
                 <div className="text-sm text-gray-500">Owner</div>
 
-                {business!.owner_id ? (
+                {business?.owner_id ? (
                   <>
                     <div className="font-medium">{ownerName || "—"}</div>
                     <div className="text-sm text-gray-500">
-                      {business!.profiles?.email || "—"}
+                      {business?.profiles?.email ?? "—"}
                     </div>
                   </>
                 ) : (
@@ -362,7 +365,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                 Metadata
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2">
-                <Field label="Created">{formatDate(business!.created_at)}</Field>
+                <Field label="Created">{formatDate(business?.created_at)}</Field>
               </dl>
             </section>
           </div>
