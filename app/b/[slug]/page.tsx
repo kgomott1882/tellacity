@@ -73,12 +73,9 @@ async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, s
   return null;
 }
 
-export async function generateMetadata(
-  props: {
-    params: Promise<{ slug: string }>;
-  }
-): Promise<Metadata> {
-  const { slug } = await props.params;
+export async function generateMetadata(props) {
+  const params = await props.params;
+  const slug = params.slug;
 
   return {
     title: `${slug} Reviews | Tellacity`,
