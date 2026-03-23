@@ -64,15 +64,23 @@ async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, s
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ country?: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const { country } = await searchParams;
   const safeSlug = getSafeSlug(slug);
+  const hasCountryParam = Boolean(country);
 
   if (!safeSlug) {
     return {
       title: "Business Not Found | Tellacity",
+      robots: {
+        index: false,
+        follow: true,
+      },
     };
   }
 
@@ -83,6 +91,10 @@ export async function generateMetadata({
   if (!business) {
     return {
       title: "Business Not Found | Tellacity",
+      robots: {
+        index: false,
+        follow: true,
+      },
     };
   }
 
@@ -102,15 +114,31 @@ export async function generateMetadata({
       url: `https://tellacity.com/b/${safeSlug}`,
       type: "website",
     },
+    robots: hasCountryParam
+      ? {
+          index: false,
+          follow: true,
+        }
+      : {
+          index: true,
+          follow: true,
+        },
   };
 }
 
 export default async function BusinessPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ country?: string }>;
 }) {
   const { slug } = await params;
+  const { country } = await searchParams;
+  // Fallback guard: redirect before any validation or data fetch.
+  if (country) {
+    redirect(`/b/${slug}`);
+  }
   const safeSlug = getSafeSlug(slug);
   if (!safeSlug) {
     return <BusinessClient />;
