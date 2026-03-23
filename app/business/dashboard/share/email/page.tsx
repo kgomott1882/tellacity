@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { useBusinessAuth } from "@/lib/useBusinessAuth";
+import UpgradeButton from "@/components/billing/UpgradeButton";
 import type { PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 
@@ -65,6 +68,7 @@ function TellacityBranding() {
 export default function EmailWidgetsPage() {
   const router = useRouter();
   const { selectedBusiness, isLoading } = useBusinessContext();
+  const { user } = useBusinessAuth();
   const businessId = selectedBusiness?.id ?? null;
 
   const [template, setTemplate] = useState<WidgetTemplate | null>(null);
@@ -82,6 +86,7 @@ export default function EmailWidgetsPage() {
     }
     setTemplateLoading(true);
     try {
+      await ensureSessionFresh();
       const [{ data: tmplData }, { data: bizData }] = await Promise.all([
         supabaseBrowser()
           .from("review_invite_email_templates")
@@ -115,8 +120,35 @@ export default function EmailWidgetsPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  if (isLoading) return null;
-  if (!selectedBusiness) return null;
+  if (isLoading) {
+    return (
+      <div>
+        <SimplePage
+          title="Email Widgets"
+          subtitle="Promote your Tellacity profile via email."
+        />
+        <div className="mt-8 space-y-4">
+          <div className="h-10 w-full max-w-lg animate-pulse rounded-lg bg-gray-200" />
+          <div className="h-40 w-full animate-pulse rounded-xl bg-gray-100" />
+        </div>
+      </div>
+    );
+  }
+  if (!selectedBusiness) {
+    return (
+      <div>
+        <SimplePage
+          title="Email Widgets"
+          subtitle="Promote your Tellacity profile via email."
+        />
+        <p className="mt-6 rounded-xl border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
+          Select a business from the switcher in the sidebar to manage email widgets.
+        </p>
+      </div>
+    );
+  }
+
+  const business = selectedBusiness;
 
   const normalizedPlan: PlanKey = selectedBusiness.plan as PlanKey;
   const canSend = isPremiumOrElite(normalizedPlan);
@@ -205,13 +237,14 @@ export default function EmailWidgetsPage() {
           <p className="mt-1 text-sm text-amber-800">
             Send direct review links to customers without consuming invite credits.
           </p>
-          <button
-            type="button"
-            onClick={() => router.push("/pricing")}
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white shadow-md transition hover:scale-[1.02] active:scale-95"
-          >
-            Upgrade to Premium
-          </button>
+          <div className="mt-4">
+            <UpgradeButton
+              businessId={business.id}
+              planCode="premium"
+              amount={5000}
+              email={user?.email ?? ""}
+            />
+          </div>
         </div>
       ) : (
         <>

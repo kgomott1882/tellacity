@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import type { PlanKey } from "@/lib/plans";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
@@ -94,6 +95,7 @@ export default function EmailTemplatesPage() {
     setLoading(true);
     setError(null);
     try {
+      await ensureSessionFresh();
       const [{ data: rows, error: templatesError }, { data: bizData }] = await Promise.all([
         supabaseBrowser()
         .from("review_invite_email_templates")
@@ -202,8 +204,33 @@ export default function EmailTemplatesPage() {
     fetchData();
   }, [fetchData]);
 
-  if (isLoading) return null;
-  if (!selectedBusiness) return null;
+  if (isLoading) {
+    return (
+      <div>
+        <SimplePage
+          title="Email templates"
+          subtitle="Manage templates for review invitation emails."
+        />
+        <div className="mt-8 space-y-4">
+          <div className="h-10 w-full animate-pulse rounded-lg bg-gray-200" />
+          <div className="h-32 w-full animate-pulse rounded-xl bg-gray-100" />
+        </div>
+      </div>
+    );
+  }
+  if (!selectedBusiness) {
+    return (
+      <div>
+        <SimplePage
+          title="Email templates"
+          subtitle="Manage templates for review invitation emails."
+        />
+        <p className="mt-6 text-sm text-gray-600">
+          Select a business from the switcher to edit email templates.
+        </p>
+      </div>
+    );
+  }
 
   const standardRow = templates.find((t) => t.template_key === "standard");
   const customRow = templates.find((t) => t.template_key === "custom");

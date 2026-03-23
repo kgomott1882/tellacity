@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import type { DashboardBusiness } from "../_context/BusinessContext";
 
 function cleanDomain(url: string) {
@@ -22,6 +23,8 @@ export function useBusinesses(userId: string | null) {
 
     async function run() {
       if (!userId) {
+        setData([]);
+        setError(null);
         setLoading(false);
         return;
       }
@@ -30,6 +33,8 @@ export function useBusinesses(userId: string | null) {
       setError(null);
 
       try {
+        await ensureSessionFresh();
+
         // 1) Try direct ownership first (owner_id on businesses)
         const supabase = supabaseBrowser();
         const { data: owned, error: ownedErr } = await supabase

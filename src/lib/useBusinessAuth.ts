@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 
 type BusinessAuthState = {
   user: { id: string; email?: string | null } | null;
@@ -17,9 +18,6 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
   useEffect(() => {
     let isMounted = true;
-    const timeoutId = setTimeout(() => {
-      if (isMounted) setLoading(false);
-    }, 10000);
 
     const loadSessionAndRole = async () => {
       let data: { session: { user: { id: string; email?: string | null } } | null } | null = null;
@@ -57,7 +55,9 @@ export const useBusinessAuth = (): BusinessAuthState => {
       }
       
       setUser({ id: sessionUser.id, email: sessionUser.email });
-      
+
+      await ensureSessionFresh();
+
       // Business user = has business_profiles by user id or by email (same email may have profile under another auth id)
       const supabase = supabaseBrowser();
       const { data: businessProfileById, error: errById } = await supabase
@@ -101,11 +101,14 @@ export const useBusinessAuth = (): BusinessAuthState => {
         if (!sessionUser) {
           setUser(null);
           setIsBusiness(false);
+          if (isMounted) setLoading(false);
           return;
         }
         
         setUser({ id: sessionUser.id, email: sessionUser.email });
-        
+
+        await ensureSessionFresh();
+
         const supabase = supabaseBrowser();
         const { data: byId } = await supabase
           .from("business_profiles")
@@ -135,7 +138,6 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
       authListener.subscription.unsubscribe();
     };
   }, []);

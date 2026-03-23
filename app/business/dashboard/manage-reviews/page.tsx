@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useBusinessContext } from "../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import RatingStars from "@/components/RatingStars";
 import { MessageCircle, Share2, Flag, Link2 } from "lucide-react";
 import Image from "next/image";
@@ -96,6 +97,8 @@ export default function ManageReviewsPage() {
       }
       setLoading(true);
       setError(null);
+
+      await ensureSessionFresh();
 
       const supabase = supabaseBrowser();
       const { data: session } = await supabase.auth.getSession();

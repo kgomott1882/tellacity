@@ -115,6 +115,7 @@ function sectionKeyFromPath(pathname: string) {
   if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets";
   if (pathname.includes("/share")) return "share";
   if (pathname.includes("/integrations")) return "integrations";
+  if (pathname.includes("/business/dashboard/pricing")) return "settings";
   if (pathname.includes("/settings")) return "settings";
   return "";
 }
@@ -130,7 +131,7 @@ export default function Sidebar({
   onSectionSelect?: (key: string | null) => void;
   activeSection?: string | null;
 }) {
-  const { bumpNavRefresh, setPageLoading } = useBusinessContext() as any;
+  const { bumpNavRefresh } = useBusinessContext() as any;
 
   useEffect(() => {
     const key = sectionKeyFromPath(pathname);
@@ -147,10 +148,10 @@ export default function Sidebar({
     }
   };
 
-  const handleTopNavClick = (itemPath: string) => {
-    setPageLoading(true);
+  // Route transitions already toggle pageLoading in DashboardShell (pathname effect).
+  // Avoid a second timer here — it fought the 400ms overlay and caused flicker / stuck loading.
+  const handleTopNavClick = () => {
     bumpNavRefresh();
-    setTimeout(() => setPageLoading(false), 600);
   };
 
   return (
@@ -183,7 +184,7 @@ export default function Sidebar({
                 icon={<item.icon size={18} />}
                 label={item.label}
                 active={isActive}
-                onClick={() => handleTopNavClick(item.path!)}
+                onClick={handleTopNavClick}
               />
             );
           }

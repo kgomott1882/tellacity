@@ -37,7 +37,7 @@ function normalizeLanguage(v: string | undefined | null): string {
 }
 
 export default function AccountPage() {
-  const { user } = useBusinessAuth();
+  const { user, loading: authLoading } = useBusinessAuth();
   const [loading,            setLoading]            = useState(true);
   const [saving,             setSaving]             = useState(false);
   const [message,            setMessage]            = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -49,7 +49,11 @@ export default function AccountPage() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      if (!user?.id) { setLoading(false); return; }
+      if (authLoading) return;
+      if (!user?.id) {
+        if (mounted) setLoading(false);
+        return;
+      }
       let sessionData: any = null;
       try {
         const result = await supabaseBrowser().auth.getSession();
@@ -77,7 +81,7 @@ export default function AccountPage() {
       setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

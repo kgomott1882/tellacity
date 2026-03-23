@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 
 type Insights = {
   total_reviews: number;
@@ -92,6 +93,8 @@ export function useBusinessInsights(businessId: string | null) {
 
     setLoading(true);
     setError(null);
+
+    await ensureSessionFresh();
 
     const supabase = supabaseBrowser();
     const { data: row, error: rpcError } = await supabase.rpc(

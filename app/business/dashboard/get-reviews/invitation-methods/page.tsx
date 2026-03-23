@@ -32,8 +32,30 @@ export default function InvitationMethodsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isLoading) return null;
-  if (!selectedBusiness) return null;
+  if (isLoading) {
+    return (
+      <div>
+        <SimplePage
+          title="Send Invitation"
+          subtitle="Collect verified customer feedback through automated invites."
+        />
+        <div className="mt-8 h-48 animate-pulse rounded-xl bg-gray-100" />
+      </div>
+    );
+  }
+  if (!selectedBusiness) {
+    return (
+      <div>
+        <SimplePage
+          title="Send Invitation"
+          subtitle="Collect verified customer feedback through automated invites."
+        />
+        <p className="mt-6 text-sm text-gray-600">
+          Select a business from the switcher to send invitations.
+        </p>
+      </div>
+    );
+  }
 
   const normalizedPlan: PlanKey = selectedBusiness.plan as PlanKey;
   const canChooseCustom = isPlanAtLeastGrow(normalizedPlan);

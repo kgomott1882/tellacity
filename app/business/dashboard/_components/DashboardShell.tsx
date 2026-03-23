@@ -13,6 +13,7 @@ import { BusinessProvider, useBusinessContext } from "../_context/BusinessContex
 import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 
 const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[] }> = {
@@ -80,6 +81,8 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
       { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
       { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
       { label: "Account",          path: "/business/dashboard/settings/account" },
+      { label: "Plans & billing", path: "/business/dashboard/settings/billing" },
+      { label: "Compare all plans", path: "/business/dashboard/pricing" },
     ],
   },
 };
@@ -96,11 +99,22 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const prevPathnameRef = React.useRef<string | null>(null);
   const isBackForwardRef = React.useRef(false);
 
+  /** Forces dashboard page content to remount when the URL changes (fixes blank pages after back from 404 / bad routes). */
+  const [childRouteEpoch, setChildRouteEpoch] = useState(0);
+  const prevPathForChildKeyRef = React.useRef<string | null>(null);
+
   const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
 
   useEffect(() => {
     setIsLoading(bizLoading);
   }, [bizLoading, setIsLoading]);
+
+  useEffect(() => {
+    if (prevPathForChildKeyRef.current !== null && prevPathForChildKeyRef.current !== pathname) {
+      setChildRouteEpoch((n) => n + 1);
+    }
+    prevPathForChildKeyRef.current = pathname;
+  }, [pathname]);
 
   // Persist full selected business so we can restore it on back/forward
   useEffect(() => {
@@ -150,9 +164,30 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     prevPathnameRef.current = pathname;
   }, [pathname, setPageLoading]);
 
+  // Safety: never leave the route transition overlay stuck (covers edge cases / fast navigation).
+  useEffect(() => {
+    const t = window.setTimeout(() => setPageLoading(false), 2800);
+    return () => clearTimeout(t);
+  }, [pathname, setPageLoading]);
+
+  // Tab sleep / background: refresh JWT before user clicks around with an expired token.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void ensureSessionFresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
   // Do not auto-redirect when user is logged in. Let them stay so back button works; show message if not a business user.
 
+  // Only sync context from hook after the businesses query settles. Avoid wiping the list with []
+  // while bizLoading is true (race with localStorage restore / first paint).
   useEffect(() => {
+    if (bizLoading) return;
+
     setBusinesses(ownedBusinesses);
 
     if (ownedBusinesses.length === 0) return;
@@ -165,7 +200,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     }
     setSelectedBusiness(ownedBusinesses[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownedBusinesses]);
+  }, [ownedBusinesses, bizLoading]);
 
   // Restore or auto-select business when none is selected (e.g. after full page load or back)
   useEffect(() => {
@@ -255,6 +290,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       setActiveSection("share");
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations");
+    } else if (pathname.includes("/business/dashboard/pricing")) {
+      setActiveSection("settings");
     } else if (pathname.includes("/settings")) {
       setActiveSection("settings");
     } else if (pathname.includes("/manage-reviews")) {
@@ -278,15 +315,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
 
-  // Only block the whole UI with auth loading when we don't have a user yet (initial load or session expired).
-  // Once we have a user, never replace the shell with the overlay so navigation and sidebar stay usable.
-  const showAuthOverlay = loading && !user && !isConnectShopifyPage;
-  if (showAuthOverlay) {
+  // No session: full-screen loader until redirect to login (covers initial auth load + post-logout).
+  if (!user && !isConnectShopifyPage) {
     return <PageLoadingOverlay />;
   }
-
-  // Redirect to login only when auth has settled (loading false) and there is no session.
-  if (!user && !isConnectShopifyPage) return null;
 
   // Only show "Business account required" when we're sure the user is not a business user.
   // Don't show it if we have a selected business (e.g. restored from localStorage) or while auth is loading.
@@ -373,7 +405,12 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             ) : (
-              children
+              <div
+                key={`${pathname ?? ""}|${childRouteEpoch}`}
+                className="min-w-0"
+              >
+                {children}
+              </div>
             )}
           </div>
           {pageLoading && <PageLoadingOverlay />}

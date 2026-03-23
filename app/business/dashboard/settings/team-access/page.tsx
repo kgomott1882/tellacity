@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ type TeamData = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function getToken(): Promise<string | null> {
+  await ensureSessionFresh();
   const { data } = await supabaseBrowser().auth.getSession();
   return data.session?.access_token ?? null;
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { useBusinessInsights } from "@/hooks/useBusinessInsights";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { RecentReviewInvitesCard } from "../_components/RecentReviewInvitesCard";
 import SeoIndexingMonitor from "@/components/dashboard/SeoIndexingMonitor";
 
@@ -601,6 +602,8 @@ export default function PerformancePage() {
     if (!businessId) { setInsightsLoading(false); return; }
     setInsightsLoading(true);
     try {
+      await ensureSessionFresh();
+
       // 90-day window in UTC - matches the chart's dense series exactly
       const since90dUTC = new Date(Date.UTC(
         new Date().getUTCFullYear(),
@@ -694,7 +697,35 @@ export default function PerformancePage() {
 
   useEffect(() => { fetchInsights(); }, [fetchInsights]);
 
-  if (bizLoading) return null;
+  if (bizLoading) {
+    return (
+      <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
+        <div>
+          <h1 className="text-xl font-bold text-neutral-100">Performance</h1>
+          <p className="mt-0.5 text-xs text-neutral-500">Overview of ratings, review trends, and trust growth.</p>
+        </div>
+        <div className="space-y-5">
+          <Sk h="h-16" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map((i) => <Sk key={i} h="h-28" />)}</div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><Sk h="h-64" /><Sk h="h-64" /></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!businessId) {
+    return (
+      <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
+        <div>
+          <h1 className="text-xl font-bold text-neutral-100">Performance</h1>
+          <p className="mt-0.5 text-xs text-neutral-500">Overview of ratings, review trends, and trust growth.</p>
+        </div>
+        <p className="rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-6 text-sm text-neutral-400">
+          Select a business from the switcher in the sidebar to load performance data.
+        </p>
+      </div>
+    );
+  }
 
   const d = data;
 

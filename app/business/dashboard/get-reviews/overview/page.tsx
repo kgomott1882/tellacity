@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import type { PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import RatingStars from "@/components/RatingStars";
@@ -157,6 +158,8 @@ export default function GetReviewsOverviewPage() {
   const fetchMetrics = async () => {
     if (!businessId) return;
 
+    await ensureSessionFresh();
+
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -229,6 +232,8 @@ export default function GetReviewsOverviewPage() {
           setSentOffset(0);
           return;
         }
+
+        await ensureSessionFresh();
 
         const supabase = supabaseBrowser();
         const { data, error } = await supabase
@@ -332,8 +337,30 @@ export default function GetReviewsOverviewPage() {
     };
   }, [businessId]);
 
-  if (isLoading) return null;
-  if (!selectedBusiness) return null;
+  if (isLoading) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold">Get reviews – Overview</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Collect verified customer feedback through automated invites.
+        </p>
+        <div className="mt-8 h-40 animate-pulse rounded-xl bg-gray-100" />
+      </div>
+    );
+  }
+  if (!selectedBusiness) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold">Get reviews – Overview</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Collect verified customer feedback through automated invites.
+        </p>
+        <p className="mt-6 text-sm text-gray-600">
+          Select a business from the switcher to view overview metrics.
+        </p>
+      </div>
+    );
+  }
 
   const reviewUrl = selectedBusiness.slug
     ? `${typeof window !== "undefined" ? window.location.origin : "https://tellacity.com"}/b/${selectedBusiness.slug}/write-review`

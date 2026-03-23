@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,11 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
 
+    let cancelled = false;
+    (async () => {
+      await ensureSessionFresh();
+      if (cancelled) return;
+
     supabaseBrowser()
       .from("review_invites")
       .select("recipient_email, channel, status, sent_at, created_at")
@@ -74,10 +80,15 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
       .order("created_at", { ascending: false })
       .limit(5)
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error) console.error("[RecentReviewInvitesCard]", error.message);
         setInvites((data as Invite[]) ?? []);
         setLoading(false);
       });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [businessId]);
 
   return (
