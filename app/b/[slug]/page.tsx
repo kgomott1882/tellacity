@@ -73,7 +73,9 @@ async function resolveBusinessBySlug(supabase: ReturnType<typeof getSupabase>, s
   return null;
 }
 
-export async function generateMetadata(props) {
+export async function generateMetadata(
+  props: { params: Promise<{ slug: string }> }
+) {
   const params = await props.params;
   const slug = params.slug;
 
