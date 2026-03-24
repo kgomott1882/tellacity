@@ -15,6 +15,7 @@ export default function IntegrationConnectorDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
 
   const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
 

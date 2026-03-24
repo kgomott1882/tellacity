@@ -122,12 +122,10 @@ function sectionKeyFromPath(pathname: string) {
 
 export default function Sidebar({
   pathname,
-  bizLoading,
   onSectionSelect,
   activeSection,
 }: {
   pathname: string;
-  bizLoading: boolean;
   onSectionSelect?: (key: string | null) => void;
   activeSection?: string | null;
 }) {
@@ -148,8 +146,6 @@ export default function Sidebar({
     }
   };
 
-  // Route transitions already toggle pageLoading in DashboardShell (pathname effect).
-  // Avoid a second timer here — it fought the 400ms overlay and caused flicker / stuck loading.
   const handleTopNavClick = () => {
     bumpNavRefresh();
   };
@@ -159,7 +155,7 @@ export default function Sidebar({
       <aside className="w-80 bg-[#2fb2a8] text-white flex flex-col shrink-0">
         {/* Business nav bar: subdivision line is its bottom border, aligned with bottom of this section */}
         <div className="border-b border-white/15">
-          <BusinessSwitcher loading={bizLoading} />
+          <BusinessSwitcher />
         </div>
 
       <div className="px-4 pt-5 pb-3">

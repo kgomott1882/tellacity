@@ -15,6 +15,7 @@ export default function IntegrationsCategoryPage() {
   const params = useParams<{ category: string }>();
   const rawCategory = params?.category ?? "";
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
 
   const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
   const category = getCategoryById(rawCategory);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
 
 export type DashboardBusiness = {
   id: string;
@@ -15,22 +15,51 @@ type Ctx = {
   setBusinesses: (b: DashboardBusiness[]) => void;
   selectedBusiness: DashboardBusiness | null;
   setSelectedBusiness: (b: DashboardBusiness | null) => void;
-  isLoading: boolean;
-  setIsLoading: (value: boolean) => void;
-  pageLoading: boolean;
-  setPageLoading: (value: boolean) => void;
   navRefreshKey: number;
   bumpNavRefresh: () => void;
 };
+
+const STORAGE_KEY = "tc_selected_business";
 
 const BusinessContext = createContext<Ctx | null>(null);
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [businesses, setBusinesses] = useState<DashboardBusiness[]>([]);
-  const [selectedBusiness, setSelectedBusiness] = useState<DashboardBusiness | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pageLoading, setPageLoading] = useState(false);
+
+  // ✅ Restore from localStorage on first load
+  const [selectedBusiness, setSelectedBusinessState] = useState<DashboardBusiness | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) raw = localStorage.getItem("selectedBusiness");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [navRefreshKey, setNavRefreshKey] = useState(0);
+
+  // ✅ Persist when changed
+  const setSelectedBusiness = (b: DashboardBusiness | null) => {
+    setSelectedBusinessState(b);
+
+    if (typeof window !== "undefined") {
+      if (b) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(b));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  };
+
+  // ✅ Auto-recover if lost after refresh
+  useEffect(() => {
+    if (!selectedBusiness && businesses.length > 0) {
+      setSelectedBusiness(businesses[0]);
+    }
+  }, [businesses]);
 
   const bumpNavRefresh = React.useCallback(() => {
     setNavRefreshKey((k) => k + 1);
@@ -42,14 +71,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       setBusinesses,
       selectedBusiness,
       setSelectedBusiness,
-      isLoading,
-      setIsLoading,
-      pageLoading,
-      setPageLoading,
       navRefreshKey,
       bumpNavRefresh,
     }),
-    [businesses, selectedBusiness, isLoading, pageLoading, navRefreshKey, bumpNavRefresh]
+    [businesses, selectedBusiness, navRefreshKey, bumpNavRefresh]
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

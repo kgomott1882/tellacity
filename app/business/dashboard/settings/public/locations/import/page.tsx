@@ -117,6 +117,7 @@ function buildExampleCSV(): string {
 export default function ImportLocationsPage() {
   const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
   const [step, setStep] = useState<1 | 2>(1);
   const [file, setFile] = useState<File | null>(null);
   const [parsed, setParsed] = useState<ParsedLocation[]>([]);
@@ -125,7 +126,7 @@ export default function ImportLocationsPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  const businessId = selectedBusiness?.id ?? null;
+  const businessId = selectedBusiness.id;
   const locationsHref = "/business/dashboard/settings/public/locations";
 
   const handleFile = useCallback(
@@ -212,19 +213,6 @@ export default function ImportLocationsPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  if (!selectedBusiness) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Import multiple locations</h1>
-        <p className="mt-2 text-sm text-gray-500">Manage your business profile and trust configuration.</p>
-        <p className="mt-2 text-sm text-gray-600">Select a business from the sidebar first.</p>
-        <Link href={locationsHref} className="mt-4 inline-block text-sm font-medium text-[#124541] hover:underline">
-          Back to Locations
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-4xl">

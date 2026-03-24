@@ -38,6 +38,7 @@ const DEFAULT_PREFS: Prefs = {
 export default function NotificationsPage() {
   const { user } = useBusinessAuth();
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -47,33 +48,48 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      if (!user?.id) { setLoading(false); return; }
-      const supabase = supabaseBrowser();
-      const { data, error } = await supabase
-        .from("user_notification_preferences")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!mounted) return;
-      if (!error && data) {
-        setPrefs({
-          newsletter:              Boolean((data as any).newsletter),
-          service_1_2_star:        Boolean((data as any).service_1_2_star),
-          service_3_star:          Boolean((data as any).service_3_star),
-          service_4_5_star:        Boolean((data as any).service_4_5_star),
-          product_1_star:          Boolean((data as any).product_1_star),
-          product_2_star:          Boolean((data as any).product_2_star),
-          product_3_star:          Boolean((data as any).product_3_star),
-          product_4_star:          Boolean((data as any).product_4_star),
-          product_5_star:          Boolean((data as any).product_5_star),
-          product_modified_reviews: Boolean((data as any).product_modified_reviews),
-          product_questions:        Boolean((data as any).product_questions),
-          product_replies:          Boolean((data as any).product_replies),
-        });
+    const load = async () => {
+      setLoading(true);
+      try {
+        if (!user?.id) return;
+        const supabase = supabaseBrowser();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data, error } = await supabase
+          .from("user_notification_preferences")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!mounted) return;
+        if (error) {
+          console.error("Failed to load notification preferences:", error);
+          return;
+        }
+        if (data) {
+          setPrefs({
+            newsletter: Boolean((data as any).newsletter),
+            service_1_2_star: Boolean((data as any).service_1_2_star),
+            service_3_star: Boolean((data as any).service_3_star),
+            service_4_5_star: Boolean((data as any).service_4_5_star),
+            product_1_star: Boolean((data as any).product_1_star),
+            product_2_star: Boolean((data as any).product_2_star),
+            product_3_star: Boolean((data as any).product_3_star),
+            product_4_star: Boolean((data as any).product_4_star),
+            product_5_star: Boolean((data as any).product_5_star),
+            product_modified_reviews: Boolean((data as any).product_modified_reviews),
+            product_questions: Boolean((data as any).product_questions),
+            product_replies: Boolean((data as any).product_replies),
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load notifications page data:", error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+    load();
     return () => { mounted = false; };
   }, [user?.id]);
 
@@ -93,16 +109,6 @@ export default function NotificationsPage() {
     if (error) { setMessage({ type: "error", text: error.message }); return; }
     setMessage({ type: "success", text: "Saved." });
   };
-
-  if (loading) {
-    return (
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Notifications</h1>
-        <div className="mt-6 h-8 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="mt-4 h-64 animate-pulse rounded bg-gray-100" />
-      </div>
-    );
-  }
 
   const Checkbox = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
     <label className="flex cursor-pointer items-center gap-3">

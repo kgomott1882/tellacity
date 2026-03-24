@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
+import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,40 +31,20 @@ type TeamData = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function getToken(): Promise<string | null> {
-  await ensureSessionFresh();
-  const { data } = await supabaseBrowser().auth.getSession();
-  return data.session?.access_token ?? null;
-}
-
 async function apiFetch(
   path: string,
   options: RequestInit = {}
 ): Promise<{ ok: boolean; data: any }> {
   try {
-    const token = await getToken();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    let res: Response;
-    try {
-      res = await fetch(path, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(options.headers ?? {}),
-        },
-      });
-    } finally {
-      clearTimeout(timeout);
+    if (options.method === "POST") {
+      const body = options.body ? JSON.parse(String(options.body)) : undefined;
+      const data = await dashboardApiPost(path, body);
+      return { ok: true, data };
     }
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, data };
-  } catch (err: any) {
-    const msg = err?.name === "AbortError"
-      ? "Request timed out. Please try again."
-      : (err?.message ?? "Network error. Please try again.");
+    const data = await dashboardApiGet(path);
+    return { ok: true, data };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Network error. Please try again.";
     return { ok: false, data: { error: msg } };
   }
 }
@@ -264,21 +244,9 @@ export default function TeamAccessPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Team Access</h1>
-        <div className="mt-6 space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-100" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-3xl space-y-6">
+      {loading && !teamData && <PageLoadingOverlay />}
       <div>
         <h1 className="text-2xl font-semibold text-[#0E0E0E]">Team Access</h1>
         <p className="mt-1 text-sm text-gray-500">

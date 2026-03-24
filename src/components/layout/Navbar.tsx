@@ -383,18 +383,45 @@ export default function Navbar() {
               </nav>
 
               <div className="flex items-center gap-2 md:gap-3">
-                <Link
-                  href="/business/login"
-                  className="hidden text-sm text-white/90 hover:text-white md:inline-flex"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/business/signup"
-                  className="hidden rounded-full border border-white/60 px-5 py-2 text-sm text-white hover:border-white md:inline-flex"
-                >
-                  Get Started
-                </Link>
+                {userInitials && !isAuthFlow ? (
+                  <div className="relative hidden md:block" ref={userMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70"
+                      aria-label="Open account menu"
+                      aria-expanded={isUserMenuOpen}
+                    >
+                      {userInitials}
+                    </button>
+                    {isUserMenuOpen && (
+                      <div className="absolute right-0 top-full z-50 mt-2 min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                        <Link
+                          href={dashboardHref}
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-[#0E0E0E] hover:bg-gray-50"
+                        >
+                          Dashboard
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Link
+                      href="/business/login"
+                      className="hidden text-sm text-white/90 hover:text-white md:inline-flex"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/business/signup"
+                      className="hidden rounded-full border border-white/60 px-5 py-2 text-sm text-white hover:border-white md:inline-flex"
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen((prev) => !prev)}

@@ -24,6 +24,7 @@ function splitIntoColumns<T>(items: T[], numCols: number): T[][] {
 
 export default function CategoriesPage() {
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -67,48 +68,58 @@ export default function CategoriesPage() {
   // Load all category groups and categories from DB
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    const loadCategories = async () => {
       setCategoriesLoading(true);
       setCategoriesError(null);
+      try {
+        const supabase = supabaseBrowser();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          if (!mounted) return;
+          setCategoryGroups([]);
+          setCategoriesByGroupSlug({});
+          setAllCategoriesForSearch([]);
+          return;
+        }
+        const { data: groupsData, error: groupsError } = await supabase
+          .from("category_groups")
+          .select("id, name, slug")
+          .order("name", { ascending: true });
 
-      const supabase = supabaseBrowser();
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("category_groups")
-        .select("id, name, slug")
-        .order("name", { ascending: true });
-
-      if (!mounted) return;
-      if (groupsError) {
-        setCategoriesError("Could not load category groups.");
-        setCategoryGroups([]);
-        setCategoriesByGroupSlug({});
-        setAllCategoriesForSearch([]);
-        setCategoriesLoading(false);
-        return;
-      }
+        if (!mounted) return;
+        if (groupsError) {
+          console.error("Could not load category groups:", groupsError);
+          setCategoriesError("Could not load category groups.");
+          setCategoryGroups([]);
+          setCategoriesByGroupSlug({});
+          setAllCategoriesForSearch([]);
+          return;
+        }
 
       const groups = (groupsData ?? []) as { id: string; name: string; slug: string }[];
       setCategoryGroups(groups);
 
-      const { data: categoriesData, error: categoriesErr } = await supabase
-        .from("categories")
-        .select("id, name, slug, group")
-        .order("name", { ascending: true });
+        const { data: categoriesData, error: categoriesErr } = await supabase
+          .from("categories")
+          .select("id, name, slug, group")
+          .order("name", { ascending: true });
 
-      if (!mounted) return;
-      if (categoriesErr) {
-        setCategoriesByGroupSlug({});
-        const flat: CategoryOption[] = groups.map((g) => ({
-          label: g.name,
-          slug: g.slug,
-          mainSlug: g.slug,
-          categoryId: null,
-          groupSlug: g.slug,
-        }));
-        setAllCategoriesForSearch(flat);
-        setCategoriesLoading(false);
-        return;
-      }
+        if (!mounted) return;
+        if (categoriesErr) {
+          console.error("Could not load categories:", categoriesErr);
+          setCategoriesByGroupSlug({});
+          const flat: CategoryOption[] = groups.map((g) => ({
+            label: g.name,
+            slug: g.slug,
+            mainSlug: g.slug,
+            categoryId: null,
+            groupSlug: g.slug,
+          }));
+          setAllCategoriesForSearch(flat);
+          return;
+        }
 
       const categories = (categoriesData ?? []) as {
         id: string;
@@ -139,10 +150,20 @@ export default function CategoriesPage() {
         }
       });
 
-      setCategoriesByGroupSlug(byGroup);
-      setAllCategoriesForSearch(flat);
-      setCategoriesLoading(false);
-    })();
+        setCategoriesByGroupSlug(byGroup);
+        setAllCategoriesForSearch(flat);
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+        if (!mounted) return;
+        setCategoriesError("Could not load categories.");
+        setCategoryGroups([]);
+        setCategoriesByGroupSlug({});
+        setAllCategoriesForSearch([]);
+      } finally {
+        if (mounted) setCategoriesLoading(false);
+      }
+    };
+    loadCategories();
     return () => {
       mounted = false;
     };
@@ -162,44 +183,64 @@ export default function CategoriesPage() {
       setBusinessSecondarySlugs([]);
       return;
     }
-    (async () => {
-      const supabase = supabaseBrowser();
-      let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
-      let { data, error } = await supabase
-        .from("businesses")
-        .select(selectCols)
-        .eq("id", businessId)
-        .single();
+    const loadBusinessCategories = async () => {
+      setLoading(true);
+      try {
+        const supabase = supabaseBrowser();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          if (!mounted) return;
+          setBusinessPrimarySlug(null);
+          setBusinessSecondarySlugs([]);
+          return;
+        }
+        let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
+        let { data, error } = await supabase
+          .from("businesses")
+          .select(selectCols)
+          .eq("id", businessId)
+          .single();
 
       const colMissing =
         error &&
         (String((error as { code?: string }).code) === "PGRST204" ||
           String((error as { code?: string }).code) === "42703");
 
-      if (colMissing) {
-        selectCols = "category_slug, secondary_category_slugs";
-        const fallback = await supabase
-          .from("businesses")
-          .select(selectCols)
-          .eq("id", businessId)
-          .single();
-        data = fallback.data;
-        error = fallback.error;
-      }
+        if (colMissing) {
+          selectCols = "category_slug, secondary_category_slugs";
+          const fallback = await supabase
+            .from("businesses")
+            .select(selectCols)
+            .eq("id", businessId)
+            .single();
+          data = fallback.data;
+          error = fallback.error;
+        }
 
-      if (!mounted) return;
-      if (!error && data) {
-        const row = data as {
-          category_slug?: string;
-          secondary_category_slugs?: string[];
-          primary_group_slug?: string | null;
-          primary_category_id?: string | null;
-        };
-        setBusinessPrimarySlug(row.category_slug || null);
-        setBusinessSecondarySlugs((row.secondary_category_slugs ?? []) as string[]);
+        if (!mounted) return;
+        if (error) {
+          console.error("Could not load business categories:", error);
+          return;
+        }
+        if (data) {
+          const row = data as {
+            category_slug?: string;
+            secondary_category_slugs?: string[];
+            primary_group_slug?: string | null;
+            primary_category_id?: string | null;
+          };
+          setBusinessPrimarySlug(row.category_slug || null);
+          setBusinessSecondarySlugs((row.secondary_category_slugs ?? []) as string[]);
+        }
+      } catch (error) {
+        console.error("Failed to load business category slugs:", error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+    loadBusinessCategories();
     return () => {
       mounted = false;
     };
@@ -325,13 +366,12 @@ export default function CategoriesPage() {
   };
 
   const showSelectPrompt = !selectedBusiness;
-  const showSkeleton = selectedBusiness && loading;
   const showSeeAllSub =
-    selectedBusiness && !loading && showAllCategoriesView && seeAllStep === "sub" && seeAllSelectedMain;
+    !!selectedBusiness && showAllCategoriesView && seeAllStep === "sub" && seeAllSelectedMain;
   const showSeeAllMain =
-    selectedBusiness && !loading && showAllCategoriesView && seeAllStep === "main";
+    !!selectedBusiness && showAllCategoriesView && seeAllStep === "main";
   const showMainForm =
-    selectedBusiness && !loading && !showAllCategoriesView;
+    !!selectedBusiness && !showAllCategoriesView;
 
   return (
     <>
@@ -341,14 +381,6 @@ export default function CategoriesPage() {
           <p className="mt-2 text-sm text-gray-600">
             Select a business from the sidebar to manage categories.
           </p>
-        </div>
-      )}
-
-      {showSkeleton && (
-        <div className="max-w-2xl">
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Categories</h1>
-          <div className="mt-6 h-8 w-48 animate-pulse rounded bg-gray-100" />
-          <div className="mt-4 h-32 animate-pulse rounded bg-gray-100" />
         </div>
       )}
 
@@ -426,12 +458,6 @@ export default function CategoriesPage() {
           {categoriesError && (
             <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {categoriesError}
-            </div>
-          )}
-
-          {categoriesLoading && (
-            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-              Loading categories...
             </div>
           )}
 
@@ -516,9 +542,7 @@ export default function CategoriesPage() {
             <div className="px-6 py-5">
               <h2 className="text-base font-semibold text-[#0E0E0E]">Choose a category</h2>
               <p className="mt-2 text-sm text-gray-600">
-                {categoriesLoading
-                  ? "Loading categories from your database..."
-                  : "Stand out on Tellacity and in search results by placing your company in the right category. You can add up to 6 categories (1 primary, 5 secondary)."}{" "}
+                {"Stand out on Tellacity and in search results by placing your company in the right category. You can add up to 6 categories (1 primary, 5 secondary)."}{" "}
                 <a
                   href="/help-center"
                   className="inline-flex items-center gap-1 font-medium text-[#124541] hover:underline"

@@ -67,12 +67,12 @@ function TellacityBranding() {
 
 export default function EmailWidgetsPage() {
   const router = useRouter();
-  const { selectedBusiness, isLoading } = useBusinessContext();
+  const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
-  const businessId = selectedBusiness?.id ?? null;
+  if (!selectedBusiness?.id) return null;
+  const businessId = selectedBusiness.id;
 
   const [template, setTemplate] = useState<WidgetTemplate | null>(null);
-  const [templateLoading, setTemplateLoading] = useState(true);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
 
   const [recipients, setRecipients] = useState("");
@@ -81,10 +81,8 @@ export default function EmailWidgetsPage() {
 
   const fetchTemplate = useCallback(async () => {
     if (!businessId) {
-      setTemplateLoading(false);
       return;
     }
-    setTemplateLoading(true);
     try {
       await ensureSessionFresh();
       const [{ data: tmplData }, { data: bizData }] = await Promise.all([
@@ -104,8 +102,6 @@ export default function EmailWidgetsPage() {
       setBusinessLogoUrl((bizData as { logo_url?: string | null } | null)?.logo_url ?? null);
     } catch {
       setTemplate(null);
-    } finally {
-      setTemplateLoading(false);
     }
   }, [businessId]);
 
@@ -119,34 +115,6 @@ export default function EmailWidgetsPage() {
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
-
-  if (isLoading) {
-    return (
-      <div>
-        <SimplePage
-          title="Email Widgets"
-          subtitle="Promote your Tellacity profile via email."
-        />
-        <div className="mt-8 space-y-4">
-          <div className="h-10 w-full max-w-lg animate-pulse rounded-lg bg-gray-200" />
-          <div className="h-40 w-full animate-pulse rounded-xl bg-gray-100" />
-        </div>
-      </div>
-    );
-  }
-  if (!selectedBusiness) {
-    return (
-      <div>
-        <SimplePage
-          title="Email Widgets"
-          subtitle="Promote your Tellacity profile via email."
-        />
-        <p className="mt-6 rounded-xl border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
-          Select a business from the switcher in the sidebar to manage email widgets.
-        </p>
-      </div>
-    );
-  }
 
   const business = selectedBusiness;
 
@@ -398,12 +366,7 @@ export default function EmailWidgetsPage() {
               )}
             </div>
 
-            {templateLoading ? (
-              <div className="mt-4 flex h-20 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-500">
-                Loading…
-              </div>
-            ) : (
-              <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-[#f4f6f8]">
+            <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-[#f4f6f8]">
                 <div className="mx-auto max-w-[560px] bg-white">
 
                   {/* Subject bar */}
@@ -467,7 +430,6 @@ export default function EmailWidgetsPage() {
 
                 </div>
               </div>
-            )}
           </div>
 
           {/* Send form */}

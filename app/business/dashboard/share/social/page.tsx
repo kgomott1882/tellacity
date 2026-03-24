@@ -5,7 +5,8 @@ import { Copy, Check } from "lucide-react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { dashboardApiGet } from "@/lib/dashboardApiFetch";
+import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import WidgetStars from "@/components/widgets/WidgetStars";
 
 const BASE_URL =
@@ -91,31 +92,46 @@ const SOCIAL_PLATFORMS = [
 
 export default function SocialSharePage() {
   const { selectedBusiness } = useBusinessContext();
+  const businessId = selectedBusiness?.id ?? null;
   const slug = selectedBusiness?.slug ?? "";
 
   const profileUrl = slug ? `${BASE_URL}/b/${slug}` : "";
   const reviewUrl = slug ? `${BASE_URL}/b/${slug}/write-review` : "";
 
   const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
-    if (!slug) { setStats(null); return; }
-    supabaseBrowser()
-      .rpc("get_widget_payload_v1", { p_business_slug: slug, p_limit: 1 })
-      .then(({ data }) => {
-        if (data && !data.error) {
-          setStats({
-            business_name: data.business_name,
-            avg_rating: Number(data.avg_rating) || 0,
-            review_count: Number(data.review_count) || 0,
-            logo_url: data.logo_url ?? null,
-          });
-        }
-      });
-  }, [slug]);
+    if (!businessId || !slug) {
+      setStats(null);
+      setStatsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setStatsLoading(true);
+      try {
+        const json = await dashboardApiGet<{ stats: ProfileStats | null }>(
+          `/api/business/${encodeURIComponent(businessId)}/social-widget-stats`
+        );
+        if (!cancelled) setStats(json.stats);
+      } catch {
+        if (!cancelled) setStats(null);
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, slug]);
+
+  if (!businessId) return null;
 
   return (
     <div className="max-w-3xl space-y-10">
+      {statsLoading ? <PageLoadingOverlay /> : null}
+
       <div>
         <h1 className="text-2xl font-semibold text-[#0E0E0E]">Social</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -133,12 +149,12 @@ export default function SocialSharePage() {
           {stats && (
             <div className="flex items-center gap-4 rounded-xl border-2 border-[#2fb2a8] bg-white px-5 py-4 shadow-sm">
               {stats.logo_url && (
-                <Image
+                <img
                   src={stats.logo_url}
-                  alt={stats.business_name}
+                  alt="logo"
                   width={44}
                   height={44}
-                  className="rounded-lg object-cover shrink-0"
+                  className="rounded"
                 />
               )}
               <div className="flex-1 min-w-0">

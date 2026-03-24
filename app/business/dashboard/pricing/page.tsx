@@ -1,32 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
 import { useBusinessContext } from "../_context/BusinessContext";
-import { useBusinessAuth } from "@/lib/useBusinessAuth";
+import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 
 /**
- * Full pricing UI inside the dashboard shell. "Choose This Plan" opens Paystack
- * for paid tiers (same flow as Plans & billing), not the public signup flow.
+ * Do not use `useBusinessAuth()` here: DashboardShell already runs it. A second
+ * instance re-runs getSession/ensureSessionFresh from loading=true and can hang,
+ * leaving PageLoadingOverlay stuck forever. Session email comes from the server
+ * via the same cookie/Bearer pattern as other dashboard APIs.
  */
 export default function DashboardPricingPage() {
-  const { selectedBusiness, isLoading } = useBusinessContext();
-  const { user } = useBusinessAuth();
+  const { selectedBusiness } = useBusinessContext();
+  const [userEmail, setUserEmail] = useState("");
 
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-[40vh] space-y-4">
-        <div className="h-10 w-64 max-w-full animate-pulse rounded-lg bg-gray-200" />
-        <div className="h-6 w-full max-w-xl animate-pulse rounded bg-gray-100" />
-        <div className="h-48 w-full animate-pulse rounded-xl bg-gray-100" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!selectedBusiness?.id) {
+      setUserEmail("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const json = await dashboardApiGet<{ email: string | null }>("/api/dashboard/session");
+        if (!cancelled) setUserEmail(json.email ?? "");
+      } catch {
+        if (!cancelled) setUserEmail("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBusiness?.id]);
+
+  if (!selectedBusiness?.id) return null;
 
   return (
     <PricingPageContent
       variant="dashboard"
-      dashboardBusinessId={selectedBusiness?.id ?? ""}
-      dashboardUserEmail={user?.email ?? ""}
+      dashboardBusinessId={selectedBusiness.id}
+      dashboardUserEmail={userEmail}
     />
   );
 }

@@ -7,29 +7,38 @@ import {
   normalizePlanId,
   type PlanId,
 } from "@/lib/integrationsCatalog";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import { useBusinessContext } from "../_context/BusinessContext";
 
 export default function IntegrationsDashboardPage() {
   const { selectedBusiness } = useBusinessContext();
-  const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
+  const businessId = selectedBusiness?.id ?? null;
+  const plan: PlanId = normalizePlanId(selectedBusiness?.plan ?? null);
   const [connectedSlugs, setConnectedSlugs] = useState<string[]>([]);
 
   useEffect(() => {
-    const businessId = selectedBusiness?.id;
     if (!businessId) {
       setConnectedSlugs([]);
       return;
     }
-    const supabase = supabaseBrowser();
-    supabase
-      .from("business_integrations_v1")
-      .select("provider")
-      .eq("business_id", businessId)
-      .then(({ data }) => {
-        setConnectedSlugs((data ?? []).map((r) => String(r.provider ?? "")));
-      });
-  }, [selectedBusiness?.id]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const json = await dashboardApiGet<{ providers: string[] }>(
+          `/api/business/${encodeURIComponent(businessId)}/integrations-connected`
+        );
+        if (!cancelled) setConnectedSlugs(json.providers ?? []);
+      } catch (error) {
+        console.error("Failed to load integrations:", error);
+        if (!cancelled) setConnectedSlugs([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
+
+  if (!businessId) return null;
 
   const { connected, available, locked, enterprise } = getOverviewBuckets(
     plan,
@@ -39,7 +48,7 @@ export default function IntegrationsDashboardPage() {
   return (
     <IntegrationsOverview
       plan={plan}
-      businessId={selectedBusiness?.id ?? null}
+      businessId={businessId}
       connected={connected}
       available={available}
       locked={locked}
@@ -47,4 +56,3 @@ export default function IntegrationsDashboardPage() {
     />
   );
 }
-

@@ -1,5 +1,12 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function NotificationsRedirect() {
-  redirect("/business/dashboard/settings/notifications");
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/business/dashboard/settings/notifications");
+  }, [router]);
+  return null;
 }

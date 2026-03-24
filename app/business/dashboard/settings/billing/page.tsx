@@ -11,20 +11,9 @@ import UpgradeButton from "@/components/billing/UpgradeButton";
  * (Previously missing route caused 404; back navigation then left dashboard pages blank.)
  */
 export default function BillingSettingsPage() {
-  const { selectedBusiness, isLoading } = useBusinessContext();
+  const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
-
-  if (isLoading) {
-    return (
-      <div className="max-w-2xl">
-        <SimplePage
-          title="Plans & billing"
-          subtitle="Manage your subscription and upgrade when you need more."
-        />
-        <div className="mt-8 h-36 animate-pulse rounded-xl bg-gray-100" />
-      </div>
-    );
-  }
+  if (!selectedBusiness?.id) return null;
 
   return (
     <div className="max-w-2xl space-y-6">

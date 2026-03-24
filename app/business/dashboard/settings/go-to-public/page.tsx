@@ -7,6 +7,7 @@ import { useBusinessContext } from "../../_context/BusinessContext";
 export default function GoToPublicPage() {
   const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
 
   useEffect(() => {
     if (selectedBusiness?.slug) {
@@ -17,9 +18,5 @@ export default function GoToPublicPage() {
     }
   }, [router, selectedBusiness?.slug]);
 
-  return (
-    <div className="flex items-center justify-center py-12">
-      <p className="text-sm text-gray-600">Opening public profile…</p>
-    </div>
-  );
+  return null;
 }

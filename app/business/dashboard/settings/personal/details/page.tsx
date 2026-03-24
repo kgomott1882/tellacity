@@ -1,5 +1,12 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DetailsRedirect() {
-  redirect("/business/dashboard/settings/account");
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/business/dashboard/settings/account");
+  }, [router]);
+  return null;
 }

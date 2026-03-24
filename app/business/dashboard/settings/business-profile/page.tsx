@@ -16,6 +16,8 @@ import Link from "next/link";
 import { ExternalLink, Upload, HelpCircle, Pencil } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { dashboardApiGet } from "@/lib/dashboardApiFetch";
+import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
@@ -75,7 +77,7 @@ export default function BusinessProfilePage() {
   const businessId = selectedBusiness?.id ?? null;
   const publicProfileHref = selectedBusiness?.slug ? `/b/${selectedBusiness.slug}` : null;
 
-  const [loading,       setLoading]       = useState(true);
+  const [loading,       setLoading]       = useState(!!businessId);
   const [saving,        setSaving]        = useState(false);
   const [message,       setMessage]       = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [refreshKey,    setRefreshKey]    = useState(0);
@@ -97,70 +99,60 @@ export default function BusinessProfilePage() {
   const [refCustomLabel, setRefCustomLabel] = useState("");
   const [refPreviewTab,  setRefPreviewTab]  = useState<"reviewer" | "you">("reviewer");
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
+  // ── Fetch (server session + RLS via route — avoids client getSession / empty rows on refresh) ──
 
   useEffect(() => {
-    if (!selectedBusiness) return;
-    const raw = selectedBusiness.website?.trim() || "";
-    const display = raw ? raw.replace(/^https?:\/\//i,"").replace(/^www\./i,"").split("/")[0]?.trim() || raw : "";
-    setForm((p) => ({ ...p, name: selectedBusiness.name ?? p.name, website: display || p.website }));
-    setLoading(false);
-  }, [selectedBusiness?.id, selectedBusiness?.name, selectedBusiness?.website]);
-
-  useEffect(() => {
-    if (!businessId) { setLoading(false); return; }
-    let mounted = true;
-    (async () => {
-      // Profile columns
-      let selectCols = "id,name,website,website_display,description,address,city,country_code,phone,email,logo_url,reference_number_enabled,reference_number_type,reference_number_label_custom";
-      let data: any = null;
-      let error: any = null;
-      const supabase = supabaseBrowser();
-      ({ data, error } = await supabase.from("businesses").select(selectCols).eq("id", businessId).single());
-
-      const colMissing = error && (
-        String((error as any).code) === "PGRST204" ||
-        String((error as any).code) === "42703" ||
-        (error as any).message?.toLowerCase().includes("does not exist")
-      );
-      if (colMissing) {
-        const fallback = await supabase.from("businesses")
-          .select("id,name,website,description,address,city,country_code")
-          .eq("id", businessId).single();
-        data = fallback.data; error = fallback.error;
-      }
-
-      if (!mounted || error || !data) { setLoading(false); return; }
-      const row = data as Record<string, unknown>;
-      const code = (row.country_code as string) ?? getActiveCountry() ?? "";
-      const countryName = code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "Other" : code;
-      const cityVal = (row.city as string) ?? "";
-
-      setForm((p) => ({
-        ...p,
-        name:        (row.name as string) ?? "",
-        website:     ((row.website_display as string) ?? (row.website as string) ?? "").trim(),
-        description: (row.description as string) ?? "",
-        address:     (row.address as string) ?? "",
-        city:        cityVal !== "[unknown]" ? cityVal : "",
-        postcode:    "",
-        country:     countryName,
-        email:       (row.email as string) ?? "",
-        phone:       (row.phone as string) ?? "",
-      }));
-
-      const logo = (row.logo_url as string) ?? null;
-      if (logo) setLogoUrl(normalizeLogoUrl(logo) ?? null);
-
-      // Reference number
-      setRefEnabled(Boolean(row.reference_number_enabled));
-      const t = row.reference_number_type as string;
-      setRefType(REFERENCE_TYPES.some((r) => r.value === t) ? (t as ReferenceType) : "generic");
-      setRefCustomLabel((row.reference_number_label_custom as string) ?? "");
-
+    if (!businessId) {
       setLoading(false);
+      return;
+    }
+    let mounted = true;
+    const isRefetchAfterSave = refreshKey > 0;
+    (async () => {
+      if (!isRefetchAfterSave) setLoading(true);
+      try {
+        const json = await dashboardApiGet<{ business: Record<string, unknown> }>(
+          `/api/business/${encodeURIComponent(businessId)}/business-profile`
+        );
+        if (!mounted) return;
+        const row = json.business;
+        const code = (row.country_code as string) ?? getActiveCountry() ?? "";
+        const countryName = code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "Other" : code;
+        const cityVal = (row.city as string) ?? "";
+
+        setForm((p) => ({
+          ...p,
+          name: (row.name as string) ?? "",
+          website: ((row.website_display as string) ?? (row.website as string) ?? "").trim(),
+          description: (row.description as string) ?? "",
+          address: (row.address as string) ?? "",
+          city: cityVal !== "[unknown]" ? cityVal : "",
+          postcode: "",
+          country: countryName,
+          email: (row.email as string) ?? "",
+          phone: (row.phone as string) ?? "",
+        }));
+
+        const logo = (row.logo_url as string) ?? null;
+        if (logo) setLogoUrl(normalizeLogoUrl(logo) ?? null);
+        else setLogoUrl(null);
+
+        setRefEnabled(Boolean(row.reference_number_enabled));
+        const t = row.reference_number_type as string;
+        setRefType(REFERENCE_TYPES.some((r) => r.value === t) ? (t as ReferenceType) : "generic");
+        setRefCustomLabel((row.reference_number_label_custom as string) ?? "");
+      } catch (e) {
+        console.error("[BusinessProfile] load", e);
+        if (mounted) {
+          setMessage({ type: "error", text: "Could not load business profile. Refresh the page or try again." });
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [businessId, refreshKey]);
 
   // ── Logo upload ────────────────────────────────────────────────────────────
@@ -255,23 +247,8 @@ export default function BusinessProfilePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  if (!selectedBusiness) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Business Profile</h1>
-        <p className="mt-2 text-sm text-gray-600">Select a business from the sidebar to edit your profile.</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Business Profile</h1>
-        {[1,2,3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />)}
-      </div>
-    );
-  }
+  if (!businessId) return null;
+  if (loading) return <PageLoadingOverlay />;
 
   return (
     <div className="max-w-3xl">

@@ -1,9 +1,10 @@
 /**
  * Shared helpers for team-access API routes.
- * Follows the same pattern as app/api/business/invite-settings/route.ts.
+ * Bearer (in-memory session) or cookie session — same pattern as other dashboard APIs.
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 
 export function makeSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,16 +14,26 @@ export function makeSupabase() {
 }
 
 export async function resolveUser(req: Request) {
+  const serviceSupabase = makeSupabase();
   const authHeader = req.headers.get("authorization");
-  if (!authHeader) return { user: null, supabase: null };
-  const token = authHeader.replace("Bearer ", "").trim();
-  const supabase = makeSupabase();
+
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7).trim();
+    const {
+      data: { user },
+      error,
+    } = await serviceSupabase.auth.getUser(token);
+    if (error || !user) return { user: null, supabase: null };
+    return { user, supabase: serviceSupabase };
+  }
+
+  const cookieClient = await createSupabaseServerCookies();
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(token);
-  if (error || !user) return { user: null, supabase };
-  return { user, supabase };
+  } = await cookieClient.auth.getUser();
+  if (error || !user) return { user: null, supabase: null };
+  return { user, supabase: serviceSupabase };
 }
 
 export async function getOwnedBusiness(

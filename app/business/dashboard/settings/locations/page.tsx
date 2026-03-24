@@ -31,6 +31,7 @@ type LocationRow = {
 
 export default function LocationsPage() {
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,31 +54,48 @@ export default function LocationsPage() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      if (!businessId) {
-        setLoading(false);
-        return;
-      }
-      const supabase = supabaseBrowser();
-      const { data, error } = await supabase
-        .from("business_locations")
-        .select("id, name, address, city, postcode, country_code, external_id, street_address_2, state_region, phone, website, headline, description")
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: true });
-      if (!mounted) return;
-      if (!error && data) {
+    const load = async () => {
+      setLoading(true);
+      try {
+        if (!businessId) {
+          if (mounted) setLocations([]);
+          return;
+        }
+        const supabase = supabaseBrowser();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          if (mounted) setLocations([]);
+          return;
+        }
+        const { data, error } = await supabase
+          .from("business_locations")
+          .select("id, name, address, city, postcode, country_code, external_id, street_address_2, state_region, phone, website, headline, description")
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: true });
+        if (!mounted) return;
+        if (error) {
+          console.error("Failed to fetch locations:", error);
+          setLocations([]);
+          return;
+        }
         setLocations((data as LocationRow[]) ?? []);
+      } catch (error) {
+        console.error("Failed to load locations:", error);
+        if (mounted) setLocations([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+    load();
     return () => {
       mounted = false;
     };
   }, [businessId]);
 
   const showSelectPrompt = !selectedBusiness;
-  const showSkeleton = selectedBusiness && loading;
-  const showContent = selectedBusiness && !loading;
+  const showContent = !!selectedBusiness;
 
   return (
     <>
@@ -88,13 +106,6 @@ export default function LocationsPage() {
           <Link href="/business/dashboard" className="mt-4 inline-block text-sm font-medium text-[#124541] hover:underline">
             Back to dashboard
           </Link>
-        </div>
-      )}
-      {showSkeleton && (
-        <div className="max-w-4xl">
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Locations</h1>
-          <div className="mt-6 h-10 w-full max-w-md rounded bg-gray-100 animate-pulse" />
-          <div className="mt-8 h-48 rounded bg-gray-100 animate-pulse" />
         </div>
       )}
       {showContent && (

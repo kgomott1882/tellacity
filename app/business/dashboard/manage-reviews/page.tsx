@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useBusinessContext } from "../_context/BusinessContext";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { dashboardApiGet, getOptionalAccessToken } from "@/lib/dashboardApiFetch";
+import PageLoadingOverlay from "../_components/PageLoadingOverlay";
 import RatingStars from "@/components/RatingStars";
 import { MessageCircle, Share2, Flag, Link2 } from "lucide-react";
 import Image from "next/image";
@@ -40,7 +40,6 @@ export default function ManageReviewsPage() {
   const { selectedBusiness, navRefreshKey } = useBusinessContext() as any;
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [repliesByReviewId, setRepliesByReviewId] = useState<Record<string, ReplyRow[]>>({});
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeReplyReviewId, setActiveReplyReviewId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -60,19 +59,14 @@ export default function ManageReviewsPage() {
   const [alreadyFlaggedPopup, setAlreadyFlaggedPopup] = useState(false);
   const [alreadyFlaggedMessage, setAlreadyFlaggedMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"inbox" | "notifications">("inbox");
+  const [inboxLoading, setInboxLoading] = useState(false);
 
   const businessId = selectedBusiness?.id ?? null;
 
-  const fetchReplies = useCallback(async (reviewIds: string[]) => {
-    if (reviewIds.length === 0) return;
-    const supabase = supabaseBrowser();
-    const { data } = await supabase
-      .from("review_replies")
-      .select("id, review_id, body, created_at")
-      .in("review_id", reviewIds)
-      .eq("author_role", "business")
-      .order("created_at", { ascending: true });
-    const grouped = (data ?? []).reduce<Record<string, ReplyRow[]>>((acc, row) => {
+  function groupReplies(
+    rows: { id: string; review_id: string; body: string; created_at: string }[]
+  ): Record<string, ReplyRow[]> {
+    return rows.reduce<Record<string, ReplyRow[]>>((acc, row) => {
       const rid = row.review_id;
       if (!acc[rid]) acc[rid] = [];
       acc[rid].push({
@@ -82,68 +76,45 @@ export default function ManageReviewsPage() {
       });
       return acc;
     }, {});
-    setRepliesByReviewId((prev) => ({ ...prev, ...grouped }));
-  }, []);
+  }
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
     (async () => {
       if (!businessId) {
         setReviews([]);
         setRepliesByReviewId({});
         setFlaggedReviews({});
-        setLoading(false);
+        setInboxLoading(false);
         return;
       }
-      setLoading(true);
+      setInboxLoading(true);
       setError(null);
-
-      await ensureSessionFresh();
-
-      const supabase = supabaseBrowser();
-      const { data: session } = await supabase.auth.getSession();
-      if (mounted && session?.session?.user?.id) {
-        const { data: flaggedData, error } = await supabase
-          .from("review_flags")
-          .select("review_id, status")
-          .eq("user_id", session.session.user.id);
-        if (mounted) {
-          if (error) {
-            setFlaggedReviews({});
-          } else {
-            const map: Record<string, string> = {};
-            (flaggedData ?? []).forEach((f) => {
-              map[f.review_id] = f.status;
-            });
-            setFlaggedReviews(map);
-          }
+      try {
+        const json = await dashboardApiGet<{
+          reviews: ReviewRow[];
+          replies: { id: string; review_id: string; body: string; created_at: string }[];
+          flaggedReviews: Record<string, string>;
+        }>(`/api/business/${encodeURIComponent(businessId)}/manage-reviews-data`);
+        if (cancelled) return;
+        setReviews(json.reviews ?? []);
+        setRepliesByReviewId(groupReplies(json.replies ?? []));
+        setFlaggedReviews(json.flaggedReviews ?? {});
+      } catch {
+        if (!cancelled) {
+          setError("Could not load reviews.");
+          setReviews([]);
+          setRepliesByReviewId({});
+          setFlaggedReviews({});
         }
-      } else if (mounted) {
-        setFlaggedReviews({});
+      } finally {
+        if (!cancelled) setInboxLoading(false);
       }
-
-      const { data, error: err } = await supabase
-        .from("reviews")
-        .select("id, guest_name, rating, title, body, created_at, reference_number")
-        .eq("business_id", businessId)
-        .in("status", ["published", "pending"])
-        .order("created_at", { ascending: false });
-      if (!mounted) return;
-      if (err) {
-        setError("Unable to load reviews.");
-        setReviews([]);
-        setRepliesByReviewId({});
-      } else {
-        const list = (data as ReviewRow[]) ?? [];
-        setReviews(list);
-        fetchReplies(list.map((r) => r.id));
-      }
-      setLoading(false);
     })();
     return () => {
-      mounted = false;
+      cancelled = true;
     };
-  }, [businessId, fetchReplies, navRefreshKey]);
+  }, [businessId, navRefreshKey]);
 
   useEffect(() => {
     if (flagSuccess) {
@@ -167,16 +138,16 @@ export default function ManageReviewsPage() {
       setReplySubmitting(true);
       setReplyError(null);
 
-      const { data: session } = await supabaseBrowser().auth.getSession();
-      const token = session?.session?.access_token;
+      const token = await getOptionalAccessToken();
 
       const res = await fetch(
         `/api/business/reviews/${reviewId}/reply`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({ body }),
         }
@@ -223,16 +194,16 @@ export default function ManageReviewsPage() {
   };
 
   const handleSaveEdit = async (reviewId: string, replyId: string) => {
-    const { data: session } = await supabaseBrowser().auth.getSession();
-    const token = session?.session?.access_token;
+    const token = await getOptionalAccessToken();
 
     const res = await fetch(
       `/api/business/reviews/${reviewId}/reply`,
       {
         method: "PATCH",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ replyId, body: editDraft }),
       }
@@ -250,16 +221,16 @@ export default function ManageReviewsPage() {
   };
 
   const handleDeleteReply = async (reviewId: string, replyId: string) => {
-    const { data: session } = await supabaseBrowser().auth.getSession();
-    const token = session?.session?.access_token;
+    const token = await getOptionalAccessToken();
 
     const res = await fetch(
       `/api/business/reviews/${reviewId}/reply`,
       {
         method: "DELETE",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ replyId }),
       }
@@ -273,17 +244,9 @@ export default function ManageReviewsPage() {
     }
   };
 
-  if (!selectedBusiness) {
-    return (
-      <div className="max-w-5xl space-y-6">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Manage reviews</h1>
-        <p className="mt-2 text-sm text-gray-500">Monitor, moderate, and manage customer feedback.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-5xl space-y-6">
+      {inboxLoading && businessId ? <PageLoadingOverlay /> : null}
       <h1 className="text-2xl font-semibold text-[#0E0E0E]">Manage reviews</h1>
       <p className="mt-2 text-sm text-gray-500">Monitor, moderate, and manage customer feedback.</p>
 
@@ -321,25 +284,18 @@ export default function ManageReviewsPage() {
             <p className="mt-1 text-sm text-gray-500">New reviews and replies will appear here.</p>
           </div>
 
-      {loading && (
-        <div className="mt-6 space-y-4">
-          <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-          <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
-        </div>
-      )}
-
       {error && (
         <p className="mt-4 text-sm text-red-600">{error}</p>
       )}
 
-      {!loading && !error && reviews.length === 0 && (
+      {!error && reviews.length === 0 && (
         <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-600">
           <p>No reviews yet for this business.</p>
           <p className="mt-1">Reviews will appear here once customers submit them.</p>
         </div>
       )}
 
-      {!loading && !error && reviews.length > 0 && (
+      {!error && reviews.length > 0 && (
         <ul className="mt-6 space-y-4">
           {reviews.map((review) => (
             <li
@@ -697,16 +653,16 @@ export default function ManageReviewsPage() {
                     setFlagSubmitting(true);
                     setFlagError(null);
 
-                    const { data: session } = await supabaseBrowser().auth.getSession();
-                    const token = session?.session?.access_token;
+                    const token = await getOptionalAccessToken();
 
                     const res = await fetch(
                       `/api/business/reviews/${flagReviewId}/flag`,
                       {
                         method: "POST",
+                        credentials: "include",
                         headers: {
                           "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
+                          ...(token ? { Authorization: `Bearer ${token}` } : {}),
                         },
                         body: JSON.stringify({ reason: flagReason }),
                       }

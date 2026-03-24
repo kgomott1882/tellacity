@@ -90,31 +90,19 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
 function InnerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { loading, user, isBusiness } = useBusinessAuth();
-  const { setBusinesses, selectedBusiness, setSelectedBusiness, setIsLoading, businesses, pageLoading, setPageLoading } = useBusinessContext() as any;
+  const { loading: authLoading, user } = useBusinessAuth();
+  const {
+    setBusinesses,
+    selectedBusiness,
+    setSelectedBusiness,
+    businesses,
+  } = useBusinessContext() as any;
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
-  const prevPathnameRef = React.useRef<string | null>(null);
-  const isBackForwardRef = React.useRef(false);
-
-  /** Forces dashboard page content to remount when the URL changes (fixes blank pages after back from 404 / bad routes). */
-  const [childRouteEpoch, setChildRouteEpoch] = useState(0);
-  const prevPathForChildKeyRef = React.useRef<string | null>(null);
 
   const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
-
-  useEffect(() => {
-    setIsLoading(bizLoading);
-  }, [bizLoading, setIsLoading]);
-
-  useEffect(() => {
-    if (prevPathForChildKeyRef.current !== null && prevPathForChildKeyRef.current !== pathname) {
-      setChildRouteEpoch((n) => n + 1);
-    }
-    prevPathForChildKeyRef.current = pathname;
-  }, [pathname]);
 
   // Persist full selected business so we can restore it on back/forward
   useEffect(() => {
@@ -125,11 +113,9 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     } catch (_) {}
   }, [selectedBusiness]);
 
-  // Detect browser back/forward: restore business from localStorage and skip loading overlay
+  // Browser back/forward: restore business from localStorage
   useEffect(() => {
     const handlePopState = () => {
-      isBackForwardRef.current = true;
-      setPageLoading(false);
       try {
         const raw = typeof window !== "undefined" && window.localStorage.getItem("selectedBusiness");
         if (raw) {
@@ -148,27 +134,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [setPageLoading, setSelectedBusiness]);
-
-  // Show page loading overlay on route change (skip for back/forward so back/forward work correctly)
-  useEffect(() => {
-    if (prevPathnameRef.current !== null && prevPathnameRef.current !== pathname) {
-      if (!isBackForwardRef.current) {
-        setPageLoading(true);
-        const timer = setTimeout(() => setPageLoading(false), 400);
-        prevPathnameRef.current = pathname;
-        return () => clearTimeout(timer);
-      }
-      isBackForwardRef.current = false;
-    }
-    prevPathnameRef.current = pathname;
-  }, [pathname, setPageLoading]);
-
-  // Safety: never leave the route transition overlay stuck (covers edge cases / fast navigation).
-  useEffect(() => {
-    const t = window.setTimeout(() => setPageLoading(false), 2800);
-    return () => clearTimeout(t);
-  }, [pathname, setPageLoading]);
+  }, [setSelectedBusiness]);
 
   // Tab sleep / background: refresh JWT before user clicks around with an expired token.
   useEffect(() => {
@@ -272,10 +238,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.replace("/business/login");
     }
-  }, [loading, user, router]);
+  }, [authLoading, user, router]);
 
   // Auto-detect active section from pathname
   useEffect(() => {
@@ -320,10 +286,14 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     return <PageLoadingOverlay />;
   }
 
-  // Only show "Business account required" when we're sure the user is not a business user.
-  // Don't show it if we have a selected business (e.g. restored from localStorage) or while auth is loading.
-  const showBusinessRequiredMessage =
-    !loading && user && !isBusiness && !isConnectShopifyPage && !selectedBusiness;
+  if (!selectedBusiness) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-sm text-gray-500">No business selected.</p>
+      </div>
+    );
+  }
+
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
 
   const closeDrawer = () => {
@@ -352,7 +322,6 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       >
         <Sidebar
           pathname={pathname || ""}
-          bizLoading={bizLoading}
           onSectionSelect={setActiveSection}
           activeSection={activeSection}
         />
@@ -383,37 +352,13 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 relative">
           <TopBar />
           <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
-            {showBusinessRequiredMessage ? (
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm max-w-md">
-                <h2 className="text-lg font-semibold text-[#0E0E0E]">Business account required</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Use a business account to access this area. You can log out and sign in with your business account.
-                </p>
-                <div className="mt-4 flex gap-3">
-                  <Link
-                    href="/business/login"
-                    className="inline-flex items-center justify-center rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 transition"
-                  >
-                    Business login
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                  >
-                    Go to my dashboard
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div
-                key={`${pathname ?? ""}|${childRouteEpoch}`}
-                className="min-w-0"
-              >
-                {children}
-              </div>
-            )}
+            <div
+              key={pathname}
+              className="min-w-0"
+            >
+              {children}
+            </div>
           </div>
-          {pageLoading && <PageLoadingOverlay />}
         </main>
       </div>
 
@@ -440,7 +385,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
                 <div className="border-b border-white/15 px-4 py-3">
-                  <BusinessSwitcher loading={bizLoading} />
+                  <BusinessSwitcher />
                 </div>
                 <div className="px-4 pt-4 pb-2">
                   <Link href="/business/dashboard" onClick={closeDrawer} className="flex items-center">

@@ -40,6 +40,7 @@ const BASE_URL =
 
 export default function WebsiteWidgetsPage() {
   const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
   const [selected, setSelected] = useState<WidgetId>("badge");
   const [copied, setCopied] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);

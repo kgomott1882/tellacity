@@ -42,11 +42,11 @@ function isPlanAtLeastGrow(plan: string | null | undefined): boolean {
 
 export default function EmailTemplatesPage() {
   const router = useRouter();
-  const { selectedBusiness, isLoading } = useBusinessContext();
-  const businessId = selectedBusiness?.id ?? null;
+  const { selectedBusiness } = useBusinessContext();
+  if (!selectedBusiness?.id) return null;
+  const businessId = selectedBusiness.id;
 
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [customSubject, setCustomSubject] = useState("");
   const [customBody, setCustomBody] = useState("");
@@ -87,12 +87,10 @@ export default function EmailTemplatesPage() {
 
   const fetchData = useCallback(async () => {
     if (!businessId) {
-      setLoading(false);
       setError(null);
       return;
     }
     console.log("Fetching template data...");
-    setLoading(true);
     setError(null);
     try {
       await ensureSessionFresh();
@@ -195,42 +193,12 @@ export default function EmailTemplatesPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load email templates.");
-    } finally {
-      setLoading(false);
     }
   }, [businessId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  if (isLoading) {
-    return (
-      <div>
-        <SimplePage
-          title="Email templates"
-          subtitle="Manage templates for review invitation emails."
-        />
-        <div className="mt-8 space-y-4">
-          <div className="h-10 w-full animate-pulse rounded-lg bg-gray-200" />
-          <div className="h-32 w-full animate-pulse rounded-xl bg-gray-100" />
-        </div>
-      </div>
-    );
-  }
-  if (!selectedBusiness) {
-    return (
-      <div>
-        <SimplePage
-          title="Email templates"
-          subtitle="Manage templates for review invitation emails."
-        />
-        <p className="mt-6 text-sm text-gray-600">
-          Select a business from the switcher to edit email templates.
-        </p>
-      </div>
-    );
-  }
 
   const standardRow = templates.find((t) => t.template_key === "standard");
   const customRow = templates.find((t) => t.template_key === "custom");
@@ -383,7 +351,7 @@ export default function EmailTemplatesPage() {
     <div>
       <SimplePage
         title="Email templates"
-        subtitle={loading ? "Loading templates…" : "Manage templates for review invitation emails."}
+        subtitle="Manage templates for review invitation emails."
       />
 
       <PlanStatusBanner plan={normalizedPlan} />
@@ -413,11 +381,7 @@ export default function EmailTemplatesPage() {
           Standard template
         </h2>
         <p className="mt-1 text-sm text-gray-500">Default subject and body used for review invites.</p>
-        {loading ? (
-          <div className="mt-4 flex h-24 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-500">
-            Loading…
-          </div>
-        ) : (
+        {(
           <>
             <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
               <div className="text-xs uppercase tracking-wide text-gray-500">Subject</div>
@@ -437,11 +401,7 @@ export default function EmailTemplatesPage() {
         </h2>
         <p className="mt-1 text-sm text-gray-500">Customise the subject and body for your review invitation emails.</p>
 
-        {loading ? (
-          <div className="mt-6 flex h-24 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-500">
-            Loading…
-          </div>
-        ) : !canEditCustom ? (
+        {!canEditCustom ? (
           <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
             <p className="text-sm font-medium text-amber-900">
               Upgrade to access custom email template.
@@ -530,11 +490,7 @@ export default function EmailTemplatesPage() {
           Send a direct review link without consuming invite credits.
         </p>
 
-        {loading ? (
-          <div className="mt-6 flex h-24 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-500">
-            Loading…
-          </div>
-        ) : !canEditWidget ? (
+        {!canEditWidget ? (
           <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
             <p className="text-sm font-medium text-amber-900">
               Available on Premium and Elite plans.

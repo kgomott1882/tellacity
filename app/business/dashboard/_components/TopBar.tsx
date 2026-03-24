@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Info, LogOut, Settings, CreditCard, RefreshCw } from "lucide-react";
+import { Bell, Info, LogOut, Settings, CreditCard } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 
@@ -55,15 +55,8 @@ export default function TopBar() {
   const [userInitials, setUserInitials] = useState<string>("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-
-  const handleHardRefresh = () => {
-    setIsRefreshing(true);
-    // Ctrl+Shift+R equivalent: bypass cache and reload
-    window.location.reload();
-  };
 
   useEffect(() => {
     const applySessionUser = (sessionUser: {
@@ -196,20 +189,6 @@ export default function TopBar() {
   return (
     <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
       <div className="h-16 flex items-center justify-end px-10 gap-3">
-        <button
-          type="button"
-          onClick={handleHardRefresh}
-          disabled={isRefreshing}
-          title="Hard refresh (Ctrl+Shift+R)"
-          className="inline-flex items-center gap-2 rounded-lg border-2 border-[#2fb2a8] bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-[#2fb2a8]/5 disabled:opacity-50 transition"
-        >
-          <RefreshCw
-            size={14}
-            className={`transition-transform duration-500 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </button>
-
         <button className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center">
           <Info size={18} className="text-gray-500" />
         </button>

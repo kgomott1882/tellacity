@@ -15,6 +15,7 @@ export default function BusinessDashboardPage() {
   const router = useRouter();
   const { selectedBusiness: business } = useBusinessContext();
   const { user } = useBusinessAuth();
+  if (!business?.id) return null;
 
   useEffect(() => {
     router.replace("/business/dashboard/analytics/performance");
@@ -22,7 +23,7 @@ export default function BusinessDashboardPage() {
 
   return (
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
-      {business && user?.email ? (
+      {user?.email ? (
         <UpgradeButton
           businessId={business.id}
           planCode="premium"

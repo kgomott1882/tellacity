@@ -57,12 +57,12 @@ type SentInviteRow = {
 export default function GetReviewsOverviewPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { selectedBusiness, isLoading } = useBusinessContext();
+  const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const isOverviewRoute = pathname?.includes("/get-reviews") && (pathname?.endsWith("overview") || pathname?.endsWith("get-reviews"));
 
+  const [loading, setLoading] = useState(true);
   const [monthlyUsage, setMonthlyUsage] = useState<number>(0);
-  const [loadingUsage, setLoadingUsage] = useState<boolean>(true);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(0);
   const [daysUntilReset, setDaysUntilReset] = useState<number>(() => getDaysUntilReset());
   const [metrics, setMetrics] = useState({
@@ -78,31 +78,30 @@ export default function GetReviewsOverviewPage() {
   const ROW_HEIGHT = 56; // approximate row height
   const MIN_ROWS = 6;
   const [isExpanded, setIsExpanded] = useState(false);
-  const [loadingSent, setLoadingSent] = useState<boolean>(false);
   const [sentOffset, setSentOffset] = useState<number>(0);
   const [hasMoreSent, setHasMoreSent] = useState<boolean>(true);
 
   const fetchUsage = useCallback(async () => {
-    if (!selectedBusiness) {
+    if (!businessId) {
       setMonthlyUsage(0);
-      setLoadingUsage(false);
+      setMonthlyLimit(0);
+      setLoading(false);
       return;
     }
 
-    setLoadingUsage(true);
+    setLoading(true);
 
     try {
       const res = await fetch("/api/review-invites/usage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          businessId: selectedBusiness.id,
+          businessId,
         }),
       });
 
       if (!res.ok) {
         setMonthlyUsage(0);
-        setLoadingUsage(false);
         return;
       }
 
@@ -113,16 +112,14 @@ export default function GetReviewsOverviewPage() {
     } catch (err) {
       console.error("Usage fetch failed:", err);
       setMonthlyUsage(0);
+    } finally {
+      setLoading(false);
     }
-
-    setLoadingUsage(false);
-  }, [selectedBusiness?.id]);
+  }, [businessId]);
 
   useEffect(() => {
-    if (!selectedBusiness) return;
-
     fetchUsage();
-  }, [selectedBusiness?.id]);
+  }, [businessId, fetchUsage]);
 
   useEffect(() => {
     if (isOverviewRoute) {
@@ -224,7 +221,7 @@ export default function GetReviewsOverviewPage() {
 
   const fetchSentInvites = useCallback(
     async (offset: number, append: boolean) => {
-      setLoadingSent(true);
+      setLoading(true);
       try {
         if (!businessId) {
           setSentItems([]);
@@ -279,14 +276,14 @@ export default function GetReviewsOverviewPage() {
         setHasMoreSent(false);
         setSentOffset(0);
       } finally {
-        setLoadingSent(false);
+        setLoading(false);
       }
     },
     [businessId]
   );
 
   const handleLoadMoreSent = () => {
-    if (!businessId || loadingSent || !hasMoreSent) return;
+    if (!businessId || loading || !hasMoreSent) return;
     fetchSentInvites(sentOffset, true);
   };
 
@@ -337,32 +334,7 @@ export default function GetReviewsOverviewPage() {
     };
   }, [businessId]);
 
-  if (isLoading) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold">Get reviews – Overview</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Collect verified customer feedback through automated invites.
-        </p>
-        <div className="mt-8 h-40 animate-pulse rounded-xl bg-gray-100" />
-      </div>
-    );
-  }
-  if (!selectedBusiness) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold">Get reviews – Overview</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Collect verified customer feedback through automated invites.
-        </p>
-        <p className="mt-6 text-sm text-gray-600">
-          Select a business from the switcher to view overview metrics.
-        </p>
-      </div>
-    );
-  }
-
-  const reviewUrl = selectedBusiness.slug
+  const reviewUrl = selectedBusiness?.slug
     ? `${typeof window !== "undefined" ? window.location.origin : "https://tellacity.com"}/b/${selectedBusiness.slug}/write-review`
     : "";
 
@@ -391,6 +363,8 @@ export default function GetReviewsOverviewPage() {
     };
     img.src = url;
   }
+
+  if (!businessId || !selectedBusiness) return null;
 
   return (
     <div>
@@ -547,11 +521,7 @@ export default function GetReviewsOverviewPage() {
         <p className="mt-1 text-sm text-gray-500">
           See every invite you've sent and when it was sent.
         </p>
-        {loadingSent ? (
-          <div className="mt-4 flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-500">
-            Loading…
-          </div>
-        ) : sentItems.length === 0 ? (
+        {sentItems.length === 0 ? (
           <p className="mt-4 text-sm text-gray-500">No invites sent yet.</p>
         ) : (
           <>
@@ -616,11 +586,11 @@ export default function GetReviewsOverviewPage() {
               <div className="mt-4 flex justify-center">
                 <button
                   type="button"
-                  disabled={loadingSent}
+                  disabled={loading}
                   onClick={handleLoadMoreSent}
                   className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  {loadingSent ? "Loading…" : "Load more"}
+                  Load more
                 </button>
               </div>
             )}

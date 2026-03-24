@@ -85,30 +85,36 @@ export default function InviteSettingsPage() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const token = await getAuthToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-      const res = await fetch("/api/business/invite-settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!mounted) return;
-      if (res.ok) {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const token = await getAuthToken();
+        if (!token) return;
+        const res = await fetch("/api/business/invite-settings", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!mounted) return;
+        if (!res.ok) {
+          console.error("Failed to fetch invite settings:", res.status);
+          return;
+        }
         const data: Settings = await res.json();
         setForm({
-          send_delay_days:      data.send_delay_days      ?? DEFAULTS.send_delay_days,
-          reminder_enabled:     data.reminder_enabled     ?? DEFAULTS.reminder_enabled,
-          reminder_delay_days:  data.reminder_delay_days  ?? DEFAULTS.reminder_delay_days,
-          custom_subject:       data.custom_subject       ?? DEFAULTS.custom_subject,
-          custom_message:       data.custom_message       ?? DEFAULTS.custom_message,
-          custom_signature:     data.custom_signature     ?? DEFAULTS.custom_signature,
+          send_delay_days: data.send_delay_days ?? DEFAULTS.send_delay_days,
+          reminder_enabled: data.reminder_enabled ?? DEFAULTS.reminder_enabled,
+          reminder_delay_days: data.reminder_delay_days ?? DEFAULTS.reminder_delay_days,
+          custom_subject: data.custom_subject ?? DEFAULTS.custom_subject,
+          custom_message: data.custom_message ?? DEFAULTS.custom_message,
+          custom_signature: data.custom_signature ?? DEFAULTS.custom_signature,
           legal_footer_enabled: data.legal_footer_enabled ?? DEFAULTS.legal_footer_enabled,
         });
+      } catch (error) {
+        console.error("Failed to load invite settings:", error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+    load();
     return () => {
       mounted = false;
     };
@@ -148,19 +154,6 @@ export default function InviteSettingsPage() {
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
-
-  if (loading) {
-    return (
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Invite Settings</h1>
-        <div className="mt-6 space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-100" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl">

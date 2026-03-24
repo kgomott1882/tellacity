@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { useBusinessInsights } from "@/hooks/useBusinessInsights";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
+import {
+  useDashboardPerformanceData,
+  type DailyReview,
+  type RecentReview,
+  type MonthlyInvite,
+} from "@/hooks/useDashboardPerformanceData";
 import { RecentReviewInvitesCard } from "../_components/RecentReviewInvitesCard";
 import SeoIndexingMonitor from "@/components/dashboard/SeoIndexingMonitor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-// Raw row from the reviews table used to build the daily activity series
-type DailyReview   = { review_date: string; review_count: number };
-type RecentReview  = { id: string; rating: number; title: string | null; body: string | null; created_at: string; guest_name: string | null };
-type MonthlyInvite = { date: string; value: number };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -106,10 +105,6 @@ function SentimentBar({ label, count, total, color }: { label: string; count: nu
       </div>
     </div>
   );
-}
-
-function Sk({ h = "h-32" }: { h?: string }) {
-  return <div className={`${h} animate-pulse rounded-xl bg-neutral-800`} />;
 }
 
 function SectionHeading({ title, sub, note }: { title: string; sub: string; note?: string }) {
@@ -343,10 +338,10 @@ function ReviewActivityLineChart({ daily, totalReviews }: { daily: DailyReview[]
         </defs>
 
         {/* Y-axis grid lines + labels */}
-        {yTicks.map((t) => {
+        {yTicks.map((t, index) => {
           const y = toY(t);
           return (
-            <g key={t}>
+            <g key={`${t}-${index}`}>
               <line
                 x1={PAD.left} x2={W - PAD.right}
                 y1={y}        y2={y}
@@ -499,10 +494,10 @@ function InviteBarChart({ data }: { data: { date: string; value: number }[] }) {
   const gap    = chartW / data.length;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      {[0, Math.round(maxV / 2), maxV].map((t) => {
+      {[0, Math.round(maxV / 2), maxV].map((t, index) => {
         const y = PAD.top + chartH - (t / maxV) * chartH;
         return (
-          <g key={t}>
+          <g key={`${t}-${index}`}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} stroke="#404040" strokeWidth={1} opacity={0.4} />
             <text x={PAD.left - 4} y={y + 4} textAnchor="end" fontSize={9} fill="#737373">{t}</text>
           </g>
@@ -587,153 +582,43 @@ function ReviewCard({ review }: { review: RecentReview }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PerformancePage() {
-  const { selectedBusiness, isLoading: bizLoading } = useBusinessContext();
+  const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
-  const { data, loading, error } = useBusinessInsights(businessId);
+  const {
+    data,
+    error,
+    loading,
+    daily,
+    reviews,
+    inviteChart,
+    realTotalInvites,
+    realInvites30,
+  } = useDashboardPerformanceData(businessId);
 
-  const [daily,           setDaily]           = useState<DailyReview[]>([]);
-  const [reviews,         setReviews]         = useState<RecentReview[]>([]);
-  const [inviteChart,     setInviteChart]     = useState<MonthlyInvite[]>([]);
-  const [realTotalInvites, setRealTotalInvites] = useState(0);
-  const [realInvites30,    setRealInvites30]    = useState(0);
-  const [insightsLoading, setInsightsLoading] = useState(true);
-
-  const fetchInsights = useCallback(async () => {
-    if (!businessId) { setInsightsLoading(false); return; }
-    setInsightsLoading(true);
-    try {
-      await ensureSessionFresh();
-
-      // 90-day window in UTC - matches the chart's dense series exactly
-      const since90dUTC = new Date(Date.UTC(
-        new Date().getUTCFullYear(),
-        new Date().getUTCMonth(),
-        new Date().getUTCDate() - 89,
-      )).toISOString();
-      const startOf30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      const supabase = supabaseBrowser();
-
-      const [rawReviewsRes, revRes, totalInvRes, inv30Res] = await Promise.all([
-        // Fetch created_at for published/approved reviews in last 90 days - aggregated into DailyReview[] below
-        supabase
-          .from("reviews")
-          .select("created_at")
-          .eq("business_id", businessId)
-          .in("status", ["published", "approved"])
-          .gte("created_at", since90dUTC)
-          .order("created_at", { ascending: true }),
-        // Recent reviews list - published/approved only
-        supabase
-          .from("reviews")
-          .select("id,rating,title,body,created_at,guest_name")
-          .eq("business_id", businessId)
-          .in("status", ["published", "approved"])
-          .order("created_at", { ascending: false })
-          .limit(2),
-        // Total invites all time
-        supabase
-          .from("review_invites")
-          .select("*", { count: "exact", head: true })
-          .eq("business_id", businessId),
-        // Invites in last 30 days
-        supabase
-          .from("review_invites")
-          .select("*", { count: "exact", head: true })
-          .eq("business_id", businessId)
-          .gte("created_at", startOf30d),
-      ]);
-
-      // Aggregate raw review rows into DailyReview[] keyed by UTC date "YYYY-MM-DD"
-      const dailyMap = new Map<string, number>();
-      for (const row of (rawReviewsRes.data ?? []) as { created_at: string }[]) {
-        // Slice the ISO string to get the UTC date - no Date() parsing, no timezone shift
-        const key = row.created_at.slice(0, 10);
-        dailyMap.set(key, (dailyMap.get(key) ?? 0) + 1);
-      }
-      const dailyAgg: DailyReview[] = Array.from(dailyMap.entries()).map(
-        ([review_date, review_count]) => ({ review_date, review_count }),
-      );
-
-      setDaily(dailyAgg);
-      setReviews((revRes.data as RecentReview[]) ?? []);
-      setRealTotalInvites(totalInvRes.count ?? 0);
-      setRealInvites30(inv30Res.count ?? 0);
-
-      // Build real per-month invite chart for the last 3 months
-      const now = new Date();
-      const monthBuckets = [2, 1, 0].map((offset) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        return {
-          year:  d.getFullYear(),
-          month: d.getMonth() + 1,
-          label: d.toLocaleString("default", { month: "short" }),
-          value: 0,
-        };
-      });
-      const since3m = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString();
-      const { data: invRows } = await supabase
-        .from("review_invites")
-        .select("created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", since3m);
-
-      if (invRows) {
-        invRows.forEach((row: { created_at: string }) => {
-          const d = new Date(row.created_at);
-          const bucket = monthBuckets.find(
-            (b) => b.year === d.getFullYear() && b.month === d.getMonth() + 1
-          );
-          if (bucket) bucket.value += 1;
-        });
-      }
-      setInviteChart(monthBuckets.map(({ label, value }) => ({ date: label, value })));
-    } catch (e) {
-      console.error("[PerformancePage] fetchInsights error:", e);
-    } finally {
-      setInsightsLoading(false);
-    }
-  }, [businessId]);
-
-  useEffect(() => { fetchInsights(); }, [fetchInsights]);
-
-  if (bizLoading) {
-    return (
-      <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
-        <div>
-          <h1 className="text-xl font-bold text-neutral-100">Performance</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">Overview of ratings, review trends, and trust growth.</p>
-        </div>
-        <div className="space-y-5">
-          <Sk h="h-16" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map((i) => <Sk key={i} h="h-28" />)}</div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><Sk h="h-64" /><Sk h="h-64" /></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!businessId) {
-    return (
-      <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
-        <div>
-          <h1 className="text-xl font-bold text-neutral-100">Performance</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">Overview of ratings, review trends, and trust growth.</p>
-        </div>
-        <p className="rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-6 text-sm text-neutral-400">
-          Select a business from the switcher in the sidebar to load performance data.
-        </p>
-      </div>
-    );
-  }
+  if (!businessId) return null;
 
   const d = data;
 
-  const avg          = d?.avg_rating ?? 0;
-  const totalReviews = d?.total_reviews ?? 0;
-  const vel          = d?.review_velocity_percent ?? 0;
-  const dist         = d?.rating_distribution ?? {};
-  const snt          = d?.sentiment ?? { positive: 0, neutral: 0, negative: 0 };
+  /** RPC / JSON may return numbers as strings; coerce for display math */
+  const numFrom = (v: unknown) => {
+    if (v == null) return 0;
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const avg          = numFrom(d?.avg_rating);
+  const totalReviews = numFrom(d?.total_reviews);
+  const vel          = numFrom(d?.review_velocity_percent);
+  const dist         = (d?.rating_distribution && typeof d.rating_distribution === "object"
+    ? d.rating_distribution
+    : {}) as Record<string, unknown>;
+  const rawSent      = d?.sentiment && typeof d.sentiment === "object" ? d.sentiment as Record<string, unknown> : {};
+  const snt          = {
+    positive: numFrom(rawSent.positive),
+    neutral:  numFrom(rawSent.neutral),
+    negative: numFrom(rawSent.negative),
+  };
   const sntTotal     = snt.positive + snt.neutral + snt.negative;
 
   // Use real invite counts fetched directly from review_invites table
@@ -743,7 +628,7 @@ export default function PerformancePage() {
   const conv = totalInvites > 0 ? (totalReviews / totalInvites) * 100 : 0;
 
   // Trust score is canonical from the backend RPC (get_business_review_insights)
-  const trustScore = d?.trust_score ?? 0;
+  const trustScore = numFrom(d?.trust_score);
 
   // Reputation label + color from frontend trust score
   const rep = trustReputation(trustScore);
@@ -753,8 +638,6 @@ export default function PerformancePage() {
 
   // Executive summary insight line
   const execLine = executiveSummaryLine(trustScore);
-
-  const isPageLoading = loading || insightsLoading;
 
   // Trust Score display - always shows a number, never "--"
   const trustValue = `${trustScore} / 100`;
@@ -779,6 +662,7 @@ export default function PerformancePage() {
 
   return (
     <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
+      {loading && <PageLoadingOverlay />}
 
       {/* Page title */}
       <div>
@@ -790,18 +674,7 @@ export default function PerformancePage() {
         <div className="rounded-xl border border-red-800/40 bg-red-950/30 px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
-      {isPageLoading ? (
-        <div className="space-y-5">
-          <Sk h="h-16" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1,2,3,4].map((i) => <Sk key={i} h="h-28" />)}</div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><Sk h="h-64" /><Sk h="h-64" /></div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3"><Sk h="h-28" /><Sk h="h-28" /><Sk h="h-28" /></div>
-          <Sk h="h-48" />
-          <Sk h="h-48" />
-          <Sk h="h-64" />
-        </div>
-      ) : (
-        <>
+      <>
           {/* ════════════════════════════════════════════
               1) EXECUTIVE SUMMARY
           ════════════════════════════════════════════ */}
@@ -835,7 +708,7 @@ export default function PerformancePage() {
             <MetricCard
               label="Total Reviews"
               value={String(totalReviews)}
-              sub={`${d?.reviews_90d ?? 0} in last 90 days`}
+              sub={`${numFrom(d?.reviews_90d)} in last 90 days`}
             />
             <MetricCard
               label="Review Velocity"
@@ -883,12 +756,16 @@ export default function PerformancePage() {
               <div className="space-y-3">
                 {[5, 4, 3, 2, 1].map((star) => {
                   const raw = dist[String(star)];
-                  const bucket =
-                    typeof raw === "object" && raw !== null
-                      ? (raw as { count: number; percent: number })
-                      : { count: 0, percent: 0 };
-                  const count  = Number(bucket.count   ?? 0);
-                  const pct    = Number(bucket.percent  ?? 0);
+                  let count = 0;
+                  let pct = 0;
+                  if (typeof raw === "number" && Number.isFinite(raw)) {
+                    count = raw;
+                    pct = totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0;
+                  } else if (typeof raw === "object" && raw !== null) {
+                    const bucket = raw as { count?: unknown; percent?: unknown };
+                    count = numFrom(bucket.count);
+                    pct = numFrom(bucket.percent);
+                  }
                   return (
                     <div key={star} className="flex items-center gap-3">
                       <div className="w-8 shrink-0 text-sm text-neutral-400">{star} ★</div>
@@ -1028,8 +905,7 @@ export default function PerformancePage() {
               </Link>
             </div>
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
