@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
-import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import RatingStars from "@/components/RatingStars";
 import { Button } from "@/components/ui/button";
@@ -197,7 +196,7 @@ export default function WriteReviewForm({
 
     const loadExistingReview = async () => {
       try {
-        const sb = supabase();
+        const sb = supabaseBrowser();
         const { data: review, error: reviewError } = await sb
           .from("reviews")
           .select("business_id,rating,title,body,date_of_experience")
@@ -358,7 +357,7 @@ export default function WriteReviewForm({
         };
       });
 
-      const sb = supabase();
+      const sb = supabaseBrowser();
       const query = sb
         .from("businesses")
         .select(
@@ -523,7 +522,7 @@ export default function WriteReviewForm({
       .toString(36)
       .slice(2)}_${proofFile.name}`;
 
-    const sb = supabase();
+    const sb = supabaseBrowser();
     const { error: uploadError } = await sb.storage
       .from("receipts")
       .upload(uniqueName, proofFile);
@@ -565,7 +564,7 @@ export default function WriteReviewForm({
 
       // If editing an existing review, update instead of inserting
       if (editReviewId) {
-        const sb = supabase();
+        const sb = supabaseBrowser();
         const { error: updateError } = await sb
           .from("reviews")
           .update({
@@ -601,7 +600,7 @@ export default function WriteReviewForm({
       }
 
       if (userId) {
-        const sb = supabase();
+        const sb = supabaseBrowser();
 
         // Prevent duplicate reviews for the same business/user
         const { data: existingReview, error: existingError } = await sb

@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { handleRedirect } from "@/lib/postLoginRedirect";
 
 function BusinessLoginInner() {
-  const router       = useRouter();
-  const searchParams = useSearchParams();
-  const nextPath     = searchParams.get("next") ?? "/business/dashboard";
-
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -24,7 +20,7 @@ function BusinessLoginInner() {
     }
     setLoading(true);
     try {
-      const { error: signInError } = await supabaseBrowser().auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabaseBrowser().auth.signInWithPassword({
         email,
         password,
       });
@@ -32,7 +28,10 @@ function BusinessLoginInner() {
         setError(signInError.message);
         return;
       }
-      router.push(nextPath);
+      if (signInData?.user?.id) {
+        await handleRedirect(signInData.user.id);
+        return;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

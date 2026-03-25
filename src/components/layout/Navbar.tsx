@@ -7,7 +7,6 @@ import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
-import { supabase } from "@/lib/supabaseClient";
 import { isAbortError } from "@/lib/authErrors";
 import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";

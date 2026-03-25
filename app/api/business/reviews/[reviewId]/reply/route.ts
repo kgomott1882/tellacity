@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import {
+  requireUserSession,
+  canAccessBusiness,
+} from "@/lib/supabase/businessDashboardServer";
 
-export async function POST(req: Request, { params }: any) {
+export async function POST(
+  req: Request,
+  context: { params: Promise<{ reviewId: string }> }
+) {
   try {
-    const { reviewId } = await params;
+    const { reviewId } = await context.params;
     const { body } = await req.json();
 
     if (!body || !body.trim()) {
@@ -13,45 +19,12 @@ export async function POST(req: Request, { params }: any) {
       );
     }
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: "Missing Authorization header." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireUserSession(req);
+    if (!auth.ok) return auth.response;
 
-    const token = authHeader.replace("Bearer ", "");
+    const { db, userId } = auth;
 
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
-      return NextResponse.json(
-        { error: "Server configuration error." },
-        { status: 500 }
-      );
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // Validate user from token
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      console.error("Auth error:", authError);
-      return NextResponse.json(
-        { error: "Unauthorized." },
-        { status: 401 }
-      );
-    }
-
-    // Get review
-    const { data: review, error: reviewError } = await supabase
+    const { data: review, error: reviewError } = await db
       .from("reviews")
       .select("business_id")
       .eq("id", reviewId)
@@ -59,66 +32,39 @@ export async function POST(req: Request, { params }: any) {
 
     if (reviewError || !review) {
       console.error("Review error:", reviewError);
-      return NextResponse.json(
-        { error: "Review not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
 
-    // Verify ownership
-    const { data: business, error: businessError } = await supabase
-      .from("businesses")
-      .select("owner_id")
-      .eq("id", review.business_id)
-      .single();
-
-    if (businessError || !business) {
-      console.error("Business error:", businessError);
-      return NextResponse.json(
-        { error: "Business not found." },
-        { status: 404 }
-      );
+    const allowed = await canAccessBusiness(db, userId, review.business_id);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    if (business.owner_id !== user.id) {
-      return NextResponse.json(
-        { error: "Forbidden." },
-        { status: 403 }
-      );
-    }
-
-    // Insert reply
-    const { data: reply, error: insertError } = await supabase
-      .from("review_replies")
-      .insert({
-        review_id: reviewId,
-        body: body.trim(),
-        author_role: "business",
-        user_id: user.id
+    const now = new Date().toISOString();
+    const { data: updated, error: updateError } = await db
+      .from("reviews")
+      .update({
+        owner_response: body.trim(),
+        owner_response_at: now,
       })
-      .select()
+      .eq("id", reviewId)
+      .select("id, owner_response, owner_response_at")
       .single();
 
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      return NextResponse.json(
-        { error: insertError.message },
-        { status: 500 }
-      );
+    if (updateError) {
+      console.error("[reply POST] update reviews", updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      reply: {
-        id: reply.id,
-        reviewId: reply.review_id,
-        body: reply.body,
-        createdAt: reply.created_at,
-        authorRole: reply.author_role,
+      review: {
+        id: updated.id,
+        owner_response: updated.owner_response,
+        owner_response_at: updated.owner_response_at,
       },
     });
-
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Unhandled error:", err);
     return NextResponse.json(
       { error: "Unexpected server error." },
@@ -127,47 +73,54 @@ export async function POST(req: Request, { params }: any) {
   }
 }
 
-export async function PATCH(req: Request, context: { params: Promise<{ reviewId: string }> }) {
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ reviewId: string }> }
+) {
   try {
     const { reviewId } = await context.params;
-    const { replyId, body } = await req.json();
+    const { body } = await req.json();
 
     if (!body || !body.trim()) {
       return NextResponse.json({ error: "Reply body is required." }, { status: 400 });
     }
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const auth = await requireUserSession(req);
+    if (!auth.ok) return auth.response;
+
+    const { db, userId } = auth;
+
+    const { data: review, error: revErr } = await db
+      .from("reviews")
+      .select("business_id")
+      .eq("id", reviewId)
+      .single();
+
+    if (revErr || !review) {
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: { user } } = await supabase.auth.getUser(token);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const allowed = await canAccessBusiness(db, userId, review.business_id);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const { data: reply, error } = await supabase
-      .from("review_replies")
-      .update({ body: body.trim() })
-      .eq("id", replyId)
-      .eq("user_id", user.id)
-      .select()
+    const now = new Date().toISOString();
+    const { data: updated, error } = await db
+      .from("reviews")
+      .update({
+        owner_response: body.trim(),
+        owner_response_at: now,
+      })
+      .eq("id", reviewId)
+      .select("id, owner_response, owner_response_at")
       .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, reply });
-
+    return NextResponse.json({ success: true, review: updated });
   } catch {
     return NextResponse.json({ error: "Server error." }, { status: 500 });
   }
@@ -179,42 +132,40 @@ export async function DELETE(
 ) {
   try {
     const { reviewId } = await context.params;
-    const { replyId } = await req.json();
 
-    if (!replyId) {
-      return NextResponse.json({ error: "Reply ID required." }, { status: 400 });
+    const auth = await requireUserSession(req);
+    if (!auth.ok) return auth.response;
+
+    const { db, userId } = auth;
+
+    const { data: review, error: revErr } = await db
+      .from("reviews")
+      .select("business_id")
+      .eq("id", reviewId)
+      .single();
+
+    if (revErr || !review) {
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const allowed = await canAccessBusiness(db, userId, review.business_id);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: { user } } = await supabase.auth.getUser(token);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { error } = await supabase
-      .from("review_replies")
-      .delete()
-      .eq("id", replyId)
-      .eq("user_id", user.id);
+    const { error } = await db
+      .from("reviews")
+      .update({
+        owner_response: null,
+        owner_response_at: null,
+      })
+      .eq("id", reviewId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
-
   } catch (err) {
     console.error("Delete error:", err);
     return NextResponse.json({ error: "Server error." }, { status: 500 });

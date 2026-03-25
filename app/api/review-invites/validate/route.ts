@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
+import {
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 export async function POST(request: Request) {
   try {
@@ -25,73 +29,70 @@ export async function POST(request: Request) {
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const now = new Date().toISOString();
-
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token.trim())
-      .digest("hex");
 
     const { data: invite, error } = await supabase
       .from("review_invites")
-      .select(
-        "id, business_id, status, expires_at, used_at, businesses(id, name, slug)"
-      )
-      .eq("token", hashedToken)
+      .select("*")
+      .eq("token", token.trim())
       .maybeSingle();
 
-    if (error || !invite) {
+    if (error) {
       return NextResponse.json(
         { error: "Invalid invite link." },
         { status: 400 }
       );
     }
 
-    const expiresAt = (invite as { expires_at?: string | null }).expires_at;
-    if (expiresAt && new Date(expiresAt) < new Date(now)) {
+    if (!invite) {
       return NextResponse.json(
-        { error: "Invalid or expired invite link." },
+        { error: "Invalid invite link." },
         { status: 400 }
       );
     }
 
-    if ((invite as { used_at?: string | null }).used_at) {
+    const row = invite as InviteRowRecord;
+
+    if (reviewInviteRowIsUsed(row)) {
       return NextResponse.json(
         { error: "This invitation link has already been used." },
         { status: 400 }
       );
     }
 
-    // Mark as opened if first time
-    if (invite.status === "sent" || invite.status === "draft") {
-      await supabase
-        .from("review_invites")
-        .update({
-          status: "opened",
-          opened_at: now,
-        })
-        .eq("id", invite.id);
+    if (reviewInviteRowIsExpired(row)) {
+      return NextResponse.json(
+        { error: "Invalid or expired invite link." },
+        { status: 400 }
+      );
     }
 
-    // Log event (non-blocking; ignore failures)
-    try {
-      await supabase
-        .from("review_invite_events")
-        .insert({
-          invite_id: invite.id,
-          event_type: "opened",
-        });
-    } catch {
-      // intentionally ignore tracking failure
+    const businessId = row.business_id;
+    if (typeof businessId !== "string" || !businessId) {
+      return NextResponse.json(
+        { error: "Invalid invite link." },
+        { status: 400 }
+      );
     }
 
-    const businessName = (invite as { businesses?: { name?: string | null } | null }).businesses?.name ?? null;
-    const businessSlug = (invite as { businesses?: { slug?: string | null } | null }).businesses?.slug ?? null;
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("name, slug")
+      .eq("id", businessId)
+      .maybeSingle();
+
+    const businessName =
+      biz && typeof biz === "object" && "name" in biz
+        ? (biz as { name: string | null }).name
+        : null;
+    const businessSlug =
+      biz && typeof biz === "object" && "slug" in biz
+        ? (biz as { slug: string | null }).slug
+        : null;
 
     return NextResponse.json({
       success: true,
       inviteId: invite.id,
-      businessId: invite.business_id,
+      businessId,
       businessName,
       businessSlug,
     });

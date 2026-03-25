@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 
 export function createSupabaseWithJwt(accessToken: string): SupabaseClient {
@@ -93,6 +94,32 @@ export async function resolveDashboardDb(req: Request): Promise<DashboardDbConte
     };
   }
   return { ok: true, userId: user.id, email: user.email ?? null, db: cookieClient };
+}
+
+/**
+ * Cookie session (createServerClient + anon key) or Bearer JWT; anon key only — no service role.
+ * Logs the resolved user for API debugging.
+ */
+export async function requireUserSession(req: Request): Promise<
+  | { ok: true; db: SupabaseClient; user: User; userId: string }
+  | { ok: false; response: NextResponse }
+> {
+  const ctx = await resolveDashboardDb(req);
+  if (!ctx.ok) return { ok: false, response: ctx.response };
+
+  const {
+    data: { user },
+  } = await ctx.db.auth.getUser();
+  console.log("API USER:", user);
+
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized." }, { status: 401 }),
+    };
+  }
+
+  return { ok: true, db: ctx.db, user, userId: user.id };
 }
 
 export async function requireBusinessAccess(

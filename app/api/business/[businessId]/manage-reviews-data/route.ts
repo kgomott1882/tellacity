@@ -14,9 +14,12 @@ export async function GET(
 
     const { data: reviews, error: revErr } = await db
       .from("reviews")
-      .select("id, guest_name, rating, title, body, created_at, reference_number")
+      .select(
+        "id, guest_name, rating, title, body, created_at, reference_number, owner_response, owner_response_at"
+      )
       .eq("business_id", businessId)
-      .in("status", ["published", "pending"])
+      .eq("status", "published")
+      .eq("visibility", "visible")
       .order("created_at", { ascending: false });
 
     if (revErr) {
@@ -25,22 +28,7 @@ export async function GET(
     }
 
     const list = reviews ?? [];
-    const ids = list.map((r) => r.id);
-
-    let replies: { id: string; review_id: string; body: string; created_at: string }[] = [];
-    if (ids.length > 0) {
-      const { data: repData, error: repErr } = await db
-        .from("review_replies")
-        .select("id, review_id, body, created_at")
-        .in("review_id", ids)
-        .eq("author_role", "business")
-        .order("created_at", { ascending: true });
-      if (repErr) {
-        console.error("[manage-reviews-data] replies", repErr);
-        return NextResponse.json({ error: repErr.message }, { status: 500 });
-      }
-      replies = repData ?? [];
-    }
+    const replies: { id: string; review_id: string; body: string; created_at: string }[] = [];
 
     const { data: flaggedData, error: flagErr } = await db
       .from("review_flags")

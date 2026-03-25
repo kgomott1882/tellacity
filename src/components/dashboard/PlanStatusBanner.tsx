@@ -38,7 +38,7 @@ export default function PlanStatusBanner({ plan }: Props) {
       </div>
       {!isElite && (
         <Link
-          href="/business/dashboard/settings/billing"
+          href="/business/dashboard/billing"
           className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md bg-[#278D82] text-white hover:bg-[#217a70] transition-colors"
         >
           Upgrade

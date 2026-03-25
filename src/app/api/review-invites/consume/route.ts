@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
+import {
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 export async function POST(request: Request) {
   try {
@@ -25,15 +29,10 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token.trim())
-      .digest("hex");
-
     const { data: invite, error: fetchError } = await supabase
       .from("review_invites")
-      .select("id, business_id, status, expires_at")
-      .eq("token", hashedToken)
+      .select("*")
+      .eq("token", token.trim())
       .maybeSingle();
 
     if (fetchError) {
@@ -50,30 +49,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const expiresAt = (invite as { expires_at?: string | null }).expires_at;
-    if (expiresAt && new Date(expiresAt) < new Date()) {
+    const row = invite as InviteRowRecord;
+
+    if (reviewInviteRowIsUsed(row)) {
+      return NextResponse.json(
+        { error: "This invitation link has already been used." },
+        { status: 400 }
+      );
+    }
+
+    if (reviewInviteRowIsExpired(row)) {
       return NextResponse.json(
         { error: "Invite has expired." },
         { status: 400 }
       );
     }
 
-    const inviteId = (invite as { id: string }).id;
-    const businessId = (invite as { business_id: string }).business_id;
-    const status = (invite as { status?: string }).status;
-
-    if (status === "draft" || status === "sent") {
-      await supabase
-        .from("review_invites")
-        .update({ status: "opened" })
-        .eq("id", inviteId);
-
-      await supabase.rpc("log_review_invite_event", {
-        invite_id: inviteId,
-        business_id: businessId,
-        event_name: "opened",
-        payload: {},
-      });
+    const inviteId = row.id;
+    const businessId = row.business_id;
+    if (typeof inviteId !== "string" || typeof businessId !== "string") {
+      return NextResponse.json(
+        { error: "Invalid invite." },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({

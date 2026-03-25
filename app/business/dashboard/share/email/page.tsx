@@ -8,7 +8,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import UpgradeButton from "@/components/billing/UpgradeButton";
-import type { PlanKey } from "@/lib/plans";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 
 const DEFAULT_WIDGET_SUBJECT = "Share your experience with us";
@@ -118,7 +118,7 @@ export default function EmailWidgetsPage() {
 
   const business = selectedBusiness;
 
-  const normalizedPlan: PlanKey = selectedBusiness.plan as PlanKey;
+  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
   const canSend = isPremiumOrElite(normalizedPlan);
 
   const displaySubject = template?.subject?.trim() || DEFAULT_WIDGET_SUBJECT;
@@ -323,7 +323,7 @@ export default function EmailWidgetsPage() {
                     <p className="text-xs text-gray-600">Upgrade to Elite to use branded email layout</p>
                     <button
                       type="button"
-                      onClick={() => router.push("/pricing")}
+                      onClick={() => router.push("/business/dashboard/billing")}
                       className="mt-2 rounded-lg bg-black px-4 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
                     >
                       Upgrade

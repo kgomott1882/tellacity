@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import type { PlanKey } from "@/lib/plans";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 
 type TemplateChoice = "standard" | "custom" | "widget";
@@ -33,7 +33,7 @@ export default function InvitationMethodsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const normalizedPlan: PlanKey = selectedBusiness.plan as PlanKey;
+  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
   const canChooseCustom = isPlanAtLeastGrow(normalizedPlan);
   const canChooseWidget = isPremiumOrElite(normalizedPlan);
 
@@ -79,7 +79,15 @@ export default function InvitationMethodsPage() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError((data.error as string) || "Failed to send invite.");
+          const errMsg = String((data as { error?: string }).error || "");
+          if (
+            res.status === 403 &&
+            errMsg.toLowerCase().includes("monthly invite limit")
+          ) {
+            router.replace("/business/dashboard/billing?reason=limit");
+            return;
+          }
+          setError(errMsg || "Failed to send invite.");
           return;
         }
       }
@@ -200,37 +208,11 @@ export default function InvitationMethodsPage() {
         {success && (
           <p className="mt-3 text-sm font-medium text-green-700">Invite sent.</p>
         )}
-        {error && (() => {
-          const isLimitError = error?.toLowerCase().includes("monthly invite limit");
-          if (isLimitError) {
-            return (
-              <div className="mt-4 p-5 rounded-xl bg-gray-50 border border-gray-200 relative overflow-hidden">
-                <div className="absolute left-0 top-0 h-full w-1 bg-teal-500" />
-
-                <p className="text-sm font-semibold text-gray-900">
-                  You've reached your monthly invite limit.
-                </p>
-
-                <p className="text-sm text-gray-600 mt-1">
-                  Upgrade your plan to continue collecting verified reviews and unlock more visibility.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => router.push("/pricing")}
-                  className="mt-4 inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-black text-white font-medium shadow-md hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                  Upgrade Plan to Continue
-                </button>
-              </div>
-            );
-          }
-          return (
-            <p className="mt-3 text-sm text-red-600" role="alert">
-              {error}
-            </p>
-          );
-        })()}
+        {error ? (
+          <p className="mt-3 text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );

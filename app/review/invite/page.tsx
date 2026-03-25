@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import InvitePageClient from "./InvitePageClient";
+import { createClient } from "@supabase/supabase-js";
+import WriteReviewForm from "@/components/reviews/WriteReviewForm";
+import { getServerEnv } from "@/lib/serverEnv";
 
 export const metadata: Metadata = {
   robots: {
@@ -8,7 +10,110 @@ export const metadata: Metadata = {
   },
 };
 
-export default function InvitePage() {
-  return <InvitePageClient />;
+export const dynamic = "force-dynamic";
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm max-w-md w-full text-center">
+        <h1 className="text-xl font-semibold text-gray-900">Unable to open invite</h1>
+        <p className="mt-2 text-sm text-gray-600">{message}</p>
+      </div>
+    </div>
+  );
 }
 
+type InviteRow = {
+  id: string;
+  business_id: string;
+  status?: string | null;
+  review_submitted_at?: string | null;
+  expires_at?: string | null;
+};
+
+export default async function InvitePage(props: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const rawToken = searchParams.token;
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+
+  if (!token) {
+    return <ErrorState message="Missing invite token" />;
+  }
+
+  let supabase: ReturnType<typeof createClient>;
+  try {
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    supabase = createClient(supabaseUrl, serviceRoleKey);
+  } catch {
+    return <ErrorState message="Invalid invite link" />;
+  }
+
+  const { data, error } = await supabase
+    .from("review_invites")
+    .select("*")
+    .eq("token", token.trim())
+    .maybeSingle();
+
+  if (error) {
+    console.error("Invite lookup error:", error);
+    return <ErrorState message="Invalid invite link" />;
+  }
+
+  if (!data) {
+    return <ErrorState message="Invalid invite link" />;
+  }
+
+  const invite = data as InviteRow;
+
+  const isUsed =
+    invite.review_submitted_at != null ||
+    invite.status === "completed";
+
+  if (isUsed) {
+    return <ErrorState message="Invite already used" />;
+  }
+
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    return <ErrorState message="Invite expired" />;
+  }
+
+  const businessId = invite.business_id;
+  if (typeof businessId !== "string" || !businessId) {
+    return <ErrorState message="Invalid invite link" />;
+  }
+
+  const { data: biz } = await supabase
+    .from("businesses")
+    .select("name, slug")
+    .eq("id", businessId)
+    .maybeSingle();
+
+  const businessName =
+    biz && typeof biz === "object" && "name" in biz
+      ? (biz as { name: string | null }).name
+      : null;
+  const businessSlug =
+    biz && typeof biz === "object" && "slug" in biz
+      ? (biz as { slug: string | null }).slug
+      : null;
+
+  const inviteId = invite.id;
+  if (typeof inviteId !== "string" || !inviteId) {
+    return <ErrorState message="Invalid invite link" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <WriteReviewForm
+        inviteId={inviteId}
+        inviteToken={token}
+        initialBusinessId={businessId}
+        initialBusinessSlug={businessSlug}
+        initialBusinessName={businessName}
+        businessSlug={businessSlug ?? ""}
+      />
+    </div>
+  );
+}

@@ -22,3 +22,19 @@ export function supabaseBrowser(): SupabaseClient {
   client = createBrowserClient(supabaseUrl, supabaseAnonKey);
   return client;
 }
+
+/**
+ * Same singleton instance as `supabaseBrowser()` — use `import { supabase } from "@/lib/supabaseBrowser"`.
+ * Delegates every property access to the shared browser client (anon key + persisted session / cookies).
+ * Client components only.
+ */
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const c = supabaseBrowser();
+    const value = Reflect.get(c as object, prop, receiver);
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(c);
+    }
+    return value;
+  },
+});

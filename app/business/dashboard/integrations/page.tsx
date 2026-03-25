@@ -7,13 +7,14 @@ import {
   normalizePlanId,
   type PlanId,
 } from "@/lib/integrationsCatalog";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import { useBusinessContext } from "../_context/BusinessContext";
 
 export default function IntegrationsDashboardPage() {
   const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
-  const plan: PlanId = normalizePlanId(selectedBusiness?.plan ?? null);
+  const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
   const [connectedSlugs, setConnectedSlugs] = useState<string[]>([]);
 
   useEffect(() => {

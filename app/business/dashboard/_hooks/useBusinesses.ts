@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import type { DashboardBusiness } from "../_context/BusinessContext";
 
 function cleanDomain(url: string) {
@@ -39,13 +40,33 @@ export function useBusinesses(userId: string | null) {
         const supabase = supabaseBrowser();
         const { data: owned, error: ownedErr } = await supabase
           .from("businesses")
-          .select("id, name, slug, website, plan")
+          .select("id, name, slug, website")
           .eq("owner_id", userId)
           .order("name", { ascending: true });
 
         if (!ownedErr && owned && owned.length > 0) {
+          const ids = owned.map((b) => b.id);
+          const { data: subsRows } = await supabase
+            .from("subscriptions")
+            .select("business_id, plan_code")
+            .in("business_id", ids)
+            .eq("status", "active");
+
+          const planByBiz = new Map<string, string>();
+          for (const row of subsRows ?? []) {
+            const bid = row.business_id as string | undefined;
+            if (bid && !planByBiz.has(bid)) {
+              planByBiz.set(bid, String(row.plan_code ?? ""));
+            }
+          }
+
+          const merged: DashboardBusiness[] = owned.map((b) => ({
+            ...b,
+            plan: normalizePlanCodeToKey(planByBiz.get(b.id) ?? null),
+          }));
+
           if (mounted) {
-            setData(owned);
+            setData(merged);
             setLoading(false);
           }
           return;
@@ -85,13 +106,34 @@ export function useBusinesses(userId: string | null) {
 
           const { data: joined, error: joinedErr } = await supabase
             .from("businesses")
-            .select("id, name, slug, website, plan")
+            .select("id, name, slug, website")
             .in("id", ids)
             .order("name", { ascending: true });
 
           if (joinedErr) throw joinedErr;
 
-          if (mounted) setData(joined || []);
+          const j = joined ?? [];
+          const jids = j.map((b) => b.id);
+          const { data: subsRows } = await supabase
+            .from("subscriptions")
+            .select("business_id, plan_code")
+            .in("business_id", jids)
+            .eq("status", "active");
+
+          const planByBiz = new Map<string, string>();
+          for (const row of subsRows ?? []) {
+            const bid = row.business_id as string | undefined;
+            if (bid && !planByBiz.has(bid)) {
+              planByBiz.set(bid, String(row.plan_code ?? ""));
+            }
+          }
+
+          const merged: DashboardBusiness[] = j.map((b) => ({
+            ...b,
+            plan: normalizePlanCodeToKey(planByBiz.get(b.id) ?? null),
+          }));
+
+          if (mounted) setData(merged);
         } catch (fallbackErr: any) {
           // If business_owners table doesn't exist, just return empty array
           if (fallbackErr?.code === "PGRST205" || fallbackErr?.message?.includes("business_owners")) {

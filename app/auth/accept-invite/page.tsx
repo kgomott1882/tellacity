@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
@@ -22,7 +22,6 @@ async function lookupInvite(
 // ── inner component (needs useSearchParams) ───────────────────────────────────
 
 function AcceptInviteInner() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
   const token        = searchParams.get("token") ?? "";
 
@@ -154,8 +153,10 @@ function AcceptInviteInner() {
         }
       }
 
-      // 3. Redirect to business dashboard
-      router.push("/business/dashboard");
+      // 3. Team invite completion → business app (not owner-based; invite flow only)
+      if (typeof window !== "undefined") {
+        window.location.href = `${window.location.origin}/business/dashboard`;
+      }
     } catch (err: any) {
       setFormError(err?.message ?? "Something went wrong. Please try again.");
       setSubmitting(false);

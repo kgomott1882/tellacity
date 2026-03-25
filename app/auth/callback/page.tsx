@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
+import { handleRedirect } from "@/lib/postLoginRedirect";
 
 /**
  * OAuth callback: Supabase redirects here with hash (#access_token=...).
@@ -41,30 +42,9 @@ function CallbackInner() {
         const user = data?.session?.user;
 
         if (!isMounted) return;
-        if (user) {
-          // Optional: detect business and override next to business dashboard
-          const { data: biz } = await supabaseBrowser()
-            .from("business_profiles")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (biz) {
-            router.replace("/business/dashboard");
-            return;
-          }
-          const emailNorm = user.email?.trim().toLowerCase();
-          if (emailNorm) {
-            const { data: byEmail } = await supabaseBrowser()
-              .from("business_profiles")
-              .select("id")
-              .eq("email", emailNorm)
-              .maybeSingle();
-            if (byEmail) {
-              router.replace("/business/dashboard");
-              return;
-            }
-          }
-          router.replace(safeNext);
+        if (user?.id) {
+          await handleRedirect(user.id);
+          return;
         } else {
           // No session (e.g. user closed OAuth) – send to login with return url
           const loginPath = safeNext.startsWith("/business")

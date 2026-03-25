@@ -75,9 +75,14 @@ export async function GET(
       return NextResponse.json({ error: rpcRes.error.message }, { status: 500 });
     }
 
+    const rawInsights = rpcRes.data;
+    const insightsNormalized = Array.isArray(rawInsights)
+      ? rawInsights[0] ?? null
+      : rawInsights;
+
     return NextResponse.json(
       {
-        insights: rpcRes.data,
+        insights: insightsNormalized,
         reviews90d: rawReviewsRes.data ?? [],
         recentReviews: revRes.data ?? [],
         totalInvites: totalInvRes.count ?? 0,

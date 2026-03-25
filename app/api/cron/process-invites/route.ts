@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * Protected by Authorization: Bearer <CRON_SECRET> (Vercel Cron standard).
  *
  * Pass 1 - Due invites:
- *   sent_at IS NULL AND send_at <= now() AND status IN ('draft','scheduled')
+ *   sent_at IS NULL AND send_at <= now() AND status IN ('pending','draft','scheduled')
  *   For each: render email, send via Resend, set sent_at + status='sent'.
  *
  * Pass 2 - Due reminders:
@@ -21,6 +21,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { renderInviteEmail } from "@/lib/inviteEmail";
+import { getActivePlanKeyForBusiness } from "@/lib/plans";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,6 @@ type InviteRow = {
 type BusinessRow = {
   id: string;
   name: string | null;
-  plan: string | null;
 };
 
 type InviteSettings = {
@@ -73,7 +73,7 @@ function getBaseUrl(): string {
 function buildInviteLink(token: string): string {
   const base = getBaseUrl();
   if (!base) return "#";
-  return `${base}/review/invite?token=${encodeURIComponent(token)}`;
+  return `${base}/review/invite?token=${token}`;
 }
 
 function esc(s: string | null | undefined): string {
@@ -133,30 +133,8 @@ async function isPremiumOrElite(
   supabase: ReturnType<typeof makeSupabase>,
   businessId: string
 ): Promise<boolean> {
-  const { data: biz } = await supabase
-    .from("businesses")
-    .select("owner_id, plan")
-    .eq("id", businessId)
-    .maybeSingle();
-  if (!biz) return false;
-
-  if (biz.owner_id) {
-    const { data: sub } = await supabase
-      .from("subscriptions")
-      .select("plan_code")
-      .eq("user_id", biz.owner_id)
-      .in("status", ["active", "trialing"])
-      .maybeSingle();
-    if (sub?.plan_code) {
-      const code = String(sub.plan_code).toLowerCase();
-      if (code.includes("premium") || code.includes("elite")) return true;
-    }
-  }
-  if (biz.plan) {
-    const p = String(biz.plan).toLowerCase();
-    if (p.includes("premium") || p.includes("elite")) return true;
-  }
-  return false;
+  const plan = await getActivePlanKeyForBusiness(businessId, supabase);
+  return plan === "premium" || plan === "elite";
 }
 
 async function hasReviewForInvite(
@@ -216,7 +194,7 @@ export async function GET(request: Request) {
     .select("id, business_id, recipient_email, token, status, send_at, sent_at, reminder_at, reminder_sent_at")
     .is("sent_at", null)
     .lte("send_at", nowIso)
-    .in("status", ["draft", "scheduled"])
+    .in("status", ["pending", "draft", "scheduled"])
     .limit(100);
 
   if (fetchErr) {
@@ -229,7 +207,7 @@ export async function GET(request: Request) {
     try {
       const { data: biz } = await supabase
         .from("businesses")
-        .select("id, name, plan")
+        .select("id, name")
         .eq("id", invite.business_id)
         .maybeSingle();
 
@@ -329,7 +307,7 @@ export async function GET(request: Request) {
 
       const { data: biz } = await supabase
         .from("businesses")
-        .select("id, name, plan")
+        .select("id, name")
         .eq("id", invite.business_id)
         .maybeSingle();
 

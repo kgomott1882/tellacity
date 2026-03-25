@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useBusinessContext } from "../_context/BusinessContext";
-import { dashboardApiGet, getOptionalAccessToken } from "@/lib/dashboardApiFetch";
+import { getOptionalAccessToken } from "@/lib/dashboardApiFetch";
+import { supabase } from "@/lib/supabaseBrowser";
 import PageLoadingOverlay from "../_components/PageLoadingOverlay";
 import RatingStars from "@/components/RatingStars";
 import { MessageCircle, Share2, Flag, Link2 } from "lucide-react";
@@ -16,12 +17,8 @@ type ReviewRow = {
   body: string | null;
   created_at: string;
   reference_number: string | null;
-};
-
-type ReplyRow = {
-  id: string;
-  body: string;
-  created_at: string;
+  owner_response: string | null;
+  owner_response_at: string | null;
 };
 
 function formatDate(iso: string) {
@@ -39,15 +36,13 @@ function formatDate(iso: string) {
 export default function ManageReviewsPage() {
   const { selectedBusiness, navRefreshKey } = useBusinessContext() as any;
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
-  const [repliesByReviewId, setRepliesByReviewId] = useState<Record<string, ReplyRow[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [activeReplyReviewId, setActiveReplyReviewId] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
-  const [confirmDeleteReplyId, setConfirmDeleteReplyId] = useState<string | null>(null);
   const [confirmDeleteReviewId, setConfirmDeleteReviewId] = useState<string | null>(null);
   const [shareReviewId, setShareReviewId] = useState<string | null>(null);
   const [flagReviewId, setFlagReviewId] = useState<string | null>(null);
@@ -58,32 +53,15 @@ export default function ManageReviewsPage() {
   const [flaggedReviews, setFlaggedReviews] = useState<Record<string, string>>({});
   const [alreadyFlaggedPopup, setAlreadyFlaggedPopup] = useState(false);
   const [alreadyFlaggedMessage, setAlreadyFlaggedMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"inbox" | "notifications">("inbox");
   const [inboxLoading, setInboxLoading] = useState(false);
 
   const businessId = selectedBusiness?.id ?? null;
-
-  function groupReplies(
-    rows: { id: string; review_id: string; body: string; created_at: string }[]
-  ): Record<string, ReplyRow[]> {
-    return rows.reduce<Record<string, ReplyRow[]>>((acc, row) => {
-      const rid = row.review_id;
-      if (!acc[rid]) acc[rid] = [];
-      acc[rid].push({
-        id: row.id,
-        body: row.body ?? "",
-        created_at: row.created_at,
-      });
-      return acc;
-    }, {});
-  }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!businessId) {
         setReviews([]);
-        setRepliesByReviewId({});
         setFlaggedReviews({});
         setInboxLoading(false);
         return;
@@ -91,20 +69,69 @@ export default function ManageReviewsPage() {
       setInboxLoading(true);
       setError(null);
       try {
-        const json = await dashboardApiGet<{
-          reviews: ReviewRow[];
-          replies: { id: string; review_id: string; body: string; created_at: string }[];
-          flaggedReviews: Record<string, string>;
-        }>(`/api/business/${encodeURIComponent(businessId)}/manage-reviews-data`);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+          if (!cancelled) {
+            setError("Could not load reviews.");
+            setReviews([]);
+            setFlaggedReviews({});
+          }
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("reviews")
+          .select(
+            `
+            id,
+            rating,
+            title,
+            body,
+            created_at,
+            guest_name,
+            reference_number,
+            owner_response,
+            owner_response_at
+          `
+          )
+          .eq("business_id", businessId)
+          .eq("status", "published")
+          .eq("visibility", "visible")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          if (!cancelled) {
+            setError("Could not load reviews.");
+            setReviews([]);
+            setFlaggedReviews({});
+          }
+          return;
+        }
+
+        const list = (data ?? []) as ReviewRow[];
         if (cancelled) return;
-        setReviews(json.reviews ?? []);
-        setRepliesByReviewId(groupReplies(json.replies ?? []));
-        setFlaggedReviews(json.flaggedReviews ?? {});
+        setReviews(list);
+
+        const { data: flaggedData, error: flagErr } = await supabase
+          .from("review_flags")
+          .select("review_id, status")
+          .eq("user_id", session.user.id);
+
+        if (!cancelled) {
+          const nextFlagged: Record<string, string> = {};
+          if (!flagErr && flaggedData) {
+            for (const f of flaggedData) {
+              nextFlagged[f.review_id] = f.status;
+            }
+          }
+          setFlaggedReviews(nextFlagged);
+        }
       } catch {
         if (!cancelled) {
           setError("Could not load reviews.");
           setReviews([]);
-          setRepliesByReviewId({});
           setFlaggedReviews({});
         }
       } finally {
@@ -159,18 +186,17 @@ export default function ManageReviewsPage() {
         throw new Error(result.error || "Failed to post reply.");
       }
 
-      const reply = result.reply as { id: string; body: string; createdAt?: string; created_at?: string };
-      setRepliesByReviewId((prev) => ({
-        ...prev,
-        [reviewId]: [
-          ...(prev[reviewId] || []),
-          {
-            id: reply.id,
-            body: reply.body,
-            created_at: reply.createdAt ?? reply.created_at ?? new Date().toISOString(),
-          },
-        ],
-      }));
+      const rv = result.review as {
+        owner_response: string | null;
+        owner_response_at: string | null;
+      };
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === reviewId
+            ? { ...r, owner_response: rv.owner_response, owner_response_at: rv.owner_response_at }
+            : r
+        )
+      );
 
       setReplyDrafts((prev) => ({
         ...prev,
@@ -193,54 +219,59 @@ export default function ManageReviewsPage() {
     setReplyError(null);
   };
 
-  const handleSaveEdit = async (reviewId: string, replyId: string) => {
+  const handleSaveEdit = async (reviewId: string) => {
     const token = await getOptionalAccessToken();
 
-    const res = await fetch(
-      `/api/business/reviews/${reviewId}/reply`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ replyId, body: editDraft }),
-      }
-    );
+    const res = await fetch(`/api/business/reviews/${reviewId}/reply`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ body: editDraft }),
+    });
 
     if (res.ok) {
-      setRepliesByReviewId((prev) => ({
-        ...prev,
-        [reviewId]: prev[reviewId].map((r) =>
-          r.id === replyId ? { ...r, body: editDraft } : r
-        ),
-      }));
-      setEditingReplyId(null);
+      const json = (await res.json()) as {
+        review?: { owner_response: string | null; owner_response_at: string | null };
+      };
+      if (json.review) {
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.id === reviewId
+              ? {
+                  ...r,
+                  owner_response: json.review!.owner_response,
+                  owner_response_at: json.review!.owner_response_at,
+                }
+              : r
+          )
+        );
+      }
+      setEditingReviewId(null);
     }
   };
 
-  const handleDeleteReply = async (reviewId: string, replyId: string) => {
+  const handleDeleteReply = async (reviewId: string) => {
     const token = await getOptionalAccessToken();
 
-    const res = await fetch(
-      `/api/business/reviews/${reviewId}/reply`,
-      {
-        method: "DELETE",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ replyId }),
-      }
-    );
+    const res = await fetch(`/api/business/reviews/${reviewId}/reply`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
 
     if (res.ok) {
-      setRepliesByReviewId((prev) => ({
-        ...prev,
-        [reviewId]: prev[reviewId].filter((r) => r.id !== replyId),
-      }));
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === reviewId
+            ? { ...r, owner_response: null, owner_response_at: null }
+            : r
+        )
+      );
     }
   };
 
@@ -250,39 +281,10 @@ export default function ManageReviewsPage() {
       <h1 className="text-2xl font-semibold text-[#0E0E0E]">Manage reviews</h1>
       <p className="mt-2 text-sm text-gray-500">Monitor, moderate, and manage customer feedback.</p>
 
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-1" aria-label="Manage reviews tabs">
-          <button
-            type="button"
-            onClick={() => setActiveTab("inbox")}
-            className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
-              activeTab === "inbox"
-                ? "bg-[#124541] text-white"
-                : "text-gray-500 hover:bg-teal-50 hover:text-gray-700"
-            }`}
-          >
-            Review Inbox
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("notifications")}
-            className={`px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
-              activeTab === "notifications"
-                ? "bg-[#124541] text-white"
-                : "text-gray-500 hover:bg-teal-50 hover:text-gray-700"
-            }`}
-          >
-            General Notifications
-          </button>
-        </nav>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-[#0E0E0E]">Your review inbox</h2>
+        <p className="mt-1 text-sm text-gray-500">New reviews and replies will appear here.</p>
       </div>
-
-      {activeTab === "inbox" && (
-        <>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-[#0E0E0E]">Your review inbox</h2>
-            <p className="mt-1 text-sm text-gray-500">New reviews and replies will appear here.</p>
-          </div>
 
       {error && (
         <p className="mt-4 text-sm text-red-600">{error}</p>
@@ -339,79 +341,76 @@ export default function ManageReviewsPage() {
                 </p>
               )}
 
-              {(repliesByReviewId[review.id]?.length ?? 0) > 0 && (
+              {review.owner_response && (
                 <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
                   <p className="text-xs font-medium text-[#124541] mb-2">Your reply</p>
-                  {repliesByReviewId[review.id].map((reply) => (
-                    <div key={reply.id} className="text-sm text-gray-700">
-                      {editingReplyId === reply.id ? (
-                        <>
-                          <textarea
-                            value={editDraft}
-                            onChange={(e) => setEditDraft(e.target.value)}
-                            className="w-full border rounded-md p-3"
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(review.id, reply.id)}
-                              className="px-4 py-2 bg-[#124541] text-white rounded-md"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingReplyId(null)}
-                              className="px-4 py-2 bg-gray-200 rounded-md"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="mt-2 text-[#124541]">{reply.body}</p>
-                          <div className="flex gap-4 mt-2 items-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingReplyId(reply.id);
-                                setEditDraft(reply.body);
-                              }}
-                              className="text-[#124541] hover:text-[#0b322f] transition-colors"
-                              title="Edit reply"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M11 5h2M12 3v2m7 7l-9 9H5v-5l9-9 5 5z" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setConfirmDeleteReplyId(reply.id);
-                                setConfirmDeleteReviewId(review.id);
-                              }}
-                              className="text-[#124541] hover:text-[#0b322f] transition-colors"
-                              title="Delete reply"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M6 7h12M9 7V4h6v3m-7 4v6m4-6v6m5 5H7a2 2 0 01-2-2V7h14v13a2 2 0 01-2 2z" />
-                              </svg>
-                            </button>
-                          </div>
-                        </>
+                  {editingReviewId === review.id ? (
+                    <>
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        className="w-full border rounded-md p-3 text-sm"
+                        rows={4}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(review.id)}
+                          className="px-4 py-2 bg-[#124541] text-white rounded-md text-sm"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingReviewId(null)}
+                          className="px-4 py-2 bg-gray-200 rounded-md text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-0 text-sm text-[#124541] whitespace-pre-wrap">{review.owner_response}</p>
+                      <div className="flex gap-4 mt-2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingReviewId(review.id);
+                            setEditDraft(review.owner_response ?? "");
+                          }}
+                          className="text-[#124541] hover:text-[#0b322f] transition-colors"
+                          title="Edit reply"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M11 5h2M12 3v2m7 7l-9 9H5v-5l9-9 5 5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteReviewId(review.id)}
+                          className="text-[#124541] hover:text-[#0b322f] transition-colors"
+                          title="Delete reply"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M6 7h12M9 7V4h6v3m-7 4v6m4-6v6m5 5H7a2 2 0 01-2-2V7h14v13a2 2 0 01-2 2z" />
+                          </svg>
+                        </button>
+                      </div>
+                      {review.owner_response_at && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          {formatDate(review.owner_response_at)}
+                        </p>
                       )}
-                    </div>
-                  ))}
-                  <p className="mt-2 text-xs text-gray-500">
-                    {formatDate(repliesByReviewId[review.id][repliesByReviewId[review.id].length - 1].created_at)}
-                  </p>
+                    </>
+                  )}
                 </div>
               )}
 
               <div className="mt-4 relative z-10 flex flex-wrap items-center gap-3">
+                {!review.owner_response && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -425,6 +424,7 @@ export default function ManageReviewsPage() {
                   <MessageCircle size={14} />
                   Reply
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShareReviewId(review.id)}
@@ -472,7 +472,7 @@ export default function ManageReviewsPage() {
                 </button>
               </div>
 
-              {activeReplyReviewId === review.id && (
+              {activeReplyReviewId === review.id && !review.owner_response && (
                 <div className="relative z-20 mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <textarea
                     value={replyDrafts[review.id] || ""}
@@ -521,15 +521,6 @@ export default function ManageReviewsPage() {
             </li>
           ))}
         </ul>
-      )}
-        </>
-      )}
-
-      {activeTab === "notifications" && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-[#0E0E0E]">General notifications</h2>
-          <p className="mt-1 text-sm text-gray-500">System alerts, moderation updates and activity logs.</p>
-        </div>
       )}
 
       {shareReviewId && selectedBusiness?.slug && (
@@ -719,7 +710,7 @@ export default function ManageReviewsPage() {
         </div>
       )}
 
-      {confirmDeleteReplyId && (
+      {confirmDeleteReviewId && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-[340px]">
             <h3 className="text-sm font-semibold mb-3">
@@ -733,10 +724,7 @@ export default function ManageReviewsPage() {
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setConfirmDeleteReplyId(null);
-                  setConfirmDeleteReviewId(null);
-                }}
+                onClick={() => setConfirmDeleteReviewId(null)}
                 className="px-3 py-1.5 text-sm bg-gray-100 rounded-md"
               >
                 Cancel
@@ -745,11 +733,7 @@ export default function ManageReviewsPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  await handleDeleteReply(
-                    confirmDeleteReviewId!,
-                    confirmDeleteReplyId!
-                  );
-                  setConfirmDeleteReplyId(null);
+                  await handleDeleteReply(confirmDeleteReviewId!);
                   setConfirmDeleteReviewId(null);
                 }}
                 className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"

@@ -1,2 +1,2 @@
-/** Single browser client getter to avoid "Multiple GoTrueClient instances". */
-export { supabaseBrowser as supabase } from "@/lib/supabaseBrowser";
+/** Single browser client — anon key + session; no service role. */
+export { supabaseBrowser, supabase } from "@/lib/supabaseBrowser";

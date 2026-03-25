@@ -1,19 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
-import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
+import { handleRedirect } from "@/lib/postLoginRedirect";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = useMemo(
-    () => sanitizeAuthNext(searchParams.get("next"), "/dashboard"),
-    [searchParams]
-  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,20 +29,10 @@ export default function LoginPage() {
         setError(signInError.message);
         return;
       }
-      // Redirect by account type: business users → business dashboard, consumers → consumer dashboard
-      if (signInData?.user) {
-        const supabase = supabaseBrowser();
-        const { data: businessProfile } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("id", signInData.user.id)
-          .maybeSingle();
-        if (businessProfile) {
-          router.push("/business/dashboard");
-          return;
-        }
+      if (signInData?.user?.id) {
+        await handleRedirect(signInData.user.id);
+        return;
       }
-      router.push(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -90,7 +73,7 @@ export default function LoginPage() {
                   const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
                     provider: "google",
                     options: {
-                      redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+                      redirectTo: `${baseUrl}/auth/callback`,
                     },
                   });
                   if (oauthError) {

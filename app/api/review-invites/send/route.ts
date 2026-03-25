@@ -6,15 +6,7 @@ import { Resend } from "resend";
 import crypto from "crypto";
 import { getServerEnv } from "@/lib/serverEnv";
 import { renderInviteEmail } from "@/lib/inviteEmail";
-
-type PlanKey = "free" | "grow" | "premium" | "elite";
-
-const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
-  free: 25,
-  grow: 100,
-  premium: 500,
-  elite: 3000,
-};
+import { getActivePlanKeyForBusiness, PLAN_INVITE_LIMITS } from "@/lib/plans";
 
 export async function POST(req: Request) {
   try {
@@ -59,18 +51,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Plan + monthly limit check ───────────────────────────────────────────
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("plan_code")
-      .eq("business_id", businessId)
-      .eq("status", "active")
-      .maybeSingle();
-
-    const effectivePlan: PlanKey =
-      (subscription?.plan_code as PlanKey) ?? "free";
-
-    const limit = PLAN_INVITE_LIMITS[effectivePlan] ?? 25;
+    // ── Plan + monthly limit check (subscriptions only; default free) ─────────
+    const effectivePlan = await getActivePlanKeyForBusiness(businessId, supabase);
+    const limit = PLAN_INVITE_LIMITS[effectivePlan];
 
     const startOfMonth = new Date();
     startOfMonth.setUTCDate(1);
@@ -124,18 +107,19 @@ export async function POST(req: Request) {
 
     const sendImmediately = sendDelayDays === 0;
 
-    // ── Insert invite row ────────────────────────────────────────────────────
+    // ── Insert invite row (single raw token; no hashing or mutation) ─────────
     const token = crypto.randomBytes(32).toString("hex");
+    const createdAt = new Date().toISOString();
 
     const { data: insertedRow, error: insertError } = await supabase
       .from("review_invites")
       .insert({
-        business_id: businessId,
-        channel: "email",
-        recipient_email: recipientEmail,
         token,
-        status: sendImmediately ? "draft" : "scheduled",
-        created_at: now.toISOString(),
+        business_id: businessId,
+        recipient_email: recipientEmail,
+        status: "pending",
+        created_at: createdAt,
+        channel: "email",
         send_at: sendAt.toISOString(),
         reminder_at: reminderAt ? reminderAt.toISOString() : null,
       })
@@ -175,12 +159,10 @@ export async function POST(req: Request) {
       });
     }
 
-    // ── Send immediately ─────────────────────────────────────────────────────
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      (typeof req.url === "string" ? new URL(req.url).origin : "");
+    // ── Send immediately (same `token` as stored; no encodeURIComponent) ──────
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const inviteLink = baseUrl
-      ? `${baseUrl.replace(/\/$/, "")}/review/invite?token=${encodeURIComponent(token)}`
+      ? `${baseUrl}/review/invite?token=${token}`
       : "#";
 
     // Load email template (subject/body overrides from review_invite_email_templates)

@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { getBaseUrl } from "@/lib/getBaseUrl";
+import { handleRedirect } from "@/lib/postLoginRedirect";
 
 export default function SignupPage() {
-  const router = useRouter();
   const [step, setStep] = useState<"form" | "otp">("form");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -114,24 +113,25 @@ export default function SignupPage() {
           user = data.user;
         } catch (e) {
           if (isAbortError(e)) {
-            router.push("/dashboard");
+            const { data: retry } = await supabaseBrowser().auth.getUser();
+            if (retry.user?.id) {
+              await handleRedirect(retry.user.id);
+              return;
+            }
+            if (typeof window !== "undefined") {
+              window.location.href = `${window.location.origin}/dashboard`;
+            }
             return;
           }
           throw e;
         }
-        if (user) {
-          const supabase = supabaseBrowser();
-          const { data: businessProfile } = await supabase
-            .from("business_profiles")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (businessProfile) {
-            router.push("/business/dashboard");
-            return;
-          }
+        if (user?.id) {
+          await handleRedirect(user.id);
+          return;
         }
-        router.push("/dashboard");
+        if (typeof window !== "undefined") {
+          window.location.href = `${window.location.origin}/dashboard`;
+        }
         return;
       }
       setError("Unable to create session. Please try again.");
@@ -193,7 +193,7 @@ export default function SignupPage() {
                         await supabaseBrowser().auth.signInWithOAuth({
                           provider: "google",
                           options: {
-                            redirectTo: `${baseUrl}/auth/callback?next=/dashboard`,
+                            redirectTo: `${baseUrl}/auth/callback`,
                           },
                         });
                       if (oauthError) {

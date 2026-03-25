@@ -11,14 +11,13 @@ import {
   type MonthlyInvite,
 } from "@/hooks/useDashboardPerformanceData";
 import { RecentReviewInvitesCard } from "../_components/RecentReviewInvitesCard";
-import SeoIndexingMonitor from "@/components/dashboard/SeoIndexingMonitor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Derives reputation label and color from the backend trust_score (data.trust_score).
+ * Derives reputation label and color from client-computed trust score (data.trust_score).
  *
  *  < 30  → Needs Attention   (red)
  * 30–54  → Early Stage       (blue)
@@ -57,7 +56,7 @@ function reputationHelper(totalReviews: number, avgRating: number, vel: number):
 }
 
 /**
- * Executive summary insight line beneath KPI cards, keyed to backend trust score.
+ * Executive summary insight line beneath KPI cards, keyed to trust score.
  */
 function executiveSummaryLine(score: number): string {
   if (score >= 90) return "Elite reputation achieved. Keep engaging customers to sustain this level.";
@@ -88,21 +87,6 @@ function MetricCard({
       {badge && <div className="absolute right-4 top-4">{badge}</div>}
       <p className="mt-3 text-4xl font-semibold leading-none text-neutral-100">{value}</p>
       <p className={`mt-2 text-xs ${subMuted ? "text-neutral-600 italic" : "text-neutral-500"}`}>{sub}</p>
-    </div>
-  );
-}
-
-function SentimentBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const pct = total > 0 ? (count / total) * 100 : 0;
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-neutral-400">{label}</span>
-        <span className="text-xs font-semibold text-neutral-100">{pct.toFixed(0)}%</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-neutral-700">
-        <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct}%` }} />
-      </div>
     </div>
   );
 }
@@ -582,8 +566,9 @@ function ReviewCard({ review }: { review: RecentReview }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PerformancePage() {
-  const { selectedBusiness } = useBusinessContext();
-  const businessId = selectedBusiness?.id ?? null;
+  const { selectedBusiness, businesses } = useBusinessContext();
+  /** Prefer selected business; fall back to first loaded business so child cards always get an id once businesses exist. */
+  const businessId = selectedBusiness?.id ?? businesses[0]?.id ?? null;
   const {
     data,
     error,
@@ -613,13 +598,13 @@ export default function PerformancePage() {
   const dist         = (d?.rating_distribution && typeof d.rating_distribution === "object"
     ? d.rating_distribution
     : {}) as Record<string, unknown>;
-  const rawSent      = d?.sentiment && typeof d.sentiment === "object" ? d.sentiment as Record<string, unknown> : {};
-  const snt          = {
-    positive: numFrom(rawSent.positive),
-    neutral:  numFrom(rawSent.neutral),
-    negative: numFrom(rawSent.negative),
-  };
-  const sntTotal     = snt.positive + snt.neutral + snt.negative;
+  const sentimentPct = d?.sentiment && typeof d.sentiment === "object"
+    ? {
+        positive: numFrom((d.sentiment as Record<string, unknown>).positive),
+        neutral: numFrom((d.sentiment as Record<string, unknown>).neutral),
+        negative: numFrom((d.sentiment as Record<string, unknown>).negative),
+      }
+    : { positive: 0, neutral: 0, negative: 0 };
 
   // Use real invite counts fetched directly from review_invites table
   const totalInvites = realTotalInvites;
@@ -627,7 +612,7 @@ export default function PerformancePage() {
   // Derive conversion from real counts
   const conv = totalInvites > 0 ? (totalReviews / totalInvites) * 100 : 0;
 
-  // Trust score is canonical from the backend RPC (get_business_review_insights)
+  // Trust score: computed in useDashboardPerformanceData (rating + volume + momentum)
   const trustScore = numFrom(d?.trust_score);
 
   // Reputation label + color from frontend trust score
@@ -644,7 +629,12 @@ export default function PerformancePage() {
   const trustSub   = trustScore > 0 ? "Reputation strength index" : "Insufficient data to calculate strength.";
 
   // Review Velocity subtext
-  const velSub = vel === 0 ? "No recent review growth" : "% growth in last 90 days";
+  const velSub =
+    vel > 0
+      ? "Growing review momentum"
+      : vel === 0
+        ? "Stable review flow"
+        : "Declining review activity";
 
   // Invite Conversion display
   const convValue   = totalInvites > 0 ? `${conv.toFixed(1)}%` : "0%";
@@ -784,16 +774,16 @@ export default function PerformancePage() {
               </div>
             </div>
 
-            {/* Review Sentiment */}
+            {/* Review Sentiment — percentages from rating distribution (hook) */}
             <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-5">
               <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">Review Sentiment</h3>
-              {sntTotal === 0 ? (
-                <p className="py-6 text-center text-xs text-neutral-500">Awaiting review data.</p>
+              {totalReviews === 0 ? (
+                <p className="py-6 text-center text-xs text-neutral-500">No review data yet</p>
               ) : (
-                <div className="space-y-4">
-                  <SentimentBar label="Positive (4–5 stars)" count={snt.positive} total={sntTotal} color="bg-emerald-500" />
-                  <SentimentBar label="Neutral (3 stars)"    count={snt.neutral}  total={sntTotal} color="bg-amber-400"  />
-                  <SentimentBar label="Negative (1–2 stars)" count={snt.negative} total={sntTotal} color="bg-red-500"    />
+                <div className="space-y-2 text-sm text-neutral-200">
+                  <p>😊 Positive: {sentimentPct.positive}%</p>
+                  <p>😐 Neutral: {sentimentPct.neutral}%</p>
+                  <p>😡 Negative: {sentimentPct.negative}%</p>
                 </div>
               )}
             </div>
@@ -841,9 +831,6 @@ export default function PerformancePage() {
 
           {/* Recent invite rows */}
           <RecentReviewInvitesCard businessId={businessId} />
-
-          {/* SEO Indexing Monitor (internal metrics) */}
-          <SeoIndexingMonitor />
 
           {/* ════════════════════════════════════════════
               4) REVIEW MOMENTUM

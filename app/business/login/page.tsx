@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
+import { handleRedirect } from "@/lib/postLoginRedirect";
 
 export default function BusinessLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,24 +31,24 @@ export default function BusinessLoginPage() {
         return;
       }
 
-      // Business is determined by user id or by email (profile may exist under a different auth user id).
+      const userId = signInData.user.id;
+
+      // Business profile may exist under a different auth user id — migrate to this session.
       const supabase = supabaseBrowser();
       let { data: existingProfile } = await supabase
         .from("business_profiles")
         .select("id")
-        .eq("id", signInData.user.id)
+        .eq("id", userId)
         .maybeSingle();
 
       if (!existingProfile) {
-        // Check by email: this email may have a business profile under a different user id (e.g. from another signup).
         const { data: profileByEmail } = await supabase
           .from("business_profiles")
           .select("id, email")
           .eq("email", email.trim().toLowerCase())
           .maybeSingle();
 
-        if (profileByEmail && profileByEmail.id !== signInData.user.id) {
-          // Migrate: assign this business profile and its businesses to the currently signed-in user.
+        if (profileByEmail && profileByEmail.id !== userId) {
           const oldUserId = profileByEmail.id;
           const tempEmail = `${email.trim().toLowerCase()}.old.${Date.now()}`;
           await supabase
@@ -60,30 +59,21 @@ export default function BusinessLoginPage() {
           await supabase
             .from("business_profiles")
             .upsert({
-              id: signInData.user.id,
+              id: userId,
               email: email.trim().toLowerCase(),
               business_name: email.trim().split("@")[0] || "Business",
             }, { onConflict: "id" });
 
-          // Reassign any businesses owned by the old user to the current user
           await supabase
             .from("businesses")
-            .update({ owner_id: signInData.user.id })
+            .update({ owner_id: userId })
             .eq("owner_id", oldUserId);
 
-          existingProfile = { id: signInData.user.id };
+          existingProfile = { id: userId };
         }
       }
 
-      if (!existingProfile) {
-        // If there is no business profile for this user, treat this as a
-        // consumer login attempt: sign out and send them to the consumer login.
-        await supabase.auth.signOut();
-        router.push("/auth/login?from=business");
-        return;
-      }
-
-      router.push("/business/dashboard");
+      await handleRedirect(userId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -125,7 +115,7 @@ export default function BusinessLoginPage() {
                   const { error: oauthError } = await supabase.auth.signInWithOAuth({
                     provider: "google",
                     options: {
-                      redirectTo: `${baseUrl}/auth/callback?next=/business/dashboard`,
+                      redirectTo: `${baseUrl}/auth/callback`,
                     },
                   });
                   if (oauthError) {

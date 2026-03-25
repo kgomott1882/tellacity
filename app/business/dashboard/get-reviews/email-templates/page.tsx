@@ -6,7 +6,7 @@ import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import type { PlanKey } from "@/lib/plans";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 
@@ -205,7 +205,7 @@ export default function EmailTemplatesPage() {
   const widgetRow = templates.find((t) => t.template_key === "widget");
   const standardSubject = standardRow?.subject ?? DEFAULT_STANDARD_SUBJECT;
   const standardBody = standardRow?.body ?? DEFAULT_STANDARD_BODY;
-  const normalizedPlan: PlanKey = selectedBusiness.plan as PlanKey;
+  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
   const canEditCustom = isPlanAtLeastGrow(normalizedPlan);
   const canEditWidget = normalizedPlan === "premium" || normalizedPlan === "elite";
 
@@ -411,7 +411,7 @@ export default function EmailTemplatesPage() {
             </p>
             <button
               type="button"
-              onClick={() => router.push("/pricing")}
+              onClick={() => router.push("/business/dashboard/billing")}
               className="mt-4 rounded-lg bg-[#124541] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0f3a35]"
             >
               Upgrade from Grow Plan
@@ -459,7 +459,7 @@ export default function EmailTemplatesPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => router.push("/pricing")}
+                  onClick={() => router.push("/business/dashboard/billing")}
                   className="mt-3 rounded-lg bg-[#124541] px-4 py-2 text-xs font-medium text-white hover:bg-[#0f3a35]"
                 >
                   Upgrade to Premium
@@ -500,7 +500,7 @@ export default function EmailTemplatesPage() {
             </p>
             <button
               type="button"
-              onClick={() => router.push("/pricing")}
+              onClick={() => router.push("/business/dashboard/billing")}
               className="mt-4 rounded-lg bg-[#124541] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0f3a35]"
             >
               Upgrade to Premium
@@ -664,7 +664,7 @@ export default function EmailTemplatesPage() {
                       <p className="text-xs text-gray-600">Upgrade to Elite to use branded email layout</p>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); router.push("/pricing"); }}
+                        onClick={(e) => { e.stopPropagation(); router.push("/business/dashboard/billing"); }}
                         className="mt-2 rounded-lg bg-black px-4 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
                       >
                         Upgrade

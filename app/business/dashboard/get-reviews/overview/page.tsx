@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import type { PlanKey } from "@/lib/plans";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
@@ -142,7 +142,7 @@ export default function GetReviewsOverviewPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const normalizedPlan = (selectedBusiness?.plan ?? "free") as PlanKey;
+  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
   const remainingInvites = Math.max(monthlyLimit - monthlyUsage, 0);
   const isLimitReached = monthlyUsage >= monthlyLimit;
   const canSetUpInvites = !!businessId && !isLimitReached;
@@ -514,7 +514,10 @@ export default function GetReviewsOverviewPage() {
       </div>
 
       {/* Section B - Invites sent */}
-      <div className="mt-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div
+        id="invites-sent"
+        className="scroll-mt-24 mt-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+      >
         <h2 className="text-base font-semibold text-gray-900">
           Invites sent
         </h2>

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { supabase } from "@/lib/supabaseClient";
 import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
@@ -392,7 +391,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const sb = supabase();
+      const sb = supabaseBrowser();
       const { data } = await sb
         .from("categories")
         .select("name, slug, group_name, group_slug")
@@ -427,7 +426,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const sb = supabase();
+      const sb = supabaseBrowser();
       const { data, error, count } = await sb
         .from("reviews")
         .select("rating", { count: "exact" })
@@ -474,7 +473,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     if (!business?.categorySlug || !business?.countryCode) return;
 
     const fetchRelated = async () => {
-      const { data, error } = await supabase()
+      const { data, error } = await supabaseBrowser()
         .from("businesses")
         .select(
           "id, name, slug, logo_url, resolved_logo_url, website, website_display"
@@ -520,7 +519,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       (business.countryCode || "US").trim().toUpperCase() || "US";
 
     const run = async () => {
-      const { data, error } = await supabase().rpc(
+      const { data, error } = await supabaseBrowser().rpc(
         "get_top_businesses_for_category_global",
         {
           p_category_slug: cat,
@@ -589,7 +588,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         return;
       }
 
-      const sb = supabase();
+      const sb = supabaseBrowser();
       const { data, error } = await sb
         .from("review_replies")
         .select("id, review_id, body, created_at, author_role")
@@ -626,7 +625,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       offset = 0,
       append = false
     ) => {
-      const sb = supabase();
+      const sb = supabaseBrowser();
       const { data, error, count } = await sb
         .from("reviews")
         .select("id, guest_name, rating, title, body, created_at, status, like_count", {
@@ -1283,7 +1282,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         setIsLoadingMore(true);
                         const offset = reviewOffset;
 
-                        const sb = supabase();
+                        const sb = supabaseBrowser();
                         const { data, error, count } = await sb
                           .from("reviews")
                           .select(

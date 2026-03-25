@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import {
+  requireUserSession,
+  canAccessBusiness,
+} from "@/lib/supabase/businessDashboardServer";
 
 export async function POST(
   req: Request,
@@ -14,25 +17,12 @@ export async function POST(
       return NextResponse.json({ error: "Reason required." }, { status: 400 });
     }
 
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const auth = await requireUserSession(req);
+    if (!auth.ok) return auth.response;
 
-    const token = authHeader.replace("Bearer ", "");
+    const { db, userId } = auth;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: { user } } = await supabase.auth.getUser(token);
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { data: review } = await supabase
+    const { data: review } = await db
       .from("reviews")
       .select("id, body, business_id")
       .eq("id", reviewId)
@@ -42,13 +32,17 @@ export async function POST(
       return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
 
-    // Check if already flagged
-    const { data: existingFlag } = await supabase
+    const allowed = await canAccessBusiness(db, userId, review.business_id);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
+    const { data: existingFlag } = await db
       .from("review_flags")
       .select("id")
       .eq("review_id", reviewId)
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", userId)
+      .maybeSingle();
 
     if (existingFlag) {
       return NextResponse.json(
@@ -57,14 +51,16 @@ export async function POST(
       );
     }
 
-    // Insert flag record
-    await supabase
-      .from("review_flags")
-      .insert({
-        review_id: reviewId,
-        user_id: user.id,
-        reason: reason.trim(),
-      });
+    const { error: insertErr } = await db.from("review_flags").insert({
+      review_id: reviewId,
+      user_id: userId,
+      reason: reason.trim(),
+    });
+
+    if (insertErr) {
+      console.error("[flag] insert", insertErr);
+      return NextResponse.json({ error: insertErr.message }, { status: 500 });
+    }
 
     const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -78,11 +74,10 @@ export async function POST(
         <p><strong>Reason:</strong> ${reason}</p>
         <p><strong>Review Content:</strong></p>
         <blockquote>${review.body}</blockquote>
-      `
+      `,
     });
 
     return NextResponse.json({ success: true });
-
   } catch (err) {
     console.error("Flag error:", err);
     return NextResponse.json({ error: "Server error." }, { status: 500 });

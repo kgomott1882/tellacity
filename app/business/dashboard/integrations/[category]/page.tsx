@@ -9,6 +9,7 @@ import {
   type IntegrationCategoryId,
   type PlanId,
 } from "@/lib/integrationsCatalog";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import { useBusinessContext } from "../../_context/BusinessContext";
 
 export default function IntegrationsCategoryPage() {
@@ -17,7 +18,7 @@ export default function IntegrationsCategoryPage() {
   const { selectedBusiness } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
 
-  const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
+  const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
   const category = getCategoryById(rawCategory);
 
   // In a future phase this will be populated from Supabase connection records.

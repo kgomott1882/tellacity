@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { normalizeLogoUrl } from "@/lib/logo";
+import { getPostLoginPath } from "@/lib/postLoginRedirect";
 
 type ReviewItem = {
   id: string;
@@ -85,39 +86,18 @@ export default function ConsumerDashboard() {
         }
       }
       if (!isMounted) return;
-      if (!data?.user) {
+      if (!data?.user?.id) {
         router.push("/auth/login");
         return;
       }
-      
-      // If this email has a business profile (by id or by email), redirect to business dashboard only.
-      const supabase = supabaseBrowser();
-      const { data: businessProfileById } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("id", data.user.id)
-        .maybeSingle();
 
+      const destination = await getPostLoginPath(data.user.id);
       if (!isMounted) return;
-      if (businessProfileById) {
-        router.push("/business/dashboard");
+      if (destination !== "/dashboard") {
+        window.location.href = `${window.location.origin}${destination}`;
         return;
       }
 
-      const emailNorm = data.user.email?.trim().toLowerCase();
-      if (emailNorm) {
-        const { data: businessProfileByEmail } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("email", emailNorm)
-          .maybeSingle();
-        if (!isMounted) return;
-        if (businessProfileByEmail) {
-          router.push("/business/dashboard");
-          return;
-        }
-      }
-      
       setUserEmail(data.user.email ?? "");
       setDisplayName(
         (data.user.user_metadata?.display_name as string | undefined) ?? ""

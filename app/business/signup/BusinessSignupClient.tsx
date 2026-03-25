@@ -327,7 +327,7 @@ export default function BusinessSignupClient() {
       const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${baseUrl}/auth/callback?next=/business/dashboard`,
+          redirectTo: `${baseUrl}/auth/callback`,
         },
       });
       if (oauthError) {

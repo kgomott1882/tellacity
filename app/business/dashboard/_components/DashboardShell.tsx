@@ -14,17 +14,18 @@ import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 
 const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[] }> = {
   "manage-reviews": {
-    title: "MANAGE REVIEWS",
+    title: "REVIEWS",
     items: [
       { label: "Review Inbox", path: "/business/dashboard/manage-reviews" },
     ],
   },
   "get-reviews": {
-    title: "GET REVIEWS",
+    title: "INVITATIONS",
     items: [
       { label: "Overview",         path: "/business/dashboard/get-reviews/overview" },
       { label: "Send invitation",  path: "/business/dashboard/get-reviews/invitation-methods" },
@@ -81,8 +82,6 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
       { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
       { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
       { label: "Account",          path: "/business/dashboard/settings/account" },
-      { label: "Plans & billing", path: "/business/dashboard/settings/billing" },
-      { label: "Compare all plans", path: "/business/dashboard/pricing" },
     ],
   },
 };
@@ -207,19 +206,26 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       const supabase = supabaseBrowser();
       const { data } = await supabase
         .from("businesses")
-        .select("id, name, slug, website, plan")
+        .select("id, name, slug, website")
         .eq("owner_id", user.id)
         .eq("status", "active")
         .limit(1)
         .maybeSingle();
 
       if (data?.id) {
+        const { data: subRows } = await supabase
+          .from("subscriptions")
+          .select("plan_code")
+          .eq("business_id", data.id)
+          .eq("status", "active")
+          .limit(1);
+
         const autoBusiness = {
           id: data.id,
           name: data.name,
           slug: data.slug,
           website: data.website,
-          plan: data.plan,
+          plan: normalizePlanCodeToKey(subRows?.[0]?.plan_code ?? null),
         };
         setSelectedBusiness(autoBusiness);
         setBusinesses((prev: any[]) =>
@@ -256,8 +262,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       setActiveSection("share");
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations");
-    } else if (pathname.includes("/business/dashboard/pricing")) {
-      setActiveSection("settings");
+    } else if (pathname.includes("/business/dashboard/billing")) {
+      setActiveSection(null);
     } else if (pathname.includes("/settings")) {
       setActiveSection("settings");
     } else if (pathname.includes("/manage-reviews")) {
@@ -399,7 +405,27 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                 <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
                   {NAV_ITEMS.map((item) => {
                     const Icon = item.icon;
-                    const hasItems = item.items && item.items.length > 0;
+                    const hasItems = Boolean(item.items && item.items.length > 0);
+                    if (item.path) {
+                      const isActive =
+                        pathname === item.path ||
+                        pathname.startsWith(`${item.path}/`);
+                      return (
+                        <Link
+                          key={item.key}
+                          href={item.path}
+                          onClick={closeDrawer}
+                          className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left ${
+                            isActive
+                              ? "bg-[#124541] font-medium text-white"
+                              : "text-white/90 hover:bg-white/10"
+                          }`}
+                        >
+                          <Icon size={18} />
+                          <span className="flex-1">{item.label}</span>
+                        </Link>
+                      );
+                    }
                     return (
                       <button
                         key={item.key}
@@ -409,7 +435,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                       >
                         <Icon size={18} />
                         <span className="flex-1">{item.label}</span>
-                        {hasItems && <ChevronRight size={16} className="text-white/80" />}
+                        {hasItems ? <ChevronRight size={16} className="text-white/80" /> : null}
                       </button>
                     );
                   })}

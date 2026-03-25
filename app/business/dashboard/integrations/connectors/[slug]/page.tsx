@@ -9,6 +9,7 @@ import {
   normalizePlanId,
   type PlanId,
 } from "@/lib/integrationsCatalog";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import { useBusinessContext } from "../../../_context/BusinessContext";
 
 export default function IntegrationConnectorDetailPage() {
@@ -17,7 +18,7 @@ export default function IntegrationConnectorDetailPage() {
   const { selectedBusiness } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
 
-  const plan: PlanId = normalizePlanId(selectedBusiness?.plan);
+  const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
 
   const integration = getIntegrationBySlug(slug);
 
