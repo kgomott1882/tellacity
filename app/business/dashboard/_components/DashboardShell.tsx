@@ -356,7 +356,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-medium text-gray-700 truncate">Menu</span>
         </div>
         <main className="flex-1 relative">
-          <TopBar />
+          <TopBar sessionUserId={user?.id ?? null} sessionEmail={user?.email ?? null} />
           <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
             <div
               key={pathname}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Info, LogOut, Settings, CreditCard } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -8,20 +8,32 @@ import { isAbortError } from "@/lib/authErrors";
 
 const TOPBAR_USER_CACHE = "tellacity_dashboard_topbar_user";
 
-function readCachedUser(): { id: string; email: string | null; display_name: string | null } | null {
+type CachedUser = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  business_name: string | null;
+};
+
+function readCachedUser(): CachedUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(TOPBAR_USER_CACHE);
     if (!raw) return null;
-    const p = JSON.parse(raw) as { id?: string; email?: string | null; display_name?: string | null };
+    const p = JSON.parse(raw) as Partial<CachedUser>;
     if (!p?.id) return null;
-    return { id: p.id, email: p.email ?? null, display_name: p.display_name ?? null };
+    return {
+      id: p.id,
+      email: p.email ?? null,
+      display_name: p.display_name ?? null,
+      business_name: p.business_name ?? null,
+    };
   } catch {
     return null;
   }
 }
 
-function writeCachedUser(u: { id: string; email: string | null; display_name: string | null }) {
+function writeCachedUser(u: CachedUser) {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(TOPBAR_USER_CACHE, JSON.stringify(u));
@@ -30,30 +42,61 @@ function writeCachedUser(u: { id: string; email: string | null; display_name: st
   }
 }
 
-function initialsFromUser(u: { email: string | null; display_name: string | null }): string {
-  const name = u.display_name?.trim();
-  if (name) {
-    return name
-      .split(/\s+/)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  }
-  const email = u.email?.trim();
-  if (email) {
-    const local = email.split("@")[0];
+function pickDisplayName(row: {
+  display_name: string | null;
+  business_name: string | null;
+  email: string | null;
+}): string {
+  const a = row.display_name?.trim();
+  if (a) return a;
+  const b = row.business_name?.trim();
+  if (b) return b;
+  const e = row.email?.trim();
+  if (e) return e.split("@")[0] || "User";
+  return "User";
+}
+
+function initialsFromRow(row: {
+  display_name: string | null;
+  business_name: string | null;
+  email: string | null;
+}): string {
+  const primary =
+    row.display_name?.trim() ||
+    row.business_name?.trim() ||
+    row.email?.trim() ||
+    "";
+  if (!primary) return "U";
+  if (primary.includes("@")) {
+    const local = primary.split("@")[0];
     if (local.length >= 2) return local.slice(0, 2).toUpperCase();
-    return email[0]?.toUpperCase() || "U";
+    return primary[0]?.toUpperCase() || "U";
   }
-  return "U";
+  const words = primary.split(/\s+/).filter((w) => /^[A-Za-z]/.test(w));
+  if (words.length >= 2) {
+    return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase().slice(0, 2);
+  }
+  if (words.length === 1) {
+    const w = words[0];
+    return w.slice(0, Math.min(2, w.length)).toUpperCase();
+  }
+  return primary.slice(0, 2).toUpperCase();
 }
 
 const SIGN_OUT_TIMEOUT_MS = 10_000;
 
-export default function TopBar() {
+type TopBarProps = {
+  /** From `useBusinessAuth` — always set when the dashboard shell renders the bar. */
+  sessionUserId?: string | null;
+  sessionEmail?: string | null;
+};
+
+export default function TopBar({
+  sessionUserId,
+  sessionEmail,
+}: TopBarProps) {
   const router = useRouter();
-  const [user, setUser] = useState<{ id: string; email: string | null; display_name: string | null } | null>(null);
+  const [user, setUser] = useState<CachedUser | null>(null);
   const [userInitials, setUserInitials] = useState<string>("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -61,29 +104,84 @@ export default function TopBar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
+  const sessionEmailNorm = useMemo(
+    () => (typeof sessionEmail === "string" ? sessionEmail.trim() : "") || null,
+    [sessionEmail],
+  );
+
+  const displayName = useMemo(() => {
+    if (!user) {
+      if (sessionEmailNorm) return sessionEmailNorm.split("@")[0] || "User";
+      return "User";
+    }
+    return pickDisplayName(user);
+  }, [user, sessionEmailNorm]);
+
+  const emailLine = user?.email ?? sessionEmailNorm;
+
   useEffect(() => {
-    const applySessionUser = (sessionUser: {
-      id: string;
-      email?: string | null;
-      user_metadata?: Record<string, unknown>;
-    }) => {
-      const displayName = (sessionUser.user_metadata?.display_name as string | undefined) ?? null;
-      const row = {
-        id: sessionUser.id,
-        email: sessionUser.email ?? null,
-        display_name: displayName,
-      };
+    const applyRow = (row: CachedUser) => {
       setUser(row);
       writeCachedUser(row);
-      setUserInitials(initialsFromUser(row));
+      setUserInitials(initialsFromRow(row));
+    };
+
+    const mergeMetadataAndProfile = async (
+      sessionUser: {
+        id: string;
+        email?: string | null;
+        user_metadata?: Record<string, unknown>;
+      },
+      existingBusinessName: string | null,
+    ) => {
+      const md = sessionUser.user_metadata ?? {};
+      const fromMeta =
+        (md.display_name as string | undefined)?.trim() ||
+        (md.full_name as string | undefined)?.trim() ||
+        (md.name as string | undefined)?.trim() ||
+        null;
+
+      let businessName = existingBusinessName;
+      if (!businessName) {
+        const { data: bp } = await supabaseBrowser()
+          .from("business_profiles")
+          .select("business_name, email")
+          .eq("id", sessionUser.id)
+          .maybeSingle();
+        const bn =
+          bp && typeof bp === "object" && "business_name" in bp
+            ? (bp as { business_name: string | null }).business_name
+            : null;
+        businessName = bn?.trim() ? bn.trim() : null;
+      }
+
+      const email =
+        (sessionUser.email && String(sessionUser.email).trim()) ||
+        sessionEmailNorm ||
+        null;
+
+      applyRow({
+        id: sessionUser.id,
+        email,
+        display_name: fromMeta,
+        business_name: businessName,
+      });
     };
 
     const loadUser = async () => {
       const supabase = supabaseBrowser();
+
       const cached = readCachedUser();
-      if (cached?.email) {
-        setUser(cached);
-        setUserInitials(initialsFromUser(cached));
+      const seedId = sessionUserId ?? cached?.id;
+      const seedEmail = sessionEmailNorm ?? cached?.email ?? null;
+
+      if (seedId && (seedEmail || cached?.display_name || cached?.business_name)) {
+        applyRow({
+          id: seedId,
+          email: seedEmail,
+          display_name: cached?.display_name ?? null,
+          business_name: cached?.business_name ?? null,
+        });
       }
 
       let session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
@@ -97,39 +195,59 @@ export default function TopBar() {
             const { data } = await supabase.auth.getSession();
             session = data.session;
           } catch {
-            return;
+            // fall through to getUser
           }
-        } else {
-          console.error("[TopBar] getSession", e);
-          return;
         }
+        // Do not return — try getUser below
       }
 
       if (session?.user) {
-        applySessionUser(session.user);
+        await mergeMetadataAndProfile(session.user, cached?.business_name ?? null);
         return;
       }
 
       try {
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData, error } = await supabase.auth.getUser();
+        if (error) throw error;
         const u = userData?.user;
         if (u) {
-          applySessionUser({
-            id: u.id,
-            email: u.email,
-            user_metadata: u.user_metadata as Record<string, unknown>,
-          });
+          await mergeMetadataAndProfile(
+            {
+              id: u.id,
+              email: u.email,
+              user_metadata: u.user_metadata as Record<string, unknown>,
+            },
+            cached?.business_name ?? null,
+          );
+          return;
         }
       } catch (e) {
         if (isAbortError(e)) {
           await new Promise((r) => setTimeout(r, 300));
-          const { data } = await supabase.auth.getSession();
-          if (data.session?.user) applySessionUser(data.session.user);
+          try {
+            const { data } = await supabase.auth.getSession();
+            if (data.session?.user) {
+              await mergeMetadataAndProfile(data.session.user, cached?.business_name ?? null);
+            }
+          } catch {
+            /* ignore */
+          }
+        } else {
+          console.error("[TopBar] getUser", e);
         }
+      }
+
+      if (seedId && sessionEmailNorm) {
+        applyRow({
+          id: seedId,
+          email: sessionEmailNorm,
+          display_name: cached?.display_name ?? null,
+          business_name: cached?.business_name ?? null,
+        });
       }
     };
 
-    loadUser();
+    void loadUser();
 
     const { data: authListener } = supabaseBrowser().auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session?.user) {
@@ -142,15 +260,14 @@ export default function TopBar() {
         }
         return;
       }
-      applySessionUser(session.user);
+      void mergeMetadataAndProfile(session.user, null);
     });
 
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [sessionUserId, sessionEmailNorm]);
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -164,30 +281,46 @@ export default function TopBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (logoutPending) return;
+    setLogoutPending(true);
     setIsUserMenuOpen(false);
+    setIsNotificationsOpen(false);
+
     try {
-      await supabaseBrowser().auth.signOut();
+      await Promise.race([
+        supabaseBrowser().auth.signOut({ scope: "global" }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("sign_out_timeout")), SIGN_OUT_TIMEOUT_MS),
+        ),
+      ]);
     } catch (error) {
-      if (!isAbortError(error)) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg !== "sign_out_timeout" && !isAbortError(error)) {
         console.error("Error during logout:", error);
       }
-      // Even if sign-out fails, continue redirect so the user is taken
-      // out of the dashboard and a new session can be established.
     }
 
     try {
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("selectedBusinessId");
-      }
+      sessionStorage.removeItem(TOPBAR_USER_CACHE);
+      window.localStorage.removeItem("selectedBusinessId");
+      window.localStorage.removeItem("selectedBusiness");
     } catch {
-      // ignore storage errors
+      // ignore
     }
 
-    router.replace("/business/login");
+    window.location.assign("/business/login");
   };
 
-  const displayName = user?.display_name || user?.email?.split("@")[0] || "User";
+  const initialsShown =
+    userInitials ||
+    initialsFromRow({
+      display_name: null,
+      business_name: null,
+      email: sessionEmailNorm,
+    });
 
   return (
     <div className="sticky top-0 z-[200] isolate bg-white border-b border-gray-200">
@@ -226,7 +359,8 @@ export default function TopBar() {
                 {[
                   {
                     title: "You've logged in 5 times!",
-                    description: "Let reviews run themselves by automating your requests. Want to learn more? Head to our support articles.",
+                    description:
+                      "Let reviews run themselves by automating your requests. Want to learn more? Head to our support articles.",
                     time: "4 minutes ago",
                   },
                   {
@@ -241,7 +375,8 @@ export default function TopBar() {
                   },
                   {
                     title: "Confirm your business registration address",
-                    description: "Adding your registration address helps us bring you the best experience on Tellacity.",
+                    description:
+                      "Adding your registration address helps us bring you the best experience on Tellacity.",
                     time: "4 minutes ago",
                   },
                 ].map((notif, idx) => (
@@ -267,7 +402,7 @@ export default function TopBar() {
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             className="h-10 w-10 rounded-full bg-[#124541] text-white flex items-center justify-center font-semibold hover:ring-2 hover:ring-[#124541]/20 transition"
           >
-            {userInitials || "U"}
+            {initialsShown || "U"}
           </button>
 
           {isUserMenuOpen && (
@@ -280,11 +415,11 @@ export default function TopBar() {
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-[#124541] text-white flex items-center justify-center font-semibold">
-                    {userInitials || "U"}
+                    {initialsShown || "U"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-sm text-gray-900 truncate">{displayName}</div>
-                    <div className="text-xs text-gray-500 truncate">{user?.email}</div>
+                    <div className="text-xs text-gray-500 truncate">{emailLine || "—"}</div>
                   </div>
                 </div>
               </div>
