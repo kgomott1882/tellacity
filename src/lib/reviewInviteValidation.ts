@@ -3,7 +3,7 @@
  * do not assume email, status, or expires_at are present; only branch when keys exist.
  *
  * Dashboard usage (see RecentReviewInvitesCard): includes `review_submitted_at`,
- * `expires_at`, `opened_at`, etc. Some environments may also expose `used_at`.
+ * `expires_at`, `opened_at`, etc.
  */
 
 export type InviteRowRecord = Record<string, unknown>;
@@ -16,9 +16,8 @@ function truthyTimestamp(value: unknown): boolean {
 
 /** True if the row indicates the invite can no longer be used for a new review. */
 export function reviewInviteRowIsUsed(row: InviteRowRecord): boolean {
-  if ("used_at" in row && truthyTimestamp(row.used_at)) return true;
-  if ("review_submitted_at" in row && truthyTimestamp(row.review_submitted_at)) return true;
-  return false;
+  // Standardized: only consider the invite used when the review has been submitted.
+  return "review_submitted_at" in row && truthyTimestamp(row.review_submitted_at);
 }
 
 /** True only when `expires_at` exists and is in the past. */

@@ -26,8 +26,9 @@ function ErrorState({ message }: { message: string }) {
 type InviteRow = {
   id: string;
   business_id: string;
-  status?: string | null;
+  recipient_email?: string | null;
   review_submitted_at?: string | null;
+  opened_at?: string | null;
   expires_at?: string | null;
 };
 
@@ -67,12 +68,8 @@ export default async function InvitePage(props: {
 
   const invite = data as InviteRow;
 
-  const isUsed =
-    invite.review_submitted_at != null ||
-    invite.status === "completed";
-
-  if (isUsed) {
-    return <ErrorState message="Invite already used" />;
+  if (invite.review_submitted_at) {
+    return <ErrorState message="This invite has already been used." />;
   }
 
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
@@ -104,6 +101,16 @@ export default async function InvitePage(props: {
     return <ErrorState message="Invalid invite link" />;
   }
 
+  // Mark as opened (timestamp only). Do not change invite status.
+  if (invite.opened_at == null) {
+    try {
+      const sb = supabase as any;
+      await sb.from("review_invites").update({ opened_at: new Date().toISOString() }).eq("id", inviteId);
+    } catch {
+      // If `opened_at` isn't present in the current schema, ignore.
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <WriteReviewForm
@@ -112,6 +119,7 @@ export default async function InvitePage(props: {
         initialBusinessId={businessId}
         initialBusinessSlug={businessSlug}
         initialBusinessName={businessName}
+        reviewerEmail={invite.recipient_email ?? undefined}
         businessSlug={businessSlug ?? ""}
       />
     </div>

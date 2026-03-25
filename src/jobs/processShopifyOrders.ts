@@ -93,7 +93,7 @@ export async function processShopifyOrders(): Promise<{
         shopify_order_id: order.order_id ?? null,
         send_at: sendAt.toISOString(),
         token,
-        status: "scheduled",
+        status: "pending",
       });
 
     if (insertError) {

@@ -50,6 +50,8 @@ type SentInviteRow = {
   invite_method?: string | null;
   channel?: string | null;
   sent_at?: string | null;
+  opened_at?: string | null;
+  review_submitted_at?: string | null;
   last_event_type?: string | null;
   last_event_at?: string | null;
 };
@@ -167,14 +169,15 @@ export default function GetReviewsOverviewPage() {
       .from("review_invites")
       .select("*", { count: "exact", head: true })
       .eq("business_id", businessId)
-      .gte("created_at", startOfMonth.toISOString());
+      .not("sent_at", "is", null)
+      .gte("sent_at", startOfMonth.toISOString());
 
     const { count: deliveredThisMonth } = await supabase
       .from("review_invites")
       .select("*", { count: "exact", head: true })
       .eq("business_id", businessId)
-      .in("status", ["sent", "opened"])
-      .gte("created_at", startOfMonth.toISOString());
+      .not("opened_at", "is", null)
+      .gte("opened_at", startOfMonth.toISOString());
 
     const { data: lifetimeReviews } = await supabase
       .from("reviews")
@@ -240,12 +243,14 @@ export default function GetReviewsOverviewPage() {
               id,
               recipient_email,
               channel,
-              status,
               created_at,
-              sent_at
+              sent_at,
+              opened_at,
+              review_submitted_at
             `
           )
           .eq("business_id", businessId)
+          .not("sent_at", "is", null)
           .order("created_at", { ascending: false })
           .range(offset, offset + SENT_PAGE_SIZE - 1);
 
@@ -263,8 +268,14 @@ export default function GetReviewsOverviewPage() {
           invite_method: row.channel ?? null,
           channel: row.channel ?? null,
           sent_at: row.sent_at ?? row.created_at ?? null,
-          last_event_type: row.status ?? null,
-          last_event_at: null,
+          opened_at: row.opened_at ?? null,
+          review_submitted_at: row.review_submitted_at ?? null,
+          last_event_type: row.review_submitted_at
+            ? "Completed"
+            : row.opened_at
+              ? "Opened"
+              : "Sent",
+          last_event_at: row.review_submitted_at ?? row.opened_at ?? null,
         }));
 
         setSentItems((prev) => (append ? [...prev, ...mapped] : mapped));

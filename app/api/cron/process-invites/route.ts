@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  *
  * Pass 1 - Due invites:
  *   sent_at IS NULL AND send_at <= now() AND status IN ('pending','draft','scheduled')
- *   For each: render email, send via Resend, set sent_at + status='sent'.
+ *   For each: render email, send via Resend, set sent_at (status remains pending).
  *
  * Pass 2 - Due reminders:
  *   reminder_sent_at IS NULL AND reminder_at <= now() AND sent_at IS NOT NULL
@@ -247,7 +247,7 @@ export async function GET(request: Request) {
       await supabase
         .from("review_invites")
         .update({
-          status: "sent",
+          status: "pending",
           sent_at: new Date().toISOString(),
           last_send_error: null,
         })

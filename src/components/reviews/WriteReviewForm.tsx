@@ -17,6 +17,7 @@ import { reviewErrorMessages } from "@/lib/errorMessages";
 type WriteReviewFormProps = {
   inviteId?: string | null;
   inviteToken?: string | null;
+  reviewerEmail?: string;
   initialBusinessId?: string | null;
   initialBusinessSlug?: string | null;
   initialBusinessName?: string | null;
@@ -119,6 +120,7 @@ const callEdgeFunction = async (name: string, body: Record<string, unknown>) => 
 export default function WriteReviewForm({
   inviteId,
   inviteToken,
+  reviewerEmail,
   initialBusinessId,
   initialBusinessSlug,
   initialBusinessName,
@@ -474,13 +476,12 @@ export default function WriteReviewForm({
     }
 
     if (isGuest) {
-      if (!guestEmail.trim() || !guestName.trim()) {
-        return false;
-      }
+      const emailToUse = reviewerEmail ?? guestEmail;
+      if (!emailToUse.trim() || !guestName.trim()) return false;
     }
 
     return true;
-  }, [business, rating, body, dateOfExperience, isGuest, guestEmail, guestName]);
+  }, [business, rating, body, dateOfExperience, isGuest, guestEmail, guestName, reviewerEmail]);
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setProofError(null);
@@ -666,8 +667,20 @@ export default function WriteReviewForm({
         return;
       }
 
-      const guestEmailTrimmed = guestEmail.trim().toLowerCase();
+      const emailToUse = reviewerEmail ?? guestEmail;
+      const guestEmailTrimmed = emailToUse.trim().toLowerCase();
       const guestNameTrimmed = guestName.trim();
+      const isInviteGuest = Boolean(reviewerEmail?.trim());
+
+      if (isInviteGuest && !String(inviteToken ?? "").trim()) {
+        const mapped = reviewErrorMessages.invite_token_required;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
       const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -696,6 +709,7 @@ export default function WriteReviewForm({
             title: title.trim() || null,
             body: body.trim(),
             guest_email: guestEmailTrimmed,
+            email: guestEmailTrimmed,
             guest_name: guestNameTrimmed,
             receipt_url: receiptUrl,
             date_of_experience: dateOfExperience,
@@ -705,6 +719,7 @@ export default function WriteReviewForm({
                 ? referenceNumber.trim()
                 : null,
             invite_token: inviteToken ?? null,
+            ...(isInviteGuest ? { is_invite: true } : {}),
           }),
         },
       );
@@ -713,6 +728,7 @@ export default function WriteReviewForm({
 
       if (!response.ok) {
         if (
+          !isInviteGuest &&
           data &&
           data.error === "draft_exists" &&
           typeof data.reviewId === "string"
@@ -752,6 +768,20 @@ export default function WriteReviewForm({
 
       if (
         data &&
+        data.published === true &&
+        typeof data.reviewId === "string"
+      ) {
+        showToast({
+          title: "Thank you",
+          description: "Your review has been published.",
+          variant: "success",
+        });
+        router.push(`/b/${business.slug}`);
+        return;
+      }
+
+      if (
+        data &&
         data.requiresUpdate === true &&
         typeof data.reviewId === "string"
       ) {
@@ -763,6 +793,16 @@ export default function WriteReviewForm({
         });
 
         router.push(`/write-review?edit=${data.reviewId}`);
+        return;
+      }
+
+      if (isInviteGuest) {
+        const mapped = reviewErrorMessages.unexpected_error;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -1133,24 +1173,32 @@ export default function WriteReviewForm({
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="guest-email"
-                      className="text-xs font-medium text-[#0E0E0E]"
-                    >
-                      Email
-                    </label>
-                    <input
-                      id="guest-email"
-                      type="email"
-                      value={guestEmail}
-                      onChange={(event) => setGuestEmail(event.target.value)}
-                      disabled={isSubmitting}
-                      className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      We&apos;ll send a one-time code to verify your review. Your
-                      email won&apos;t be shown publicly.
-                    </p>
+                    {reviewerEmail ? (
+                      <div className="text-sm text-gray-600">
+                        Posting as <strong>{reviewerEmail}</strong>
+                      </div>
+                    ) : (
+                      <>
+                        <label
+                          htmlFor="guest-email"
+                          className="text-xs font-medium text-[#0E0E0E]"
+                        >
+                          Email
+                        </label>
+                        <input
+                          id="guest-email"
+                          type="email"
+                          value={guestEmail}
+                          onChange={(event) => setGuestEmail(event.target.value)}
+                          disabled={isSubmitting}
+                          className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          We&apos;ll send a one-time code to verify your review. Your
+                          email won&apos;t be shown publicly.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1261,7 +1309,7 @@ export default function WriteReviewForm({
                   : "Submit review"}
               </Button>
 
-              {checkEmailState.active && (
+              {checkEmailState.active && !reviewerEmail?.trim() && (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                   <p className="font-semibold">Check your email for a code</p>
                   <p className="mt-1">
@@ -1275,7 +1323,10 @@ export default function WriteReviewForm({
                 </div>
               )}
 
-              {otpReviewId && otpEmail && !otpModalOpen && (
+              {otpReviewId &&
+                otpEmail &&
+                !otpModalOpen &&
+                !reviewerEmail?.trim() && (
                 <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="font-semibold text-emerald-800">
                     Finish publishing your review
@@ -1306,7 +1357,7 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-      {otpReviewId && otpEmail && (
+      {otpReviewId && otpEmail && !reviewerEmail?.trim() && (
         <ReviewOtpModal
           reviewId={otpReviewId}
           email={otpEmail}

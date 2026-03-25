@@ -47,6 +47,9 @@ type DraftPayload = {
   receipt_url?: string | null;
   reference_number?: string | null;
   invite_id?: string | null;
+  /** When true with valid `invite_token`, publish without OTP (invite link flow). */
+  is_invite?: boolean;
+  invite_token?: string | null;
 };
 
 serve(async (req) => {
@@ -114,7 +117,6 @@ serve(async (req) => {
     let date_of_experience: string | null = null;
     if (payload.date_of_experience && payload.date_of_experience.trim()) {
       const d = payload.date_of_experience.trim();
-      // Simple YYYY-MM-DD validation
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
         return json({ error: "date_of_experience must be YYYY-MM-DD" }, 400);
       }
@@ -134,6 +136,170 @@ serve(async (req) => {
       payload.reference_number && payload.reference_number.trim()
         ? payload.reference_number.trim()
         : null;
+
+    const is_invite = Boolean(payload.is_invite);
+    const invite_token_raw =
+      typeof payload.invite_token === "string" ? payload.invite_token.trim() : "";
+
+    // ── Invite link: publish immediately (no OTP) ───────────────────────────
+    if (is_invite) {
+      if (!invite_token_raw) {
+        return json({ error: "invite_token_required" }, 400);
+      }
+
+      const { data: inv, error: invErr } = await supabase
+        .from("review_invites")
+        .select(
+          "id, business_id, recipient_email, review_submitted_at, expires_at",
+        )
+        .eq("token", invite_token_raw)
+        .maybeSingle();
+
+      if (invErr || !inv) {
+        return json({ error: "invalid_invite" }, 400);
+      }
+
+      if (inv.business_id !== business_id) {
+        return json({ error: "invalid_invite" }, 400);
+      }
+
+      const invEmail = String(inv.recipient_email ?? "").trim().toLowerCase();
+      if (!invEmail || invEmail !== guest_email) {
+        return json({ error: "invalid_invite" }, 400);
+      }
+
+      if (inv.review_submitted_at) {
+        return json({ error: "invite_used" }, 400);
+      }
+
+      if (inv.expires_at) {
+        const exp = new Date(String(inv.expires_at));
+        if (!Number.isNaN(exp.getTime()) && exp.getTime() < Date.now()) {
+          return json({ error: "invite_expired" }, 400);
+        }
+      }
+
+      const inviteRowId = (inv as { id: string }).id;
+
+      const { data: existingInvite, error: existingInviteError } =
+        await supabase
+          .from("reviews")
+          .select("id, status, draft")
+          .eq("business_id", business_id)
+          .eq("guest_email", guest_email)
+          .maybeSingle();
+
+      if (existingInviteError) {
+        console.error("Invite flow existing review lookup failed:", existingInviteError);
+        return json({ error: "unexpected_error" }, 500);
+      }
+
+      const existingDraft =
+        existingInvite?.id && (existingInvite as { draft?: boolean }).draft === true;
+
+      if (existingDraft && existingInvite?.id) {
+        const { error: upErr } = await supabase
+          .from("reviews")
+          .update({
+            rating: ratingNum,
+            title:
+              payload.title && payload.title.trim()
+                ? payload.title.trim()
+                : null,
+            body,
+            guest_name,
+            guest_email,
+            date_of_experience,
+            marketing_opt_in,
+            receipt_url,
+            reference_number,
+            source: "guest",
+            status: "published",
+            draft: false,
+            invite_id: inviteRowId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingInvite.id);
+
+        if (upErr) {
+          console.error("Invite flow publish draft error:", upErr);
+          return json({ error: "unexpected_error" }, 500);
+        }
+
+        await supabase
+          .from("review_invites")
+          .update({ review_submitted_at: new Date().toISOString() })
+          .eq("id", inviteRowId);
+
+        return json(
+          {
+            published: true,
+            requiresOtp: false,
+            reviewId: existingInvite.id,
+          },
+          200,
+        );
+      }
+
+      if (existingInvite?.id) {
+        return json(
+          {
+            requiresUpdate: true,
+            reviewId: (existingInvite as { id: string }).id,
+          },
+          200,
+        );
+      }
+
+      const insertPublished: Record<string, unknown> = {
+        business_id,
+        rating: ratingNum,
+        title:
+          payload.title && payload.title.trim()
+            ? payload.title.trim()
+            : null,
+        body,
+        guest_name,
+        guest_email,
+        date_of_experience,
+        marketing_opt_in,
+        receipt_url,
+        reference_number,
+        source: "guest",
+        status: "published",
+        draft: false,
+        invite_id: inviteRowId,
+      };
+
+      const { data: publishedRow, error: pubErr } = await supabase
+        .from("reviews")
+        .insert(insertPublished)
+        .select("id,business_id")
+        .single();
+
+      if (pubErr) {
+        console.error("Invite flow insert error:", pubErr);
+        const anyErr = pubErr as { code?: string };
+        if (anyErr?.code === "23505") {
+          return json({ error: "duplicate_review" }, 409);
+        }
+        return json({ error: "unexpected_error" }, 500);
+      }
+
+      await supabase
+        .from("review_invites")
+        .update({ review_submitted_at: new Date().toISOString() })
+        .eq("id", inviteRowId);
+
+      return json(
+        {
+          published: true,
+          requiresOtp: false,
+          reviewId: publishedRow.id,
+        },
+        200,
+      );
+    }
 
     const invite_idRaw =
       payload.invite_id && payload.invite_id.trim()

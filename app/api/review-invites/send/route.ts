@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (insertError) {
-      console.error("Insert invite error:", insertError);
+      console.error("INVITE INSERT ERROR:", insertError);
       if (insertError.code === "23505") {
         return NextResponse.json(
           { error: "This email has already been invited." },
@@ -135,7 +135,11 @@ export async function POST(req: Request) {
         );
       }
       return NextResponse.json(
-        { error: "Failed to create invite." },
+        {
+          success: false,
+          error: insertError.message,
+          details: insertError,
+        },
         { status: 500 }
       );
     }
@@ -273,7 +277,10 @@ export async function POST(req: Request) {
 
     const { error: updateError } = await supabase
       .from("review_invites")
-      .update({ status: "sent", sent_at: new Date().toISOString(), last_send_error: null })
+      .update({
+        sent_at: new Date().toISOString(),
+        last_send_error: null,
+      })
       .eq("id", inviteId);
 
     if (updateError) {

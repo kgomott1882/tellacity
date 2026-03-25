@@ -49,12 +49,15 @@ function initialsFromUser(u: { email: string | null; display_name: string | null
   return "U";
 }
 
+const SIGN_OUT_TIMEOUT_MS = 10_000;
+
 export default function TopBar() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email: string | null; display_name: string | null } | null>(null);
   const [userInitials, setUserInitials] = useState<string>("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -187,14 +190,18 @@ export default function TopBar() {
   const displayName = user?.display_name || user?.email?.split("@")[0] || "User";
 
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+    <div className="sticky top-0 z-[200] isolate bg-white border-b border-gray-200">
       <div className="h-16 flex items-center justify-end px-10 gap-3">
-        <button className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center">
+        <button
+          type="button"
+          className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center"
+        >
           <Info size={18} className="text-gray-500" />
         </button>
 
         <div className="relative" ref={notificationsRef}>
           <button
+            type="button"
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center relative"
           >
@@ -205,10 +212,15 @@ export default function TopBar() {
           </button>
 
           {isNotificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-50">
+            <div
+              className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-[210]"
+              onMouseDown={(ev) => ev.stopPropagation()}
+            >
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Notifications</h3>
-                <button className="text-xs text-[#124541] hover:underline">Mark all as read</button>
+                <button type="button" className="text-xs text-[#124541] hover:underline">
+                  Mark all as read
+                </button>
               </div>
               <div className="py-2">
                 {[
@@ -251,6 +263,7 @@ export default function TopBar() {
 
         <div className="relative" ref={userMenuRef}>
           <button
+            type="button"
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             className="h-10 w-10 rounded-full bg-[#124541] text-white flex items-center justify-center font-semibold hover:ring-2 hover:ring-[#124541]/20 transition"
           >
@@ -258,7 +271,12 @@ export default function TopBar() {
           </button>
 
           {isUserMenuOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+            <div
+              className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-[210]"
+              onMouseDown={(ev) => ev.stopPropagation()}
+              role="menu"
+              aria-label="Account menu"
+            >
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-[#124541] text-white flex items-center justify-center font-semibold">
@@ -272,6 +290,7 @@ export default function TopBar() {
               </div>
               <div className="py-2">
                 <button
+                  type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
                     router.push("/business/dashboard/billing");
@@ -282,6 +301,7 @@ export default function TopBar() {
                   Plans & billing
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
                     router.push("/business/dashboard/settings/personal/details");
@@ -294,11 +314,13 @@ export default function TopBar() {
               </div>
               <div className="border-t border-gray-200 py-2">
                 <button
+                  type="button"
+                  disabled={logoutPending}
                   onClick={handleLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 disabled:opacity-60"
                 >
                   <LogOut size={16} className="text-gray-400" />
-                  Log out
+                  {logoutPending ? "Signing out…" : "Log out"}
                 </button>
               </div>
             </div>
