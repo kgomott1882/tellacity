@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/review-invites/send-reminders",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
