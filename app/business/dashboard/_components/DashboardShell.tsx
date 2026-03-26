@@ -100,6 +100,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
+  const [resolvingBusiness, setResolvingBusiness] = useState(true);
 
   const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
 
@@ -239,7 +240,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       }
     };
 
-    restoreBusiness();
+    setResolvingBusiness(true);
+    restoreBusiness().finally(() => {
+      setResolvingBusiness(false);
+    });
   }, [user?.id, selectedBusiness, setSelectedBusiness, setBusinesses, businesses]);
 
   // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
@@ -292,10 +296,23 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     return <PageLoadingOverlay />;
   }
 
+  if (authLoading || bizLoading || resolvingBusiness) {
+    return <PageLoadingOverlay />;
+  }
+
   if (!selectedBusiness) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-sm text-gray-500">No business selected.</p>
+        <div className="text-center">
+          <p className="text-sm text-gray-500">No business selected.</p>
+          <button
+            type="button"
+            onClick={() => router.replace("/business/login")}
+            className="mt-3 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            Go to business sign in
+          </button>
+        </div>
       </div>
     );
   }
