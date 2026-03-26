@@ -7,7 +7,9 @@ import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
 import { adminCountryDisplay } from "@/lib/adminCountries";
+import BusinessDetailTabs from "./BusinessDetailTabs";
 import {
+  adminDetailActivateAction,
   adminDetailApproveAction,
   adminDetailDeleteAction,
   adminDetailSuspendAction,
@@ -34,7 +36,14 @@ type AdminBusinessDetailRow = {
   submission_status: string | null;
   owner_id: string | null;
   review_count?: number | null;
-  plan_code?: string | null;
+  subscriptions?:
+    | {
+        plan_code?: string | null;
+      }
+    | Array<{
+        plan_code?: string | null;
+      }>
+    | null;
   profiles?: {
     email?: string | null;
     display_name?: string | null;
@@ -155,7 +164,9 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
         created_at,
         owner_id,
         review_count,
-        plan_code,
+        subscriptions (
+          plan_code
+        ),
         email,
         phone,
         country_code,
@@ -178,6 +189,12 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
   }
 
   const notFound = !idValid || (!rpcError && !business);
+  const subscription = Array.isArray(business?.subscriptions)
+    ? business?.subscriptions[0]
+    : business?.subscriptions;
+  const subscriptionPlanCode = subscription?.plan_code?.trim() || "free";
+  const normalizedStatus = business?.status?.trim().toLowerCase() ?? "";
+  const activateLabel = normalizedStatus === "suspended" ? "Unsuspend" : "Activate";
   const ownerName =
     business?.profiles?.display_name?.trim() ||
     business?.profiles?.email ||
@@ -200,53 +217,10 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
           <AdminEmptyState message="Business not found" />
         </div>
       ) : (
-        <AdminTableShell
-          title="Business Details"
-          controls={
-            <div className="flex flex-wrap items-center gap-2">
-              {business?.slug?.trim() ? (
-                <Link
-                  href={`/b/${business?.slug?.trim() ?? ""}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex rounded-md border border-[#1FAF9E] bg-white px-3 py-1.5 text-xs font-semibold text-[#0B3B36] hover:bg-[#E6F6F1]"
-                >
-                  Open Public Page
-                </Link>
-              ) : null}
-              <DetailActionBtn
-                label="Approve"
-                formAction={adminDetailApproveAction.bind(
-                  null,
-                  business?.id ?? "",
-                  business?.status ?? "active"
-                )}
-              />
-              <DetailActionBtn
-                label="Set Under Review"
-                formAction={adminDetailUnderReviewAction.bind(
-                  null,
-                  business?.id ?? "",
-                  business?.status ?? "active"
-                )}
-              />
-              <DetailActionBtn
-                label="Suspend"
-                formAction={adminDetailSuspendAction.bind(
-                  null,
-                  business?.id ?? "",
-                  business?.submission_status ?? ""
-                )}
-              />
-              <AdminDangerButton
-                label="Delete"
-                confirmMessage="Permanently delete this business? This cannot be undone."
-                action={adminDetailDeleteAction.bind(null, business?.id ?? "")}
-              />
-            </div>
-          }
-        >
-          <div className="w-full space-y-8 p-4 sm:p-6">
+        <AdminTableShell title="Business Details">
+          <BusinessDetailTabs
+            details={
+              <div className="w-full space-y-8">
             <p className="border-b border-neutral-100 pb-3 text-sm text-neutral-600">
               Full business record and metadata
             </p>
@@ -366,9 +340,57 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2">
                 <Field label="Created">{formatDate(business?.created_at)}</Field>
+                <Field label="Plan">
+                  <span className="capitalize">{subscriptionPlanCode}</span>
+                </Field>
               </dl>
             </section>
-          </div>
+              </div>
+            }
+            controls={
+              <div className="space-y-3">
+                {business?.slug?.trim() ? (
+                  <Link
+                    href={`/b/${business?.slug?.trim() ?? ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex rounded-md border border-[#1FAF9E] bg-white px-3 py-1.5 text-xs font-semibold text-[#0B3B36] hover:bg-[#E6F6F1]"
+                  >
+                    Open Public Page
+                  </Link>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <DetailActionBtn
+                    label={activateLabel}
+                    formAction={adminDetailActivateAction.bind(null, business?.id ?? "")}
+                  />
+                  <DetailActionBtn
+                    label="Suspended"
+                    formAction={adminDetailSuspendAction.bind(null, business?.id ?? "")}
+                  />
+                  <DetailActionBtn
+                    label="Under review"
+                    formAction={adminDetailUnderReviewAction.bind(null, business?.id ?? "")}
+                  />
+                  <DetailActionBtn
+                    label="Approved"
+                    formAction={adminDetailApproveAction.bind(null, business?.id ?? "")}
+                  />
+                  <AdminDangerButton
+                    label="Delete"
+                    confirmMessage="Permanently delete this business? This cannot be undone."
+                    action={adminDetailDeleteAction.bind(null, business?.id ?? "")}
+                  />
+                  <Link
+                    href={`/admin/business-controls/${business?.id ?? ""}`}
+                    className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+                  >
+                    Open Invite Controls
+                  </Link>
+                </div>
+              </div>
+            }
+          />
         </AdminTableShell>
       )}
     </div>

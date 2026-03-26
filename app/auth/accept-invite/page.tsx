@@ -192,7 +192,7 @@ function AcceptInviteInner() {
               <h1 className="text-2xl font-semibold text-white">Invalid invite</h1>
               <p className="mt-3 text-sm text-red-400">{inviteError}</p>
               <Link
-                href="/auth/business-login"
+                href="/business/login"
                 className="mt-6 inline-block text-sm text-[#1FAF9E] hover:underline"
               >
                 Go to business sign in
@@ -210,7 +210,7 @@ function AcceptInviteInner() {
                 Click it to verify your email, then sign in to access the dashboard.
               </p>
               <Link
-                href="/auth/business-login"
+                href="/business/login"
                 className="mt-6 inline-block rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786]"
               >
                 Go to sign in
@@ -296,7 +296,7 @@ function AcceptInviteInner() {
               <p className="mt-6 text-center text-xs text-neutral-600">
                 Already have an account?{" "}
                 <Link
-                  href="/auth/business-login"
+                  href="/business/login"
                   className="text-[#1FAF9E] hover:underline"
                 >
                   Sign in instead

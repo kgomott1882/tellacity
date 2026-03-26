@@ -52,6 +52,7 @@ type InviteSettings = {
 type TemplateRow = {
   subject: string | null;
   body: string | null;
+  layout_style?: string | null;
   signature_logo_url?: string | null;
   signature_name?: string | null;
   signature_title?: string | null;
@@ -122,7 +123,7 @@ async function getEmailTemplate(
 ): Promise<TemplateRow | null> {
   const { data } = await supabase
     .from("review_invite_email_templates")
-    .select("subject, body, signature_logo_url, signature_name, signature_title, signature_phone, signature_website")
+    .select("subject, body, layout_style, signature_logo_url, signature_name, signature_title, signature_phone, signature_website")
     .eq("business_id", businessId)
     .eq("template_key", "standard")
     .maybeSingle();
@@ -230,6 +231,7 @@ export async function GET(request: Request) {
         customSignature:     settings.custom_signature ?? null,
         legalFooterEnabled:  settings.legal_footer_enabled,
         signatureBlock,
+        layoutStyle: template?.layout_style ?? "standard",
         isReminder: false,
       });
 
@@ -330,6 +332,7 @@ export async function GET(request: Request) {
         customSignature:     settings.custom_signature ?? null,
         legalFooterEnabled:  settings.legal_footer_enabled,
         signatureBlock,
+        layoutStyle: template?.layout_style ?? "standard",
         isReminder: true,
       });
 

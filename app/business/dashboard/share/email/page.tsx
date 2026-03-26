@@ -197,7 +197,7 @@ export default function EmailWidgetsPage() {
         </div>
       )}
 
-      {!canSend ? (
+      {!canSend && (
         <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-6">
           <p className="text-sm font-semibold text-amber-900">
             Available on Premium and Elite plans.
@@ -214,24 +214,24 @@ export default function EmailWidgetsPage() {
             />
           </div>
         </div>
-      ) : (
-        <>
-          {/* ── Layout Options comparison ── */}
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold text-gray-900">Layout Options</h3>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Choose your email layout in{" "}
-              <button
-                type="button"
-                onClick={() => router.push("/business/dashboard/get-reviews/email-templates")}
-                className="text-[#124541] underline underline-offset-2 hover:text-[#0f3a35]"
-              >
-                Email Templates
-              </button>
-              .
-            </p>
+      )}
+      {/* ── Layout Options comparison ── */}
+      <div className="mt-8">
+        <h3 className="text-sm font-semibold text-gray-900">Layout Options</h3>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Choose your email layout in{" "}
+          <button
+            type="button"
+            disabled={!canSend}
+            onClick={() => canSend && router.push("/business/dashboard/get-reviews/email-templates")}
+            className="text-[#124541] underline underline-offset-2 hover:text-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Email Templates
+          </button>
+          .
+        </p>
 
-            <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
 
               {/* Premium Widget Layout */}
               <div className={`rounded-xl border bg-white p-4 ${isEliteBranded ? "border-gray-200" : "border-[#124541] ring-1 ring-[#124541]"}`}>
@@ -332,26 +332,27 @@ export default function EmailWidgetsPage() {
                 )}
               </div>
 
-            </div>
-          </div>
+        </div>
+      </div>
 
-          {/* Template preview */}
-          <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Email Widget Template</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Preview of the email your recipients will receive.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => router.push("/business/dashboard/get-reviews/email-templates")}
-                className="shrink-0 text-sm font-medium text-[#124541] underline underline-offset-2 hover:text-[#0f3a35]"
-              >
-                Edit template
-              </button>
-            </div>
+      {/* Combined example + send panel */}
+      <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Email widget example</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              This is a live example of how your email widget appears to recipients.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!canSend}
+            onClick={() => canSend && router.push("/business/dashboard/get-reviews/email-templates")}
+            className="shrink-0 text-sm font-medium text-[#124541] underline underline-offset-2 hover:text-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Edit template
+          </button>
+        </div>
 
             {/* Layout badge */}
             <div className="mt-3">
@@ -430,51 +431,52 @@ export default function EmailWidgetsPage() {
 
                 </div>
               </div>
+        <div className="mt-6 border-t border-gray-100 pt-6">
+          <h3 className="text-base font-semibold text-gray-900">Send this email widget</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Enter recipient addresses separated by commas or new lines. No invite credits are consumed.
+          </p>
+        {!canSend && (
+          <p className="mt-2 text-xs font-medium text-amber-700">
+            Locked on your current plan. Upgrade to Premium or Elite to send.
+          </p>
+        )}
+
+        <form onSubmit={handleSend} className="mt-5 space-y-4">
+          <div>
+            <label
+              htmlFor="widget-recipients"
+              className="block text-xs font-medium uppercase tracking-wide text-gray-500"
+            >
+              Recipients
+            </label>
+            <textarea
+              id="widget-recipients"
+              rows={5}
+              value={recipients}
+              onChange={(e) => setRecipients(e.target.value)}
+              placeholder={"customer@example.com\nanother@example.com"}
+              disabled={!canSend || sending}
+              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#0E0E0E] disabled:bg-gray-50 disabled:text-gray-500"
+            />
+            {recipients.trim() && (
+              <p className="mt-1 text-xs text-gray-500">
+                {parseEmails(recipients).length} valid address
+                {parseEmails(recipients).length !== 1 ? "es" : ""} detected
+              </p>
+            )}
           </div>
 
-          {/* Send form */}
-          <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900">Send widget emails</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Enter recipient addresses separated by commas or new lines. No invite credits are consumed.
-            </p>
-
-            <form onSubmit={handleSend} className="mt-5 space-y-4">
-              <div>
-                <label
-                  htmlFor="widget-recipients"
-                  className="block text-xs font-medium uppercase tracking-wide text-gray-500"
-                >
-                  Recipients
-                </label>
-                <textarea
-                  id="widget-recipients"
-                  rows={5}
-                  value={recipients}
-                  onChange={(e) => setRecipients(e.target.value)}
-                  placeholder={"customer@example.com\nanother@example.com"}
-                  disabled={sending}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#0E0E0E] disabled:bg-gray-50 disabled:text-gray-500"
-                />
-                {recipients.trim() && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {parseEmails(recipients).length} valid address
-                    {parseEmails(recipients).length !== 1 ? "es" : ""} detected
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={sending || !businessId}
-                className="rounded-lg bg-[#124541] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                {sending ? "Sending…" : "Send"}
-              </button>
-            </form>
-          </div>
-        </>
-      )}
+          <button
+            type="submit"
+            disabled={!canSend || sending || !businessId}
+            className="rounded-lg bg-[#124541] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:bg-gray-300"
+          >
+            {!canSend ? "Upgrade to send" : sending ? "Sending…" : "Send"}
+          </button>
+        </form>
+        </div>
+      </div>
     </div>
   );
 }

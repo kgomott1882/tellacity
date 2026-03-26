@@ -67,7 +67,9 @@ export default function EmailTemplatesPage() {
     remove_tellacity_branding: false,
     reply_to_email: "",
   });
-  const [widgetLayoutStyle, setWidgetLayoutStyle] = useState<"standard" | "elite_branded">("standard");
+  const [widgetLayoutStyle, setWidgetLayoutStyle] = useState<"standard" | "elite_branded">(
+    "standard"
+  );
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
   const [savingWidget, setSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -94,33 +96,10 @@ export default function EmailTemplatesPage() {
     setError(null);
     try {
       await ensureSessionFresh();
-      const [{ data: rows, error: templatesError }, { data: bizData }] = await Promise.all([
-        supabaseBrowser()
-        .from("review_invite_email_templates")
-        .select(`
-          id,
-          business_id,
-          template_key,
-          subject,
-          body,
-          intro_message,
-          layout_style,
-          signature_enabled,
-          signature_name,
-          signature_title,
-          signature_phone,
-          signature_website,
-          signature_logo_url,
-          signature_address,
-          signature_cta_text,
-          signature_cta_url,
-          remove_tellacity_branding,
-          reply_to_email
-        `)
-        .eq("business_id", businessId)
-        .in("template_key", ["standard", "custom", "widget"])
-        .order("template_key"),
-        supabaseBrowser()
+      const supabase = supabaseBrowser();
+      const [templatesResponse, { data: bizData }] = await Promise.all([
+        fetch("/api/review-invite-email-templates", { method: "GET" }),
+        supabase
           .from("businesses")
           .select("logo_url")
           .eq("id", businessId)
@@ -128,14 +107,25 @@ export default function EmailTemplatesPage() {
       ]);
 
       setBusinessLogoUrl((bizData as { logo_url?: string | null } | null)?.logo_url ?? null);
-
-      if (templatesError) {
-        setError(templatesError.message);
+      if (!templatesResponse.ok) {
+        const payload = (await templatesResponse.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(payload.error ?? "Failed to load email templates.");
         return;
       }
-      if (Array.isArray(rows)) {
-        setTemplates(rows as TemplateRow[]);
-        const custom = rows.find((r: { template_key: string }) => r.template_key === "custom") as TemplateRow | undefined;
+      const payload = (await templatesResponse.json()) as {
+        data?: TemplateRow[];
+      };
+      const rows = Array.isArray(payload.data) ? payload.data : [];
+      const filteredRows = rows
+        .filter((r) => r.business_id === businessId)
+        .filter((r) => ["standard", "custom", "widget"].includes(r.template_key))
+        .sort((a, b) => a.template_key.localeCompare(b.template_key));
+
+      if (Array.isArray(filteredRows)) {
+        setTemplates(filteredRows as TemplateRow[]);
+        const custom = filteredRows.find((r: { template_key: string }) => r.template_key === "custom") as TemplateRow | undefined;
         if (custom) {
           setCustomSubject(custom.subject ?? "");
           setCustomBody(custom.body ?? "");
@@ -169,7 +159,7 @@ export default function EmailTemplatesPage() {
             reply_to_email: "",
           });
         }
-        const widget = rows.find((r: { template_key: string }) => r.template_key === "widget") as (TemplateRow & { intro_message?: string | null; layout_style?: string | null }) | undefined;
+        const widget = filteredRows.find((r: { template_key: string }) => r.template_key === "widget") as (TemplateRow & { intro_message?: string | null; layout_style?: string | null }) | undefined;
         setWidgetSubject(widget?.subject ?? "");
         setWidgetIntro((widget as any)?.intro_message ?? "");
         setWidgetLayoutStyle(

@@ -33,10 +33,27 @@ const WIDGETS = [
 
 type WidgetId = (typeof WIDGETS)[number]["id"];
 
-const BASE_URL =
-  typeof window !== "undefined"
-    ? window.location.origin
-    : process.env.NEXT_PUBLIC_APP_URL ?? "https://tellacity.com";
+function resolveWidgetBaseUrl(): string {
+  const envBase = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+  const raw =
+    envBase ||
+    (typeof window !== "undefined" ? window.location.origin : "") ||
+    "https://tellacity.com";
+
+  try {
+    const parsed = new URL(raw);
+    const isLocal =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
+    if (parsed.protocol === "http:" && !isLocal) {
+      parsed.protocol = "https:";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return "https://tellacity.com";
+  }
+}
 
 export default function WebsiteWidgetsPage() {
   const { selectedBusiness } = useBusinessContext();
@@ -44,21 +61,34 @@ export default function WebsiteWidgetsPage() {
   const [selected, setSelected] = useState<WidgetId>("badge");
   const [copied, setCopied] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const baseUrl = useMemo(() => resolveWidgetBaseUrl(), []);
+  const previewBaseUrl = useMemo(
+    () => (typeof window !== "undefined" ? window.location.origin : baseUrl),
+    [baseUrl]
+  );
+  const previewExtraParams = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const host = window.location.hostname;
+    const isLocal =
+      host === "localhost" || host === "127.0.0.1" || host === "::1";
+    // Hide Next.js dev indicator inside iframe preview in local dev.
+    return isLocal ? "&__nextjs_disable_dev_indicator=true" : "";
+  }, []);
 
   const slug = selectedBusiness?.slug ?? "";
 
   const previewUrl = useMemo(
     () =>
       slug
-        ? `${BASE_URL}/widgets/embed?business=${encodeURIComponent(slug)}&type=${selected}`
+        ? `${previewBaseUrl}/widgets/embed?business=${encodeURIComponent(slug)}&type=${selected}${previewExtraParams}`
         : "",
-    [slug, selected]
+    [previewBaseUrl, previewExtraParams, slug, selected]
   );
 
   const embedCode = useMemo(
     () =>
-      `<script src="${BASE_URL}/widgets/v1.js" data-business="${slug}" data-type="${selected}"></script>`,
-    [slug, selected]
+      `<script src="${baseUrl}/widgets/v1.js" data-business="${slug}" data-type="${selected}"></script>`,
+    [baseUrl, slug, selected]
   );
 
   // Auto-resize iframe from postMessage

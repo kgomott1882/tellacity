@@ -12,6 +12,7 @@ export type InviteEmailParams = {
   legalFooterEnabled?: boolean;
   signatureBlock?: string; // pre-rendered HTML from template (premium/elite)
   isReminder?: boolean;
+  layoutStyle?: "standard" | "rating_widget" | string | null;
 };
 
 const DEFAULT_SUBJECT = "You're invited to leave a review";
@@ -40,6 +41,7 @@ export function renderInviteEmail(params: InviteEmailParams): {
     legalFooterEnabled,
     signatureBlock = "",
     isReminder = false,
+    layoutStyle = "standard",
   } = params;
 
   // Subject
@@ -74,10 +76,49 @@ export function renderInviteEmail(params: InviteEmailParams): {
       </p>`
     : "";
 
-  const html = `
-<div style="font-family:Arial, sans-serif; font-size:14px; color:#222; max-width:600px;">
-  <p>${bodyHtml}</p>
+  const ratingWidgetHtml = (() => {
+    const starColors = ["#F04438", "#F79009", "#FEC84B", "#84CC16", "#12B76A"];
+    const safeInviteLink = esc(inviteLink);
+    const stars = starColors
+      .map((color, index) => {
+        const rating = index + 1;
+        const href = `${safeInviteLink}&rating=${rating}`;
+        return `
+          <td align="center" valign="middle" style="padding:0 4px;">
+            <a href="${href}" target="_blank" rel="noopener noreferrer" style="display:inline-block; width:38px; height:38px; line-height:38px; text-align:center; text-decoration:none; background:${color}; border-radius:4px; border:1px solid ${color}; color:#ffffff; font-size:22px; font-weight:700;">★</a>
+          </td>
+        `.trim();
+      })
+      .join("");
 
+    return `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+          <tr>
+            <td align="center" style="font-size:18px; font-weight:700; color:#111827; padding-bottom:12px;">
+              How did we do?
+            </td>
+          </tr>
+          <tr>
+            ${stars}
+          </tr>
+          <tr>
+            <td colspan="5" align="center" style="padding-top:14px; font-size:12px; color:#6b7280;">
+              <a href="${safeInviteLink}" target="_blank" rel="noopener noreferrer" style="color:#0E4E45; text-decoration:underline;">
+                Click here if the buttons don’t work
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+`.trim();
+  })();
+
+  const defaultCtaHtml = `
   <div style="margin:24px 0;">
     <a href="${esc(inviteLink)}" target="_blank" rel="noopener noreferrer"
        style="display:inline-block; padding:12px 20px; background:#0E4E45; color:#fff;
@@ -90,6 +131,15 @@ export function renderInviteEmail(params: InviteEmailParams): {
     If the button does not work, copy and paste this link into your browser:<br/>
     <a href="${esc(inviteLink)}" style="color:#0E4E45; word-break:break-all;">${esc(inviteLink)}</a>
   </p>
+`.trim();
+
+  const ctaHtml = layoutStyle === "rating_widget" ? ratingWidgetHtml : defaultCtaHtml;
+
+  const html = `
+<div style="font-family:Arial, sans-serif; font-size:14px; color:#222; max-width:600px;">
+  <p>${bodyHtml}</p>
+
+  ${ctaHtml}
 
   ${sigHtml}
   ${signatureBlock}

@@ -17,6 +17,7 @@ import { reviewErrorMessages } from "@/lib/errorMessages";
 type WriteReviewFormProps = {
   inviteId?: string | null;
   inviteToken?: string | null;
+  initialRating?: number;
   reviewerEmail?: string;
   initialBusinessId?: string | null;
   initialBusinessSlug?: string | null;
@@ -120,6 +121,7 @@ const callEdgeFunction = async (name: string, body: Record<string, unknown>) => 
 export default function WriteReviewForm({
   inviteId,
   inviteToken,
+  initialRating,
   reviewerEmail,
   initialBusinessId,
   initialBusinessSlug,
@@ -139,7 +141,15 @@ export default function WriteReviewForm({
   const [businessLoading, setBusinessLoading] = useState(false);
   const [businessError, setBusinessError] = useState<string | null>(null);
 
-  const [rating, setRating] = useState(0);
+  const normalizedInitialRating =
+    typeof initialRating === "number" &&
+    Number.isFinite(initialRating) &&
+    initialRating >= 1 &&
+    initialRating <= 5
+      ? Math.round(initialRating)
+      : undefined;
+
+  const [rating, setRating] = useState(() => normalizedInitialRating ?? 0);
   const [dateOfExperience, setDateOfExperience] = useState(todayIsoDate());
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -189,6 +199,13 @@ export default function WriteReviewForm({
     }, 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Prefill rating from URL-provided initial value (e.g. invite rating widget).
+  useEffect(() => {
+    if (normalizedInitialRating && rating === 0) {
+      setRating(normalizedInitialRating);
+    }
+  }, [normalizedInitialRating, rating]);
 
   // Load existing review when in edit mode
   useEffect(() => {

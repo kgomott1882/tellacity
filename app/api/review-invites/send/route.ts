@@ -223,8 +223,11 @@ export async function POST(req: Request) {
 `;
     }
 
+    const layoutStyle =
+      (template as { layout_style?: string | null } | null)?.layout_style ?? "standard";
+
     // Render final email - invite settings overrides take priority over template
-    const { subject, html } = renderInviteEmail({
+    const rendered = renderInviteEmail({
       businessName: bizRecord.name ?? "",
       inviteLink,
       customSubject:       inviteSettings?.custom_subject   || templateSubject || null,
@@ -232,8 +235,57 @@ export async function POST(req: Request) {
       customSignature:     inviteSettings?.custom_signature ?? null,
       legalFooterEnabled:  inviteSettings?.legal_footer_enabled ?? false,
       signatureBlock,
+      layoutStyle,
       isReminder: false,
     });
+    const subject = rendered.subject;
+
+    const escHtml = (s: string | null | undefined) =>
+      s == null
+        ? ""
+        : String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    const bodyText = String(
+      inviteSettings?.custom_message || templateBody || "We'd love your feedback."
+    ).trim();
+    const safeInviteLink = escHtml(inviteLink);
+
+    const ratingWidgetHtml = `
+<div style="font-family:Arial, sans-serif; font-size:14px; color:#222; max-width:600px;">
+  <p style="margin:0 0 14px 0;">${escHtml(bodyText).replace(/\n/g, "<br/>")}</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:14px 0 12px 0;">
+    <tr>
+      <td align="center" style="font-size:22px; font-weight:700; color:#111827; padding-bottom:12px;">
+        How did we do?
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding:4px;"><a href="${safeInviteLink}&rating=1" style="display:inline-block; padding:10px 12px; background:#ef4444; color:#ffffff; font-size:20px; line-height:1; text-decoration:none; border-radius:4px;">★</a></td>
+            <td style="padding:4px;"><a href="${safeInviteLink}&rating=2" style="display:inline-block; padding:10px 12px; background:#f97316; color:#ffffff; font-size:20px; line-height:1; text-decoration:none; border-radius:4px;">★</a></td>
+            <td style="padding:4px;"><a href="${safeInviteLink}&rating=3" style="display:inline-block; padding:10px 12px; background:#facc15; color:#ffffff; font-size:20px; line-height:1; text-decoration:none; border-radius:4px;">★</a></td>
+            <td style="padding:4px;"><a href="${safeInviteLink}&rating=4" style="display:inline-block; padding:10px 12px; background:#22c55e; color:#ffffff; font-size:20px; line-height:1; text-decoration:none; border-radius:4px;">★</a></td>
+            <td style="padding:4px;"><a href="${safeInviteLink}&rating=5" style="display:inline-block; padding:10px 12px; background:#10b981; color:#ffffff; font-size:20px; line-height:1; text-decoration:none; border-radius:4px;">★</a></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding-top:14px;">
+        <a href="${safeInviteLink}" style="color:#0E4E45; text-decoration:underline;">Leave a review</a>
+      </td>
+    </tr>
+  </table>
+  ${signatureBlock}
+</div>
+`.trim();
+
+    const html = layoutStyle === "rating_widget" ? ratingWidgetHtml : rendered.html;
 
     if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY is missing");

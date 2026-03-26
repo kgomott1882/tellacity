@@ -15,7 +15,14 @@ type CustomerBusinessRow = {
   created_at: string | null;
   owner_id: string | null;
   review_count: number | null;
-  plan_code: string | null;
+  subscriptions?:
+    | {
+        plan_code?: string | null;
+      }
+    | Array<{
+        plan_code?: string | null;
+      }>
+    | null;
   profiles:
     | {
         email?: string | null;
@@ -41,7 +48,9 @@ export default async function AdminCustomerBusinessesPage() {
       created_at,
       owner_id,
       review_count,
-      plan_code,
+      subscriptions (
+        plan_code
+      ),
       profiles!businesses_owner_id_fkey (
         email,
         display_name
@@ -54,6 +63,10 @@ export default async function AdminCustomerBusinessesPage() {
   const rows = (Array.isArray(data) ? data : []) as CustomerBusinessRow[];
   const customers = rows.map((b) => {
     const profile = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles;
+    const subscription = Array.isArray(b.subscriptions)
+      ? b.subscriptions[0]
+      : b.subscriptions;
+    const planCode = subscription?.plan_code?.trim() || "free";
     return {
       id: b.id,
       name: b.name,
@@ -61,7 +74,7 @@ export default async function AdminCustomerBusinessesPage() {
       status: b.status,
       created_at: b.created_at,
       review_count: b.review_count,
-      plan_code: b.plan_code,
+      plan_code: planCode,
       owner_email: profile?.email ?? "—",
       owner_name: profile?.display_name?.trim() || profile?.email || "—",
     };
@@ -111,7 +124,7 @@ export default async function AdminCustomerBusinessesPage() {
                         <div className="text-sm text-gray-500">{c.owner_email}</div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 capitalize">
-                        {c.plan_code || "—"}
+                        {c.plan_code || "free"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         {c.review_count ?? 0}
