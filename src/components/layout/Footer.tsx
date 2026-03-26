@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  COUNTRY_CHANGE_EVENT,
   DEFAULT_COUNTRY,
   getStoredCountry,
+  normalizeCountryCode,
   setStoredCountry,
 } from "@/lib/country";
 
@@ -20,15 +22,9 @@ const COUNTRIES = [
   { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
-function normalizeCountryCodeForUi(raw: string | null, fallback = "US"): string {
-  if (!raw) return fallback;
-  const upper = raw.trim().toUpperCase();
-  if (upper === "UK") return "GB";
-  return COUNTRIES.some((item) => item.code === upper) ? upper : fallback;
-}
-
 export default function Footer() {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [countryCode, setCountryCode] = useState("US");
@@ -44,11 +40,25 @@ export default function Footer() {
   useEffect(() => {
     const fromUrl = searchParams.get("country");
     if (fromUrl) {
-      setCountryCode(normalizeCountryCodeForUi(fromUrl));
+      setCountryCode(normalizeCountryCode(fromUrl));
       return;
     }
     const stored = getStoredCountry();
-    setCountryCode(normalizeCountryCodeForUi(stored, DEFAULT_COUNTRY));
+    setCountryCode(stored ?? DEFAULT_COUNTRY);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const syncCountryFromStorage = () => {
+      const fromUrl = searchParams.get("country");
+      if (fromUrl) return;
+      setCountryCode(getStoredCountry() ?? DEFAULT_COUNTRY);
+    };
+    window.addEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
+    window.addEventListener("storage", syncCountryFromStorage);
+    return () => {
+      window.removeEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
+      window.removeEventListener("storage", syncCountryFromStorage);
+    };
   }, [searchParams]);
 
   const openCountryMenu = () => {
@@ -70,11 +80,12 @@ export default function Footer() {
   };
 
   const handleCountrySelect = (code: string) => {
-    setCountryCode(code);
-    setStoredCountry(code);
-    const url = new URL(window.location.href);
-    url.searchParams.set("country", code);
-    window.location.href = url.toString();
+    const normalized = normalizeCountryCode(code);
+    setCountryCode(normalized);
+    setStoredCountry(normalized);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", normalized);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     setIsCountryOpen(false);
   };
 

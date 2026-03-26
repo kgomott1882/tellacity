@@ -18,7 +18,6 @@ import {
   setStoredCountry,
 } from "@/lib/country";
 import { similarBusinessLogoUrl } from "@/lib/logo";
-import { isAbortError } from "@/lib/authErrors";
 import { getAllBlogPosts } from "../data/blogPosts";
 
 type HomeReview = {
@@ -439,136 +438,45 @@ export default function HomePageClient({
     }
   }, [pathname, searchParams, router]);
 
-  // Reviews: 1) home_feed_v1 view (optional), 2) fallback = reviews table + businesses (join). No RPC.
+  // Reviews: use only home_feed_v1 (no fallback/merge).
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
-      const country = activeCountryCode;
       setIsLoading(true);
       setError(null);
 
-      const runFallbackReviews = async (): Promise<boolean> => {
-        const supabase = supabaseBrowser();
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("reviews")
-          .select(
-            "id, rating, title, body, created_at, guest_name, like_count, visibility, businesses(name, slug, website, website_display, logo_url, resolved_logo_url, review_count)"
-          )
-          .eq("businesses.country_code", country)
-          .or("status.is.null,status.eq.published")
-          .eq("visibility", "visible")
-          .order("created_at", { ascending: false })
-          .limit(56);
-
-        if (!isMounted) return false;
-
-        const safeReviews = (fallbackData || []).filter(
-          (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
-        );
-
-        if (fallbackError || safeReviews.length === 0) return false;
-
-        const mapped: HomeReview[] = safeReviews.map((row: Record<string, unknown>) => {
-          const biz = row.businesses as {
-            name?: string;
-            slug?: string;
-            website?: string | null;
-            website_display?: string | null;
-            logo_url?: string | null;
-            resolved_logo_url?: string | null;
-            review_count?: number | null;
-          } | null;
-          const guestName = (row.guest_name as string) ?? null;
-
-          const website = biz?.website?.trim() ? biz.website : null;
-          const websiteDisplay = biz?.website_display?.trim() ? biz.website_display : null;
-          const logoUrl = biz?.logo_url?.trim() ? biz.logo_url : null;
-          const resolvedRaw = biz?.resolved_logo_url?.trim() ? biz.resolved_logo_url : null;
-          const resolved_logo_url = similarBusinessLogoUrl({
-            resolved_logo_url: resolvedRaw,
-            logo_url: logoUrl,
-            website,
-            website_display: websiteDisplay,
-          });
-
-          return {
-            review_id: row.id as string,
-            rating: (row.rating as number) ?? null,
-            title: (row.title as string) ?? null,
-            body: (row.body as string) ?? null,
-            created_at: (row.created_at as string) ?? null,
-            guest_name: guestName,
-            business_name: biz?.name ?? null,
-            business_slug: biz?.slug ?? null,
-            website,
-            website_display: websiteDisplay,
-            logo_url: logoUrl,
-            resolved_logo_url,
-            reviewer_name: guestName,
-            review_count: biz?.review_count ?? null,
-            like_count: (row.like_count as number | null) ?? null,
-          };
-        });
-        setReviews(mapped);
-        return true;
-      };
-
       try {
-        let data: HomeReview[] | null = null;
-        let err: unknown = null;
+        const supabase = supabaseBrowser();
+        const { data, error } = await supabase
+          .from("home_feed_v1")
+          .select("*")
+          .eq("country_code", activeCountryCode)
+          .order("created_at", { ascending: false })
+          .limit(64);
 
-        try {
-          const supabase = supabaseBrowser();
-          let query = supabase
-            .from("home_feed_v1")
-            .select("*")
-            .order("created_at", { ascending: false });
+        console.log("HOME FEED DATA:", data);
 
-          if (country) {
-            query = query.eq("country_code", country);
-          }
+        if (!isMounted) return;
 
-          const result = await query.limit(56);
-          if (!isMounted) return;
-          err = result.error;
-          const visibleReviews = (result.data || []).filter(
-            (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
-          );
-          if (!result.error && visibleReviews.length > 0) {
-            setReviews(
-              visibleReviews.map((r) =>
-                mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
-              )
-            );
-            return;
-          }
-          /* View returned no visible rows — use table fallback. */
-          data =
-            visibleReviews.length > 0
-              ? visibleReviews.map((r) =>
-                  mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
-                )
-              : null;
-        } catch (viewErr) {
-          if (!isMounted) return;
-          if (isAbortError(viewErr)) return;
-          const ok = await runFallbackReviews();
-          if (!ok)
-            setError(viewErr instanceof Error ? viewErr.message : "Failed to load reviews.");
+        if (error) {
+          setError(error.message);
+          setReviews([]);
           return;
         }
 
-        const ok = await runFallbackReviews();
-        if (!ok && !err) setReviews(data ?? []);
-        if (err && !isAbortError(err)) setError((err as Error).message);
+        const visibleReviews = (data || []).filter(
+          (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
+        );
+
+        setReviews(
+          visibleReviews.map((r) =>
+            mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
+          )
+        );
       } catch (e) {
         if (!isMounted) return;
-        if (!isAbortError(e)) {
-          const ok = await runFallbackReviews();
-          if (!ok)
-            setError(e instanceof Error ? e.message : "Failed to load reviews.");
-        }
+        setError(e instanceof Error ? e.message : "Failed to load reviews.");
       } finally {
         if (isMounted) setIsLoading(false);
       }

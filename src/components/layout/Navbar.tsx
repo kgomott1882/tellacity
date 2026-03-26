@@ -8,7 +8,13 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { isAbortError } from "@/lib/authErrors";
-import { getStoredCountry, setStoredCountry } from "@/lib/country";
+import {
+  COUNTRY_CHANGE_EVENT,
+  DEFAULT_COUNTRY,
+  getStoredCountry,
+  normalizeCountryCode,
+  setStoredCountry,
+} from "@/lib/country";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
@@ -21,13 +27,6 @@ const COUNTRIES = [
   { code: "NZ", name: "New Zealand", flagUrl: `${FLAG_BASE}/NZ.svg` },
   { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
-
-function normalizeCountryCodeForUi(raw: string | null): string {
-  if (!raw) return "US";
-  const upper = raw.trim().toUpperCase();
-  if (upper === "UK") return "GB";
-  return COUNTRIES.some((item) => item.code === upper) ? upper : "US";
-}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -68,7 +67,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const [countryCode, setCountryCode] = useState<string>("ZA");
+  const [countryCode, setCountryCode] = useState<string>(DEFAULT_COUNTRY);
 
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
@@ -87,7 +86,7 @@ export default function Navbar() {
   useEffect(() => {
     const queryCountry = searchParams.get("country");
     if (queryCountry) {
-      const normalized = normalizeCountryCodeForUi(queryCountry);
+      const normalized = normalizeCountryCode(queryCountry);
       setCountryCode(normalized);
       setStoredCountry(normalized);
       return;
@@ -95,11 +94,26 @@ export default function Navbar() {
 
     const stored = getStoredCountry();
     if (stored) {
-      setCountryCode(normalizeCountryCodeForUi(stored));
+      setCountryCode(normalizeCountryCode(stored));
       return;
     }
 
-    setCountryCode(normalizeCountryCodeForUi(null));
+    setCountryCode(DEFAULT_COUNTRY);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const syncCountryFromStorage = () => {
+      const queryCountry = searchParams.get("country");
+      if (queryCountry) return;
+      const stored = getStoredCountry();
+      setCountryCode(stored ?? DEFAULT_COUNTRY);
+    };
+    window.addEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
+    window.addEventListener("storage", syncCountryFromStorage);
+    return () => {
+      window.removeEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
+      window.removeEventListener("storage", syncCountryFromStorage);
+    };
   }, [searchParams]);
 
   // Close user menu when clicking outside
@@ -329,11 +343,12 @@ export default function Navbar() {
   };
 
   const handleCountryChange = (code: string) => {
-    setCountryCode(code);
-    setStoredCountry(code);
-    const url = new URL(window.location.href);
-    url.searchParams.set("country", code);
-    window.location.href = url.toString();
+    const normalized = normalizeCountryCode(code);
+    setCountryCode(normalized);
+    setStoredCountry(normalized);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("country", normalized);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   if (isBusinessNav) {
