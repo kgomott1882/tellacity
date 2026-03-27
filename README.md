@@ -2,20 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Environment: logos
 
-Business logos (when not manually uploaded) are resolved via [Logo.dev](https://logo.dev). Set this in `.env.local` so logos show on category, business, and search pages:
-
-```bash
-NEXT_PUBLIC_LOGO_DEV_TOKEN=your_logo_dev_publishable_key
-```
-
-Get a publishable key at [logo.dev](https://logo.dev). Without this variable, only manually uploaded logos will appear.
+Business logos are read from `businesses.logo_url` only.
 
 **Logos checklist**
 
-1. **Set** `NEXT_PUBLIC_LOGO_DEV_TOKEN` in `.env.local` (publishable key from [logo.dev](https://logo.dev)).
-2. **Restart** the dev server after changing env vars.
-3. **Verify** token: open [http://localhost:3000/api/test-logo](http://localhost:3000/api/test-logo) — `token_exists` should be `true` and `sample_logo_url` should be a URL with `?token=...`.
-4. **DB (optional)** Run `docs/sql-backfill-website-display-domain.sql` in Supabase so `website_display` has clean domains; category RPC uses this for Logo.dev URLs.
+1. Upload/store the business logo and save it to `businesses.logo_url`.
+2. Restart the dev server after changing env vars.
+3. Verify logo setup: open [http://localhost:3000/api/test-logo](http://localhost:3000/api/test-logo) and confirm `logo_source` is `business.logo_url only`.
 
 ## Getting Started
 

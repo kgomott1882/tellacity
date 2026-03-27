@@ -356,13 +356,17 @@ export default function ConsumerDashboard() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
-                              {(review.business?.logo_url ?? review.business?.resolved_logo_url) ? (
+                              {review.business?.logo_url ? (
                                 <img
-                                  src={normalizeLogoUrl(review.business.logo_url ?? review.business.resolved_logo_url ?? "") ?? (review.business.logo_url ?? review.business.resolved_logo_url ?? "")}
+                                  src={normalizeLogoUrl(review.business.logo_url ?? "") ?? (review.business.logo_url ?? "")}
                                   alt={review.business?.name ?? "Business"}
                                   className="h-full w-full object-contain"
                                 />
-                              ) : null}
+                              ) : (
+                                <span className="text-sm font-semibold text-[#0E0E0E]">
+                                  {(review.business?.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                                </span>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-[#0E0E0E]">

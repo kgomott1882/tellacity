@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
 
 function formatDate(iso: string) {
   try {
@@ -86,7 +87,7 @@ export default function ReviewCarousel({ payload }: { payload: WidgetPayload }) 
                 style={{ fontSize: 11, color: "#2fb2a8", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
               >
                 Verified by{" "}
-                <img src="/brand/appicon.png.png" alt="Tellacity" style={{ width: 13, height: 13, objectFit: "contain", borderRadius: 3 }} />
+                <img src={TELLACITY_BRAND_ICON_PATH} alt="Tellacity" width={20} height={20} style={{ width: 13, height: 13, objectFit: "contain", borderRadius: 3 }} />
                 <strong style={{ color: "#000" }}>Tellacity</strong> →
               </a>
             </div>

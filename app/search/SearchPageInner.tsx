@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
-import { normalizeLogoUrl, resolveBusinessLogoViaClient, domainFromWebsite } from "@/lib/logo";
+import { normalizeLogoUrl } from "@/lib/logo";
 
 type SearchResult = {
   id: string;
@@ -102,18 +102,7 @@ export default function SearchPageInner() {
         const rows = data ?? [];
         const mapped: SearchResult[] = [];
         for (const business of rows) {
-          let logoUrl = normalizeLogoUrl(business.logo_url ?? null);
-          if (!logoUrl) {
-            const domain = domainFromWebsite(business.website_display ?? business.website);
-            if (domain) {
-              try {
-                const fromEdge = await resolveBusinessLogoViaClient(supabase, domain);
-                if (fromEdge) logoUrl = fromEdge;
-              } catch {
-                // keep null
-              }
-            }
-          }
+          const logoUrl = normalizeLogoUrl(business.logo_url ?? null);
           mapped.push({
             id: business.id,
             name: business.name ?? "Business",
@@ -230,7 +219,11 @@ export default function SearchPageInner() {
                         event.currentTarget.style.display = "none";
                       }}
                     />
-                  ) : null}
+                  ) : (
+                    <span className="text-sm font-semibold text-[#0E0E0E]">
+                      {(business.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-[220px] flex-1">
                   <div className="flex items-center gap-1">

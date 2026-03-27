@@ -38,7 +38,8 @@ type Category = {
   id: string;
   name: string;
   slug: string;
-  group: string | null;
+  group_slug?: string | null;
+  is_active?: boolean | null;
 };
 
 type CategoryGroup = {
@@ -47,12 +48,6 @@ type CategoryGroup = {
   slug: string;
   categories: Category[];
 };
-
-function isValidSlug(slug: string) {
-  if (!slug || typeof slug !== "string") return false;
-  const clean = slug.trim().toLowerCase();
-  return /^[a-z0-9-]+$/.test(clean);
-}
 
 const ICON_MATCHES: { match: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { match: "animal", icon: Dog },
@@ -180,57 +175,40 @@ export default function CategoriesPage() {
 
     const fetchGroups = async () => {
       const supabase = supabaseBrowser();
-      const { data, error } = await supabase
+
+      const { data: groupsData, error: groupsError } = await supabase
         .from("category_groups")
-        .select(`
-          id,
-          name,
-          slug,
-          categories (
-            id,
-            name,
-            slug,
-            group
-        )
-        `)
-        .order("name", { ascending: true });
+        .select("id, slug, name")
+        .order("name");
+
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("categories")
+        .select("id, name, slug, group_slug, is_active");
 
       if (!isMounted) {
         return;
       }
 
-      if (error) {
+      if (groupsError || categoriesError) {
+        console.error("Categories load error:", groupsError || categoriesError);
         setGroups([]);
         setDataCount(0);
-      } else {
-        const sanitized = (data ?? [])
-          .map((group) => {
-            const safeGroupSlug = (group.slug ?? "").trim().toLowerCase();
-            const filteredCategories = (group.categories ?? [])
-              .filter((category) => category.group === group.slug)
-              .map((category) => ({
-              id: category.id,
-              name: category.name,
-              slug: (category.slug ?? "").trim().toLowerCase(),
-                group: category.group,
-          }))
-              .filter((category) => isValidSlug(category.slug))
-              .sort((a, b) => a.name.localeCompare(b.name));
-
-            return {
-              id: group.id,
-              name: group.name,
-              slug: safeGroupSlug,
-              categories: filteredCategories,
-            };
-          })
-          .filter((group) => group.categories.length > 0 && isValidSlug(group.slug))
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        setGroups(sanitized);
-        setDataCount(sanitized.length);
+        setIsLoading(false);
+        return;
       }
 
+      const cleanedGroups = (groupsData || []).map((group) => ({
+        ...group,
+        categories: (categoriesData || []).filter(
+          (cat) =>
+            cat.group_slug === group.slug && cat.is_active === true
+        ),
+      })) as CategoryGroup[];
+
+      console.log("CATEGORY GROUPS:", cleanedGroups);
+
+      setGroups(cleanedGroups);
+      setDataCount(cleanedGroups.length);
       setIsLoading(false);
     };
 
@@ -291,7 +269,7 @@ export default function CategoriesPage() {
               const accentColor = getGroupColor(group.slug);
               return (
               <div
-                key={group.id}
+                key={String(group.id ?? group.slug ?? group.name)}
                 className="rounded-xl border-2 bg-white p-6 shadow-sm"
                 style={{ borderColor: accentColor }}
               >
@@ -318,12 +296,15 @@ export default function CategoriesPage() {
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
                   {group.categories.map((category) => {
-                    const safeCategorySlug = (category.slug ?? "").trim().toLowerCase();
-                    if (!isValidSlug(safeCategorySlug)) return null;
+                    const safeCategorySlug = (category.slug ?? "").trim();
                     return (
-                      <li key={category.id}>
+                      <li key={String(category.id ?? category.slug ?? category.name)}>
                         <Link
-                          href={`/categories/${safeCategorySlug}`}
+                          href={
+                            safeCategorySlug
+                              ? `/categories/${encodeURIComponent(safeCategorySlug)}`
+                              : "#"
+                          }
                           className="flex items-center justify-between gap-3 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                           onMouseEnter={(e) => {
                             e.currentTarget.style.color = accentColor;
@@ -341,7 +322,11 @@ export default function CategoriesPage() {
                 </ul>
                 <div className="mt-5 border-t border-gray-100 pt-4 text-right">
                   <Link
-                    href={`/categories/${(group.slug ?? "").trim().toLowerCase()}`}
+                    href={
+                      (group.slug ?? "").trim()
+                        ? `/categories/${encodeURIComponent((group.slug ?? "").trim())}`
+                        : "#"
+                    }
                     className="inline-flex items-center gap-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                     style={{
                       color: accentColor,

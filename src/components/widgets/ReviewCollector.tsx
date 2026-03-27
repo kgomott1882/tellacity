@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
 
 function TellacityStarIcon() {
   return (
@@ -70,7 +71,7 @@ export default function ReviewCollector({ payload }: { payload: WidgetPayload })
           </div>
           <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1, display: "flex", alignItems: "center", gap: 4 }}>
             Verified by{" "}
-            <img src="/brand/appicon.png.png" alt="Tellacity" style={{ width: 12, height: 12, objectFit: "contain", borderRadius: 2 }} />
+            <img src={TELLACITY_BRAND_ICON_PATH} alt="Tellacity" width={20} height={20} style={{ width: 12, height: 12, objectFit: "contain", borderRadius: 2 }} />
             <span style={{ color: "#000", fontWeight: 600 }}>Tellacity</span>
           </div>
         </div>

@@ -10,6 +10,8 @@ import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import UpgradeButton from "@/components/billing/UpgradeButton";
 import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import TellacityStarStrip from "@/components/widgets/TellacityStarStrip";
+import { EMAIL_WIDGET_CTA_BORDER, EMAIL_WIDGET_CTA_TEXT } from "@/lib/emailBranding";
 
 const DEFAULT_WIDGET_SUBJECT = "Share your experience with us";
 const DEFAULT_WIDGET_INTRO =
@@ -36,32 +38,11 @@ type WidgetTemplate = {
   signature_name: string | null;
 };
 
-// Reusable star box for layout previews
-function StarBoxes() {
-  return (
-    <div className="flex justify-center gap-1">
-      {[1,2,3,4,5].map((i) => (
-        <span
-          key={i}
-          className="inline-flex items-center justify-center rounded-[3px]"
-          style={{ width: 22, height: 22, backgroundColor: "#12B76A", border: "1px solid #12B76A" }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-          </svg>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function TellacityBranding() {
   return (
-    <div className="mt-2 flex items-center justify-center gap-1">
-      <span className="text-[10px] text-gray-400">Verified reviews powered by</span>
-      <img src="/brand/appicon.png.png" alt="Tellacity" className="h-3.5 w-3.5 object-contain" />
-      <span className="text-[10px] font-semibold text-gray-700">Tellacity</span>
-    </div>
+    <p className="mt-2 text-center text-[10px] leading-snug text-gray-400">
+      Verified reviews powered by <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
+    </p>
   );
 }
 
@@ -250,8 +231,13 @@ export default function EmailWidgetsPage() {
                 {/* Standard mini-preview */}
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-5 text-center">
                   <p className="mb-2 text-xs font-semibold text-gray-800">Tell us about your experience</p>
-                  <StarBoxes />
-                  <div className="mt-2 inline-block rounded-md bg-[#1FAF9E] px-4 py-1.5 text-xs font-bold text-white">
+                  <div className="flex justify-center">
+                    <TellacityStarStrip size={12} />
+                  </div>
+                  <div
+                    className="mt-2 inline-block rounded border px-3 py-1 text-[11px] font-semibold leading-tight bg-transparent"
+                    style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
+                  >
                     Leave a Review
                   </div>
                   <TellacityBranding />
@@ -309,8 +295,13 @@ export default function EmailWidgetsPage() {
                   {/* Body */}
                   <div className="px-4 py-4">
                     <p className="mb-2 text-xs font-semibold text-gray-800">Tell us about your experience</p>
-                    <StarBoxes />
-                    <div className="mt-2 inline-block rounded-md bg-[#1FAF9E] px-4 py-1.5 text-xs font-bold text-white">
+                    <div className="flex justify-center">
+                    <TellacityStarStrip size={12} />
+                  </div>
+                    <div
+                      className="mt-2 inline-block rounded border px-3 py-1 text-[11px] font-semibold leading-tight bg-transparent"
+                      style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
+                    >
                       Leave a Review
                     </div>
                     <TellacityBranding />
@@ -397,27 +388,19 @@ export default function EmailWidgetsPage() {
                     {/* Review Collector block */}
                     <div className="my-5 rounded-lg border border-gray-200 p-5 text-center">
                       <p className="text-sm font-semibold text-gray-900">Tell us about your experience</p>
-                      <div className="mt-2 flex justify-center gap-1">
-                        {[1,2,3,4,5].map((i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center justify-center rounded-[3px]"
-                            style={{ width: 22, height: 22, backgroundColor: "#12B76A", border: "1px solid #12B76A" }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                            </svg>
-                          </span>
-                        ))}
+                      <div className="mt-2 flex justify-center">
+                        <TellacityStarStrip size={13} />
                       </div>
-                      <div className="mt-3 inline-block rounded-md bg-[#1FAF9E] px-5 py-2.5 text-sm font-bold text-white">
+                      <div
+                        className="mt-3 inline-block rounded border px-4 py-1.5 text-xs font-semibold leading-tight bg-transparent"
+                        style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
+                      >
                         Leave a Review
                       </div>
-                      <div className="mt-3 flex items-center justify-center gap-1">
-                        <span className="text-[11px] text-gray-500">Verified reviews powered by</span>
-                        <img src="/brand/appicon.png.png" alt="Tellacity" className="h-4 w-4 object-contain" />
-                        <span className="text-[11px] font-semibold text-black">Tellacity</span>
-                      </div>
+                      <p className="mt-3 text-center text-[11px] text-gray-500">
+                        Verified reviews powered by{" "}
+                        <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
+                      </p>
                     </div>
 
                     {/* Signature hint */}

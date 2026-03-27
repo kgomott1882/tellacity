@@ -103,7 +103,7 @@ export default function CategoriesPage() {
 
         const { data: categoriesData, error: categoriesErr } = await supabase
           .from("categories")
-          .select("id, name, slug, group")
+          .select("id, name, slug, group_slug")
           .order("name", { ascending: true });
 
         if (!mounted) return;
@@ -125,27 +125,28 @@ export default function CategoriesPage() {
         id: string;
         name: string;
         slug: string;
-        group: string | null;
+        group_slug: string | null;
       }[];
       const byGroup: Record<string, SubItem[]> = {};
       const flat: CategoryOption[] = [];
 
       groups.forEach((g) => {
+        const gSlug = String(g.slug ?? "").trim().toLowerCase();
         const subs = categories
-          .filter((c) => c.group === g.slug)
+          .filter((c) => String(c.group_slug ?? "").trim().toLowerCase() === gSlug)
           .map((c) => ({ label: c.name, slug: c.slug }));
         byGroup[g.slug] = subs.length > 0 ? subs : [{ label: g.name, slug: g.slug }];
         flat.push({ label: g.name, slug: g.slug, mainSlug: g.slug, categoryId: null, groupSlug: g.slug });
       });
 
       categories.forEach((c) => {
-        if (c.group) {
+        if (c.group_slug) {
           flat.push({
             label: c.name,
             slug: c.slug,
-            mainSlug: c.group,
+            mainSlug: c.group_slug,
             categoryId: c.id,
-            groupSlug: c.group ?? null,
+            groupSlug: c.group_slug ?? null,
           });
         }
       });

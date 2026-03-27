@@ -4,14 +4,16 @@
  * Pure inline styles - no Tailwind, no lucide, safe for iframe embedding.
  */
 
+import { TELLACITY_STAR_EMPTY_BORDER, TELLACITY_STAR_TIER_COLORS } from "@/lib/tellacityStarColors";
+
 const FILL_COLORS: Record<number, string> = {
-  1: "#F04438",
-  2: "#F79009",
-  3: "#FEC84B",
-  4: "#84CC16",
-  5: "#12B76A",
+  1: TELLACITY_STAR_TIER_COLORS[0],
+  2: TELLACITY_STAR_TIER_COLORS[1],
+  3: TELLACITY_STAR_TIER_COLORS[2],
+  4: TELLACITY_STAR_TIER_COLORS[3],
+  5: TELLACITY_STAR_TIER_COLORS[4],
 };
-const EMPTY_COLOR = "#E4E7EC";
+const EMPTY_COLOR = TELLACITY_STAR_EMPTY_BORDER;
 
 function StarSVG({ size, color }: { size: number; color: string }) {
   return (

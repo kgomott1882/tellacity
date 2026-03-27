@@ -10,7 +10,8 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "process:logos": "node scripts/process-business-logos.js"
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.15",

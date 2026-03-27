@@ -48,7 +48,7 @@ export default function SuggestBusinessPage() {
           slug,
           categories (
             id,
-            group
+            group_slug
           )
         `
         )
@@ -64,8 +64,11 @@ export default function SuggestBusinessPage() {
 
       const groupList =
         (groupsData ?? [])
-          .map((r: { name: string; slug: string; categories?: { id: string; group: string | null }[] }) => {
-            const hasCategories = (r.categories ?? []).some((c) => c.group === r.slug);
+          .map((r: { name: string; slug: string; categories?: { id: string; group_slug: string | null }[] }) => {
+            const gSlug = String(r.slug ?? "").trim().toLowerCase();
+            const hasCategories = (r.categories ?? []).some(
+              (c) => String(c.group_slug ?? "").trim().toLowerCase() === gSlug
+            );
             return hasCategories
               ? {
                   name: r.name,
@@ -80,7 +83,7 @@ export default function SuggestBusinessPage() {
 
       const { data: categoriesData, error: catErr } = await supabase
         .from("categories")
-        .select("name, slug, group")
+        .select("name, slug, group_slug")
         .order("name");
 
       if (!mounted) return;
@@ -90,10 +93,10 @@ export default function SuggestBusinessPage() {
         return;
       }
 
-      const categoryList = (categoriesData ?? []).map((r: { name: string; slug: string; group: string | null }) => ({
+      const categoryList = (categoriesData ?? []).map((r: { name: string; slug: string; group_slug: string | null }) => ({
         name: r.name,
         slug: r.slug,
-        group_slug: r.group ?? "",
+        group_slug: r.group_slug ?? "",
       }));
       setCategories(categoryList);
       setCategoriesLoading(false);

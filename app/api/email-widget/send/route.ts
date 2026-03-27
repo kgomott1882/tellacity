@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
+import { EMAIL_WIDGET_CTA_BORDER, EMAIL_WIDGET_CTA_TEXT } from "@/lib/emailBranding";
 
 function isPremiumOrElite(plan: string): boolean {
   return plan === "premium" || plan === "elite";
@@ -56,21 +57,21 @@ function buildSignatureBlock(t: Record<string, unknown>): string {
 </div>`;
 }
 
-/** One Tellacity-style star box (inline CSS, email-safe). */
-function starBox(color: string): string {
-  return `<span style="display:inline-block; width:22px; height:22px; background:${color}; border:1px solid ${color}; border-radius:3px; text-align:center; line-height:22px; margin:0 2px; vertical-align:middle;">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block; vertical-align:middle;">
-      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
-    </svg>
-  </span>`;
+/**
+ * Email clients (e.g. Gmail) strip inline SVG — Unicode stars on light squares, black glyphs.
+ */
+function buildEmailStarsRowHtml(opts?: { marginBottom?: string }): string {
+  const mb = opts?.marginBottom ?? "16px";
+  const star = `<span style="display:inline-block;width:22px;height:22px;margin:0 3px;background:#ffffff;border:1px solid #E5E7EB;border-radius:3px;text-align:center;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000000;vertical-align:middle;">&#9733;</span>`;
+  const stars = Array.from({ length: 5 }, () => star).join("");
+  return `<div style="margin-bottom:${mb};text-align:center;font-size:0;line-height:0;">${stars}</div>`;
 }
 
-function buildBrandingLine(iconUrl: string): string {
-  return `<div style="margin-top:14px; display:inline-flex; align-items:center; gap:4px;">
-    <span style="font-size:11px; color:#666666; vertical-align:middle; font-family:Arial, sans-serif;">Verified reviews powered by</span>
-    <img src="${iconUrl}" alt="Tellacity" style="height:16px; width:16px; vertical-align:middle;" />
-    <strong style="font-size:11px; color:#000000; vertical-align:middle; font-family:Arial, sans-serif;">Tellacity</strong>
-  </div>`;
+/** Table-based footer: text only (no icon — email-safe). */
+function buildBrandingLine(): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:14px;"><tr><td align="center" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;">
+<span style="white-space:nowrap;">Verified reviews powered by <strong style="color:#000000;">Tellacity</strong></span>
+</td></tr></table>`;
 }
 
 function buildWidgetHtml(opts: {
@@ -78,9 +79,8 @@ function buildWidgetHtml(opts: {
   reviewLink: string;
   signatureBlock: string;
   removeBranding: boolean;
-  baseUrl: string;
 }): string {
-  const { introMessage, reviewLink, signatureBlock, removeBranding, baseUrl } = opts;
+  const { introMessage, reviewLink, signatureBlock, removeBranding } = opts;
 
   const introParagraph = introMessage
     ? `<p style="font-size:15px; line-height:1.6; color:#333; margin:0 0 20px 0;">${introMessage
@@ -90,9 +90,8 @@ function buildWidgetHtml(opts: {
         .replace(/\n/g, "<br/>")}</p>`
     : "";
 
-  const starsRow = `<div style="margin-bottom:16px;">${[1,2,3,4,5].map(() => starBox("#12B76A")).join("")}</div>`;
-  const iconUrl = `${baseUrl.replace(/\/$/, "")}/brand/appicon.png.png`;
-  const brandingLine = removeBranding ? "" : buildBrandingLine(iconUrl);
+  const starsRow = buildEmailStarsRowHtml();
+  const brandingLine = removeBranding ? "" : buildBrandingLine();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -104,7 +103,7 @@ function buildWidgetHtml(opts: {
       <h3 style="margin:0 0 12px 0; font-size:16px; color:#111;">Tell us about your experience</h3>
       ${starsRow}
       <a href="${reviewLink}"
-         style="display:inline-block; padding:12px 20px; background:#1FAF9E; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">
+         style="display:inline-block; padding:7px 18px; background-color:transparent; border:1px solid ${EMAIL_WIDGET_CTA_BORDER}; color:${EMAIL_WIDGET_CTA_TEXT}; text-decoration:none; border-radius:4px; font-weight:600; font-size:13px; line-height:1.2;">
         Leave a Review
       </a>
       ${brandingLine}
@@ -122,11 +121,8 @@ function buildEliteBrandedHtml(opts: {
   signatureBlock: string;
   businessName: string;
   businessLogoUrl: string | null;
-  baseUrl: string;
 }): string {
-  const { introMessage, reviewLink, signatureBlock, businessName, businessLogoUrl, baseUrl } = opts;
-
-  const iconUrl = `${baseUrl.replace(/\/$/, "")}/brand/appicon.png.png`;
+  const { introMessage, reviewLink, signatureBlock, businessName, businessLogoUrl } = opts;
 
   const logoBlock = businessLogoUrl
     ? `<img src="${esc(businessLogoUrl)}" alt="${esc(businessName)}" style="max-height:60px; margin-bottom:12px; display:block; margin-left:auto; margin-right:auto;" />`
@@ -140,7 +136,7 @@ function buildEliteBrandedHtml(opts: {
         .replace(/\n/g, "<br/>")
     : `We'd love to hear about your experience with ${esc(businessName)}. It only takes a minute.`;
 
-  const starsRow = `<div style="margin:25px 0;">${[1,2,3,4,5].map(() => starBox("#12B76A")).join("")}</div>`;
+  const starsRow = `<div style="margin:25px 0;">${buildEmailStarsRowHtml({ marginBottom: "0" })}</div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -161,16 +157,11 @@ function buildEliteBrandedHtml(opts: {
       ${starsRow}
 
       <a href="${reviewLink}"
-         style="display:inline-block; padding:12px 24px; background:#1FAF9E; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">
+         style="display:inline-block; padding:7px 18px; background-color:transparent; border:1px solid ${EMAIL_WIDGET_CTA_BORDER}; color:${EMAIL_WIDGET_CTA_TEXT}; text-decoration:none; border-radius:4px; font-weight:600; font-size:13px; line-height:1.2;">
         Leave a Review
       </a>
 
-      <!-- Tellacity branding - always visible -->
-      <div style="margin-top:24px; display:inline-flex; align-items:center; gap:4px;">
-        <span style="font-size:11px; color:#666666; vertical-align:middle; font-family:Arial, sans-serif;">Verified reviews powered by</span>
-        <img src="${iconUrl}" alt="Tellacity" style="height:16px; width:16px; vertical-align:middle;" />
-        <strong style="font-size:11px; color:#000000; vertical-align:middle; font-family:Arial, sans-serif;">Tellacity</strong>
-      </div>
+      ${buildBrandingLine()}
     </div>
 
     ${signatureBlock ? `<div style="padding:0 30px 24px;">${signatureBlock}</div>` : ""}
@@ -272,9 +263,8 @@ export async function POST(req: Request) {
           signatureBlock,
           businessName: bizRecord.name ?? "",
           businessLogoUrl: (bizRecord as Record<string, unknown>).logo_url as string | null,
-          baseUrl,
         })
-      : buildWidgetHtml({ introMessage, reviewLink, signatureBlock, removeBranding, baseUrl });
+      : buildWidgetHtml({ introMessage, reviewLink, signatureBlock, removeBranding });
 
     if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY is missing");

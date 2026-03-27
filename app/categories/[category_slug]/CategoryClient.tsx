@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeLogoUrl, domainFromWebsite, getLogoDevUrl } from "@/lib/logo";
+import { normalizeLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
 import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
@@ -24,7 +24,7 @@ type BusinessRow = {
   address: string | null;
   city: string | null;
   display_location: string | null;
-  resolved_logo_url: string | null;
+  logo_url: string | null;
 };
 
 type CountryOption = {
@@ -135,7 +135,7 @@ export default function CategoryClient({
       slug?: string;
       name?: string;
       website?: string | null;
-      resolved_logo_url?: string | null;
+      logo_url?: string | null;
       trust_score?: number | null;
       review_count?: number | null;
     }>;
@@ -143,9 +143,7 @@ export default function CategoryClient({
       .map((business, index) => {
         const safeSlug = (business.slug ?? "").trim().toLowerCase();
         if (!isValidSlug(safeSlug)) return null;
-        const logoUrl =
-          normalizeLogoUrl(business.resolved_logo_url ?? null) ??
-          getLogoDevUrl(domainFromWebsite(business.website ?? null));
+        const logoUrl = normalizeLogoUrl(business.logo_url ?? null);
         return {
           id: business.id ?? `top-${index}-${safeSlug}`,
           slug: safeSlug,
@@ -760,8 +758,7 @@ export default function CategoryClient({
                   formatBusinessAddress(business.address, business.city, business.country_code) ||
                   business.display_location;
 
-                const logoUrl =
-                  normalizeLogoUrl(business.resolved_logo_url) ?? getLogoDevUrl(domainFromWebsite(business.website));
+                const logoUrl = normalizeLogoUrl(business.logo_url);
 
                 return (
                   <Link key={business.id} href={`/b/${safeSlug}`} className="block w-full">
@@ -779,7 +776,11 @@ export default function CategoryClient({
                                 e.currentTarget.style.display = "none";
                               }}
                             />
-                          ) : null}
+                          ) : (
+                            <span className="text-sm font-semibold text-[#0E0E0E]">
+                              {(sanitizeText(business.name)?.trim()?.charAt(0) || "B").toUpperCase()}
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0">
@@ -905,8 +906,7 @@ export default function CategoryClient({
                     typeof company.trust_score === "number" && company.trust_score > 0
                       ? company.trust_score
                       : 0;
-                  const logoUrl =
-                    normalizeLogoUrl(company.resolved_logo_url) ?? getLogoDevUrl(domainFromWebsite(company.website));
+                  const logoUrl = normalizeLogoUrl(company.logo_url);
 
                   return (
                     <Link
@@ -927,7 +927,11 @@ export default function CategoryClient({
                                 e.currentTarget.style.display = "none";
                               }}
                             />
-                          ) : null}
+                          ) : (
+                            <span className="text-sm font-semibold text-[#0E0E0E]">
+                              {(sanitizeText(company.name)?.trim()?.charAt(0) || "B").toUpperCase()}
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0">

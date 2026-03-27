@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
 
 export default function TrustBadge({ payload }: { payload: WidgetPayload }) {
   const url = `https://tellacity.com/b/${payload.slug}`;
@@ -45,7 +46,7 @@ export default function TrustBadge({ payload }: { payload: WidgetPayload }) {
         </div>
         <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280", display: "flex", alignItems: "center", gap: 4 }}>
           Verified by{" "}
-          <img src="/brand/appicon.png.png" alt="Tellacity" style={{ width: 14, height: 14, objectFit: "contain", display: "inline-block", verticalAlign: "middle", borderRadius: 3 }} />
+          <img src={TELLACITY_BRAND_ICON_PATH} alt="Tellacity" width={20} height={20} style={{ width: 14, height: 14, objectFit: "contain", display: "inline-block", verticalAlign: "middle", borderRadius: 3 }} />
           <span style={{ color: "#000", fontWeight: 600 }}>Tellacity</span>
           {" · "}
           <span style={{ color: "#2fb2a8" }}>View reviews →</span>
