@@ -2,11 +2,8 @@ import AdminStatCard from "@/components/admin/AdminStatCard";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import {
-  getAdminOverviewStats,
-  getAdminRecentActivity,
-  type AdminActivityRow,
-} from "@/lib/admin";
+import { getAdminOverviewStats } from "@/lib/admin";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +11,6 @@ function num(v: unknown): number {
   if (typeof v === "number" && !Number.isNaN(v)) return v;
   if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
   return 0;
-}
-
-function activityLabel(row: AdminActivityRow): string {
-  if (row.description && String(row.description).trim()) return String(row.description);
-  if (row.message && String(row.message).trim()) return String(row.message);
-  if (row.summary && String(row.summary).trim()) return String(row.summary);
-  if (row.event_type && String(row.event_type).trim()) return String(row.event_type);
-  return "Event";
 }
 
 function formatWhen(iso: string | null | undefined): string {
@@ -34,10 +23,120 @@ function formatWhen(iso: string | null | undefined): string {
 export default async function AdminOverviewPage() {
   const { supabase } = await requireAdminSession();
 
-  const [statsRes, activityRes] = await Promise.all([
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  const [statsRes, reviewsRes, profilesRes, businessesRes] = await Promise.all([
     getAdminOverviewStats(supabase),
-    getAdminRecentActivity(supabase, 20),
+    adminSupabase
+      .from("reviews")
+      .select(
+        `
+        created_at,
+        rating,
+        guest_name,
+        guest_email,
+        author_email,
+        email,
+        consumer_id,
+        business_id,
+        businesses:business_id (
+          name
+        ),
+        profiles:consumer_id (
+          email
+        )
+      `
+      )
+      .order("created_at", { ascending: false })
+      .limit(7),
+    adminSupabase
+      .from("profiles")
+      .select("created_at, email")
+      .order("created_at", { ascending: false })
+      .limit(7),
+    adminSupabase
+      .from("businesses")
+      .select("created_at, name, owner_id")
+      .order("created_at", { ascending: false })
+      .limit(6),
   ]);
+
+  const reviewActivity = (reviewsRes.data ?? []).map((r) => {
+    const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    const business = Array.isArray(r.businesses) ? r.businesses[0] : r.businesses;
+    const email =
+      r.email ||
+      r.author_email ||
+      r.guest_email ||
+      profile?.email ||
+      "—";
+    const businessName = business?.name || "—";
+    return {
+      when: r.created_at,
+      type: "Review created",
+      business: businessName,
+      email,
+    };
+  });
+
+  const userActivity = (profilesRes.data ?? []).map((u) => ({
+    when: u.created_at,
+    type: "New user",
+    business: "—",
+    email: u.email || "—",
+  }));
+
+  const businessActivity = (businessesRes.data ?? []).map((b) => ({
+    when: b.created_at,
+    type: "Business created",
+    business: b.name || "—",
+    email: "—",
+  }));
+
+  const activityRows: { when: string | null; type: string; business: string; email: string }[] = [
+    ...reviewActivity,
+    ...userActivity,
+    ...businessActivity,
+  ];
+
+  const activity = activityRows
+    .filter((row) => row.when)
+    .sort((a, b) => {
+      const ta = new Date(a.when as string).getTime();
+      const tb = new Date(b.when as string).getTime();
+      return tb - ta;
+    });
+
+  const recentActivityError =
+    reviewsRes.error?.message ||
+    profilesRes.error?.message ||
+    businessesRes.error?.message ||
+    null;
+
+  const [{ data: businessOwners }, { data: businessMembers }] = await Promise.all([
+    adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
+    adminSupabase.from("business_members").select("user_id").not("user_id", "is", null),
+  ]);
+
+  const businessUserIds = new Set<string>();
+  for (const row of businessOwners ?? []) {
+    const id = String(row.owner_id ?? "").trim();
+    if (id) businessUserIds.add(id);
+  }
+  for (const row of businessMembers ?? []) {
+    const id = String(row.user_id ?? "").trim();
+    if (id) businessUserIds.add(id);
+  }
+  const businessUsersCount = businessUserIds.size;
 
   const s = statsRes.data;
 
@@ -46,8 +145,8 @@ export default async function AdminOverviewPage() {
       {statsRes.error ? (
         <p className="text-sm text-red-600">Overview stats: {statsRes.error}</p>
       ) : null}
-      {activityRes.error ? (
-        <p className="text-sm text-red-600">Recent activity: {activityRes.error}</p>
+      {recentActivityError ? (
+        <p className="text-sm text-red-600">Recent activity: {recentActivityError}</p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -58,12 +157,12 @@ export default async function AdminOverviewPage() {
         <AdminStatCard title="Reviews today" value={num(s?.reviews_today)} />
         <AdminStatCard title="Pending businesses" value={num(s?.pending_businesses)} />
         <AdminStatCard title="Unverified reviews" value={num(s?.unverified_reviews)} />
-        <AdminStatCard title="Business users" value={num(s?.business_users)} />
+        <AdminStatCard title="Business users" value={businessUsersCount} />
         <AdminStatCard title="Consumer users" value={num(s?.consumer_users)} />
       </div>
 
       <AdminTableShell title="Recent activity">
-        {activityRes.data.length === 0 ? (
+        {activity.length === 0 ? (
           <div className="p-4">
             <AdminEmptyState message="No recent activity returned." />
           </div>
@@ -72,24 +171,27 @@ export default async function AdminOverviewPage() {
             <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
               <tr>
                 <th className="px-4 py-2 font-medium">When</th>
-                <th className="px-4 py-2 font-medium">Details</th>
+                <th className="px-4 py-2 font-medium">Type</th>
+                <th className="px-4 py-2 font-medium">Business</th>
+                <th className="px-4 py-2 font-medium">Email</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {activityRes.data.map((row, i) => {
-                const key = row.id ?? `activity-${i}`;
+              {activity.map((item, i) => {
+                const key = `activity-${i}`;
                 return (
                   <tr key={key} className="bg-white">
                     <td className="whitespace-nowrap px-4 py-2 text-neutral-600">
-                      {formatWhen(row.created_at)}
+                      {formatWhen(item.when)}
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{activityLabel(row)}</span>
-                      {row.actor_email ? (
-                        <span className="mt-0.5 block text-xs text-neutral-500">
-                          {row.actor_email}
-                        </span>
-                      ) : null}
+                      <span className="font-medium">{item.type}</span>
+                    </td>
+                    <td className="px-4 py-2 text-neutral-900">
+                      <span className="font-medium">{item.business}</span>
+                    </td>
+                    <td className="px-4 py-2 text-neutral-900">
+                      <span className="font-medium">{item.email}</span>
                     </td>
                   </tr>
                 );

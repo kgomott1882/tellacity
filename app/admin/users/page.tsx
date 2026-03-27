@@ -1,8 +1,10 @@
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
+import AdminDeleteUserButton from "@/components/admin/AdminDeleteUserButton";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import { getAdminUsers, type AdminUserRow } from "@/lib/admin";
+import { type AdminUserRow } from "@/lib/admin";
+import { createClient } from "@supabase/supabase-js";
 import {
   adminSetUserAdminAction,
   adminSetUserBusinessAction,
@@ -73,13 +75,31 @@ export default async function AdminUsersPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const err = searchParams.e;
 
-  const { supabase } = await requireAdminSession();
-  const { data: users, error: listError } = await getAdminUsers(supabase, {
-    searchTerm: null,
-    roleFilter: null,
-    limitCount: 50,
-    offsetCount: 0,
-  });
+  await requireAdminSession();
+  console.log("USING SERVICE ROLE:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const adminSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  const { data: usersData, error } = await adminSupabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("ADMIN USERS LOAD ERROR:", error);
+  }
+
+  const users = (usersData || []) as AdminUserRow[];
+  const listError = error?.message ?? null;
 
   return (
     <div className="space-y-4">
@@ -167,6 +187,7 @@ export default async function AdminUsersPage(props: PageProps) {
                             formAction={adminSuspendUserAction.bind(null, id)}
                           />
                         )}
+                        <AdminDeleteUserButton userId={id} />
                       </div>
                     </td>
                   </tr>

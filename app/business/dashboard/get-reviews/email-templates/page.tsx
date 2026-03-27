@@ -249,7 +249,7 @@ export default function EmailTemplatesPage() {
           .single();
         console.log("Supabase response:", { data, error });
         if (error) {
-          setMessage({ type: "error", text: "Failed to save." });
+          setMessage({ type: "error", text: error.message || "Failed to save." });
           return;
         }
       } else {
@@ -266,7 +266,7 @@ export default function EmailTemplatesPage() {
           .single();
         console.log("Supabase response:", { data, error });
         if (error) {
-          setMessage({ type: "error", text: "Failed to save." });
+          setMessage({ type: "error", text: error.message || "Failed to save." });
           return;
         }
       }
@@ -307,14 +307,44 @@ export default function EmailTemplatesPage() {
         remove_tellacity_branding: widgetSignature.remove_tellacity_branding,
         reply_to_email: widgetSignature.reply_to_email || null,
       };
+      const fallbackPayload: Record<string, unknown> = {
+        subject: widgetSubject || null,
+        updated_at: new Date().toISOString(),
+        signature_enabled: widgetSignature.signature_enabled,
+        signature_name: widgetSignature.signature_name || null,
+        signature_title: widgetSignature.signature_title || null,
+        signature_phone: widgetSignature.signature_phone || null,
+        signature_website: widgetSignature.signature_website || null,
+        signature_logo_url: widgetSignature.signature_logo_url || null,
+        signature_address: widgetSignature.signature_address || null,
+        signature_cta_text: widgetSignature.signature_cta_text || null,
+        signature_cta_url: widgetSignature.signature_cta_url || null,
+        remove_tellacity_branding: widgetSignature.remove_tellacity_branding,
+        reply_to_email: widgetSignature.reply_to_email || null,
+      };
       if (widgetRow) {
         const supabase = supabaseBrowser();
         const { error } = await supabase
           .from("review_invite_email_templates")
           .update(payload)
           .eq("id", widgetRow.id);
-        if (error) {
-          setWidgetMessage({ type: "error", text: "Failed to save." });
+        if (error?.code === "42703") {
+          const { error: retryError } = await supabase
+            .from("review_invite_email_templates")
+            .update(fallbackPayload)
+            .eq("id", widgetRow.id);
+          if (retryError) {
+            setWidgetMessage({
+              type: "error",
+              text: retryError.message || "Failed to save widget template.",
+            });
+            return;
+          }
+        } else if (error) {
+          setWidgetMessage({
+            type: "error",
+            text: error.message || "Failed to save widget template.",
+          });
           return;
         }
       } else {
@@ -322,8 +352,26 @@ export default function EmailTemplatesPage() {
         const { error } = await supabase
           .from("review_invite_email_templates")
           .insert({ business_id: businessId, template_key: "widget", ...payload });
-        if (error) {
-          setWidgetMessage({ type: "error", text: "Failed to save." });
+        if (error?.code === "42703") {
+          const { error: retryError } = await supabase
+            .from("review_invite_email_templates")
+            .insert({
+              business_id: businessId,
+              template_key: "widget",
+              ...fallbackPayload,
+            });
+          if (retryError) {
+            setWidgetMessage({
+              type: "error",
+              text: retryError.message || "Failed to save widget template.",
+            });
+            return;
+          }
+        } else if (error) {
+          setWidgetMessage({
+            type: "error",
+            text: error.message || "Failed to save widget template.",
+          });
           return;
         }
       }
@@ -331,7 +379,10 @@ export default function EmailTemplatesPage() {
       await fetchData();
     } catch (err) {
       console.error("Save widget template error:", err);
-      setWidgetMessage({ type: "error", text: "Failed to save." });
+      setWidgetMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to save widget template.",
+      });
     } finally {
       setSavingWidget(false);
     }

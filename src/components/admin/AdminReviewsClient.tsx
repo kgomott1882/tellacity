@@ -216,6 +216,7 @@ export default function AdminReviewsClient({
             <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
               <tr>
                 <th className="px-3 py-2 font-medium">Business</th>
+                <th className="px-3 py-2 font-medium">Email</th>
                 <th className="px-3 py-2 font-medium">Rating</th>
                 <th className="px-3 py-2 font-medium">Title</th>
                 <th className="px-3 py-2 font-medium">Body preview</th>
@@ -236,6 +237,12 @@ export default function AdminReviewsClient({
                   <tr key={review.id || `r-${i}`} className="bg-white align-top">
                     <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
                       {review.business_name?.trim() || "—"}
+                    </td>
+                    <td
+                      className="max-w-[220px] truncate px-3 py-2 text-neutral-700"
+                      title={review.reviewer_email ?? ""}
+                    >
+                      {review.reviewer_email?.trim() || "—"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                       {review.rating != null ? String(review.rating) : "—"}

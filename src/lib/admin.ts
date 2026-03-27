@@ -54,6 +54,7 @@ export type AdminReviewRow = {
   review_id?: string;
   id?: string;
   business_name?: string | null;
+  reviewer_email?: string | null;
   rating?: number | null;
   title?: string | null;
   body?: string | null;
