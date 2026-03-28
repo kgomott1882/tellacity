@@ -23,15 +23,12 @@ export async function fetchAndStoreBusinessLogo(
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
     if (!supabaseUrl || !serviceRoleKey) {
-      console.warn("[fetchAndStoreBusinessLogo] Missing Supabase service role env vars.");
-      return;
+      throw new Error("Missing Supabase environment variables");
     }
 
-    const adminSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: current, error: readError } = await adminSupabase
       .from("businesses")
