@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import BusinessClient from "@/components/business/BusinessClient";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export default async function BusinessPage(
@@ -28,10 +29,5 @@ export default async function BusinessPage(
 
   console.log("Business found:", business.name);
 
-  return (
-    <div style={{ padding: "40px" }}>
-      <h1>{business.name}</h1>
-      <p>{business.website}</p>
-    </div>
-  );
+  return <BusinessClient initialBusiness={business} />;
 }
