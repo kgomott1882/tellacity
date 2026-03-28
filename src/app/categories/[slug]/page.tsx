@@ -19,7 +19,7 @@ type CategoryBusiness = {
   location?: string | null;
   address?: string | null;
   review_count?: number | null;
-  resolved_logo_url?: string | null;
+  logo_url?: string | null;
 };
 
 export default function CategoryDetailPage() {
@@ -226,11 +226,17 @@ export default function CategoryDetailPage() {
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="h-10 w-10 shrink-0">
-                    <img
-                      src={normalizeLogoUrl(b.resolved_logo_url) ?? undefined}
-                      alt={b.name}
-                      className="h-10 w-10 rounded-md object-contain"
-                    />
+                    {normalizeLogoUrl(b.logo_url) ? (
+                      <img
+                        src={normalizeLogoUrl(b.logo_url) ?? undefined}
+                        alt={b.name}
+                        className="h-10 w-10 rounded-md object-contain"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#FCF7F6] text-sm font-semibold text-[#0E0E0E]">
+                        {(b.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1">

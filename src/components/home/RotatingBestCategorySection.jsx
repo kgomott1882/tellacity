@@ -1,10 +1,6 @@
 import { useRef } from "react";
 import Link from "next/link";
-import {
-  normalizeLogoUrl,
-  domainFromWebsite,
-  getLogoDevUrl,
-} from "@/lib/logo";
+import { normalizeLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
 
 const cleanDomain = (value) =>
@@ -95,15 +91,8 @@ export default function RotatingBestCategorySection({
                   : typeof business.trust_score === "number"
                   ? business.trust_score || 0
                   : 0;
-                const rawLogo =
-                  business.resolved_logo_url || business.logo_url || null;
-                const logoUrl =
-                  normalizeLogoUrl(rawLogo) ??
-                  getLogoDevUrl(
-                    domainFromWebsite(
-                      business.website_display ?? business.website,
-                    ),
-                  );
+                const rawLogo = business.logo_url || null;
+                const logoUrl = normalizeLogoUrl(rawLogo);
 
                 return (
                   <Link
@@ -113,7 +102,7 @@ export default function RotatingBestCategorySection({
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#FCF7F6]">
-                        {logoUrl && (
+                        {logoUrl ? (
                           <img
                             src={logoUrl}
                             alt={business.name ?? "Business"}
@@ -124,6 +113,10 @@ export default function RotatingBestCategorySection({
                               event.currentTarget.style.display = "none";
                             }}
                           />
+                        ) : (
+                          <span className="text-sm font-semibold text-[#0E0E0E]">
+                            {(business.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                          </span>
                         )}
                       </div>
                       <div className="min-w-0">
@@ -176,15 +169,8 @@ export default function RotatingBestCategorySection({
                   ? business.trust_score || 0
                   : 0;
 
-                const rawLogo =
-                  business.resolved_logo_url || business.logo_url || null;
-                const logoUrl =
-                  normalizeLogoUrl(rawLogo) ??
-                  getLogoDevUrl(
-                    domainFromWebsite(
-                      business.website_display ?? business.website,
-                    ),
-                  );
+                const rawLogo = business.logo_url || null;
+                const logoUrl = normalizeLogoUrl(rawLogo);
 
                 return (
                   <Link
@@ -211,7 +197,7 @@ export default function RotatingBestCategorySection({
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#FCF7F6]">
-                        {logoUrl && (
+                        {logoUrl ? (
                           <img
                             src={logoUrl}
                             alt={business.name ?? "Business"}
@@ -222,6 +208,10 @@ export default function RotatingBestCategorySection({
                               event.currentTarget.style.display = "none";
                             }}
                           />
+                        ) : (
+                          <span className="text-sm font-semibold text-[#0E0E0E]">
+                            {(business.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                          </span>
                         )}
                       </div>
                       <div className="min-w-0">

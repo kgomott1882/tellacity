@@ -39,7 +39,7 @@ type HomeReview = {
   like_count?: number | null;
 };
 
-/** Same logo resolution as BusinessClient / related-business cards (DB + Logo.dev). */
+/** Logo resolution from businesses.logo_url only. */
 function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
   const website =
     typeof row.website === "string" && row.website.trim() !== ""
@@ -53,16 +53,8 @@ function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
     row.logo_url != null && String(row.logo_url).trim() !== ""
       ? String(row.logo_url)
       : null;
-  const resolvedRaw =
-    row.resolved_logo_url != null && String(row.resolved_logo_url).trim() !== ""
-      ? String(row.resolved_logo_url)
-      : null;
-
   const resolved_logo_url = similarBusinessLogoUrl({
-    resolved_logo_url: resolvedRaw,
     logo_url: logoUrl,
-    website,
-    website_display: websiteDisplay,
   });
 
   return {

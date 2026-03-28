@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeLogoUrl, domainFromWebsite } from "@/lib/logo";
+import { normalizeLogoUrl } from "@/lib/logo";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 
 type BusinessRow = {
@@ -164,7 +164,11 @@ export default function BusinessClaimPage() {
                         e.currentTarget.style.display = "none";
                       }}
                     />
-                  ) : null}
+                  ) : (
+                    <span className="text-sm font-semibold text-[#0E0E0E]">
+                      {(business.name?.trim()?.charAt(0) || "B").toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">

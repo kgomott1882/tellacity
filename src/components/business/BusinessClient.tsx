@@ -26,7 +26,7 @@ type Business = {
   name: string;
   slug: string;
   website: string;
-  /** Resolved logo: manual first, else from resolve-business-logo edge function. */
+  /** Business logo URL from businesses.logo_url. */
   logoUrl: string | null;
   trustScore: number | null;
   reviewCount: number;
@@ -184,7 +184,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     const countryCode = String(row.country_code ?? "").trim();
     const email = String(row.email ?? "").trim();
     const phone = String(row.phone ?? "").trim();
-    const resolvedLogoUrl = (String(row.resolved_logo_url ?? "").trim()) || null;
+    const logoUrlRaw = (String(row.logo_url ?? "").trim()) || null;
     const reviewCount = Number(row.review_count ?? 0);
     const averageRating = Number(row.average_rating ?? 0);
     return {
@@ -192,7 +192,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       name: String(row.name ?? "Business"),
       slug: String(row.slug ?? ""),
       website: cleanDomain(String(row.website_display ?? row.website ?? "")),
-      logoUrl: normalizeLogoUrl(resolvedLogoUrl),
+      logoUrl: normalizeLogoUrl(logoUrlRaw),
       trustScore: row.trust_score != null ? Number(row.trust_score) : null,
       reviewCount,
       averageRating,
@@ -303,7 +303,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       let countryCode = (row.country_code ?? "").toString().trim();
       let email = (row.email ?? "").toString().trim();
       let phone = (row.phone ?? "").toString().trim();
-      const resolvedLogoUrl: string | null = ((row.resolved_logo_url ?? "").toString().trim()) || null;
+      const logoUrlRaw: string | null = ((row.logo_url ?? "").toString().trim()) || null;
       const reviewCount = Number(row.review_count ?? 0);
       const averageRating = Number(row.average_rating ?? 0);
 
@@ -316,7 +316,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         website: cleanDomain(
           (row.website_display ?? row.website ?? "").toString()
         ),
-        logoUrl: normalizeLogoUrl(resolvedLogoUrl),
+        logoUrl: normalizeLogoUrl(logoUrlRaw),
         trustScore:
           row.trust_score != null ? Number(row.trust_score) : null,
         reviewCount,
@@ -549,10 +549,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
             slug,
             name: String(row.name ?? "").trim() || "Business",
             logoUrl: similarBusinessLogoUrl({
-              resolved_logo_url: row.resolved_logo_url as string | null,
-              logo_url: row.resolved_logo_url as string | null,
-              website: row.website as string | null,
-              website_display: null,
+              logo_url: row.logo_url as string | null,
             }),
             trustScore: Number(row.trust_score ?? 0),
             reviewCount: Number(row.review_count ?? 0),

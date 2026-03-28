@@ -9,7 +9,7 @@ type Category = {
   id: string;
   name: string;
   slug: string;
-  group: string | null;
+  group_slug: string | null;
 };
 
 type CategoryGroup = {
@@ -36,7 +36,7 @@ export default function CategoriesPage() {
             id,
             name,
             slug,
-            group
+            group_slug
           )
         `)
         .order("name");
@@ -45,7 +45,12 @@ export default function CategoriesPage() {
         data?.map((group) => ({
           ...group,
           categories:
-            group.categories?.filter((c: any) => c.group === group.slug) ?? [],
+            group.categories?.filter(
+              (c: Category & { group?: string | null }) =>
+                String(c.group_slug ?? c.group ?? "")
+                  .trim()
+                  .toLowerCase() === String(group.slug ?? "").trim().toLowerCase()
+            ) ?? [],
         })) ?? [];
 
       setGroups(sanitized.filter((g) => g.categories.length > 0));

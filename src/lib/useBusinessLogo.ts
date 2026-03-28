@@ -1,46 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { normalizeLogoUrl, resolveBusinessLogo } from "./logo";
+import { normalizeLogoUrl } from "./logo";
 
 /**
- * Primary: manual logo URL (from businesses.logo_url).
- * Secondary: Edge Function resolve-business-logo when manual is empty.
+ * Use manual logo URL only (from businesses.logo_url).
  */
 export function useBusinessLogo(
   manualUrl: string | null | undefined,
-  domain: string | null | undefined
+  _domain: string | null | undefined
 ): { logoUrl: string | null; isLoading: boolean } {
   const manual = normalizeLogoUrl(manualUrl ?? null);
-  const [resolved, setResolved] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [resolved] = useState<string | null>(null);
+  const [loading] = useState(false);
 
   useEffect(() => {
-    if (manual) {
-      setResolved(null);
-      setLoading(false);
-      return;
-    }
-    if (!domain || !domain.trim()) {
-      setResolved(null);
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    resolveBusinessLogo(domain)
-      .then((url) => {
-        if (!cancelled) {
-          setResolved(url);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [manual, domain]);
+  }, [manual]);
 
   const logoUrl = manual ?? resolved ?? null;
   return { logoUrl, isLoading: !manual && loading };

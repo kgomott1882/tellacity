@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE } from "@/lib/businessSignupDomainMessage";
+import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
+import { extractDomain } from "@/lib/extractDomain";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { getBaseUrl } from "@/lib/getBaseUrl";
-import PasswordSetupPopup from "./_components/PasswordSetupPopup";
+import BusinessSignupOtpModal from "./_components/BusinessSignupOtpModal";
 
 const COUNTRIES = [
   { code: "AF", name: "Afghanistan" },
@@ -253,28 +256,49 @@ const COUNTRIES = [
   { code: "ZW", name: "Zimbabwe" },
 ];
 
-const EMPLOYEE_RANGES = [
-  "1-10",
-  "11-50",
-  "51-200",
-  "201-500",
-  "501-1000",
-  "1001-5000",
-  "5001+",
+function formatPhoneInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d\s+()-]/g, "");
+  return cleaned.replace(/\s{2,}/g, " ");
+}
+
+type SignupFieldKey =
+  | "website"
+  | "companyName"
+  | "firstName"
+  | "lastName"
+  | "workEmail"
+  | "password"
+  | "confirmPassword"
+  | "country";
+
+type SignupFieldErrors = Partial<Record<SignupFieldKey, boolean>>;
+
+const SIGNUP_FIELD_ORDER: { key: SignupFieldKey; wrapId: string }[] = [
+  { key: "website", wrapId: "signup-field-wrap-website" },
+  { key: "companyName", wrapId: "signup-field-wrap-company-name" },
+  { key: "firstName", wrapId: "signup-field-wrap-first-name" },
+  { key: "lastName", wrapId: "signup-field-wrap-last-name" },
+  { key: "workEmail", wrapId: "signup-field-wrap-work-email" },
+  { key: "password", wrapId: "signup-field-wrap-password" },
+  { key: "confirmPassword", wrapId: "signup-field-wrap-confirm-password" },
+  { key: "country", wrapId: "signup-field-wrap-country" },
 ];
 
-const REVENUE_RANGES = [
-  "Less than $100K",
-  "$100K - $500K",
-  "$500K - $1M",
-  "$1M - $5M",
-  "$5M - $10M",
-  "$10M - $50M",
-  "$50M+",
-];
+function isWebsiteFilled(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  return t.replace(/^https?:\/\//i, "").trim().length > 0;
+}
+
+function inputClassName(hasError: boolean): string {
+  const base =
+    "mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-[#0E0E0E] focus:outline-none focus:ring-2";
+  return hasError
+    ? `${base} border-red-500 focus:border-red-500 focus:ring-red-500/20`
+    : `${base} border-gray-300 focus:border-[#1FAF9E] focus:ring-[#1FAF9E]/20`;
+}
 
 export default function BusinessSignupClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const allowedPlans = ["free", "grow", "premium", "elite"];
   const paramPlan = searchParams.get("plan");
@@ -284,86 +308,241 @@ export default function BusinessSignupClient() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
-  const [workEmail, setWorkEmail] = useState("");
+  const [emailValue, setEmailValue] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [country, setCountry] = useState("US");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [numberOfEmployees, setNumberOfEmployees] = useState("");
-  const [annualRevenue, setAnnualRevenue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPasswordPopup, setShowPasswordPopup] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(initialPlan);
+  const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
+  const [workEmailDomainError, setWorkEmailDomainError] = useState("");
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [websiteLookup, setWebsiteLookup] = useState<"idle" | "loading" | "found" | "none">(
+    "idle"
+  );
+  const [websiteMatchedName, setWebsiteMatchedName] = useState<string | null>(null);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError("");
+  useEffect(() => {
+    let cancelled = false;
+    const domain = extractDomain(website);
 
-    if (
-      !website.trim() ||
-      !companyName.trim() ||
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !jobTitle.trim() ||
-      !workEmail.trim() ||
-      !phoneNumber.trim() ||
-      !numberOfEmployees ||
-      !annualRevenue
-    ) {
-      setError("Please complete all required fields.");
+    if (!website.trim() || domain.length <= 3) {
+      setWebsiteLookup("idle");
+      setWebsiteMatchedName(null);
+      setSelectedBusinessId(null);
       return;
     }
 
-    // Show password setup popup instead of directly creating account
-    setShowPasswordPopup(true);
+    setWebsiteLookup("loading");
+
+    const t = window.setTimeout(async () => {
+      const supabase = supabaseBrowser();
+      const pattern = `%${domain}%`;
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("id, name, website")
+        .ilike("website", pattern)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        setWebsiteLookup("idle");
+        setWebsiteMatchedName(null);
+        setSelectedBusinessId(null);
+        return;
+      }
+
+      if (data?.id) {
+        setSelectedBusinessId(data.id);
+        setCompanyName(data.name);
+        setWebsiteMatchedName(data.name);
+        setWebsiteLookup("found");
+        setFieldErrors((prev) => {
+          if (!prev.companyName) return prev;
+          const next = { ...prev };
+          delete next.companyName;
+          return next;
+        });
+      } else {
+        setSelectedBusinessId(null);
+        setWebsiteMatchedName(null);
+        setWebsiteLookup("none");
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [website]);
+
+  const clearFieldError = (key: SignupFieldKey) => {
+    if (key === "workEmail") {
+      setWorkEmailDomainError("");
+    }
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
-  const handleGoogleSignup = async () => {
+  const handleWebsiteChange = (value: string) => {
+    let cleaned = value.trim();
+    if (!cleaned) {
+      setWebsite("");
+      return;
+    }
+    if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+      cleaned = `https://${cleaned}`;
+    }
+    setWebsite(cleaned);
+  };
+
+  const buildPendingPayload = (): BusinessSignupPendingPayload => ({
+    selectedBusinessId,
+    website,
+    companyName,
+    firstName,
+    lastName,
+    jobTitle,
+    country,
+    plan: selectedPlan,
+    ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
+  });
+
+  const sendSignupCode = async (): Promise<{ ok: boolean; error?: string }> => {
+    const res = await fetch("/api/business/signup/send-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: emailValue.trim().toLowerCase(),
+        ...buildPendingPayload(),
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+    };
+    if (!res.ok) {
+      if (data.error === "domain_mismatch" && data.message) {
+        return { ok: false, error: data.message };
+      }
+      return {
+        ok: false,
+        error: data.message ?? data.error ?? "Could not send verification email.",
+      };
+    }
+    return { ok: true };
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     setError("");
-    try {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("tellacity_auth_redirect", "true");
-      }
-      const baseUrl = getBaseUrl();
-      const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${baseUrl}/auth/callback`,
-        },
+    setWorkEmailDomainError("");
+
+    const nextErrors: SignupFieldErrors = {
+      website: !isWebsiteFilled(website),
+      companyName: !companyName.trim(),
+      firstName: !firstName.trim(),
+      lastName: !lastName.trim(),
+      workEmail: !emailValue.trim(),
+      password: !password,
+      confirmPassword: !confirmPassword,
+      country: !country.trim(),
+    };
+
+    if (password && confirmPassword && password !== confirmPassword) {
+      nextErrors.confirmPassword = true;
+    }
+    if (password && password.length < 6) {
+      nextErrors.password = true;
+    }
+
+    const hasError = Object.values(nextErrors).some(Boolean);
+    if (hasError) {
+      setFieldErrors(nextErrors);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const first = SIGNUP_FIELD_ORDER.find((row) => nextErrors[row.key]);
+          const el = first ? document.getElementById(first.wrapId) : null;
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          el?.classList.add("animate-signup-shake");
+          window.setTimeout(() => el?.classList.remove("animate-signup-shake"), 480);
+        });
       });
-      if (oauthError) {
-        setError(oauthError.message);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setFieldErrors((prev) => ({ ...prev, confirmPassword: true }));
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setFieldErrors((prev) => ({ ...prev, password: true }));
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    const websiteDomain = extractDomain(website);
+    const email = emailValue.trim().toLowerCase();
+    const emailDomain = (email.split("@")[1] ?? "").trim().toLowerCase();
+    if (!emailDomain || websiteDomain !== emailDomain) {
+      setFieldErrors({ workEmail: true });
+      setWorkEmailDomainError(BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = document.getElementById("signup-field-wrap-work-email");
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          el?.classList.add("animate-signup-shake");
+          window.setTimeout(() => el?.classList.remove("animate-signup-shake"), 480);
+        });
+      });
+      return;
+    }
+
+    setFieldErrors({});
+    setLoading(true);
+    try {
+      const sent = await sendSignupCode();
+      if (!sent.ok) {
+        if (
+          sent.error?.includes("support@tellacity.com") ||
+          sent.error === BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE
+        ) {
+          setFieldErrors({ workEmail: true });
+          setWorkEmailDomainError(
+            sent.error ?? BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE
+          );
+        } else {
+          setError(sent.error ?? "Could not send verification email.");
+        }
+        return;
       }
-    } catch (oauthErr) {
-      setError(
-        oauthErr instanceof Error
-          ? oauthErr.message
-          : "Unable to start Google sign-up. Please try again."
-      );
+      setOtpOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
-
-  const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
   return (
     <div>
       <main className="min-h-screen bg-white">
-        <PasswordSetupPopup
-          isOpen={showPasswordPopup}
-          onClose={() => setShowPasswordPopup(false)}
-          fullName={fullName}
-          email={workEmail.trim()}
-          businessData={{
-            website,
-            companyName,
-            firstName,
-            lastName,
-            jobTitle,
-            country,
-            phoneNumber,
-            numberOfEmployees,
-            annualRevenue,
-            plan: selectedPlan,
-          }}
+        <BusinessSignupOtpModal
+          open={otpOpen}
+          email={emailValue.trim().toLowerCase()}
+          password={password}
+          onClose={() => setOtpOpen(false)}
+          onResend={sendSignupCode}
         />
         <div className="flex min-h-screen">
           <div className="hidden lg:flex lg:w-1/2 flex-col bg-[#F8F4F0] px-12 py-16">
@@ -520,49 +699,8 @@ export default function BusinessSignupClient() {
                 </div>
 
                 <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignup}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:border-[#1FAF9E] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                    Sign up with Google
-                  </button>
-
-                  <div className="flex items-center gap-3 my-6">
-                    <div className="h-px flex-1 bg-gray-200" />
-                    <span className="text-xs text-gray-400">OR</span>
-                    <div className="h-px flex-1 bg-gray-200" />
-                  </div>
-
-                  <p className="text-sm font-semibold text-[#0E0E0E] mb-4">
-                    Sign up with email
-                  </p>
-
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
+                    <div id="signup-field-wrap-website">
                       <label
                         htmlFor="website"
                         className="text-sm font-medium text-[#0E0E0E]"
@@ -571,33 +709,64 @@ export default function BusinessSignupClient() {
                       </label>
                       <input
                         id="website"
-                        type="url"
+                        type="text"
+                        inputMode="url"
+                        autoComplete="url"
                         value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
+                        onChange={(e) => {
+                          handleWebsiteChange(e.target.value);
+                          clearFieldError("website");
+                        }}
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        className={inputClassName(Boolean(fieldErrors.website))}
                         placeholder="example.com"
                       />
+                      {websiteLookup === "loading" ? (
+                        <p className="mt-1 text-xs text-gray-500">Checking…</p>
+                      ) : null}
+                      {websiteLookup === "found" && websiteMatchedName ? (
+                        <p className="mt-1 text-sm text-emerald-700">
+                          ✅ We found your business: {websiteMatchedName}
+                        </p>
+                      ) : null}
+                      {websiteLookup === "none" && extractDomain(website).length > 3 ? (
+                        <p className="mt-1 text-sm text-gray-600">
+                          No business found. You can create a new one.
+                        </p>
+                      ) : null}
+                      {fieldErrors.website ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Please complete this field
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div>
+                    <div id="signup-field-wrap-company-name">
                       <label
                         htmlFor="company-name"
                         className="text-sm font-medium text-[#0E0E0E]"
                       >
-                        Company name
+                        Business name
                       </label>
                       <input
                         id="company-name"
                         type="text"
                         value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
+                        onChange={(e) => {
+                          setCompanyName(e.target.value);
+                          clearFieldError("companyName");
+                        }}
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        className={inputClassName(Boolean(fieldErrors.companyName))}
                       />
+                      {fieldErrors.companyName ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Please complete this field
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div>
+                    <div id="signup-field-wrap-first-name">
                       <label
                         htmlFor="first-name"
                         className="text-sm font-medium text-[#0E0E0E]"
@@ -608,13 +777,21 @@ export default function BusinessSignupClient() {
                         id="first-name"
                         type="text"
                         value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        onChange={(e) => {
+                          setFirstName(e.target.value);
+                          clearFieldError("firstName");
+                        }}
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        className={inputClassName(Boolean(fieldErrors.firstName))}
                       />
+                      {fieldErrors.firstName ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Please complete this field
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div>
+                    <div id="signup-field-wrap-last-name">
                       <label
                         htmlFor="last-name"
                         className="text-sm font-medium text-[#0E0E0E]"
@@ -625,10 +802,18 @@ export default function BusinessSignupClient() {
                         id="last-name"
                         type="text"
                         value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        onChange={(e) => {
+                          setLastName(e.target.value);
+                          clearFieldError("lastName");
+                        }}
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        className={inputClassName(Boolean(fieldErrors.lastName))}
                       />
+                      {fieldErrors.lastName ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Please complete this field
+                        </p>
+                      ) : null}
                     </div>
 
                     <div>
@@ -648,7 +833,7 @@ export default function BusinessSignupClient() {
                       />
                     </div>
 
-                    <div>
+                    <div id="signup-field-wrap-work-email">
                       <label
                         htmlFor="work-email"
                         className="text-sm font-medium text-[#0E0E0E]"
@@ -657,100 +842,139 @@ export default function BusinessSignupClient() {
                       </label>
                       <input
                         id="work-email"
+                        name="work_email"
                         type="email"
-                        value={workEmail}
-                        onChange={(e) => setWorkEmail(e.target.value)}
+                        value={emailValue}
+                        onChange={(e) => {
+                          setEmailValue(e.target.value);
+                          clearFieldError("workEmail");
+                        }}
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                        className={`${inputClassName(
+                          Boolean(fieldErrors.workEmail || workEmailDomainError)
+                        )} w-full`}
                       />
+                      <p
+                        className={`mt-1 text-sm transition-colors ${
+                          emailValue ? "text-green-600" : "text-gray-500"
+                        }`}
+                      >
+                        Use your business email address to verify ownership
+                      </p>
+                      {fieldErrors.workEmail || workEmailDomainError ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          {workEmailDomainError || "Please complete this field"}
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label
-                          htmlFor="country"
-                          className="text-sm font-medium text-[#0E0E0E]"
-                        >
-                          Country
-                        </label>
-                        <select
-                          id="country"
-                          value={country}
-                          onChange={(e) => setCountry(e.target.value)}
-                          disabled={loading}
-                          className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20 bg-white"
-                        >
-                          {COUNTRIES.map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="phone"
-                          className="text-sm font-medium text-[#0E0E0E]"
-                        >
-                          Phone number
-                        </label>
-                        <input
-                          id="phone"
-                          type="tel"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          disabled={loading}
-                          className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                        />
-                      </div>
+                    <div id="signup-field-wrap-password">
+                      <label
+                        htmlFor="signup-password"
+                        className="text-sm font-medium text-[#0E0E0E]"
+                      >
+                        Password
+                      </label>
+                      <input
+                        id="signup-password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          clearFieldError("password");
+                        }}
+                        disabled={loading}
+                        className={inputClassName(Boolean(fieldErrors.password))}
+                      />
+                      {fieldErrors.password ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          {password.length > 0 && password.length < 6
+                            ? "Password must be at least 6 characters."
+                            : "Please complete this field"}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div id="signup-field-wrap-confirm-password">
+                      <label
+                        htmlFor="signup-confirm-password"
+                        className="text-sm font-medium text-[#0E0E0E]"
+                      >
+                        Confirm password
+                      </label>
+                      <input
+                        id="signup-confirm-password"
+                        name="confirm_password"
+                        type="password"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          clearFieldError("confirmPassword");
+                        }}
+                        disabled={loading}
+                        className={inputClassName(Boolean(fieldErrors.confirmPassword))}
+                      />
+                      {fieldErrors.confirmPassword ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Passwords do not match or this field is required.
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div id="signup-field-wrap-country">
+                      <label
+                        htmlFor="country"
+                        className="text-sm font-medium text-[#0E0E0E]"
+                      >
+                        Country
+                      </label>
+                      <select
+                        id="country"
+                        value={country}
+                        onChange={(e) => {
+                          setCountry(e.target.value);
+                          clearFieldError("country");
+                        }}
+                        disabled={loading}
+                        className={`${inputClassName(Boolean(fieldErrors.country))} bg-white`}
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      {fieldErrors.country ? (
+                        <p className="mt-1 text-sm text-red-500">
+                          Please complete this field
+                        </p>
+                      ) : null}
                     </div>
 
                     <div>
                       <label
-                        htmlFor="employees"
+                        htmlFor="phone"
                         className="text-sm font-medium text-[#0E0E0E]"
                       >
-                        Number of employees
+                        Phone number (optional)
                       </label>
-                      <select
-                        id="employees"
-                        value={numberOfEmployees}
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phoneNumber}
                         onChange={(e) =>
-                          setNumberOfEmployees(e.target.value)
+                          setPhoneNumber(formatPhoneInput(e.target.value))
                         }
                         disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20 bg-white"
-                      >
-                        <option value="">Select...</option>
-                        {EMPLOYEE_RANGES.map((range) => (
-                          <option key={range} value={range}>
-                            {range}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="revenue"
-                        className="text-sm font-medium text-[#0E0E0E]"
-                      >
-                        Annual revenue
-                      </label>
-                      <select
-                        id="revenue"
-                        value={annualRevenue}
-                        onChange={(e) => setAnnualRevenue(e.target.value)}
-                        disabled={loading}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20 bg-white"
-                      >
-                        <option value="">Select...</option>
-                        {REVENUE_RANGES.map((range) => (
-                          <option key={range} value={range}>
-                            {range}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="e.g. +27 82 123 4567"
+                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                      />
                     </div>
 
                     {error && (
@@ -762,7 +986,7 @@ export default function BusinessSignupClient() {
                       disabled={loading}
                       className="w-full rounded-lg bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
                     >
-                      {loading ? "Processing..." : "Create a free account"}
+                      {loading ? "Sending code…" : "Create a free account"}
                     </button>
                   </form>
 

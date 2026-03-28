@@ -15,6 +15,7 @@ export default function SimilarBusinessLogo({
   variant = "default",
 }: Props) {
   const url = logoUrl ? normalizeLogoUrl(logoUrl) ?? logoUrl : null;
+  const fallbackLetter = (nameForAlt?.trim()?.charAt(0) || "B").toUpperCase();
   const boxClass =
     variant === "mini"
       ? "h-8 w-8 shrink-0 rounded-lg"
@@ -34,7 +35,9 @@ export default function SimilarBusinessLogo({
             event.currentTarget.style.display = "none";
           }}
         />
-      ) : null}
+      ) : (
+        <span className="text-sm font-semibold text-[#0E0E0E]">{fallbackLetter}</span>
+      )}
     </div>
   );
 }

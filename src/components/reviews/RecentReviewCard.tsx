@@ -53,15 +53,7 @@ export default function RecentReviewCard({
   const reviewId = review.review_id || review.id;
 
   const logoUrl = similarBusinessLogoUrl({
-    resolved_logo_url:
-      review.resolved_logo_url ?? review.business?.resolved_logo_url ?? null,
     logo_url: review.logo_url ?? review.business?.logo_url ?? null,
-    website: review.website ?? review.business?.website ?? null,
-    website_display:
-      review.website_display ??
-      review.business_website ??
-      review.business?.website_display ??
-      null,
   });
 
   useEffect(() => {

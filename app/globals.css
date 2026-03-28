@@ -46,6 +46,25 @@
   .animate-fade-up {
     animation: fade-up 600ms ease-out both;
   }
+
+  @keyframes signup-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+
+  .animate-signup-shake {
+    animation: signup-shake 0.45s ease;
+  }
 }
 
 /* =========================
