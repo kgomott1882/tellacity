@@ -207,7 +207,7 @@ export default function SignupPage() {
                       );
                     }
                   }}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-[#1FAF9E]"
+                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-black"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -250,7 +250,7 @@ export default function SignupPage() {
                     type="text"
                     value={displayName}
                     onChange={(event) => setDisplayName(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
                 <div>
@@ -261,7 +261,7 @@ export default function SignupPage() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
                 <div>
@@ -272,7 +272,7 @@ export default function SignupPage() {
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
                 <div>
@@ -283,7 +283,7 @@ export default function SignupPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
                 {error && (
@@ -302,7 +302,7 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="w-full rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   {loading ? "Sending code..." : "Create account"}
                 </button>
@@ -311,7 +311,7 @@ export default function SignupPage() {
                 Already have an account?{" "}
                 <Link
                   href="/auth/login"
-                  className="font-semibold text-[#1FAF9E]"
+                  className="font-semibold text-black hover:underline"
                 >
                   Sign in
                 </Link>
@@ -335,7 +335,7 @@ export default function SignupPage() {
                     value={otp}
                     onChange={(event) => setOtp(event.target.value)}
                     maxLength={4}
-                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-center text-lg tracking-[0.6em] text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                    className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-center text-lg tracking-[0.6em] text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
                 {error && <p className="text-sm text-red-600">{error}</p>}
@@ -343,7 +343,7 @@ export default function SignupPage() {
                   type="button"
                   onClick={handleVerify}
                   disabled={loading}
-                  className="w-full rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="w-full rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   {loading ? "Verifying..." : "Verify code"}
                 </button>
@@ -351,7 +351,7 @@ export default function SignupPage() {
                   type="button"
                   onClick={handleResend}
                   disabled={loading}
-                  className="w-full rounded-full border border-[#1FAF9E] px-6 py-3 text-sm font-semibold text-[#1FAF9E] hover:bg-[#1FAF9E]/10 disabled:cursor-not-allowed"
+                  className="w-full rounded-full border border-black px-6 py-3 text-sm font-semibold text-black hover:bg-neutral-100 disabled:cursor-not-allowed"
                 >
                   Resend code
                 </button>

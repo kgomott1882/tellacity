@@ -9,13 +9,16 @@ import SecondarySidebar from "./SecondarySidebar";
 import TopBar from "./TopBar";
 import BusinessSwitcher from "./BusinessSwitcher";
 import { NAV_ITEMS } from "./Sidebar";
-import { BusinessProvider, useBusinessContext } from "../_context/BusinessContext";
+import {
+  BusinessProvider,
+  useBusinessContext,
+  type DashboardBusiness,
+} from "../_context/BusinessContext";
 import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import { normalizePlanCodeToKey } from "@/lib/plans";
 import PageLoadingOverlay from "./PageLoadingOverlay";
+import BusinessOnboardingModal from "./BusinessOnboardingModal";
 
 const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[] }> = {
   "manage-reviews": {
@@ -94,47 +97,18 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     setBusinesses,
     selectedBusiness,
     setSelectedBusiness,
-    businesses,
-  } = useBusinessContext() as any;
+    navRefreshKey,
+    bumpNavRefresh,
+  } = useBusinessContext();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
-  const [resolvingBusiness, setResolvingBusiness] = useState(true);
-
-  const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(user?.id ?? null);
-
-  // Persist full selected business so we can restore it on back/forward
-  useEffect(() => {
-    if (typeof window === "undefined" || !selectedBusiness) return;
-    try {
-      window.localStorage.setItem("selectedBusinessId", selectedBusiness.id);
-      window.localStorage.setItem("selectedBusiness", JSON.stringify(selectedBusiness));
-    } catch (_) {}
-  }, [selectedBusiness]);
-
-  // Browser back/forward: restore business from localStorage
-  useEffect(() => {
-    const handlePopState = () => {
-      try {
-        const raw = typeof window !== "undefined" && window.localStorage.getItem("selectedBusiness");
-        if (raw) {
-          const parsed = JSON.parse(raw) as { id?: string; name?: string; slug?: string | null; website?: string | null; plan?: string | null };
-          if (parsed?.id && parsed?.name) {
-            setSelectedBusiness({
-              id: parsed.id,
-              name: parsed.name,
-              slug: parsed.slug ?? null,
-              website: parsed.website ?? null,
-              plan: parsed.plan ?? null,
-            });
-          }
-        }
-      } catch (_) {}
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [setSelectedBusiness]);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(
+    user?.id ?? null,
+    navRefreshKey
+  );
 
   // Tab sleep / background: refresh JWT before user clicks around with an expired token.
   useEffect(() => {
@@ -149,102 +123,45 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   // Do not auto-redirect when user is logged in. Let them stay so back button works; show message if not a business user.
 
-  // Only sync context from hook after the businesses query settles. Avoid wiping the list with []
-  // while bizLoading is true (race with localStorage restore / first paint).
+  const prevUserIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      prevUserIdRef.current = null;
+      return;
+    }
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== user.id) {
+      setSelectedBusiness(null);
+      setBusinesses([]);
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("tc_selected_business");
+          window.localStorage.removeItem("selectedBusiness");
+          window.localStorage.removeItem("selectedBusinessId");
+        }
+      } catch (_) {}
+    }
+    prevUserIdRef.current = user.id;
+  }, [user?.id, setSelectedBusiness, setBusinesses]);
+
   useEffect(() => {
     if (bizLoading) return;
 
     setBusinesses(ownedBusinesses);
 
-    if (ownedBusinesses.length === 0) return;
-
-    // Keep selection in sync: refresh from list if we have a matching business, or pick first if none selected
-    if (selectedBusiness) {
-      const match = ownedBusinesses.find((b) => b.id === selectedBusiness.id);
-      if (match) setSelectedBusiness(match);
+    if (ownedBusinesses.length === 0) {
+      setSelectedBusiness(null);
       return;
     }
-    setSelectedBusiness(ownedBusinesses[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownedBusinesses, bizLoading]);
 
-  // Restore or auto-select business when none is selected (e.g. after full page load or back)
-  useEffect(() => {
-    const restoreBusiness = async () => {
-      if (!user?.id) return;
-      if (selectedBusiness) return;
-
-      // 1) Restore from full object in localStorage immediately so the business name shows before the list loads
-      if (typeof window !== "undefined") {
-        const raw = window.localStorage.getItem("selectedBusiness");
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as { id?: string; name?: string; slug?: string | null; website?: string | null; plan?: string | null };
-            if (parsed?.id && parsed?.name) {
-              setSelectedBusiness({
-                id: parsed.id,
-                name: parsed.name,
-                slug: parsed.slug ?? null,
-                website: parsed.website ?? null,
-                plan: parsed.plan ?? null,
-              });
-              return;
-            }
-          } catch (_) {}
-        }
-        // 2) If we have businesses list and stored id, use it
-        const storedId = window.localStorage.getItem("selectedBusinessId");
-        if (storedId && businesses?.length) {
-          const match = businesses.find((b: any) => b.id === storedId);
-          if (match) {
-            setSelectedBusiness(match);
-            return;
-          }
-        }
+    setSelectedBusiness((prev: DashboardBusiness | null) => {
+      if (prev) {
+        const match = ownedBusinesses.find((b) => b.id === prev.id);
+        if (match) return match;
       }
-
-      // 3) Fallback: fetch first business owned by user
-      const supabase = supabaseBrowser();
-      const { data } = await supabase
-        .from("businesses")
-        .select("id, name, slug, website")
-        .eq("owner_id", user.id)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle();
-
-      if (data?.id) {
-        const { data: subRows } = await supabase
-          .from("subscriptions")
-          .select("plan_code")
-          .eq("business_id", data.id)
-          .eq("status", "active")
-          .limit(1);
-
-        const autoBusiness = {
-          id: data.id,
-          name: data.name,
-          slug: data.slug,
-          website: data.website,
-          plan: normalizePlanCodeToKey(subRows?.[0]?.plan_code ?? null),
-        };
-        setSelectedBusiness(autoBusiness);
-        setBusinesses((prev: any[]) =>
-          Array.isArray(prev) && prev.some((b) => b.id === autoBusiness.id)
-            ? prev
-            : [autoBusiness, ...(prev || [])]
-        );
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("selectedBusinessId", data.id);
-        }
-      }
-    };
-
-    setResolvingBusiness(true);
-    restoreBusiness().finally(() => {
-      setResolvingBusiness(false);
+      return ownedBusinesses[0];
     });
-  }, [user?.id, selectedBusiness, setSelectedBusiness, setBusinesses, businesses]);
+  }, [ownedBusinesses, bizLoading, setBusinesses, setSelectedBusiness]);
 
   // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
   useEffect(() => {
@@ -290,31 +207,16 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
+  const emailStr = user?.email?.trim() ?? "";
+  const needsOnboarding = !selectedBusiness;
 
   // No session: full-screen loader until redirect to login (covers initial auth load + post-logout).
   if (!user && !isConnectShopifyPage) {
     return <PageLoadingOverlay />;
   }
 
-  if (authLoading || bizLoading || resolvingBusiness) {
+  if (authLoading || bizLoading) {
     return <PageLoadingOverlay />;
-  }
-
-  if (!selectedBusiness) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-sm text-gray-500">No business selected.</p>
-          <button
-            type="button"
-            onClick={() => router.replace("/business/login")}
-            className="mt-3 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            Go to business sign in
-          </button>
-        </div>
-      </div>
-    );
   }
 
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
@@ -338,6 +240,15 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-[#F8F4F0]">
+      <BusinessOnboardingModal
+        open={onboardingOpen}
+        onClose={() => setOnboardingOpen(false)}
+        userEmail={emailStr}
+        onCompleted={async () => {
+          await ensureSessionFresh();
+          bumpNavRefresh();
+        }}
+      />
       {/* Desktop: sidebars */}
       <div
         className="hidden lg:flex shrink-0 sticky top-0 h-screen"
@@ -375,12 +286,25 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 relative">
           <TopBar sessionUserId={user?.id ?? null} sessionEmail={user?.email ?? null} />
           <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
-            <div
-              key={pathname}
-              className="min-w-0"
-            >
-              {children}
-            </div>
+            {needsOnboarding ? (
+              <div className="mx-auto max-w-lg rounded-xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+                <p className="text-base font-semibold text-gray-900">Link or create a business</p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Add a business to this account to use reviews, widgets, integrations, and settings.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingOpen(true)}
+                  className="mt-6 inline-flex rounded-lg bg-[#1FAF9E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#169786]"
+                >
+                  Get started
+                </button>
+              </div>
+            ) : (
+              <div key={pathname} className="min-w-0">
+                {children}
+              </div>
+            )}
           </div>
         </main>
       </div>

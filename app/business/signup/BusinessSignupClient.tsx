@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE } from "@/lib/businessSignupDomainMessage";
 import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
-import { extractDomain } from "@/lib/extractDomain";
+import { normalizeSignupWebsiteInput } from "@/lib/extractDomain";
+import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import BusinessSignupOtpModal from "./_components/BusinessSignupOtpModal";
 
@@ -284,6 +285,15 @@ const SIGNUP_FIELD_ORDER: { key: SignupFieldKey; wrapId: string }[] = [
   { key: "country", wrapId: "signup-field-wrap-country" },
 ];
 
+function domainToName(domain: string): string {
+  if (!domain) return "";
+
+  const name = domain.split(".")[0] ?? "";
+  if (!name) return "";
+
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 function isWebsiteFilled(raw: string): boolean {
   const t = raw.trim();
   if (!t) return false;
@@ -316,6 +326,7 @@ export default function BusinessSignupClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [otpOpen, setOtpOpen] = useState(false);
+  const [otpSessionKey, setOtpSessionKey] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState(initialPlan);
   const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [workEmailDomainError, setWorkEmailDomainError] = useState("");
@@ -324,12 +335,13 @@ export default function BusinessSignupClient() {
     "idle"
   );
   const [websiteMatchedName, setWebsiteMatchedName] = useState<string | null>(null);
+  const autoCompanyFromDomainRef = useRef<{ host: string; label: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const domain = extractDomain(website);
+    const domain = normalizeBusinessDomain(website);
 
-    if (!website.trim() || domain.length <= 3) {
+    if (!website.trim() || !domain || domain.length < 3) {
       setWebsiteLookup("idle");
       setWebsiteMatchedName(null);
       setSelectedBusinessId(null);
@@ -340,14 +352,9 @@ export default function BusinessSignupClient() {
 
     const t = window.setTimeout(async () => {
       const supabase = supabaseBrowser();
-      const pattern = `%${domain}%`;
-      const { data, error } = await supabase
-        .from("businesses")
-        .select("id, name, website")
-        .ilike("website", pattern)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("find_active_business_by_domain", {
+        p_domain: domain,
+      });
 
       if (cancelled) return;
 
@@ -358,10 +365,15 @@ export default function BusinessSignupClient() {
         return;
       }
 
-      if (data?.id) {
-        setSelectedBusinessId(data.id);
-        setCompanyName(data.name);
-        setWebsiteMatchedName(data.name);
+      const rows = Array.isArray(data) ? data : [];
+      const row = rows[0] as { id: string; name: string; website: string } | undefined;
+      const rawName = row?.name != null ? String(row.name).trim() : "";
+
+      if (row?.id && rawName) {
+        autoCompanyFromDomainRef.current = null;
+        setSelectedBusinessId(row.id);
+        setCompanyName(rawName);
+        setWebsiteMatchedName(rawName);
         setWebsiteLookup("found");
         setFieldErrors((prev) => {
           if (!prev.companyName) return prev;
@@ -369,11 +381,28 @@ export default function BusinessSignupClient() {
           delete next.companyName;
           return next;
         });
-      } else {
-        setSelectedBusinessId(null);
-        setWebsiteMatchedName(null);
-        setWebsiteLookup("none");
+        return;
       }
+
+      setSelectedBusinessId(null);
+      setWebsiteMatchedName(null);
+      setWebsiteLookup("none");
+
+      const fb = domainToName(domain);
+      const snap = autoCompanyFromDomainRef.current;
+
+      setCompanyName((prev) => {
+        const trimmed = prev.trim();
+        if (!trimmed) {
+          autoCompanyFromDomainRef.current = { host: domain, label: fb };
+          return fb;
+        }
+        if (snap && trimmed === snap.label) {
+          autoCompanyFromDomainRef.current = { host: domain, label: fb };
+          return fb;
+        }
+        return prev;
+      });
     }, 300);
 
     return () => {
@@ -392,18 +421,6 @@ export default function BusinessSignupClient() {
       delete next[key];
       return next;
     });
-  };
-
-  const handleWebsiteChange = (value: string) => {
-    let cleaned = value.trim();
-    if (!cleaned) {
-      setWebsite("");
-      return;
-    }
-    if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
-      cleaned = `https://${cleaned}`;
-    }
-    setWebsite(cleaned);
   };
 
   const buildPendingPayload = (): BusinessSignupPendingPayload => ({
@@ -493,9 +510,9 @@ export default function BusinessSignupClient() {
       return;
     }
 
-    const websiteDomain = extractDomain(website);
+    const websiteDomain = normalizeBusinessDomain(website);
     const email = emailValue.trim().toLowerCase();
-    const emailDomain = (email.split("@")[1] ?? "").trim().toLowerCase();
+    const emailDomain = normalizeBusinessDomain(email.split("@")[1] || "");
     if (!emailDomain || websiteDomain !== emailDomain) {
       setFieldErrors({ workEmail: true });
       setWorkEmailDomainError(BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE);
@@ -528,6 +545,21 @@ export default function BusinessSignupClient() {
         }
         return;
       }
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(
+            "signup_business",
+            JSON.stringify({
+              business_name: companyName.trim(),
+              website: website.trim(),
+              country: country.trim(),
+            })
+          );
+        }
+      } catch {
+        /* ignore quota / private mode */
+      }
+      setOtpSessionKey((k) => k + 1);
       setOtpOpen(true);
     } finally {
       setLoading(false);
@@ -538,6 +570,7 @@ export default function BusinessSignupClient() {
     <div>
       <main className="min-h-screen bg-white">
         <BusinessSignupOtpModal
+          key={otpSessionKey}
           open={otpOpen}
           email={emailValue.trim().toLowerCase()}
           password={password}
@@ -687,7 +720,7 @@ export default function BusinessSignupClient() {
               <div className="max-w-md mx-auto lg:mx-0">
                 <div className="mb-6 rounded-xl border border-stone-300 bg-[#F8F4F0] p-4">
                   <h1 className="mb-3 text-xl font-semibold text-black sm:text-2xl">
-                    Create a free account
+                    Create a Free Business Account
                   </h1>
                   <p className="text-sm text-black">Selected Plan:</p>
                   <p className="text-lg font-semibold capitalize text-black">
@@ -714,7 +747,8 @@ export default function BusinessSignupClient() {
                         autoComplete="url"
                         value={website}
                         onChange={(e) => {
-                          handleWebsiteChange(e.target.value);
+                          const normalized = normalizeSignupWebsiteInput(e.target.value);
+                          setWebsite(normalized);
                           clearFieldError("website");
                         }}
                         disabled={loading}
@@ -724,14 +758,21 @@ export default function BusinessSignupClient() {
                       {websiteLookup === "loading" ? (
                         <p className="mt-1 text-xs text-gray-500">Checking…</p>
                       ) : null}
-                      {websiteLookup === "found" && websiteMatchedName ? (
+                      {websiteLookup === "found" &&
+                      websiteMatchedName &&
+                      selectedBusinessId ? (
                         <p className="mt-1 text-sm text-emerald-700">
                           ✅ We found your business: {websiteMatchedName}
                         </p>
                       ) : null}
-                      {websiteLookup === "none" && extractDomain(website).length > 3 ? (
-                        <p className="mt-1 text-sm text-gray-600">
-                          No business found. You can create a new one.
+                      {websiteLookup === "none" &&
+                      normalizeBusinessDomain(website).length >= 3 ? (
+                        <p className="text-sm text-gray-600 mt-1">
+                          No business found.{" "}
+                          <span className="text-green-600 font-medium">
+                            Continue
+                          </span>{" "}
+                          to create a new one.
                         </p>
                       ) : null}
                       {fieldErrors.website ? (
@@ -753,10 +794,17 @@ export default function BusinessSignupClient() {
                         type="text"
                         value={companyName}
                         onChange={(e) => {
-                          setCompanyName(e.target.value);
+                          const v = e.target.value;
+                          setCompanyName(v);
+                          const d = normalizeBusinessDomain(website);
+                          const fb = domainToName(d);
+                          if (d && v.trim() === fb) {
+                            autoCompanyFromDomainRef.current = { host: d, label: fb };
+                          } else {
+                            autoCompanyFromDomainRef.current = null;
+                          }
                           clearFieldError("companyName");
                         }}
-                        disabled={loading}
                         className={inputClassName(Boolean(fieldErrors.companyName))}
                       />
                       {fieldErrors.companyName ? (
@@ -986,7 +1034,7 @@ export default function BusinessSignupClient() {
                       disabled={loading}
                       className="w-full rounded-lg bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
                     >
-                      {loading ? "Sending code…" : "Create a free account"}
+                      {loading ? "Sending code…" : "Create a Free Business Account"}
                     </button>
                   </form>
 

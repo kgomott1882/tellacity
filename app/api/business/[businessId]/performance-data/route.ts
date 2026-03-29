@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
+import { getServerEnv } from "@/lib/serverEnv";
 
 /**
  * Performance dashboard payload on the server.
@@ -17,6 +19,14 @@ export async function GET(
     if (!ctx.ok) return ctx.response;
 
     const { db: dataClient } = ctx;
+
+    let inviteDb: SupabaseClient = dataClient;
+    try {
+      const { supabaseUrl, serviceRoleKey } = getServerEnv();
+      inviteDb = createClient(supabaseUrl, serviceRoleKey);
+    } catch {
+      /* fall back to user-scoped client if service key missing (e.g. local stub) */
+    }
 
     const since90dUTC = new Date(
       Date.UTC(
@@ -54,16 +64,16 @@ export async function GET(
         .in("status", ["published", "approved"])
         .order("created_at", { ascending: false })
         .limit(2),
-      dataClient
+      inviteDb
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId),
-      dataClient
+      inviteDb
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId)
         .gte("created_at", startOf30d),
-      dataClient
+      inviteDb
         .from("review_invites")
         .select("created_at")
         .eq("business_id", businessId)

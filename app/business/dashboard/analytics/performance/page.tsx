@@ -566,9 +566,8 @@ function ReviewCard({ review }: { review: RecentReview }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PerformancePage() {
-  const { selectedBusiness, businesses } = useBusinessContext();
-  /** Prefer selected business; fall back to first loaded business so child cards always get an id once businesses exist. */
-  const businessId = selectedBusiness?.id ?? businesses[0]?.id ?? null;
+  const { selectedBusiness } = useBusinessContext();
+  const businessId = selectedBusiness?.id ?? null;
   const {
     data,
     error,

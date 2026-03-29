@@ -12,15 +12,18 @@ export type AdminOverviewStats = {
   consumer_users?: number | null;
 } & Record<string, unknown>;
 
-export type AdminActivityRow = {
-  id?: string;
-  event_type?: string | null;
-  description?: string | null;
-  message?: string | null;
-  summary?: string | null;
-  actor_email?: string | null;
-  created_at?: string | null;
-} & Record<string, unknown>;
+/** Row from RPC `admin_get_recent_activity` (includes `email` for all activity types). */
+export type AdminRecentActivityItem = {
+  item_type: string;
+  /** UUID from Postgres */
+  item_id: string;
+  title: string;
+  subtitle: string;
+  email: string | null;
+  created_at: string;
+};
+
+export type AdminActivityItem = AdminRecentActivityItem;
 
 export type AdminUserRow = {
   user_id?: string;
@@ -107,12 +110,15 @@ export async function getAdminOverviewStats(
 export async function getAdminRecentActivity(
   supabase: SupabaseClient,
   limitCount: number
-): Promise<{ data: AdminActivityRow[]; error: string | null }> {
+): Promise<{ data: AdminRecentActivityItem[]; error: string | null }> {
   const { data, error } = await supabase.rpc("admin_get_recent_activity", {
     limit_count: limitCount,
   });
   if (error) return { data: [], error: error.message };
-  return { data: (Array.isArray(data) ? data : []) as AdminActivityRow[], error: null };
+  return {
+    data: (Array.isArray(data) ? data : []) as AdminRecentActivityItem[],
+    error: null,
+  };
 }
 
 export async function getAdminUsers(

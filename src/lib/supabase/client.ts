@@ -1,2 +1,8 @@
 /** Single browser client — anon key + session; no service role. */
-export { supabaseBrowser, supabase } from "@/lib/supabaseBrowser";
+import { supabaseBrowser, supabase } from "@/lib/supabaseBrowser";
+
+export function createClient() {
+  return supabaseBrowser();
+}
+
+export { supabaseBrowser, supabase };

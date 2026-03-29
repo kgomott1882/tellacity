@@ -83,8 +83,6 @@ function initialsFromRow(row: {
   return primary.slice(0, 2).toUpperCase();
 }
 
-const SIGN_OUT_TIMEOUT_MS = 10_000;
-
 type TopBarProps = {
   /** From `useBusinessAuth` — always set when the dashboard shell renders the bar. */
   sessionUserId?: string | null;
@@ -289,18 +287,21 @@ export default function TopBar({
     setIsUserMenuOpen(false);
     setIsNotificationsOpen(false);
 
+    const supabase = supabaseBrowser();
     try {
-      await Promise.race([
-        supabaseBrowser().auth.signOut({ scope: "global" }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("sign_out_timeout")), SIGN_OUT_TIMEOUT_MS),
-        ),
-      ]);
+      const { error: globalErr } = await supabase.auth.signOut({ scope: "global" });
+      if (globalErr && !isAbortError(globalErr)) {
+        console.error("Error during logout (global):", globalErr);
+      }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
-      if (msg !== "sign_out_timeout" && !isAbortError(error)) {
+      if (!isAbortError(error)) {
         console.error("Error during logout:", error);
       }
+    }
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      /* ensure in-memory session cleared even if global sign-out was slow */
     }
 
     try {

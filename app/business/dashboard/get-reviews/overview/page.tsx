@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
 import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import RatingStars from "@/components/RatingStars";
@@ -13,6 +14,31 @@ import { Download } from "lucide-react";
 
 const INVITATION_METHODS_PATH = "/business/dashboard/get-reviews/invitation-methods";
 const SENT_PAGE_SIZE = 25;
+
+/** Supabase errors are often truthy but print as `{}`; avoid console.error (Next.js dev overlay). */
+function formatClientFetchIssue(err: unknown): string | null {
+  if (err == null) return null;
+  if (typeof err !== "object") return String(err);
+  const e = err as Record<string, unknown>;
+  const parts: string[] = [];
+  for (const key of ["code", "message", "details", "hint"] as const) {
+    const v = e[key];
+    if (typeof v === "string" && v.trim()) parts.push(`${key}=${v}`);
+  }
+  if (parts.length) return parts.join(" ");
+  try {
+    const s = JSON.stringify(err);
+    if (s && s !== "{}") return s;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function warnOverview(context: string, err: unknown) {
+  const s = formatClientFetchIssue(err);
+  if (s) console.warn(`[get-reviews/overview] ${context}:`, s);
+}
 
 function getDaysUntilReset(): number {
   const now = new Date();
@@ -94,25 +120,22 @@ export default function GetReviewsOverviewPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/review-invites/usage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessId,
-        }),
-      });
-
-      if (!res.ok) {
-        setMonthlyUsage(0);
-        return;
-      }
-
-      const data = await res.json();
+      const data = await dashboardApiPost<{
+        monthlyCount: number;
+        limit: number;
+        sentThisMonth?: number;
+        deliveredThisMonth?: number;
+      }>("/api/review-invites/usage", { businessId });
 
       setMonthlyUsage(data.monthlyCount);
       setMonthlyLimit(data.limit);
+      setMetrics((prev) => ({
+        ...prev,
+        sentThisMonth: data.sentThisMonth ?? prev.sentThisMonth,
+        deliveredThisMonth: data.deliveredThisMonth ?? prev.deliveredThisMonth,
+      }));
     } catch (err) {
-      console.error("Usage fetch failed:", err);
+      warnOverview("usage fetch", err);
       setMonthlyUsage(0);
     } finally {
       setLoading(false);
@@ -165,20 +188,6 @@ export default function GetReviewsOverviewPage() {
 
     const supabase = supabaseBrowser();
 
-    const { count: sentThisMonth } = await supabase
-      .from("review_invites")
-      .select("*", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .not("sent_at", "is", null)
-      .gte("sent_at", startOfMonth.toISOString());
-
-    const { count: deliveredThisMonth } = await supabase
-      .from("review_invites")
-      .select("*", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .not("opened_at", "is", null)
-      .gte("opened_at", startOfMonth.toISOString());
-
     const { data: lifetimeReviews } = await supabase
       .from("reviews")
       .select("rating")
@@ -212,14 +221,13 @@ export default function GetReviewsOverviewPage() {
           ) / reviewsThisMonth
         : 0;
 
-    setMetrics({
-      sentThisMonth: sentThisMonth ?? 0,
-      deliveredThisMonth: deliveredThisMonth ?? 0,
+    setMetrics((prev) => ({
+      ...prev,
       totalPublishedReviews,
       reviewsThisMonth,
       averageRatingLifetime,
       averageRatingThisMonth,
-    });
+    }));
   };
 
   const fetchSentInvites = useCallback(
@@ -235,34 +243,23 @@ export default function GetReviewsOverviewPage() {
 
         await ensureSessionFresh();
 
-        const supabase = supabaseBrowser();
-        const { data, error } = await supabase
-          .from("review_invites")
-          .select(
-            `
-              id,
-              recipient_email,
-              channel,
-              created_at,
-              sent_at,
-              opened_at,
-              review_submitted_at
-            `
-          )
-          .eq("business_id", businessId)
-          .not("sent_at", "is", null)
-          .order("created_at", { ascending: false })
-          .range(offset, offset + SENT_PAGE_SIZE - 1);
+        const path = `/api/review-invites/sent?businessId=${encodeURIComponent(
+          businessId
+        )}&limit=${SENT_PAGE_SIZE}&offset=${offset}`;
 
-        if (error) {
-          console.error("Error fetching invites:", error);
-          setSentItems([]);
-          setHasMoreSent(false);
-          setSentOffset(0);
-          return;
-        }
+        const json = await dashboardApiGet<{
+          items: Array<{
+            id: string;
+            recipient_email?: string | null;
+            channel?: string | null;
+            created_at?: string | null;
+            sent_at?: string | null;
+            opened_at?: string | null;
+            review_submitted_at?: string | null;
+          }>;
+        }>(path);
 
-        const rows = Array.isArray(data) ? data : [];
+        const rows = Array.isArray(json.items) ? json.items : [];
         const mapped: SentInviteRow[] = rows.map((row: any) => ({
           recipient_email: row.recipient_email ?? null,
           invite_method: row.channel ?? null,
@@ -282,7 +279,7 @@ export default function GetReviewsOverviewPage() {
         setHasMoreSent(mapped.length >= SENT_PAGE_SIZE);
         setSentOffset(offset + mapped.length);
       } catch (err) {
-        console.error("Unexpected invite fetch error:", err);
+        warnOverview("invite fetch (unexpected)", err);
         setSentItems([]);
         setHasMoreSent(false);
         setSentOffset(0);
@@ -323,7 +320,8 @@ export default function GetReviewsOverviewPage() {
           filter: `business_id=eq.${businessId}`,
         },
         () => {
-          fetchMetrics();
+          void fetchUsage();
+          void fetchSentInvites(0, false);
         }
       )
       .on(
@@ -343,7 +341,7 @@ export default function GetReviewsOverviewPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId]);
+  }, [businessId, fetchUsage, fetchSentInvites]);
 
   const reviewUrl = selectedBusiness?.slug
     ? `${typeof window !== "undefined" ? window.location.origin : "https://tellacity.com"}/b/${selectedBusiness.slug}/write-review`

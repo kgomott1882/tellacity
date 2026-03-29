@@ -87,7 +87,7 @@ export default function LoginPage() {
                   );
                 }
               }}
-              className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-[#1FAF9E]"
+              className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-black"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -130,7 +130,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
               />
             </div>
             <div>
@@ -141,23 +141,23 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
+              className="w-full rounded-full bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
           <div className="mt-6 flex items-center justify-between text-sm">
-            <Link href="/auth/forgot-password" className="text-[#1FAF9E]">
+            <Link href="/auth/forgot-password" className="text-black hover:underline">
               Forgot password?
             </Link>
-            <Link href="/auth/signup" className="font-semibold text-[#1FAF9E]">
+            <Link href="/auth/signup" className="font-semibold text-black hover:underline">
               Create account
             </Link>
           </div>

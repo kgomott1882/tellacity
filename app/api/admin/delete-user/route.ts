@@ -28,9 +28,14 @@ export async function POST(request: Request) {
     );
 
     try {
+      await supabase.from("business_profiles").delete().eq("id", userId);
+    } catch (e) {
+      console.warn("business_profiles delete by id skipped:", e);
+    }
+    try {
       await supabase.from("business_profiles").delete().eq("user_id", userId);
     } catch (e) {
-      console.warn("business_profiles delete skipped:", e);
+      console.warn("business_profiles delete by user_id skipped:", e);
     }
     try {
       await supabase.from("business_members").delete().eq("user_id", userId);

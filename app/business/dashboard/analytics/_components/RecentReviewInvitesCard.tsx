@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseBrowser";
+import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 
 const INVITES_SENT_OVERVIEW =
   "/business/dashboard/get-reviews/overview#invites-sent";
@@ -47,8 +46,6 @@ function InviteSkeleton() {
 }
 
 export function RecentReviewInvitesCard({ businessId }: { businessId: string | null }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
   const [invites, setInvites] = useState<InviteDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,31 +53,12 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
   const invitesRef = useRef<InviteDisplay[]>([]);
   const lastFetchedBusinessIdRef = useRef<string | null>(null);
 
-  const userId = session?.user?.id;
-
   useEffect(() => {
     invitesRef.current = invites;
   }, [invites]);
 
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthChecked(true);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
   const fetchInvites = useCallback(async () => {
-    if (!businessId || !userId) {
+    if (!businessId) {
       return;
     }
 
@@ -96,21 +74,15 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
     }
 
     try {
-      const { data, error: queryError } = await supabase
-        .from("review_invites")
-        .select(
-          "id, recipient_email, sent_at, opened_at, review_submitted_at, expires_at, status"
-        )
-        .eq("business_id", businessId)
-        .order("sent_at", { ascending: false })
-        .limit(5);
+      const path = `/api/review-invites/sent?businessId=${encodeURIComponent(
+        businessId
+      )}&limit=5`;
+      const json = await dashboardApiGet<{
+        items?: InviteRow[];
+        error?: string;
+      }>(path);
 
-      if (queryError) {
-        setError("Failed to load invites");
-        return;
-      }
-
-      const rows = (data ?? []) as InviteRow[];
+      const rows = (json.items ?? []) as InviteRow[];
       setInvites(
         rows.map((invite) => ({
           ...invite,
@@ -119,23 +91,25 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
       );
       setError(null);
     } catch (err) {
-      console.error("RecentReviewInvitesCard:", err);
-      setError("Unexpected error");
+      console.warn(
+        "[RecentReviewInvitesCard]",
+        err instanceof Error ? err.message : err
+      );
+      setError("Failed to load invites");
     } finally {
       setLoading(false);
     }
-  }, [businessId, userId]);
+  }, [businessId]);
 
   useEffect(() => {
-    if (!authChecked) {
-      return;
-    }
-    if (!businessId || !userId) {
+    if (!businessId) {
       setLoading(false);
+      setInvites([]);
+      setError(null);
       return;
     }
     void fetchInvites();
-  }, [authChecked, businessId, userId, fetchInvites]);
+  }, [businessId, fetchInvites]);
 
   return (
     <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-6">

@@ -225,7 +225,7 @@ export default function WriteReviewForm({
         if (cancelled) return;
 
         if (reviewError || !review) {
-          const mapped = reviewErrorMessages.unexpected_error;
+          const mapped = reviewErrorMessages.review_edit_not_found;
           showToast({
             title: mapped.title,
             description: mapped.message,
@@ -271,7 +271,7 @@ export default function WriteReviewForm({
         }
       } catch {
         if (cancelled) return;
-        const mapped = reviewErrorMessages.unexpected_error;
+        const mapped = reviewErrorMessages.review_edit_not_found;
         showToast({
           title: mapped.title,
           description: mapped.message,
@@ -497,8 +497,29 @@ export default function WriteReviewForm({
       if (!emailToUse.trim() || !guestName.trim()) return false;
     }
 
+    // Email invite pages pass reviewerEmail; require a display name even when logged in
+    if (!isGuest && String(inviteToken ?? "").trim() && (reviewerEmail ?? "").trim()) {
+      const nameOk =
+        guestName.trim() ||
+        (userDisplayName ?? "").trim() ||
+        (userEmail ?? "").trim();
+      if (!nameOk) return false;
+    }
+
     return true;
-  }, [business, rating, body, dateOfExperience, isGuest, guestEmail, guestName, reviewerEmail]);
+  }, [
+    business,
+    rating,
+    body,
+    dateOfExperience,
+    isGuest,
+    guestEmail,
+    guestName,
+    reviewerEmail,
+    inviteToken,
+    userDisplayName,
+    userEmail,
+  ]);
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setProofError(null);
@@ -580,6 +601,115 @@ export default function WriteReviewForm({
     try {
       const receiptUrl = await uploadProofIfNeeded();
 
+      const processCreateReviewDraftResult = (
+        response: Response,
+        data: Record<string, unknown>,
+        guestEmailTrimmed: string,
+        isInviteGuest: boolean,
+      ) => {
+        if (!response.ok) {
+          if (
+            !isInviteGuest &&
+            data &&
+            data.error === "draft_exists" &&
+            typeof data.reviewId === "string"
+          ) {
+            const reviewId = data.reviewId as string;
+            setOtpReviewId(reviewId);
+            setOtpEmail(guestEmailTrimmed);
+            setSubmittedEmail(guestEmailTrimmed);
+            setSubmitted(true);
+            setCheckEmailState({ active: true, email: guestEmailTrimmed });
+            setOtpModalOpen(true);
+
+            showToast({
+              title: "Finish publishing your review",
+              description:
+                "You already started a review for this business. Check your email for the verification code to publish it.",
+              variant: "success",
+            });
+
+            return;
+          }
+
+          const errorKey =
+            (data && typeof data.error === "string" && data.error) ||
+            "unexpected_error";
+          const mapped =
+            reviewErrorMessages[errorKey] ||
+            reviewErrorMessages.unexpected_error;
+
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (
+          data &&
+          data.published === true &&
+          typeof data.reviewId === "string"
+        ) {
+          showToast({
+            title: "Thank you",
+            description: "Your review has been published.",
+            variant: "success",
+          });
+          router.push(`/b/${business.slug}`);
+          return;
+        }
+
+        if (
+          data &&
+          data.requiresUpdate === true &&
+          typeof data.reviewId === "string"
+        ) {
+          showToast({
+            title: "Visible review already on this business",
+            description:
+              "We found a published review from this email that appears on the business profile. You can update it below.",
+            variant: "success",
+          });
+
+          router.push(`/write-review?edit=${data.reviewId}`);
+          return;
+        }
+
+        if (isInviteGuest) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (
+          !data ||
+          typeof data.reviewId !== "string" ||
+          data.requiresOtp !== true
+        ) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const reviewId = data.reviewId as string;
+        setOtpReviewId(reviewId);
+        setOtpEmail(guestEmailTrimmed);
+        setSubmittedEmail(guestEmailTrimmed);
+        setSubmitted(true);
+        setCheckEmailState({ active: true, email: guestEmailTrimmed });
+        setOtpModalOpen(true);
+      };
+
       // If editing an existing review, update instead of inserting
       if (editReviewId) {
         const sb = supabaseBrowser();
@@ -617,16 +747,105 @@ export default function WriteReviewForm({
         return;
       }
 
+      const inviteTokenTrimmed = String(inviteToken ?? "").trim();
+      const reviewerEmailNorm = (reviewerEmail ?? "").trim().toLowerCase();
+      const sessionEmailNorm = (userEmail ?? "").trim().toLowerCase();
+
+      // Email invite: always use the edge function (service role) so validation matches the
+      // invite recipient and published state — even when the reviewer is logged in. The
+      // logged-in direct insert path skipped invite logic and could false-positive duplicates.
+      if (inviteTokenTrimmed && reviewerEmailNorm) {
+        if (userId && sessionEmailNorm && sessionEmailNorm !== reviewerEmailNorm) {
+          showToast({
+            title: "Wrong account for this invite",
+            description:
+              "Sign out and open the link again, or sign in with the email address that received the invitation.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const guestNameForInvite =
+          guestName.trim() ||
+          (userDisplayName ?? "").trim() ||
+          (sessionEmailNorm ? sessionEmailNorm.split("@")[0] : "") ||
+          reviewerEmailNorm.split("@")[0] ||
+          "Customer";
+
+        const baseUrlInvite = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKeyInvite = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!baseUrlInvite || !anonKeyInvite) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const responseInvite = await fetch(
+          `${baseUrlInvite}/functions/v1/create-review-draft`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: anonKeyInvite,
+              Authorization: `Bearer ${anonKeyInvite}`,
+            },
+            body: JSON.stringify({
+              business_id: business.id,
+              rating: Math.max(1, Math.min(5, Math.round(rating))),
+              title: title.trim() || null,
+              body: body.trim(),
+              guest_email: reviewerEmailNorm,
+              email: reviewerEmailNorm,
+              guest_name: guestNameForInvite,
+              receipt_url: receiptUrl,
+              date_of_experience: dateOfExperience,
+              marketing_opt_in: marketingOptIn,
+              reference_number:
+                business.reference_number_enabled && referenceNumber.trim()
+                  ? referenceNumber.trim()
+                  : null,
+              invite_token: inviteTokenTrimmed,
+              is_invite: true,
+            }),
+          },
+        );
+
+        const dataInvite = (await responseInvite.json().catch(() => ({}))) as Record<
+          string,
+          unknown
+        >;
+        processCreateReviewDraftResult(
+          responseInvite,
+          dataInvite,
+          reviewerEmailNorm,
+          true,
+        );
+        return;
+      }
+
       if (userId) {
         const sb = supabaseBrowser();
 
-        // Prevent duplicate reviews for the same business/user
-        const { data: existingReview, error: existingError } = await sb
+        // Only block when a visible, published-style review exists (matches public profile rules)
+        const { data: existingRows, error: existingError } = await sb
           .from("reviews")
-          .select("id")
+          .select("id,draft,status,visibility")
           .eq("business_id", business.id)
           .eq("user_id", userId)
-          .maybeSingle();
+          .limit(25);
+
+        const existingReview = (existingRows ?? []).find((row) => {
+          if (row.draft === true) return false;
+          const s = row.status as string | null | undefined;
+          if (s != null && s !== "" && s !== "published") return false;
+          const vis = String(row.visibility ?? "visible").trim().toLowerCase();
+          if (vis !== "visible") return false;
+          return true;
+        });
 
         if (!existingError && existingReview?.id) {
           const mapped = reviewErrorMessages.duplicate_review;
@@ -741,109 +960,16 @@ export default function WriteReviewForm({
         },
       );
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        if (
-          !isInviteGuest &&
-          data &&
-          data.error === "draft_exists" &&
-          typeof data.reviewId === "string"
-        ) {
-          const reviewId = data.reviewId as string;
-          setOtpReviewId(reviewId);
-          setOtpEmail(guestEmailTrimmed);
-          setSubmittedEmail(guestEmailTrimmed);
-          setSubmitted(true);
-          setCheckEmailState({ active: true, email: guestEmailTrimmed });
-          setOtpModalOpen(true);
-
-          showToast({
-            title: "Finish publishing your review",
-            description:
-              "You already started a review for this business. Check your email for the verification code to publish it.",
-            variant: "success",
-          });
-
-          return;
-        }
-
-        const errorKey =
-          (data && typeof data.error === "string" && data.error) ||
-          "unexpected_error";
-        const mapped =
-          reviewErrorMessages[errorKey] ||
-          reviewErrorMessages.unexpected_error;
-
-        showToast({
-          title: mapped.title,
-          description: mapped.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (
-        data &&
-        data.published === true &&
-        typeof data.reviewId === "string"
-      ) {
-        showToast({
-          title: "Thank you",
-          description: "Your review has been published.",
-          variant: "success",
-        });
-        router.push(`/b/${business.slug}`);
-        return;
-      }
-
-      if (
-        data &&
-        data.requiresUpdate === true &&
-        typeof data.reviewId === "string"
-      ) {
-        showToast({
-          title: "You’ve already reviewed this business",
-          description:
-            "You can update your existing review if your experience has changed.",
-          variant: "success",
-        });
-
-        router.push(`/write-review?edit=${data.reviewId}`);
-        return;
-      }
-
-      if (isInviteGuest) {
-        const mapped = reviewErrorMessages.unexpected_error;
-        showToast({
-          title: mapped.title,
-          description: mapped.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (
-        !data ||
-        typeof data.reviewId !== "string" ||
-        data.requiresOtp !== true
-      ) {
-        const mapped = reviewErrorMessages.unexpected_error;
-        showToast({
-          title: mapped.title,
-          description: mapped.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const reviewId = data.reviewId as string;
-      setOtpReviewId(reviewId);
-      setOtpEmail(guestEmailTrimmed);
-      setSubmittedEmail(guestEmailTrimmed);
-      setSubmitted(true);
-      setCheckEmailState({ active: true, email: guestEmailTrimmed });
-      setOtpModalOpen(true);
+      const data = (await response.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+      processCreateReviewDraftResult(
+        response,
+        data,
+        guestEmailTrimmed,
+        isInviteGuest,
+      );
     } catch (error) {
       const keyFromError =
         error instanceof Error && error.message

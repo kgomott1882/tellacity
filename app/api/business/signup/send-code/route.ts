@@ -5,8 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
 import { BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE } from "@/lib/businessSignupDomainMessage";
-import { extractDomain } from "@/lib/extractDomain";
+import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { getServerEnv } from "@/lib/serverEnv";
+import { isAuthEmailAlreadyRegistered } from "@/lib/signupIdentitySync";
 
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
@@ -75,8 +76,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "incomplete_form" }, { status: 400 });
     }
 
-    const websiteDomain = extractDomain(website);
-    const emailDomain = (email.split("@")[1] ?? "").trim().toLowerCase();
+    const websiteDomain = normalizeBusinessDomain(website);
+    const emailDomain = normalizeBusinessDomain(email.split("@")[1] || "");
     if (!emailDomain || websiteDomain !== emailDomain) {
       return NextResponse.json(
         { error: "domain_mismatch", message: BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE },
@@ -90,6 +91,17 @@ export async function POST(req: Request) {
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const alreadyAuth = await isAuthEmailAlreadyRegistered(supabaseUrl, serviceRoleKey, email);
+    if (alreadyAuth) {
+      return NextResponse.json(
+        {
+          error: "account_exists",
+          message: "Account already exists. Please log in.",
+        },
+        { status: 409 }
+      );
+    }
 
     const payload: BusinessSignupPendingPayload = {
       selectedBusinessId,
@@ -118,6 +130,8 @@ export async function POST(req: Request) {
         code,
         payload,
         expires_at: expiresAt,
+        attempt_count: 0,
+        consumed_at: null,
       })
       .select("id")
       .single();

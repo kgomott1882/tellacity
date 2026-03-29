@@ -8,6 +8,12 @@ export const reviewErrorMessages: Record<
       "You can edit your existing review if you'd like to update your experience.",
   },
 
+  review_edit_not_found: {
+    title: "We couldn’t load that review",
+    message:
+      "It may have been removed or you may not have access. Try submitting a new review from the business page, or contact support if this keeps happening.",
+  },
+
   draft_exists: {
     title: "Finish your review",
     message:
@@ -26,9 +32,8 @@ export const reviewErrorMessages: Record<
   },
 
   unexpected_error: {
-    title: "You’ve already submitted a review for this business.",
-    message:
-      "You can edit your existing review if you'd like to update your experience.",
+    title: "Something went wrong",
+    message: "Please try again in a moment. If it keeps happening, contact support.",
   },
 
   invite_token_required: {

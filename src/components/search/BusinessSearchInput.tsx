@@ -16,7 +16,13 @@ type BusinessSearchInputProps = {
   placeholder: string;
   className?: string;
   label?: string;
+  /** Override default `id` on the input (avoid duplicate IDs when multiple instances exist). */
+  inputId?: string;
   externalError?: string | null;
+  /** When true, empty-results state omits the “Suggest a missing business” link (e.g. dashboard claim). */
+  hideSuggestMissing?: boolean;
+  /** Fires when the search text changes (e.g. clear parent validation). */
+  onSearchChange?: (term: string) => void;
   /**
    * Optional callback when the user submits the current query
    * (hero button click, Enter key, or "Show all results" CTA).
@@ -33,12 +39,22 @@ type BusinessSearchInputProps = {
   heroButtonLabel?: string;
 };
 
+function sanitizeSearchToken(q: string): string {
+  return q
+    .trim()
+    .replace(/[%_,]/g, " ")
+    .replace(/\s+/g, " ");
+}
+
 export default function BusinessSearchInput({
   onSelect,
   placeholder,
   className,
   label,
+  inputId = "business-search",
   externalError,
+  hideSuggestMissing = false,
+  onSearchChange,
   onSubmitQuery,
   heroLayout = false,
   heroButtonLabel = "Find a business",
@@ -58,12 +74,21 @@ export default function BusinessSearchInput({
     setSearchLoading(true);
 
     const timeout = setTimeout(async () => {
+      const q = sanitizeSearchToken(searchTerm);
+      if (q.length < 1) {
+        if (!isMounted) return;
+        setSearchResults([]);
+        setSearchLoading(false);
+        return;
+      }
       const supabase = supabaseBrowser();
       const { data, error } = await supabase
         .from("businesses")
         .select("id, name, slug, website, website_display, status")
         .eq("status", "active")
-        .ilike("name", `%${searchTerm.trim()}%`)
+        .or(`name.ilike.%${q}%,website_display.ilike.%${q}%,website.ilike.%${q}%`)
+        .order("trust_score", { ascending: false, nullsFirst: false })
+        .order("review_count", { ascending: false })
         .limit(6);
 
       if (!isMounted) return;
@@ -97,7 +122,7 @@ export default function BusinessSearchInput({
     <div className={className}>
       {label && (
         <label
-          htmlFor="business-search"
+          htmlFor={inputId}
           className="text-xs font-medium text-[#111827]"
         >
           {label}
@@ -122,10 +147,13 @@ export default function BusinessSearchInput({
               </svg>
             </span>
             <input
-              id="business-search"
+              id={inputId}
               type="text"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                onSearchChange?.(event.target.value);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
@@ -147,10 +175,13 @@ export default function BusinessSearchInput({
         </div>
       ) : (
         <input
-          id="business-search"
+          id={inputId}
           type="text"
           value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
+          onChange={(event) => {
+            setSearchTerm(event.target.value);
+            onSearchChange?.(event.target.value);
+          }}
           placeholder={placeholder}
           className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
         />
@@ -167,17 +198,19 @@ export default function BusinessSearchInput({
           <p className="px-4 py-3 text-gray-500">
             No businesses found for &ldquo;{searchTerm.trim()}&rdquo;.
           </p>
-          <Link
-            href={`/suggest-business?name=${encodeURIComponent(searchTerm.trim())}`}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#1FAF9E] hover:bg-gray-50"
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E]/10 text-[#1FAF9E]" aria-hidden>
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </span>
-            Suggest a missing business
-          </Link>
+          {!hideSuggestMissing && (
+            <Link
+              href={`/suggest-business?name=${encodeURIComponent(searchTerm.trim())}`}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#1FAF9E] hover:bg-gray-50"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E]/10 text-[#1FAF9E]" aria-hidden>
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              Suggest a missing business
+            </Link>
+          )}
         </div>
       )}
       {!searchLoading && searchResults.length > 0 && (

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { PLAN_INVITE_LIMITS, getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
+import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const access = await requireBusinessAccess(req, businessId);
+    if (!access.ok) return access.response;
+
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -28,16 +32,37 @@ export async function POST(req: Request) {
     const startOfMonth = new Date();
     startOfMonth.setUTCDate(1);
     startOfMonth.setUTCHours(0, 0, 0, 0);
+    const monthStartIso = startOfMonth.toISOString();
 
-    const { count: monthlyCount } = await supabase
-      .from("review_invites")
-      .select("*", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .gte("created_at", startOfMonth.toISOString());
+    const [
+      { count: monthlyCount },
+      { count: sentThisMonth },
+      { count: deliveredThisMonth },
+    ] = await Promise.all([
+      supabase
+        .from("review_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .gte("created_at", monthStartIso),
+      supabase
+        .from("review_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .not("sent_at", "is", null)
+        .gte("sent_at", monthStartIso),
+      supabase
+        .from("review_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .not("opened_at", "is", null)
+        .gte("opened_at", monthStartIso),
+    ]);
 
     return NextResponse.json({
       monthlyCount: monthlyCount ?? 0,
       limit,
+      sentThisMonth: sentThisMonth ?? 0,
+      deliveredThisMonth: deliveredThisMonth ?? 0,
     });
   } catch (err) {
     console.error("Usage endpoint crash:", err);

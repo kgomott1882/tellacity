@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { allocateUniqueBusinessSlug } from "@/lib/businessSlug";
 
 function normalizeWebsite(website: string): string {
   let domain = website.trim();
   domain = domain.replace(/^https?:\/\//i, "");
   domain = domain.replace(/\/+$/, "");
   return domain.toLowerCase();
-}
-
-function slugFromName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
 }
 
 export async function POST(request: Request) {
@@ -87,6 +80,29 @@ export async function POST(request: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const catSlug = String(category_slug).trim();
+    const groupSlug = String(primary_group_slug).trim();
+
+    const { data: pickedCat, error: catLookupErr } = await supabase
+      .from("categories")
+      .select("slug, group_slug")
+      .eq("slug", catSlug)
+      .maybeSingle();
+
+    if (catLookupErr || !pickedCat?.slug) {
+      return NextResponse.json(
+        { error: "Choose a valid category." },
+        { status: 400 }
+      );
+    }
+
+    if (String(pickedCat.group_slug ?? "").trim() !== groupSlug) {
+      return NextResponse.json(
+        { error: "Category does not match the selected primary group." },
+        { status: 400 }
+      );
+    }
+
     const { data: existing } = await supabase
       .from("businesses")
       .select("id, slug")
@@ -101,10 +117,7 @@ export async function POST(request: Request) {
       });
     }
 
-    let slug = slugFromName(name);
-    if (!slug) {
-      slug = "business";
-    }
+    const slug = await allocateUniqueBusinessSlug(supabase, name.trim());
 
     const { data: newBusiness, error: insertError } = await supabase
       .from("businesses")
@@ -113,8 +126,8 @@ export async function POST(request: Request) {
         slug,
         website: normalizedWebsite,
         country_code: country_code.trim(),
-        category_slug: category_slug.trim(),
-        primary_group_slug: primary_group_slug.trim(),
+        category_slug: catSlug,
+        primary_group_slug: groupSlug,
         address:
           typeof street_address === "string" && street_address.trim()
             ? street_address.trim()

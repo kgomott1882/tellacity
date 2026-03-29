@@ -27,7 +27,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("businesses")
-      .select("slug, updated_at")
+      .select("canonical_slug, slug, updated_at")
       .eq("status", "active")
       .order("id", { ascending: true })
       .range(from, to);
@@ -39,11 +39,12 @@ export async function GET(
 
     // ALWAYS return valid XML, even if empty
     const urls = (data || [])
-      .filter((b) => b.slug)
+      .filter((b) => b.canonical_slug || b.slug)
       .map((b) => {
+        const finalSlug = b.canonical_slug || b.slug;
         return `
   <url>
-    <loc>https://tellacity.com/b/${b.slug}</loc>
+    <loc>https://tellacity.com/b/${finalSlug}</loc>
     <lastmod>${new Date(
       b.updated_at || Date.now()
     ).toISOString()}</lastmod>

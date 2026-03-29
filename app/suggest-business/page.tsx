@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
-
-type Group = { name: string; group_slug: string };
-type Category = { name: string; slug: string; group_slug: string };
+import {
+  filterCategoriesByPrimaryGroup,
+  useCategoryGroupCatalog,
+} from "@/hooks/useCategoryGroupCatalog";
 
 export default function SuggestBusinessPage() {
   const router = useRouter();
@@ -23,9 +23,12 @@ export default function SuggestBusinessPage() {
   const [publicEmail, setPublicEmail] = useState("");
   const [notes, setNotes] = useState("");
 
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const {
+    groups,
+    categories,
+    loading: categoriesLoading,
+    loadError: categoryCatalogError,
+  } = useCategoryGroupCatalog(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,82 +36,10 @@ export default function SuggestBusinessPage() {
     setName((prev) => (prev === "" && nameParam ? nameParam : prev));
   }, [nameParam]);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setCategoriesLoading(true);
-      const supabase = supabaseBrowser();
-
-      const { data: groupsData, error: groupsErr } = await supabase
-        .from("category_groups")
-        .select(
-          `
-          id,
-          name,
-          slug,
-          categories (
-            id,
-            group_slug
-          )
-        `
-        )
-        .order("name");
-
-      if (!mounted) return;
-      if (groupsErr) {
-        setGroups([]);
-        setCategories([]);
-        setCategoriesLoading(false);
-        return;
-      }
-
-      const groupList =
-        (groupsData ?? [])
-          .map((r: { name: string; slug: string; categories?: { id: string; group_slug: string | null }[] }) => {
-            const gSlug = String(r.slug ?? "").trim().toLowerCase();
-            const hasCategories = (r.categories ?? []).some(
-              (c) => String(c.group_slug ?? "").trim().toLowerCase() === gSlug
-            );
-            return hasCategories
-              ? {
-                  name: r.name,
-                  group_slug: r.slug,
-                }
-              : null;
-          })
-          .filter((g): g is Group => g !== null)
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-      setGroups(groupList);
-
-      const { data: categoriesData, error: catErr } = await supabase
-        .from("categories")
-        .select("name, slug, group_slug")
-        .order("name");
-
-      if (!mounted) return;
-      if (catErr) {
-        setCategories([]);
-        setCategoriesLoading(false);
-        return;
-      }
-
-      const categoryList = (categoriesData ?? []).map((r: { name: string; slug: string; group_slug: string | null }) => ({
-        name: r.name,
-        slug: r.slug,
-        group_slug: r.group_slug ?? "",
-      }));
-      setCategories(categoryList);
-      setCategoriesLoading(false);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const filteredCategories = primaryGroupSlug
-    ? categories.filter((c) => c.group_slug === primaryGroupSlug)
-    : [];
+  const filteredCategories = filterCategoriesByPrimaryGroup(
+    categories,
+    primaryGroupSlug
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,11 +117,16 @@ export default function SuggestBusinessPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          {error && (
+          {categoryCatalogError ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {categoryCatalogError}
+            </div>
+          ) : null}
+          {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}
             </div>
-          )}
+          ) : null}
 
           <div>
             <label htmlFor="name" className={labelClass}>
@@ -356,7 +292,7 @@ export default function SuggestBusinessPage() {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || categoriesLoading || !!categoryCatalogError}
               className="w-full rounded-full bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? "Submitting…" : "List This Business"}

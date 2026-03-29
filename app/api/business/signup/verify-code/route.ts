@@ -3,21 +3,28 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
-import { BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE } from "@/lib/businessSignupDomainMessage";
-import { extractDomain } from "@/lib/extractDomain";
+import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
+import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  cleanupSignupUserRows,
+  formatSignupProfileErrorForClient,
+  isAuthEmailAlreadyRegistered,
+  syncSignupIdentityAfterAuthUserCreated,
+} from "@/lib/signupIdentitySync";
+
+type VerificationRow = {
+  id: string;
+  email: string;
+  code: string;
+  payload: BusinessSignupPendingPayload;
+  expires_at: string;
+  attempt_count: number | null;
+  consumed_at: string | null;
+};
 
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
-}
-
-function slugFromCompanyName(name: string): string {
-  const base = name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  return base || "business";
 }
 
 function normalizeSignupError(message: string) {
@@ -32,105 +39,155 @@ function normalizeSignupError(message: string) {
   return message;
 }
 
-type VerifyBody = {
-  email?: string;
-  code?: string;
-  password?: string;
-};
+function jsonError(error: string, message: string, status: number) {
+  return NextResponse.json({ error, message }, { status });
+}
+
+function withDevDbDetail(
+  base: string,
+  err: { message?: string; code?: string } | null | undefined
+): string {
+  if (process.env.NODE_ENV !== "development" || !err?.message) return base;
+  return `${base} [${err.code ?? "no-code"}] ${err.message}`;
+}
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as VerifyBody;
+    const body = (await req.json()) as {
+      email?: string;
+      code?: string;
+      password?: string;
+    };
     const email = normalizeEmail(typeof body.email === "string" ? body.email : "");
     const code = typeof body.code === "string" ? body.code.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "invalid_email" }, { status: 400 });
+    if (!email || !code || !password) {
+      return jsonError(
+        "missing_fields",
+        "Email, verification code, and password are required.",
+        400
+      );
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return jsonError("invalid_email", "Please enter a valid email address", 400);
     }
     if (!/^\d{6}$/.test(code)) {
-      return NextResponse.json({ error: "invalid_code" }, { status: 400 });
+      return jsonError("invalid_code", "Enter the 6-digit verification code", 400);
     }
     if (password.length < 6) {
-      return NextResponse.json({ error: "weak_password" }, { status: 400 });
+      return jsonError(
+        "weak_password",
+        "Password must be at least 6 characters.",
+        400
+      );
     }
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
-    const { data: row, error: rowErr } = await supabase
+    const { data: verification, error: fetchError } = await supabaseAdmin
       .from("business_signup_verifications")
-      .select("id, code, payload, expires_at")
+      .select("*")
       .eq("email", email)
+      .is("consumed_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (rowErr) {
-      console.error("business signup verify fetch:", rowErr);
-      return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    if (fetchError || !verification) {
+      return jsonError(
+        "no_pending_signup",
+        "No pending verification found. Request a new code.",
+        400
+      );
     }
 
-    if (!row) {
-      return NextResponse.json({ error: "no_pending_signup" }, { status: 400 });
+    const row = verification as VerificationRow;
+
+    if ((row.attempt_count ?? 0) >= 5) {
+      return jsonError(
+        "too_many_attempts",
+        "Too many attempts. Request a new code.",
+        429
+      );
     }
 
     if (new Date(row.expires_at).getTime() < Date.now()) {
-      await supabase.from("business_signup_verifications").delete().eq("id", row.id);
-      return NextResponse.json({ error: "code_expired" }, { status: 400 });
+      await supabaseAdmin
+        .from("business_signup_verifications")
+        .update({ consumed_at: new Date().toISOString() })
+        .eq("id", row.id);
+      return jsonError(
+        "code_expired",
+        "Your verification code has expired",
+        400
+      );
     }
 
     if (row.code !== code) {
-      return NextResponse.json({ error: "wrong_code" }, { status: 400 });
+      const next = (row.attempt_count ?? 0) + 1;
+
+      await supabaseAdmin
+        .from("business_signup_verifications")
+        .update({
+          attempt_count: next,
+        })
+        .eq("id", row.id);
+
+      if (next >= 5) {
+        return jsonError(
+          "too_many_attempts",
+          "Too many attempts. Request a new code.",
+          429
+        );
+      }
+
+      return jsonError("wrong_code", "Invalid verification code", 400);
     }
 
-    const payload = row.payload as BusinessSignupPendingPayload;
+    const payload = row.payload;
     if (!payload || typeof payload !== "object") {
-      return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
+      return jsonError(
+        "invalid_payload",
+        "Verification data is invalid. Start signup again.",
+        400
+      );
     }
 
-    const emailDomain = (email.split("@")[1] ?? "").trim().toLowerCase();
-    const websiteDomain = extractDomain(payload.website ?? "");
-    if (!emailDomain || websiteDomain !== emailDomain) {
-      return NextResponse.json(
-        { error: "domain_mismatch", message: BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE },
-        { status: 400 }
+    const websiteDomain = normalizeBusinessDomain(payload.website ?? "");
+    const emailDomain = normalizeBusinessDomain(email.split("@")[1] || "");
+
+    if (websiteDomain !== emailDomain) {
+      return jsonError(
+        "domain_mismatch",
+        "Use your business email address to verify ownership",
+        400
       );
     }
 
     const phoneTrim =
       typeof payload.phoneNumber === "string" ? payload.phoneNumber.trim() : "";
 
-    if (payload.selectedBusinessId) {
-      const { data: biz, error: bizErr } = await supabase
-        .from("businesses")
-        .select("id, website, status")
-        .eq("id", payload.selectedBusinessId)
-        .maybeSingle();
-
-      if (bizErr || !biz) {
-        return NextResponse.json({ error: "business_not_found" }, { status: 400 });
-      }
-
-      if (String(biz.status ?? "").toLowerCase() !== "active") {
-        return NextResponse.json({ error: "business_not_active" }, { status: 400 });
-      }
-
-      const bizDomain = extractDomain(String(biz.website ?? ""));
-      if (bizDomain !== emailDomain) {
-        return NextResponse.json(
-          {
-            error: "domain_claim_mismatch",
-            message: BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE,
-          },
-          { status: 403 }
-        );
-      }
+    const emailTaken = await isAuthEmailAlreadyRegistered(supabaseUrl, serviceRoleKey, email);
+    if (emailTaken) {
+      return jsonError(
+        "account_exists",
+        "Account already exists. Please log in.",
+        409
+      );
     }
 
     const fullName = `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim();
 
-    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+    const countryCode = String(payload.country ?? "")
+      .trim()
+      .toUpperCase()
+      .slice(0, 2);
+
+    const { data: userRes, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -138,111 +195,76 @@ export async function POST(req: Request) {
         full_name: fullName,
         role: "business",
         display_name: fullName,
+        signup_website: normalizeWebsiteDomain(payload.website ?? ""),
+        signup_company_name: payload.companyName.trim(),
+        signup_job_title:
+          typeof payload.jobTitle === "string" ? payload.jobTitle.trim() : "",
+        signup_country_code: countryCode,
+        country: countryCode,
       },
     });
 
-    if (createErr || !created?.user?.id) {
-      const msg = createErr?.message ?? "Could not create account.";
-      return NextResponse.json(
-        { error: "create_user_failed", message: normalizeSignupError(msg) },
-        { status: 400 }
+    if (userError || !userRes?.user?.id) {
+      const msg = userError?.message ?? "Failed to create user";
+      return jsonError(
+        "create_user_failed",
+        normalizeSignupError(msg),
+        userError?.message?.toLowerCase().includes("already") ? 400 : 500
       );
     }
 
-    const userId = created.user.id;
+    const userId = userRes.user.id;
 
-    const { data: existingByEmail } = await supabase
-      .from("business_profiles")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
+    const synced = await syncSignupIdentityAfterAuthUserCreated(supabaseAdmin, {
+      userId,
+      emailNorm: email,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phone: phoneTrim || undefined,
+    });
 
-    if (existingByEmail && existingByEmail.id !== userId) {
-      const tempEmail = `${email}.old.${Date.now()}`;
-      await supabase.from("business_profiles").update({ email: tempEmail }).eq("id", existingByEmail.id);
+    if (!synced.ok) {
+      await cleanupSignupUserRows(supabaseAdmin, userId);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      console.error("business signup verify profile:", synced.error);
+      return jsonError(
+        "profile_failed",
+        withDevDbDetail(formatSignupProfileErrorForClient(synced.error), synced.error),
+        500
+      );
     }
 
-    const { error: profileUpsertError } = await supabase.from("business_profiles").upsert(
-      {
-        id: userId,
-        email,
-        business_name: payload.companyName.trim(),
-      },
-      { onConflict: "id" }
-    );
-
-    if (profileUpsertError) {
-      await supabase.auth.admin.deleteUser(userId);
-      console.error("business signup verify profile:", profileUpsertError);
-      return NextResponse.json({ error: "profile_failed" }, { status: 500 });
-    }
-
-    try {
-      if (payload.selectedBusinessId) {
-        const { error: updErr } = await supabase
-          .from("businesses")
-          .update({
-            owner_id: userId,
-            is_claimed: true,
-          })
-          .eq("id", payload.selectedBusinessId);
-
-        if (updErr) {
-          console.error("business signup claim update:", updErr);
-          throw updErr;
-        }
-
-        const { error: boErr } = await supabase.from("business_owners").upsert(
-          {
-            business_id: payload.selectedBusinessId,
-            owner_user_id: userId,
-          },
-          { onConflict: "business_id" }
-        );
-
-        if (boErr) {
-          console.error("business signup business_owners:", boErr);
-          throw boErr;
-        }
-
-        if (phoneTrim) {
-          await supabase
-            .from("businesses")
-            .update({ phone: phoneTrim })
-            .eq("id", payload.selectedBusinessId);
-        }
-      } else {
-        const slug = `${slugFromCompanyName(payload.companyName)}-${userId.replace(/-/g, "").slice(0, 12)}`;
-
-        const insertPayload: Record<string, unknown> = {
-          name: payload.companyName.trim(),
-          website: payload.website.trim(),
-          owner_id: userId,
-          status: "active",
-          country_code: payload.country || "",
-          slug,
-        };
-        if (phoneTrim) insertPayload.phone = phoneTrim;
-        if (payload.plan) insertPayload.plan = payload.plan;
-
-        const { error: businessError } = await supabase.from("businesses").insert(insertPayload);
-
-        if (businessError) {
-          console.error("business signup insert:", businessError);
-          throw businessError;
-        }
+    const companyName = payload.companyName.trim();
+    if (companyName) {
+      const { error: bpErr } = await supabaseAdmin.from("business_profiles").upsert(
+        {
+          id: userId,
+          email,
+          business_name: companyName,
+        },
+        { onConflict: "id" }
+      );
+      if (bpErr && process.env.NODE_ENV === "development") {
+        console.warn("business signup business_profiles:", bpErr.message);
       }
-    } catch (bizFail) {
-      await supabase.from("business_profiles").delete().eq("id", userId);
-      await supabase.auth.admin.deleteUser(userId);
-      return NextResponse.json({ error: "business_failed" }, { status: 500 });
     }
 
-    await supabase.from("business_signup_verifications").delete().eq("id", row.id);
+    await supabaseAdmin
+      .from("business_signup_verifications")
+      .update({ consumed_at: new Date().toISOString() })
+      .eq("id", row.id)
+      .is("consumed_at", null);
 
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("business signup verify:", e);
-    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      outcome: "account_created" as const,
+    });
+  } catch (err) {
+    console.error("VERIFY CODE ERROR:", err);
+    return jsonError(
+      "unexpected_error",
+      "Something went wrong. Please try again.",
+      500
+    );
   }
 }

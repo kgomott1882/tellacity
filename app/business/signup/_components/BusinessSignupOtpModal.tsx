@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Props = {
@@ -23,11 +23,26 @@ export default function BusinessSignupOtpModal({
   const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const resetModalState = () => {
+    setOtp("");
+    setError("");
+    setResendMessage(null);
+    setSuccessMessage("");
+    setVerifying(false);
+  };
+
+  const handleClose = () => {
+    resetModalState();
+    onClose();
+  };
 
   if (!open) return null;
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (verifying) return;
     setError("");
     const code = otp.trim();
     if (!/^\d{6}$/.test(code)) {
@@ -40,11 +55,18 @@ export default function BusinessSignupOtpModal({
       const res = await fetch("/api/business/signup/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, password }),
+        body: JSON.stringify({
+          email,
+          code,
+          password,
+        }),
       });
+
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
+        success?: boolean;
+        outcome?: string;
       };
 
       if (!res.ok) {
@@ -52,9 +74,36 @@ export default function BusinessSignupOtpModal({
           setError("That code is not correct. Try again or request a new code.");
         } else if (data.error === "code_expired") {
           setError("This code has expired. Tap Resend code for a new one.");
+        } else if (data.error === "too_many_attempts") {
+          setError("Too many attempts. Request a new code.");
+        } else if (data.error === "domain_mismatch") {
+          setError(data.message || "Use your business email address.");
+        } else if (data.error === "already_claimed") {
+          setError("This business has already been claimed.");
+        } else if (data.error === "already_has_business") {
+          setError("You already have a business account. Please log in.");
+        } else if (data.error === "account_exists") {
+          setError(
+            data.message ||
+              "An account with this email already exists. Log in at the business login page."
+          );
+        } else if (data.error === "profile_failed") {
+          setError(
+            data.message ||
+              "Could not save your profile. Try again, or use a different email if this address was used before."
+          );
         } else {
-          setError(data.message ?? data.error ?? "Verification failed. Please try again.");
+          setError(data.message || "Verification failed. Please try again.");
         }
+        return;
+      }
+
+      if (!data.success || data.outcome !== "account_created") {
+        setError(
+          typeof data.message === "string" && data.message.trim()
+            ? data.message
+            : "Verification failed"
+        );
         return;
       }
 
@@ -67,14 +116,13 @@ export default function BusinessSignupOtpModal({
       if (signInError) {
         setError(
           signInError.message ||
-            "Account created but sign-in failed. Try logging in from the business login page."
+            "Account created but sign-in failed. Try logging in."
         );
         return;
       }
 
-      if (typeof window !== "undefined") {
-        window.location.href = `${window.location.origin}/business/dashboard`;
-      }
+      setSuccessMessage("Account created. Taking you to your dashboard…");
+      window.location.href = "/business/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -106,21 +154,19 @@ export default function BusinessSignupOtpModal({
         type="button"
         className="absolute inset-0"
         aria-label="Close"
-        onClick={onClose}
+        onClick={handleClose}
       />
       <div className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
           aria-label="Close"
         >
           ×
         </button>
 
-        <h2 className="text-center text-2xl font-semibold text-[#0E0E0E]">
-          Verify your email
-        </h2>
+        <h2 className="text-center text-2xl font-semibold text-[#0E0E0E]">Verify your email</h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Enter the 6-digit code we sent to{" "}
           <span className="font-medium text-[#0E0E0E]">{email}</span>
@@ -138,13 +184,16 @@ export default function BusinessSignupOtpModal({
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              disabled={verifying}
+              disabled={verifying || Boolean(successMessage)}
               className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-center text-lg tracking-[0.35em] text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
               placeholder="000000"
             />
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {successMessage && (
+            <p className="text-sm text-green-600 text-center">{successMessage}</p>
+          )}
           {resendMessage ? (
             <p
               className={`text-center text-xs ${
@@ -157,16 +206,16 @@ export default function BusinessSignupOtpModal({
 
           <button
             type="submit"
-            disabled={verifying}
+            disabled={verifying || Boolean(successMessage)}
             className="w-full rounded-lg bg-[#1FAF9E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#169786] disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {verifying ? "Verifying…" : "Verify"}
+            {verifying ? "Verifying..." : "Verify"}
           </button>
 
           <button
             type="button"
             onClick={handleResend}
-            disabled={verifying || resending}
+            disabled={verifying || resending || Boolean(successMessage)}
             className="w-full text-sm font-semibold text-[#1FAF9E] hover:underline disabled:opacity-50"
           >
             {resending ? "Sending…" : "Resend code"}

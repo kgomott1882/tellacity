@@ -58,34 +58,29 @@ export const useBusinessAuth = (): BusinessAuthState => {
 
       await ensureSessionFresh();
 
-      // Business user = has business_profiles by user id or by email (same email may have profile under another auth id)
       const supabase = supabaseBrowser();
-      const { data: businessProfileById, error: errById } = await supabase
-        .from("business_profiles")
-        .select("id")
-        .eq("id", sessionUser.id)
-        .maybeSingle();
+      const uid = sessionUser.id;
 
+      const { data: ownedRow } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("owner_id", uid)
+        .limit(1)
+        .maybeSingle();
       if (!isMounted) return;
-      if (!errById && businessProfileById) {
+      if (ownedRow) {
         setIsBusiness(true);
         setLoading(false);
         return;
       }
 
-      const emailNorm = sessionUser.email?.trim().toLowerCase();
-      let businessProfileByEmail = null;
-      if (emailNorm) {
-        const { data } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("email", emailNorm)
-          .maybeSingle();
-        businessProfileByEmail = data;
-      }
+      const { data: ownerLinks } = await supabase
+        .from("business_owners")
+        .select("business_id")
+        .eq("owner_user_id", uid)
+        .limit(1);
       if (!isMounted) return;
-
-      setIsBusiness(!!businessProfileByEmail);
+      setIsBusiness(Boolean(ownerLinks?.length));
       setLoading(false);
     };
 
@@ -110,29 +105,29 @@ export const useBusinessAuth = (): BusinessAuthState => {
         await ensureSessionFresh();
 
         const supabase = supabaseBrowser();
-        const { data: byId } = await supabase
-          .from("business_profiles")
+        const uid = sessionUser.id;
+
+        const { data: ownedRow } = await supabase
+          .from("businesses")
           .select("id")
-          .eq("id", sessionUser.id)
+          .eq("owner_id", uid)
+          .limit(1)
           .maybeSingle();
         if (!isMounted) return;
-        if (byId) {
+        if (ownedRow) {
           setIsBusiness(true);
+          if (isMounted) setLoading(false);
           return;
         }
-        const emailNorm = sessionUser.email?.trim().toLowerCase();
-        if (emailNorm) {
-          const supabase = supabaseBrowser();
-          const { data: byEmail } = await supabase
-            .from("business_profiles")
-            .select("id")
-            .eq("email", emailNorm)
-            .maybeSingle();
-          if (!isMounted) return;
-          setIsBusiness(!!byEmail);
-        } else {
-          setIsBusiness(false);
-        }
+
+        const { data: ownerLinks } = await supabase
+          .from("business_owners")
+          .select("business_id")
+          .eq("owner_user_id", uid)
+          .limit(1);
+        if (!isMounted) return;
+        setIsBusiness(Boolean(ownerLinks?.length));
+        if (isMounted) setLoading(false);
       }
     );
 

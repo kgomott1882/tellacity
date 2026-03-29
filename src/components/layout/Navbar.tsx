@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { ensureValidSession } from "@/lib/ensureValidSession";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { isAbortError } from "@/lib/authErrors";
@@ -16,6 +17,7 @@ import {
   setStoredCountry,
 } from "@/lib/country";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
+import { resolveNavbarDashboardPath } from "@/lib/userBusinessDashboardEligibility";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -81,6 +83,16 @@ export default function Navbar() {
   const isAuthFlow =
     pathname?.startsWith("/auth/") ||
     pathname?.startsWith("/business/reset-password");
+  /** Business login/signup/forgot: never show logged-in avatar from getUser (avoids stale session after sign-out). */
+  const isBusinessMarketingAuth =
+    pathname === "/business/login" ||
+    pathname === "/business/signup" ||
+    pathname === "/business/forgot-password";
+  const showBizNavUserMenu = userInitials && !isAuthFlow && !isBusinessMarketingAuth;
+
+  useEffect(() => {
+    ensureValidSession();
+  }, []);
 
   // Prefer URL country; fall back to persisted selection when URL has none.
   useEffect(() => {
@@ -132,7 +144,7 @@ export default function Navbar() {
   // show dashboard access while a user is in the middle of a
   // password reset or similar sensitive flow.
   useEffect(() => {
-    if (pathname === "/" || isAuthFlow) {
+    if (pathname === "/" || isAuthFlow || isBusinessMarketingAuth) {
       setUserInitials(null);
       setDashboardHref("/dashboard");
       return;
@@ -168,20 +180,21 @@ export default function Navbar() {
         }
 
         const supabase = supabaseBrowser();
-        const { data: byId } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        setDashboardHref(byId ? "/business/dashboard" : "/dashboard");
+        setDashboardHref(
+          await resolveNavbarDashboardPath(
+            supabase,
+            user.id,
+            user.email,
+            user.user_metadata ?? undefined
+          )
+        );
       } catch (_) {
         setUserInitials(null);
         setDashboardHref("/dashboard");
       }
     };
     loadUser();
-  }, [pathname]);
+  }, [pathname, isAuthFlow, isBusinessMarketingAuth]);
 
   useEffect(() => {
     if (isLoginOpen) {
@@ -238,26 +251,14 @@ export default function Navbar() {
           }
           (async () => {
             const supabase = supabaseBrowser();
-            const { data: byId } = await supabase
-              .from("business_profiles")
-              .select("id")
-              .eq("id", user.id)
-              .maybeSingle();
-            if (byId) {
-              setDashboardHref("/business/dashboard");
-              return;
-            }
-            const emailNorm = user.email?.trim().toLowerCase();
-            if (emailNorm) {
-              const { data: byEmail } = await supabase
-                .from("business_profiles")
-                .select("id")
-                .eq("email", emailNorm)
-                .maybeSingle();
-              setDashboardHref(byEmail ? "/business/dashboard" : "/dashboard");
-            } else {
-              setDashboardHref("/dashboard");
-            }
+            setDashboardHref(
+              await resolveNavbarDashboardPath(
+                supabase,
+                user.id,
+                user.email,
+                user.user_metadata ?? undefined
+              )
+            );
           })();
         } else {
           setUserInitials(null);
@@ -289,13 +290,13 @@ export default function Navbar() {
 
           (async () => {
             const supabase = supabaseBrowser();
-            const { data: byId } = await supabase
-              .from("business_profiles")
-              .select("id")
-              .eq("id", user.id)
-              .maybeSingle();
-
-            if (byId) {
+            const path = await resolveNavbarDashboardPath(
+              supabase,
+              user.id,
+              user.email,
+              user.user_metadata ?? undefined
+            );
+            if (path === "/business/dashboard") {
               router.push("/business/dashboard");
             }
           })();
@@ -397,7 +398,7 @@ export default function Navbar() {
               </nav>
 
               <div className="flex items-center gap-2 md:gap-3">
-                {userInitials && !isAuthFlow ? (
+                {showBizNavUserMenu ? (
                   <div className="relative hidden md:block" ref={userMenuRef}>
                     <button
                       type="button"
@@ -557,7 +558,7 @@ export default function Navbar() {
 
                   <div className="my-6 border-t border-white/10" />
 
-                  {userInitials && !isAuthFlow ? (
+                  {showBizNavUserMenu ? (
                     <Link
                       href={dashboardHref}
                       onClick={() => setIsMobileMenuOpen(false)}

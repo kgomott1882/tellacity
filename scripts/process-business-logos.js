@@ -14,7 +14,7 @@ process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);
 
 const BATCH_SIZE = parseInt(process.env.LOGO_BATCH_SIZE || "50", 10);
-const DELAY_MS = parseInt(process.env.LOGO_DELAY_MS || "800", 10);
+const BATCH_DELAY = parseInt(process.env.LOGO_BATCH_DELAY_MS || process.env.LOGO_DELAY_MS || "1500", 10);
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -76,6 +76,11 @@ async function processOne(adminSupabase, business) {
   // CASE A — migrate existing Logo.dev URL
   if (logoUrl && logoUrl.includes("img.logo.dev")) {
     const logoRes = await fetch(logoUrl, { method: "GET" });
+    if (logoRes.status === 429) {
+      console.warn("RATE LIMITED:", logoUrl);
+      await sleep(3000);
+      return;
+    }
     if (!logoRes.ok) {
       console.log("MIGRATE fetch failed:", id, logoRes.status);
       await markLogoFetchFailed(adminSupabase, id);
@@ -171,6 +176,12 @@ async function processOne(adminSupabase, business) {
       return;
     }
 
+    if (logoRes.status === 429) {
+      console.warn("RATE LIMITED:", cleanDomain);
+      await sleep(3000);
+      return;
+    }
+
     if (!logoRes.ok) {
       console.log("FETCH failed:", id, cleanDomain, logoRes.status);
       await markLogoFetchFailed(adminSupabase, id);
@@ -204,7 +215,7 @@ async function main() {
   }
 
   console.log(
-    `[process:logos] start batch=${BATCH_SIZE} delay=${DELAY_MS}ms`
+    `[process:logos] start batch=${BATCH_SIZE} batchDelay=${BATCH_DELAY}ms`
   );
 
   while (true) {
@@ -233,10 +244,11 @@ async function main() {
         console.error("FAILED:", business.id, err instanceof Error ? err.message : err);
         await markLogoFetchFailed(adminSupabase, business.id);
       }
+      await sleep(200);
     }
 
     console.log("Processed batch:", batch.length);
-    await sleep(DELAY_MS);
+    await sleep(BATCH_DELAY);
   }
 
   console.log("[process:logos] finished");

@@ -7,14 +7,80 @@ const supabase = createClient(
 
 const BATCH_SIZE = 500
 
-function slugify(name) {
-  if (!name) return null
+const PLACEHOLDER_TOKENS = new Set([
+  'unknown',
+  '[unknown]',
+  'null',
+  'n/a',
+  'na',
+  'tbd',
+])
 
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+$/, '')
-    .trim()
+const GEO_PHRASES_DESC = [
+  'united states of america',
+  'united kingdom',
+  'united states',
+  'new zealand',
+  'south africa',
+  'south korea',
+  'north korea',
+  'hong kong',
+  'great britain',
+  'northern ireland',
+  'costa rica',
+  'puerto rico',
+  'czech republic',
+  'dominican republic',
+  'saudi arabia',
+  'sri lanka',
+  'el salvador',
+  'bosnia and herzegovina',
+  'trinidad and tobago',
+  'papua new guinea',
+].sort((a, b) => b.split(/\s+/).length - a.split(/\s+/).length)
+
+function normalizeToken(token) {
+  return token.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function stripTrailingGeoPhrases(tokens) {
+  if (tokens.length === 0) return tokens
+  let t = [...tokens]
+  let changed = true
+  while (changed && t.length > 0) {
+    changed = false
+    const lw = t.map(normalizeToken)
+    for (const phrase of GEO_PHRASES_DESC) {
+      const pl = phrase.split(/\s+/).map((p) => p.replace(/[^a-z0-9]/g, ''))
+      if (pl.length > t.length || pl.some((p) => !p)) continue
+      const tail = lw.slice(-pl.length)
+      if (tail.every((w, i) => w.length > 0 && w === pl[i])) {
+        t = t.slice(0, -pl.length)
+        changed = true
+        break
+      }
+    }
+  }
+  return t
+}
+
+/** Same rules as src/lib/businessSlug.ts — name only, no city/country/id in the base slug. */
+function businessNameToSlug(name) {
+  const raw = typeof name === 'string' ? name.trim() : ''
+  if (!raw) return ''
+
+  let tokens = raw.split(/\s+/).filter(Boolean)
+  tokens = tokens.filter((tok) => {
+    const key = tok.toLowerCase().replace(/[\[\]]/g, '')
+    return !PLACEHOLDER_TOKENS.has(key)
+  })
+  tokens = stripTrailingGeoPhrases(tokens)
+
+  const parts = tokens
+    .map((tok) => normalizeToken(tok))
+    .filter((w) => w.length > 0)
+
+  return parts.join('-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 }
 
 async function run() {
@@ -45,10 +111,10 @@ async function run() {
     const updates = []
 
     for (const b of data) {
-      let base = slugify(b.name)
+      let base = businessNameToSlug(b.name)
 
       if (!base || base === '') {
-        base = `business-${b.id.slice(0, 8)}`
+        base = 'business'
       }
 
       let finalSlug = base

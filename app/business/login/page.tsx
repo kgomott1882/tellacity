@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { handleRedirect } from "@/lib/postLoginRedirect";
+import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 
 export default function BusinessLoginPage() {
   const [email, setEmail] = useState("");
@@ -68,11 +69,30 @@ export default function BusinessLoginPage() {
             .update({ owner_id: userId })
             .eq("owner_id", oldUserId);
 
+          await supabase
+            .from("business_owners")
+            .update({ owner_user_id: userId })
+            .eq("owner_user_id", oldUserId);
+
           existingProfile = { id: userId };
         }
       }
 
-      await handleRedirect(userId);
+      const params = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : ""
+      );
+      const nextRaw = params.get("next");
+      const nextSafe =
+        typeof nextRaw === "string" && nextRaw.startsWith("/")
+          ? sanitizeAuthNext(nextRaw, "/business/dashboard")
+          : null;
+
+      if (nextSafe && nextSafe !== "/business/login") {
+        window.location.href = `${window.location.origin}${nextSafe}`;
+        return;
+      }
+
+      await handleRedirect(userId, { context: "business" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

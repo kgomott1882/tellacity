@@ -83,21 +83,26 @@ export async function GET(req: Request) {
     let offset = offsetParam != null ? parseInt(offsetParam, 10) : 0;
     if (Number.isNaN(offset) || offset < 0) offset = 0;
 
-    const { data: items, error: rpcError } = await supabase.rpc(
-      "get_sent_invites_for_business",
-      {
-        p_business_id: businessId.trim(),
-        p_limit: limit,
-        p_offset: offset,
-      }
-    );
+    // Direct query (service role): RLS often blocks `review_invites` for the browser JWT;
+    // RPC `get_sent_invites_for_business` is not guaranteed to exist in every project.
+    const { data: items, error: qError } = await supabase
+      .from("review_invites")
+      .select(
+        "id, recipient_email, sent_at, opened_at, review_submitted_at, expires_at, status, created_at, channel"
+      )
+      .eq("business_id", businessId.trim())
+      .not("sent_at", "is", null)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    if (rpcError) {
-      console.error("get_sent_invites_for_business error:", rpcError);
-      return NextResponse.json(
-        { error: rpcError.message ?? "Failed to load invites." },
-        { status: 500 }
-      );
+    if (qError) {
+      const msg =
+        (typeof qError.message === "string" && qError.message) ||
+        (typeof (qError as { code?: string }).code === "string" &&
+          (qError as { code: string }).code) ||
+        "Failed to load invites.";
+      console.warn("[review-invites/sent]", msg);
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
 
     return NextResponse.json({

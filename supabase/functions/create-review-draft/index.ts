@@ -35,6 +35,29 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+/** Row is an unpublished OTP / in-progress review */
+function rowIsDraft(row: {
+  draft?: boolean | null;
+}): boolean {
+  return row.draft === true;
+}
+
+/**
+ * A review that would count as “already on the business profile” for duplicate UX:
+ * published workflow + visible (not moderated hidden).
+ */
+function rowIsPublicLiveReview(row: {
+  draft?: boolean | null;
+  status?: string | null;
+  visibility?: string | null;
+}): boolean {
+  if (row.draft === true) return false;
+  const st = row.status;
+  if (st && st !== "published") return false;
+  const vis = String(row.visibility ?? "visible").trim().toLowerCase();
+  return vis === "visible";
+}
+
 type DraftPayload = {
   business_id?: string;
   rating?: number;
@@ -181,23 +204,23 @@ serve(async (req) => {
 
       const inviteRowId = (inv as { id: string }).id;
 
-      const { data: existingInvite, error: existingInviteError } =
-        await supabase
-          .from("reviews")
-          .select("id, status, draft")
-          .eq("business_id", business_id)
-          .eq("guest_email", guest_email)
-          .maybeSingle();
+      const { data: existingRows, error: existingInviteError } = await supabase
+        .from("reviews")
+        .select("id, status, draft, visibility, created_at")
+        .eq("business_id", business_id)
+        .eq("guest_email", guest_email)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
       if (existingInviteError) {
         console.error("Invite flow existing review lookup failed:", existingInviteError);
         return json({ error: "unexpected_error" }, 500);
       }
 
-      const existingDraft =
-        existingInvite?.id && (existingInvite as { draft?: boolean }).draft === true;
+      const list = existingRows ?? [];
 
-      if (existingDraft && existingInvite?.id) {
+      const draftRow = list.find((r) => rowIsDraft(r));
+      if (draftRow?.id) {
         const { error: upErr } = await supabase
           .from("reviews")
           .update({
@@ -216,10 +239,11 @@ serve(async (req) => {
             source: "guest",
             status: "published",
             draft: false,
+            visibility: "visible",
             invite_id: inviteRowId,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingInvite.id);
+          .eq("id", draftRow.id);
 
         if (upErr) {
           console.error("Invite flow publish draft error:", upErr);
@@ -235,17 +259,66 @@ serve(async (req) => {
           {
             published: true,
             requiresOtp: false,
-            reviewId: existingInvite.id,
+            reviewId: draftRow.id,
           },
           200,
         );
       }
 
-      if (existingInvite?.id) {
+      const liveRow = list.find((r) => rowIsPublicLiveReview(r));
+      if (liveRow?.id) {
         return json(
           {
             requiresUpdate: true,
-            reviewId: (existingInvite as { id: string }).id,
+            reviewId: liveRow.id,
+          },
+          200,
+        );
+      }
+
+      // Hidden / non-live rows still tied to this email: republish in place so the invite
+      // succeeds (business page may show 0 visible reviews while a hidden row existed).
+      const salvageRow = list[0];
+      if (salvageRow?.id) {
+        const { error: upSalvage } = await supabase
+          .from("reviews")
+          .update({
+            rating: ratingNum,
+            title:
+              payload.title && payload.title.trim()
+                ? payload.title.trim()
+                : null,
+            body,
+            guest_name,
+            guest_email,
+            date_of_experience,
+            marketing_opt_in,
+            receipt_url,
+            reference_number,
+            source: "guest",
+            status: "published",
+            draft: false,
+            visibility: "visible",
+            invite_id: inviteRowId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", salvageRow.id);
+
+        if (upSalvage) {
+          console.error("Invite flow salvage publish error:", upSalvage);
+          return json({ error: "unexpected_error" }, 500);
+        }
+
+        await supabase
+          .from("review_invites")
+          .update({ review_submitted_at: new Date().toISOString() })
+          .eq("id", inviteRowId);
+
+        return json(
+          {
+            published: true,
+            requiresOtp: false,
+            reviewId: salvageRow.id,
           },
           200,
         );
@@ -268,6 +341,7 @@ serve(async (req) => {
         source: "guest",
         status: "published",
         draft: false,
+        visibility: "visible",
         invite_id: inviteRowId,
       };
 
@@ -309,33 +383,38 @@ serve(async (req) => {
       invite_idRaw && isUuid(invite_idRaw) ? invite_idRaw : null;
 
     // Check for an existing review for this business + guest email
-    const { data: existing, error: existingError } = await supabase
+    const { data: guestRows, error: existingError } = await supabase
       .from("reviews")
-      .select("id, status, draft")
+      .select("id, status, draft, visibility, created_at")
       .eq("business_id", business_id)
       .eq("guest_email", guest_email)
-      .maybeSingle();
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     if (existingError) {
       console.error("Existing review lookup failed:", existingError);
       return json({ error: "unexpected_error" }, 500);
     }
 
-    if (existing?.id && (existing as any).draft === true) {
+    const guestList = guestRows ?? [];
+
+    const guestDraft = guestList.find((r) => rowIsDraft(r));
+    if (guestDraft?.id) {
       return json(
         {
           error: "draft_exists",
-          reviewId: (existing as { id: string }).id,
+          reviewId: guestDraft.id,
         },
         409,
       );
     }
 
-    if (existing?.id) {
+    const guestLive = guestList.find((r) => rowIsPublicLiveReview(r));
+    if (guestLive?.id) {
       return json(
         {
           requiresUpdate: true,
-          reviewId: (existing as { id: string }).id,
+          reviewId: guestLive.id,
         },
         200,
       );

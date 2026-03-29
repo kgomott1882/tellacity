@@ -2,7 +2,8 @@ import AdminStatCard from "@/components/admin/AdminStatCard";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import { getAdminOverviewStats } from "@/lib/admin";
+import { getAdminOverviewStats, getAdminRecentActivity } from "@/lib/admin";
+import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -34,93 +35,17 @@ export default async function AdminOverviewPage() {
     }
   );
 
-  const [statsRes, reviewsRes, profilesRes, businessesRes] = await Promise.all([
+  const [statsRes, activityRes] = await Promise.all([
     getAdminOverviewStats(supabase),
-    adminSupabase
-      .from("reviews")
-      .select(
-        `
-        created_at,
-        rating,
-        guest_name,
-        guest_email,
-        author_email,
-        email,
-        consumer_id,
-        business_id,
-        businesses:business_id (
-          name
-        ),
-        profiles:consumer_id (
-          email
-        )
-      `
-      )
-      .order("created_at", { ascending: false })
-      .limit(7),
-    adminSupabase
-      .from("profiles")
-      .select("created_at, email")
-      .order("created_at", { ascending: false })
-      .limit(7),
-    adminSupabase
-      .from("businesses")
-      .select("created_at, name, owner_id")
-      .order("created_at", { ascending: false })
-      .limit(6),
+    getAdminRecentActivity(supabase, 60),
   ]);
 
-  const reviewActivity = (reviewsRes.data ?? []).map((r) => {
-    const profile = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
-    const business = Array.isArray(r.businesses) ? r.businesses[0] : r.businesses;
-    const email =
-      r.email ||
-      r.author_email ||
-      r.guest_email ||
-      profile?.email ||
-      "—";
-    const businessName = business?.name || "—";
-    return {
-      when: r.created_at,
-      type: "Review created",
-      business: businessName,
-      email,
-    };
-  });
-
-  const userActivity = (profilesRes.data ?? []).map((u) => ({
-    when: u.created_at,
-    type: "New user",
-    business: "—",
-    email: u.email || "—",
-  }));
-
-  const businessActivity = (businessesRes.data ?? []).map((b) => ({
-    when: b.created_at,
-    type: "Business created",
-    business: b.name || "—",
-    email: "—",
-  }));
-
-  const activityRows: { when: string | null; type: string; business: string; email: string }[] = [
-    ...reviewActivity,
-    ...userActivity,
-    ...businessActivity,
-  ];
-
-  const activity = activityRows
-    .filter((row) => row.when)
-    .sort((a, b) => {
-      const ta = new Date(a.when as string).getTime();
-      const tb = new Date(b.when as string).getTime();
-      return tb - ta;
-    });
-
-  const recentActivityError =
-    reviewsRes.error?.message ||
-    profilesRes.error?.message ||
-    businessesRes.error?.message ||
-    null;
+  const recentActivityError = activityRes.error;
+  const activityRaw = activityRes.data ?? [];
+  const activity =
+    activityRaw.length > 0
+      ? await enrichAdminRecentActivity(adminSupabase, activityRaw)
+      : activityRaw;
 
   const [{ data: businessOwners }, { data: businessMembers }] = await Promise.all([
     adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
@@ -178,20 +103,20 @@ export default async function AdminOverviewPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {activity.map((item, i) => {
-                const key = `activity-${i}`;
+                const key = `${item.item_type}-${item.item_id}-${item.created_at}-${i}`;
                 return (
                   <tr key={key} className="bg-white">
                     <td className="whitespace-nowrap px-4 py-2 text-neutral-600">
-                      {formatWhen(item.when)}
+                      {formatWhen(item.created_at)}
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.type}</span>
+                      <span className="font-medium">{item.title}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.business}</span>
+                      <span className="font-medium">{item.subtitle}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.email}</span>
+                      <span className="font-medium">{item.email ?? "—"}</span>
                     </td>
                   </tr>
                 );

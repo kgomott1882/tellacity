@@ -1,20 +1,12 @@
+import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
+
 export function extractDomain(url: string): string {
-  if (!url) return "";
+  return normalizeBusinessDomain(url);
+}
 
-  try {
-    let cleaned = url.trim().toLowerCase();
-
-    // Remove protocol
-    cleaned = cleaned.replace(/^https?:\/\//, "");
-
-    // Remove www
-    cleaned = cleaned.replace(/^www\./, "");
-
-    // Remove path
-    cleaned = cleaned.split("/")[0];
-
-    return cleaned;
-  } catch {
-    return "";
-  }
+/** Single https:// prefix; host matches `normalizeBusinessDomain`. */
+export function normalizeSignupWebsiteInput(raw: string): string {
+  const host = normalizeBusinessDomain(raw);
+  if (!host) return "";
+  return `https://${host}`;
 }

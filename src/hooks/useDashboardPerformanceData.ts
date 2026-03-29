@@ -276,8 +276,6 @@ export function useDashboardPerformanceData(businessId: string | null) {
 
       if (gen !== loadGenRef.current) return;
 
-      console.log("Dashboard insights:", json.insights);
-
       const rows = json.reviews90d ?? [];
       const insightsMerged = {
         ...normalizeInsights(json.insights),
