@@ -108,12 +108,14 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
 
         try {
           const subsRows = await withTimeout(
-            supabase
-              .from("subscriptions")
-              .select("business_id, plan_code")
-              .in("business_id", ids)
-              .eq("status", "active")
-              .then((r) => r.data ?? []),
+            Promise.resolve(
+              supabase
+                .from("subscriptions")
+                .select("business_id, plan_code")
+                .in("business_id", ids)
+                .eq("status", "active")
+                .then((r) => r.data ?? []),
+            ),
             SUBSCRIPTIONS_FETCH_MAX_MS,
             [],
           );
