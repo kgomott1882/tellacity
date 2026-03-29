@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 
 const INVITES_SENT_OVERVIEW =
@@ -57,7 +58,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
     invitesRef.current = invites;
   }, [invites]);
 
-  const fetchInvites = useCallback(async () => {
+  const fetchInvites = useCallback(async (options?: { retry?: boolean }) => {
     if (!businessId) {
       return;
     }
@@ -69,8 +70,11 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
     }
 
     const hadRows = switchingBusiness ? false : invitesRef.current.length > 0;
-    if (!hadRows) {
+    if (options?.retry || !hadRows) {
       setLoading(true);
+    }
+    if (options?.retry) {
+      setError(null);
     }
 
     try {
@@ -123,7 +127,22 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
       {loading ? (
         <InviteSkeleton />
       ) : error ? (
-        <p className="py-4 text-center text-sm text-red-400/90">{error}</p>
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
+          <p className="text-center text-sm text-red-400/90">{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchInvites({ retry: true })}
+            disabled={loading}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-neutral-600 bg-neutral-900/60 text-neutral-100 transition hover:border-[#2fb2a8]/60 hover:bg-neutral-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2fb2a8] disabled:pointer-events-none disabled:opacity-50"
+            aria-label="Reload invites"
+          >
+            <RefreshCw
+              className={`h-5 w-5 ${loading ? "animate-spin" : ""}`}
+              aria-hidden
+            />
+          </button>
+          <span className="text-xs text-neutral-500">Tap to retry</span>
+        </div>
       ) : !invites.length ? (
         <p className="py-6 text-center text-sm text-neutral-400">No invites sent yet</p>
       ) : (

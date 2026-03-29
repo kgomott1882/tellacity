@@ -23,6 +23,11 @@ type WriteReviewFormProps = {
   initialBusinessSlug?: string | null;
   initialBusinessName?: string | null;
   businessSlug: string;
+  /** Invite page: submit creates server draft + OTP; parent handles OTP step. */
+  inviteTwoStepOtp?: boolean;
+  onInviteDraftCreated?: (draftId: string) => void;
+  /** Clear with null when starting a new submit attempt. */
+  onInviteDraftFlowError?: (message: string | null) => void;
 };
 
 const REFERENCE_TYPES = ["order", "invoice", "booking", "customer", "generic", "custom"] as const;
@@ -127,6 +132,9 @@ export default function WriteReviewForm({
   initialBusinessSlug,
   initialBusinessName,
   businessSlug,
+  inviteTwoStepOtp,
+  onInviteDraftCreated,
+  onInviteDraftFlowError,
 }: WriteReviewFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -597,6 +605,9 @@ export default function WriteReviewForm({
     }
 
     setIsSubmitting(true);
+    if (inviteTwoStepOtp) {
+      onInviteDraftFlowError?.(null);
+    }
 
     try {
       const receiptUrl = await uploadProofIfNeeded();
@@ -772,6 +783,72 @@ export default function WriteReviewForm({
           reviewerEmailNorm.split("@")[0] ||
           "Customer";
 
+        if (inviteTwoStepOtp && onInviteDraftCreated) {
+          const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
+          const inviteAccessToken = inviteSessionData?.session?.access_token?.trim();
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (inviteAccessToken && inviteAccessToken.length > 0) {
+            headers.Authorization = `Bearer ${inviteAccessToken}`;
+          }
+
+          const resDraft = await fetch("/api/reviews/create-draft", {
+            method: "POST",
+            headers,
+            credentials: "include",
+            body: JSON.stringify({
+              business_id: business.id,
+              rating: Math.max(1, Math.min(5, Math.round(rating))),
+              title: title.trim() || null,
+              body: body.trim(),
+              guest_email: reviewerEmailNorm,
+              guest_name: guestNameForInvite,
+              receipt_url: receiptUrl,
+              date_of_experience: dateOfExperience,
+              marketing_opt_in: marketingOptIn,
+              reference_number:
+                business.reference_number_enabled && referenceNumber.trim()
+                  ? referenceNumber.trim()
+                  : null,
+              invite_token: inviteTokenTrimmed,
+            }),
+          });
+
+          const dataDraft = (await resDraft.json().catch(() => ({}))) as {
+            error?: string;
+            draft_id?: string;
+          };
+
+          if (!resDraft.ok) {
+            const msg =
+              typeof dataDraft.error === "string" && dataDraft.error.trim()
+                ? dataDraft.error
+                : "Something went wrong";
+            onInviteDraftFlowError?.(msg);
+            showToast({
+              title: "Couldn’t send code",
+              description: msg,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const did = dataDraft.draft_id;
+          if (typeof did === "string" && did) {
+            onInviteDraftCreated(did);
+            return;
+          }
+
+          onInviteDraftFlowError?.("Something went wrong");
+          showToast({
+            title: "Something went wrong",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const baseUrlInvite = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const anonKeyInvite = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         if (!baseUrlInvite || !anonKeyInvite) {
@@ -784,6 +861,13 @@ export default function WriteReviewForm({
           return;
         }
 
+        const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
+        const inviteAccessToken = inviteSessionData?.session?.access_token?.trim();
+        const authorizationInvite =
+          inviteAccessToken && inviteAccessToken.length > 0
+            ? `Bearer ${inviteAccessToken}`
+            : `Bearer ${anonKeyInvite}`;
+
         const responseInvite = await fetch(
           `${baseUrlInvite}/functions/v1/create-review-draft`,
           {
@@ -791,7 +875,7 @@ export default function WriteReviewForm({
             headers: {
               "Content-Type": "application/json",
               apikey: anonKeyInvite,
-              Authorization: `Bearer ${anonKeyInvite}`,
+              Authorization: authorizationInvite,
             },
             body: JSON.stringify({
               business_id: business.id,
@@ -877,7 +961,7 @@ export default function WriteReviewForm({
           receipt_url: receiptUrl,
           date_of_experience: dateOfExperience,
           marketing_opt_in: marketingOptIn,
-          guest_email: userEmail ?? guestEmail ?? null,
+          guest_email: null,
           guest_name:
             userDisplayName ||
             guestName ||
@@ -1500,7 +1584,10 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-      {otpReviewId && otpEmail && !reviewerEmail?.trim() && (
+      {!inviteTwoStepOtp &&
+        otpReviewId &&
+        otpEmail &&
+        !reviewerEmail?.trim() && (
         <ReviewOtpModal
           reviewId={otpReviewId}
           email={otpEmail}

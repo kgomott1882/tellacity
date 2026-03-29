@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
-import WriteReviewForm from "@/components/reviews/WriteReviewForm";
+import InviteReviewFlow from "./InviteReviewFlow";
 import { getServerEnv } from "@/lib/serverEnv";
 
 export const metadata: Metadata = {
@@ -117,18 +117,20 @@ export default async function InvitePage(props: {
     }
   }
 
+  const recipientEmail = String(invite.recipient_email ?? "").trim();
+  if (!recipientEmail) {
+    return <ErrorState message="Invalid invite link" />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <WriteReviewForm
-        inviteId={inviteId}
-        inviteToken={token}
-        initialRating={initialRating}
-        initialBusinessId={businessId}
-        initialBusinessSlug={businessSlug}
-        initialBusinessName={businessName}
-        reviewerEmail={invite.recipient_email ?? undefined}
-        businessSlug={businessSlug ?? ""}
-      />
-    </div>
+    <InviteReviewFlow
+      inviteId={inviteId}
+      inviteToken={token}
+      initialRating={initialRating}
+      initialBusinessId={businessId}
+      initialBusinessSlug={businessSlug}
+      initialBusinessName={businessName}
+      reviewerEmail={recipientEmail}
+    />
   );
 }

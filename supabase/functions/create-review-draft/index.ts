@@ -100,6 +100,22 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
+    const anonKeyEnv = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const authHeader = req.headers.get("Authorization") ?? "";
+    let authedUser: { id: string; email?: string | null } | null = null;
+    if (authHeader.startsWith("Bearer ")) {
+      const bearer = authHeader.slice(7).trim();
+      if (bearer && bearer !== anonKeyEnv && bearer !== serviceKey) {
+        const { data: userData, error: authGetUserErr } = await supabase.auth
+          .getUser(bearer);
+        if (authGetUserErr) {
+          console.error("create-review-draft auth.getUser error:", authGetUserErr);
+        } else if (userData?.user) {
+          authedUser = userData.user;
+        }
+      }
+    }
+
     let payload: DraftPayload;
     try {
       payload = (await req.json()) as DraftPayload;
@@ -187,7 +203,15 @@ serve(async (req) => {
       }
 
       const invEmail = String(inv.recipient_email ?? "").trim().toLowerCase();
-      if (!invEmail || invEmail !== guest_email) {
+      if (!invEmail) {
+        return json({ error: "invalid_invite" }, 400);
+      }
+      if (authedUser) {
+        const uEmail = String(authedUser.email ?? "").trim().toLowerCase();
+        if (!uEmail || uEmail !== invEmail) {
+          return json({ error: "invalid_invite" }, 400);
+        }
+      } else if (invEmail !== guest_email) {
         return json({ error: "invalid_invite" }, 400);
       }
 
@@ -204,45 +228,139 @@ serve(async (req) => {
 
       const inviteRowId = (inv as { id: string }).id;
 
-      const { data: existingRows, error: existingInviteError } = await supabase
-        .from("reviews")
-        .select("id, status, draft, visibility, created_at")
-        .eq("business_id", business_id)
-        .eq("guest_email", guest_email)
-        .order("created_at", { ascending: false })
-        .limit(20);
+      const userIdForReview: string | null = authedUser ? authedUser.id : null;
+      const guestEmailForReview: string | null = authedUser ? null : guest_email;
 
-      if (existingInviteError) {
-        console.error("Invite flow existing review lookup failed:", existingInviteError);
-        return json({ error: "unexpected_error" }, 500);
+      const titleVal =
+        payload.title && payload.title.trim()
+          ? payload.title.trim()
+          : null;
+
+      const publishedUpdateRow: Record<string, unknown> = {
+        rating: ratingNum,
+        title: titleVal,
+        body,
+        guest_name,
+        user_id: userIdForReview,
+        guest_email: guestEmailForReview,
+        date_of_experience,
+        marketing_opt_in,
+        receipt_url,
+        reference_number,
+        status: "published",
+        draft: false,
+        visibility: "visible",
+        invite_id: inviteRowId,
+        updated_at: new Date().toISOString(),
+      };
+      if (!userIdForReview) {
+        publishedUpdateRow.source = "guest";
       }
 
-      const list = existingRows ?? [];
+      const publishedInsertRow: Record<string, unknown> = {
+        business_id,
+        rating: ratingNum,
+        title: titleVal,
+        body,
+        guest_name,
+        user_id: userIdForReview,
+        guest_email: guestEmailForReview,
+        date_of_experience,
+        marketing_opt_in,
+        receipt_url,
+        reference_number,
+        status: "published",
+        draft: false,
+        visibility: "visible",
+        invite_id: inviteRowId,
+      };
+      if (!userIdForReview) {
+        publishedInsertRow.source = "guest";
+      }
+
+      const markInviteSubmitted = async (): Promise<boolean> => {
+        const ts = new Date().toISOString();
+        const { error: invUpErr } = await supabase
+          .from("review_invites")
+          .update({
+            review_submitted_at: ts,
+            status: "completed",
+          })
+          .eq("id", inviteRowId);
+        if (invUpErr) {
+          console.error("REVIEW INVITE UPDATE ERROR:", invUpErr);
+          return false;
+        }
+        return true;
+      };
+
+      type ListRow = {
+        id: string;
+        status?: string | null;
+        draft?: boolean | null;
+        visibility?: string | null;
+        created_at?: string | null;
+      };
+
+      let list: ListRow[] = [];
+      if (authedUser) {
+        const [uRes, gRes] = await Promise.all([
+          supabase
+            .from("reviews")
+            .select("id, status, draft, visibility, created_at")
+            .eq("business_id", business_id)
+            .eq("user_id", authedUser.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("reviews")
+            .select("id, status, draft, visibility, created_at")
+            .eq("business_id", business_id)
+            .eq("guest_email", invEmail)
+            .order("created_at", { ascending: false })
+            .limit(20),
+        ]);
+        const existingInviteError = uRes.error ?? gRes.error;
+        if (existingInviteError) {
+          console.error(
+            "Invite flow existing review lookup failed:",
+            existingInviteError,
+          );
+          return json({ error: "unexpected_error" }, 500);
+        }
+        const map = new Map<string, ListRow>();
+        for (const r of [...(uRes.data ?? []), ...(gRes.data ?? [])]) {
+          if (r?.id) map.set(r.id, r as ListRow);
+        }
+        list = [...map.values()].sort(
+          (a, b) =>
+            new Date(String(b.created_at ?? 0)).getTime() -
+            new Date(String(a.created_at ?? 0)).getTime(),
+        );
+      } else {
+        const { data: existingRows, error: existingInviteError } = await supabase
+          .from("reviews")
+          .select("id, status, draft, visibility, created_at")
+          .eq("business_id", business_id)
+          .eq("guest_email", guest_email)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (existingInviteError) {
+          console.error(
+            "Invite flow existing review lookup failed:",
+            existingInviteError,
+          );
+          return json({ error: "unexpected_error" }, 500);
+        }
+        list = (existingRows ?? []) as ListRow[];
+      }
 
       const draftRow = list.find((r) => rowIsDraft(r));
       if (draftRow?.id) {
         const { error: upErr } = await supabase
           .from("reviews")
-          .update({
-            rating: ratingNum,
-            title:
-              payload.title && payload.title.trim()
-                ? payload.title.trim()
-                : null,
-            body,
-            guest_name,
-            guest_email,
-            date_of_experience,
-            marketing_opt_in,
-            receipt_url,
-            reference_number,
-            source: "guest",
-            status: "published",
-            draft: false,
-            visibility: "visible",
-            invite_id: inviteRowId,
-            updated_at: new Date().toISOString(),
-          })
+          .update(publishedUpdateRow)
           .eq("id", draftRow.id);
 
         if (upErr) {
@@ -250,10 +368,9 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
-        await supabase
-          .from("review_invites")
-          .update({ review_submitted_at: new Date().toISOString() })
-          .eq("id", inviteRowId);
+        if (!(await markInviteSubmitted())) {
+          return json({ error: "unexpected_error" }, 500);
+        }
 
         return json(
           {
@@ -282,26 +399,7 @@ serve(async (req) => {
       if (salvageRow?.id) {
         const { error: upSalvage } = await supabase
           .from("reviews")
-          .update({
-            rating: ratingNum,
-            title:
-              payload.title && payload.title.trim()
-                ? payload.title.trim()
-                : null,
-            body,
-            guest_name,
-            guest_email,
-            date_of_experience,
-            marketing_opt_in,
-            receipt_url,
-            reference_number,
-            source: "guest",
-            status: "published",
-            draft: false,
-            visibility: "visible",
-            invite_id: inviteRowId,
-            updated_at: new Date().toISOString(),
-          })
+          .update(publishedUpdateRow)
           .eq("id", salvageRow.id);
 
         if (upSalvage) {
@@ -309,10 +407,9 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
-        await supabase
-          .from("review_invites")
-          .update({ review_submitted_at: new Date().toISOString() })
-          .eq("id", inviteRowId);
+        if (!(await markInviteSubmitted())) {
+          return json({ error: "unexpected_error" }, 500);
+        }
 
         return json(
           {
@@ -324,46 +421,31 @@ serve(async (req) => {
         );
       }
 
-      const insertPublished: Record<string, unknown> = {
-        business_id,
-        rating: ratingNum,
-        title:
-          payload.title && payload.title.trim()
-            ? payload.title.trim()
-            : null,
-        body,
-        guest_name,
-        guest_email,
-        date_of_experience,
-        marketing_opt_in,
-        receipt_url,
-        reference_number,
-        source: "guest",
-        status: "published",
-        draft: false,
-        visibility: "visible",
-        invite_id: inviteRowId,
-      };
-
       const { data: publishedRow, error: pubErr } = await supabase
         .from("reviews")
-        .insert(insertPublished)
+        .insert(publishedInsertRow)
         .select("id,business_id")
         .single();
 
       if (pubErr) {
-        console.error("Invite flow insert error:", pubErr);
-        const anyErr = pubErr as { code?: string };
+        console.error("REVIEW INSERT ERROR:", pubErr);
+        const anyErr = pubErr as { code?: string; message?: string };
         if (anyErr?.code === "23505") {
           return json({ error: "duplicate_review" }, 409);
         }
+        return json(
+          { error: anyErr.message ?? "unexpected_error" },
+          500,
+        );
+      }
+
+      if (!publishedRow?.id) {
         return json({ error: "unexpected_error" }, 500);
       }
 
-      await supabase
-        .from("review_invites")
-        .update({ review_submitted_at: new Date().toISOString() })
-        .eq("id", inviteRowId);
+      if (!(await markInviteSubmitted())) {
+        return json({ error: "unexpected_error" }, 500);
+      }
 
       return json(
         {

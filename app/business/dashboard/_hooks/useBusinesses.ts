@@ -3,9 +3,29 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import { getUserBusinesses } from "@/lib/getUserBusinesses";
+import { getUserBusinesses, type UserBusinessRow } from "@/lib/getUserBusinesses";
 import { normalizePlanCodeToKey } from "@/lib/plans";
 import type { DashboardBusiness } from "../_context/BusinessContext";
+
+const SESSION_FRESH_MAX_MS = 4000;
+const BUSINESSES_FETCH_MAX_MS = 25_000;
+const SUBSCRIPTIONS_FETCH_MAX_MS = 6000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(t);
+        resolve(fallback);
+      },
+    );
+  });
+}
 
 function cleanDomain(url: string) {
   return url
@@ -48,15 +68,23 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
       setError(null);
 
       try {
-        await ensureSessionFresh();
+        await withTimeout(ensureSessionFresh(), SESSION_FRESH_MAX_MS, undefined);
 
-        let base = await getUserBusinesses(userId);
+        let base: UserBusinessRow[] = await Promise.race([
+          getUserBusinesses(userId),
+          new Promise<UserBusinessRow[]>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("Could not load businesses (timed out). Check your connection and try again.")),
+              BUSINESSES_FETCH_MAX_MS,
+            ),
+          ),
+        ]);
         if (!mounted) return;
 
         if (base.length === 0 && refreshKey > 0) {
-          for (let attempt = 0; attempt < 6 && mounted; attempt++) {
-            await new Promise((r) => setTimeout(r, 400));
-            await ensureSessionFresh();
+          for (let attempt = 0; attempt < 5 && mounted; attempt++) {
+            await new Promise((r) => setTimeout(r, 280));
+            await withTimeout(ensureSessionFresh(), SESSION_FRESH_MAX_MS, undefined);
             base = await getUserBusinesses(userId);
             if (!mounted) return;
             if (base.length > 0) break;
@@ -79,15 +107,16 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
         const ids = base.map((b) => b.id);
 
         try {
-          const subsRows = await Promise.race([
+          const subsRows = await withTimeout(
             supabase
               .from("subscriptions")
               .select("business_id, plan_code")
               .in("business_id", ids)
               .eq("status", "active")
               .then((r) => r.data ?? []),
-            new Promise<never[]>((resolve) => setTimeout(() => resolve([]), 8000)),
-          ]);
+            SUBSCRIPTIONS_FETCH_MAX_MS,
+            [],
+          );
 
           if (!mounted) return;
 
@@ -104,8 +133,11 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
         }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to load businesses";
-        if (mounted) setError(msg);
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setData([]);
+          setError(msg);
+          setLoading(false);
+        }
       }
     }
 

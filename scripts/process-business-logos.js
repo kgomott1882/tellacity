@@ -26,13 +26,18 @@ async function markLogoFetchFailed(adminSupabase, businessId) {
   console.log("MARKED FAILED:", businessId);
 }
 
-async function uploadPngAndUpdateRow(adminSupabase, businessId, buffer, { mode }) {
+async function uploadPngAndUpdateRow(
+  adminSupabase,
+  businessId,
+  buffer,
+  { mode, contentType = "image/png" }
+) {
   const filePath = `${businessId}/logo.png`;
   const { error: uploadError } = await adminSupabase.storage
     .from("business_logos")
     .upload(filePath, buffer, {
       upsert: true,
-      contentType: "image/png",
+      contentType,
     });
   if (uploadError) {
     console.error("UPLOAD FAILED:", businessId, uploadError);
@@ -69,26 +74,94 @@ async function uploadPngAndUpdateRow(adminSupabase, businessId, buffer, { mode }
   return true;
 }
 
+/** Domain segment from e.g. https://img.logo.dev/example.com?token=… */
+function cleanDomainFromLogoDevUrl(logoUrl) {
+  try {
+    const u = new URL(logoUrl);
+    const part = u.pathname.replace(/^\//, "").split("/")[0];
+    if (!part) return null;
+    return part.split("?")[0].trim().toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+async function tryGoogleThenSiteFavicons(adminSupabase, businessId, cleanDomain, mode) {
+  const fallback1 = `https://www.google.com/s2/favicons?sz=256&domain=${encodeURIComponent(cleanDomain)}`;
+  const res1 = await fetch(fallback1, { method: "GET" });
+  if (res1.ok) {
+    const buf1 = new Uint8Array(await res1.arrayBuffer());
+    if (buf1.length > 0) {
+      const ct1 =
+        res1.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+      const ok1 = await uploadPngAndUpdateRow(adminSupabase, businessId, buf1, {
+        mode,
+        contentType: ct1,
+      });
+      if (ok1) {
+        console.log("FALLBACK GOOGLE:", businessId);
+        return true;
+      }
+    }
+  }
+
+  const fallback2 = `https://${cleanDomain}/favicon.ico`;
+  const res2 = await fetch(fallback2, { method: "GET" });
+  if (res2.ok) {
+    const buf2 = new Uint8Array(await res2.arrayBuffer());
+    if (buf2.length > 0) {
+      const ct2 =
+        res2.headers.get("content-type")?.split(";")[0]?.trim() || "image/x-icon";
+      const ok2 = await uploadPngAndUpdateRow(adminSupabase, businessId, buf2, {
+        mode,
+        contentType: ct2,
+      });
+      if (ok2) {
+        console.log("FALLBACK SITE:", businessId);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 async function processOne(adminSupabase, business) {
   const id = String(business.id ?? "");
   const logoUrl = String(business.logo_url ?? "").trim();
 
   // CASE A — migrate existing Logo.dev URL
   if (logoUrl && logoUrl.includes("img.logo.dev")) {
-    const logoRes = await fetch(logoUrl, { method: "GET" });
-    if (logoRes.status === 429) {
-      console.warn("RATE LIMITED:", logoUrl);
-      await sleep(3000);
-      return;
-    }
-    if (!logoRes.ok) {
-      console.log("MIGRATE fetch failed:", id, logoRes.status);
+    const migrateDomain = cleanDomainFromLogoDevUrl(logoUrl);
+    if (!migrateDomain) {
       await markLogoFetchFailed(adminSupabase, id);
       return;
     }
-    const buffer = new Uint8Array(await logoRes.arrayBuffer());
-    const ok = await uploadPngAndUpdateRow(adminSupabase, id, buffer, { mode: "migrate" });
-    if (ok) console.log("MIGRATED:", id);
+
+    /* TEMP disabled: Logo.dev primary fetch (rate limits) — restore when re-enabling
+    const logoRes = await fetch(logoUrl, { method: "GET" });
+    if (logoRes.status === 429) {
+      console.warn("RATE LIMITED:", logoUrl);
+    }
+    if (logoRes.status === 200) {
+      const buffer = new Uint8Array(await logoRes.arrayBuffer());
+      if (buffer.length > 0) {
+        const ok = await uploadPngAndUpdateRow(adminSupabase, id, buffer, { mode: "migrate" });
+        if (ok) {
+          console.log("MIGRATED:", id);
+          return;
+        }
+      }
+    } else if (logoRes.status !== 429) {
+      console.log("MIGRATE fetch failed:", id, logoRes.status);
+    }
+    */
+
+    console.log("SKIP LOGO.DEV (migrate):", migrateDomain);
+    const got = await tryGoogleThenSiteFavicons(adminSupabase, id, migrateDomain, "migrate");
+    if (got) return;
+
+    await markLogoFetchFailed(adminSupabase, id);
     return;
   }
 
@@ -162,6 +235,7 @@ async function processOne(adminSupabase, business) {
 
     console.log("CLEAN DOMAIN:", cleanDomain);
 
+    /* TEMP disabled: Logo.dev backfill (rate limits) — restore when re-enabling
     const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
     if (!token) {
       console.error("❌ Missing NEXT_PUBLIC_LOGO_DEV_TOKEN");
@@ -170,27 +244,48 @@ async function processOne(adminSupabase, business) {
     const fetchUrl = `https://img.logo.dev/${cleanDomain}?token=${token}&fallback=404`;
     const logoRes = await fetch(fetchUrl, { method: "GET" });
 
-    if (logoRes.status === 404) {
-      await markLogoFetchFailed(adminSupabase, id);
-      console.log("FAILED DOMAIN:", id);
-      return;
-    }
-
     if (logoRes.status === 429) {
       console.warn("RATE LIMITED:", cleanDomain);
-      await sleep(3000);
-      return;
     }
 
-    if (!logoRes.ok) {
-      console.log("FETCH failed:", id, cleanDomain, logoRes.status);
-      await markLogoFetchFailed(adminSupabase, id);
-      return;
+    if (logoRes.status === 200) {
+      const buffer = new Uint8Array(await logoRes.arrayBuffer());
+      if (buffer.length > 0) {
+        const ok = await uploadPngAndUpdateRow(adminSupabase, id, buffer, { mode: "backfill" });
+        if (ok) {
+          console.log("FETCHED:", id);
+          return;
+        }
+      }
+    } else if (logoRes.status !== 429) {
+      console.log("Logo.dev not OK:", id, cleanDomain, logoRes.status);
     }
 
-    const buffer = new Uint8Array(await logoRes.arrayBuffer());
-    const ok = await uploadPngAndUpdateRow(adminSupabase, id, buffer, { mode: "backfill" });
-    if (ok) console.log("FETCHED:", id);
+    const gotFallback = await tryGoogleThenSiteFavicons(
+      adminSupabase,
+      id,
+      cleanDomain,
+      "backfill"
+    );
+    if (gotFallback) return;
+    */
+
+    // Skip Logo.dev due to rate limits
+    console.log("SKIP LOGO.DEV:", cleanDomain);
+
+    const gotFallback = await tryGoogleThenSiteFavicons(
+      adminSupabase,
+      id,
+      cleanDomain,
+      "backfill"
+    );
+    if (gotFallback) return;
+
+    await adminSupabase
+      .from("businesses")
+      .update({ logo_fetch_failed: true })
+      .eq("id", id);
+    console.log("FINAL FAILED:", id);
     return;
   }
 
@@ -210,7 +305,7 @@ async function main() {
 
   if (!process.env.LOGO_DEV_TOKEN && !process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN) {
     console.warn(
-      "[process:logos] LOGO_DEV_TOKEN not set — Logo.dev backfill may return 401; migration of existing img.logo.dev URLs still works."
+      "[process:logos] Logo.dev token not set — primary Logo.dev path is disabled; using Google/site favicon fallbacks only."
     );
   }
 

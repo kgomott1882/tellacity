@@ -11,6 +11,7 @@ import {
 } from "@/lib/integrationsCatalog";
 import { normalizePlanCodeToKey } from "@/lib/plans";
 import { useBusinessContext } from "../../_context/BusinessContext";
+import { useConnectedIntegrationSlugs } from "../../_hooks/useConnectedIntegrationSlugs";
 
 export default function IntegrationsCategoryPage() {
   const params = useParams<{ category: string }>();
@@ -20,9 +21,7 @@ export default function IntegrationsCategoryPage() {
 
   const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
   const category = getCategoryById(rawCategory);
-
-  // In a future phase this will be populated from Supabase connection records.
-  const connectedSlugs: string[] = [];
+  const connectedSlugs = useConnectedIntegrationSlugs(selectedBusiness.id);
 
   if (!category) {
     return (

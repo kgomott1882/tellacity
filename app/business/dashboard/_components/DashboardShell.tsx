@@ -89,6 +89,20 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
   },
 };
 
+function DashboardMainSkeleton() {
+  return (
+    <div
+      className="mx-auto max-w-4xl space-y-4 py-2"
+      aria-busy="true"
+      aria-label="Loading workspace"
+    >
+      <div className="h-9 w-56 animate-pulse rounded-lg bg-gray-200/90" />
+      <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+      <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+    </div>
+  );
+}
+
 function InnerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -105,10 +119,11 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const { businesses: ownedBusinesses, loading: bizLoading } = useBusinesses(
-    user?.id ?? null,
-    navRefreshKey
-  );
+  const {
+    businesses: ownedBusinesses,
+    loading: bizLoading,
+    error: bizError,
+  } = useBusinesses(user?.id ?? null, navRefreshKey);
 
   // Tab sleep / background: refresh JWT before user clicks around with an expired token.
   useEffect(() => {
@@ -165,10 +180,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !pathname?.includes("/integrations/connect-shopify")) {
       router.replace("/business/login");
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, pathname]);
 
   // Auto-detect active section from pathname
   useEffect(() => {
@@ -210,13 +225,14 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const emailStr = user?.email?.trim() ?? "";
   const needsOnboarding = !selectedBusiness;
 
-  // No session: full-screen loader until redirect to login (covers initial auth load + post-logout).
-  if (!user && !isConnectShopifyPage) {
-    return <PageLoadingOverlay />;
-  }
-
-  if (authLoading || bizLoading) {
-    return <PageLoadingOverlay />;
+  // Session only: full-screen loader. Business list loads inside the shell so navigation is not blocked for minutes.
+  if (!isConnectShopifyPage) {
+    if (authLoading) {
+      return <PageLoadingOverlay />;
+    }
+    if (!user) {
+      return <PageLoadingOverlay />;
+    }
   }
 
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
@@ -286,24 +302,46 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 relative">
           <TopBar sessionUserId={user?.id ?? null} sessionEmail={user?.email ?? null} />
           <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
-            {needsOnboarding ? (
-              <div className="mx-auto max-w-lg rounded-xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
-                <p className="text-base font-semibold text-gray-900">Link or create a business</p>
-                <p className="mt-2 text-sm text-gray-600">
-                  Add a business to this account to use reviews, widgets, integrations, and settings.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setOnboardingOpen(true)}
-                  className="mt-6 inline-flex rounded-lg bg-[#1FAF9E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#169786]"
-                >
-                  Get started
-                </button>
-              </div>
-            ) : (
+            {isConnectShopifyPage ? (
               <div key={pathname} className="min-w-0">
                 {children}
               </div>
+            ) : (
+              <>
+                {bizError && !bizLoading ? (
+                  <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="min-w-0">{bizError}</p>
+                    <button
+                      type="button"
+                      onClick={() => bumpNavRefresh()}
+                      className="shrink-0 rounded-lg bg-amber-900/90 px-4 py-2 font-medium text-white hover:bg-amber-900"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : null}
+                {bizLoading ? (
+                  <DashboardMainSkeleton />
+                ) : needsOnboarding && !bizError ? (
+                  <div className="mx-auto max-w-lg rounded-xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+                    <p className="text-base font-semibold text-gray-900">Link or create a business</p>
+                    <p className="mt-2 text-sm text-gray-600">
+                      Add a business to this account to use reviews, widgets, integrations, and settings.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setOnboardingOpen(true)}
+                      className="mt-6 inline-flex rounded-lg bg-[#1FAF9E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#169786]"
+                    >
+                      Get started
+                    </button>
+                  </div>
+                ) : !needsOnboarding ? (
+                  <div key={pathname} className="min-w-0">
+                    {children}
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </main>

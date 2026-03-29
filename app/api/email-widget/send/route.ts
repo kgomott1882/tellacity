@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
 import { EMAIL_WIDGET_CTA_BORDER, EMAIL_WIDGET_CTA_TEXT } from "@/lib/emailBranding";
+import { TELLACITY_STAR_TIER_COLORS } from "@/lib/tellacityStarColors";
 
 function isPremiumOrElite(plan: string): boolean {
   return plan === "premium" || plan === "elite";
@@ -58,11 +59,12 @@ function buildSignatureBlock(t: Record<string, unknown>): string {
 }
 
 /**
- * Email clients (e.g. Gmail) strip inline SVG — Unicode stars on light squares, black glyphs.
+ * Email clients (e.g. Gmail) strip inline SVG — Unicode stars on Tellacity tier-colored squares (matches WidgetStars at rating 5).
  */
 function buildEmailStarsRowHtml(opts?: { marginBottom?: string }): string {
   const mb = opts?.marginBottom ?? "16px";
-  const star = `<span style="display:inline-block;width:22px;height:22px;margin:0 3px;background:#ffffff;border:1px solid #E5E7EB;border-radius:3px;text-align:center;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000000;vertical-align:middle;">&#9733;</span>`;
+  const fill = TELLACITY_STAR_TIER_COLORS[4];
+  const star = `<span style="display:inline-block;width:22px;height:22px;margin:0 3px;background:${fill};border:1px solid ${fill};border-radius:3px;text-align:center;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#ffffff;vertical-align:middle;">&#9733;</span>`;
   const stars = Array.from({ length: 5 }, () => star).join("");
   return `<div style="margin-bottom:${mb};text-align:center;font-size:0;line-height:0;">${stars}</div>`;
 }
