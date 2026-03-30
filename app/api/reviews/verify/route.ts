@@ -2,7 +2,6 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getServerEnv } from "@/lib/serverEnv";
 
 type VerifyBody = {
   draft_id?: string;
@@ -21,9 +20,16 @@ function isSixDigitCode(value: string | undefined | null): value is string {
   return /^[0-9]{6}$/.test(value.trim());
 }
 
+type RpcRow = {
+  success: boolean;
+  reason: string | null;
+  business_id: string | null;
+};
+
 /**
  * POST /api/reviews/verify
- * Body: { draft_id, code } — verify OTP, publish review, mark invite used, cleanup draft + OTP.
+ * Public guest flow: { draft_id, code } — SECURITY DEFINER RPC validates review_otps
+ * and publishes from review_drafts. Anon client only; no auth session or service role.
  */
 export async function POST(req: Request) {
   try {
@@ -36,140 +42,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 400 });
     }
 
-    const { supabaseUrl, serviceRoleKey } = getServerEnv();
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const { data: otp, error: otpError } = await supabase
-      .from("review_otps")
-      .select("*")
-      .eq("draft_id", draftId)
-      .eq("code", codeRaw)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (otpError) {
-      console.error("review_otps fetch error:", otpError);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    if (!supabaseUrl || !anonKey) {
+      console.error("VERIFY: missing NEXT_PUBLIC_SUPABASE_URL or ANON_KEY");
       return NextResponse.json(
-        { error: "Something went wrong" },
+        { error: "Server misconfiguration" },
         { status: 500 },
       );
     }
 
-    if (!otp) {
-      return NextResponse.json({ error: "Invalid code" }, { status: 400 });
-    }
-
-    const expiry = otp.expires_at
-      ? new Date(otp.expires_at)
-      : new Date(new Date(otp.created_at).getTime() + 10 * 60 * 1000);
-    if (otp.expires_at && new Date(otp.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Code expired" }, { status: 400 });
-    }
-    if (expiry < new Date()) {
-      return NextResponse.json({ error: "Code expired" }, { status: 400 });
-    }
-
-    const { data: draft, error: draftErr } = await supabase
-      .from("review_drafts")
-      .select("*")
-      .eq("id", draftId)
-      .maybeSingle();
-
-    if (draftErr) {
-      console.error("review_drafts fetch error:", draftErr);
-      return NextResponse.json(
-        { error: "Something went wrong" },
-        { status: 500 },
-      );
-    }
-
-    if (!draft) {
-      return NextResponse.json({ error: "Draft not found" }, { status: 404 });
-    }
-
-    const d = draft as Record<string, unknown>;
-    const inviteId = d.invite_id;
-    const hasInvite =
-      inviteId != null &&
-      typeof inviteId === "string" &&
-      inviteId.length > 0;
-
-    const emailStr = String(d.email ?? "");
-    const fromLocal = emailStr.includes("@")
-      ? (emailStr.split("@")[0] ?? "").trim()
-      : "";
-    const guestName =
-      (typeof d.guest_name === "string" && d.guest_name.trim()
-        ? d.guest_name.trim()
-        : fromLocal) || "Customer";
-
-    const insertPayload: Record<string, unknown> = {
-      business_id: draft.business_id,
-      rating: draft.rating,
-      title: draft.title,
-      body: draft.body,
-      guest_email: draft.email,
-      guest_name: guestName,
-      status: "published",
-      verification_status: "pending",
-      draft: false,
-      imported: false,
-      marketing_opt_in: Boolean(d.marketing_opt_in),
-      visibility: "visible",
-    };
-
-    if (hasInvite) {
-      insertPayload.invite_id = inviteId;
-    }
-    if (d.date_of_experience) {
-      insertPayload.date_of_experience = d.date_of_experience;
-    }
-    if (d.receipt_url) {
-      insertPayload.receipt_url = d.receipt_url;
-    }
-    if (d.reference_number) {
-      insertPayload.reference_number = d.reference_number;
-    }
-    if (d.user_id) {
-      insertPayload.user_id = d.user_id;
-    }
-    if (!d.user_id) {
-      insertPayload.source = "guest";
-    }
-
-    const { data: review, error } = await supabase
-      .from("reviews")
-      .insert(insertPayload)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    const reviewId = review.id as string;
-
-    if (hasInvite) {
-      await supabase
-        .from("review_invites")
-        .update({
-          review_submitted_at: new Date().toISOString(),
-          status: "completed",
-        })
-        .eq("id", inviteId);
-    }
-
-    await supabase.from("review_drafts").delete().eq("id", draftId);
-
-    return NextResponse.json({
-      success: true,
-      review_id: reviewId,
+    const supabase = createClient(supabaseUrl, anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
     });
-  } catch (err: any) {
-    console.error("VERIFY ERROR:", err);
 
-    return NextResponse.json(
-      { error: err?.message || "Unknown error" },
-      { status: 500 },
+    const { data: rpcData, error: rpcErr } = await supabase.rpc(
+      "verify_review_token",
+      { p_token: draftId, p_code: codeRaw },
     );
+
+    if (rpcErr) {
+      console.error("verify_review_token RPC:", rpcErr);
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+    }
+
+    const rows = (rpcData ?? []) as RpcRow[];
+    const row = rows[0];
+    if (!row || row.success !== true) {
+      const reason = row?.reason ?? "";
+      if (reason === "invalid_code" || reason === "expired") {
+        return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e: unknown) {
+    console.error("VERIFY ERROR:", e);
+    const message =
+      e && typeof e === "object" && "message" in e
+        ? String((e as { message?: unknown }).message)
+        : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

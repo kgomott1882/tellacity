@@ -43,7 +43,8 @@ function rowIsPublicLiveReview(row: {
 }
 
 /**
- * Invite OTP step 1: review_drafts + review_otps + email. Does not insert into reviews.
+ * Invite OTP step 1: review_drafts + review_otps + email. Guest-only (invite token + email);
+ * no JWT, no supabase.auth.getUser(), no auth.users. Server uses service role for DB writes only.
  */
 export async function POST(req: Request) {
   try {
@@ -68,23 +69,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
+    // Server-side DB access only (no JWT / auth.users). Not tied to logged-in users.
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    const authHeader = req.headers.get("authorization") ?? "";
-    let userId: string | null = null;
-    let authedEmail: string | null = null;
-    if (authHeader.startsWith("Bearer ")) {
-      const bearer = authHeader.slice(7).trim();
-      if (bearer && bearer !== anonKey) {
-        const { data: userData, error: guErr } = await supabase.auth.getUser(bearer);
-        if (!guErr && userData?.user) {
-          userId = userData.user.id;
-          authedEmail = userData.user.email?.trim().toLowerCase() ?? null;
-        }
-      }
-    }
 
     const { data: invite, error: invErr } = await supabase
       .from("review_invites")
@@ -121,15 +108,6 @@ export async function POST(req: Request) {
 
     const inviteRowId = invite.id as string;
 
-    if (userId) {
-      if (!authedEmail || authedEmail !== invEmail) {
-        return NextResponse.json(
-          { error: "Sign in with the email that received the invitation." },
-          { status: 403 },
-        );
-      }
-    }
-
     const { data: existingByGuest } = await supabase
       .from("reviews")
       .select("id, status, draft, visibility")
@@ -137,24 +115,8 @@ export async function POST(req: Request) {
       .eq("guest_email", invEmail)
       .limit(25);
 
-    const { data: existingByUser } = userId
-      ? await supabase
-          .from("reviews")
-          .select("id, status, draft, visibility")
-          .eq("business_id", business_id)
-          .eq("user_id", userId)
-          .limit(25)
-      : { data: null };
-
-    const combined = [...(existingByGuest ?? []), ...(existingByUser ?? [])];
-    const seen = new Set<string>();
-    const unique = combined.filter((r) => {
-      if (!r?.id || seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
-
-    const live = unique.find((r) => rowIsPublicLiveReview(r));
+    const guestRows = existingByGuest ?? [];
+    const live = guestRows.find((r) => rowIsPublicLiveReview(r));
     if (live) {
       return NextResponse.json(
         { error: "You already have a published review for this business." },
