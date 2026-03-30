@@ -172,19 +172,13 @@ export async function POST(req: Request) {
     const titleVal =
       typeof body.title === "string" && body.title.trim() ? body.title.trim() : null;
 
-    const draftInsert: Record<string, unknown> = {
+    const draftInsert = {
       business_id,
       rating: Math.round(ratingNum),
       title: titleVal,
       body: rawBody,
       invite_id: inviteRowId,
       email: invEmail,
-      guest_name,
-      user_id: userId,
-      receipt_url: body.receipt_url ?? null,
-      date_of_experience: body.date_of_experience ?? null,
-      marketing_opt_in: Boolean(body.marketing_opt_in),
-      reference_number: body.reference_number ?? null,
     };
 
     const { data: draft, error: draftErr } = await supabase
