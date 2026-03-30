@@ -39,17 +39,17 @@ export async function POST(req: Request) {
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: otp, error: otpFetchErr } = await supabase
+    const { data: otp, error: otpError } = await supabase
       .from("review_otps")
       .select("*")
-      .eq("draft_id", draftId)
+      .eq("draft_id", draft_id)
       .eq("code", codeRaw)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (otpFetchErr) {
-      console.error("review_otps fetch error:", otpFetchErr);
+    if (otpError) {
+      console.error("review_otps fetch error:", otpError);
       return NextResponse.json(
         { error: "Something went wrong" },
         { status: 500 },
@@ -60,20 +60,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 400 });
     }
 
-    const otpRow = otp as Record<string, unknown>;
-    const nowMs = Date.now();
-    let deadlineMs: number | null = null;
-    if (otpRow.expires_at) {
-      const d = new Date(String(otpRow.expires_at));
-      if (!Number.isNaN(d.getTime())) deadlineMs = d.getTime();
+    const expiry = otp.expires_at
+      ? new Date(otp.expires_at)
+      : new Date(new Date(otp.created_at).getTime() + 10 * 60 * 1000);
+    if (otp.expires_at && new Date(otp.expires_at) < new Date()) {
+      return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
-    if (deadlineMs == null && otpRow.created_at) {
-      const c = new Date(String(otpRow.created_at));
-      if (!Number.isNaN(c.getTime())) {
-        deadlineMs = c.getTime() + 10 * 60 * 1000;
-      }
-    }
-    if (deadlineMs == null || deadlineMs < nowMs) {
+    if (expiry < new Date()) {
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
@@ -95,19 +88,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });
     }
 
-    const guestEmailStr = String(draft.email ?? "").trim().toLowerCase();
-    const draftRow = draft as Record<string, unknown>;
-    const guestNameFromDraft =
-      typeof draftRow.guest_name === "string" && draftRow.guest_name.trim()
-        ? draftRow.guest_name.trim()
-        : "";
-    const guestNameResolved =
-      guestNameFromDraft ||
-      (guestEmailStr.includes("@")
-        ? (guestEmailStr.split("@")[0] ?? "").trim()
-        : "") ||
-      "Customer";
-
     const { data: review, error } = await supabase
       .from("reviews")
       .insert({
@@ -115,15 +95,12 @@ export async function POST(req: Request) {
         rating: draft.rating,
         title: draft.title,
         body: draft.body,
-
         invite_id: draft.invite_id,
         guest_email: draft.email,
-        guest_name: guestNameResolved,
 
         // REQUIRED FIELDS
         status: "published",
-        verification_status: "verified",
-        verified_at: new Date().toISOString(),
+        verification_status: "pending",
         draft: false,
         imported: false,
         marketing_opt_in: false,
@@ -137,37 +114,19 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     const reviewId = review.id as string;
-    const submittedAt = new Date().toISOString();
 
-    // Match create-review-draft edge function: never set review_invites.used_at (often absent in prod).
-    const { error: inviteErr } = await supabase
+    await supabase
       .from("review_invites")
       .update({
-        review_submitted_at: submittedAt,
+        review_submitted_at: new Date().toISOString(),
         status: "completed",
       })
       .eq("id", draft.invite_id);
 
-    if (inviteErr) {
-      const { error: inviteErrMinimal } = await supabase
-        .from("review_invites")
-        .update({ review_submitted_at: submittedAt })
-        .eq("id", draft.invite_id);
-      if (inviteErrMinimal) {
-        console.error("VERIFY: review_invites update failed:", inviteErr, inviteErrMinimal);
-        await supabase.from("reviews").delete().eq("id", reviewId);
-        throw inviteErrMinimal;
-      }
-    }
-
-    // Removes draft; review_otps rows cascade on draft_id FK.
-    const { error: delDraftErr } = await supabase
+    await supabase
       .from("review_drafts")
       .delete()
-      .eq("id", draft.id);
-    if (delDraftErr) {
-      console.error("VERIFY: review_drafts delete failed:", delDraftErr);
-    }
+      .eq("id", draft_id);
 
     return NextResponse.json({
       success: true,
