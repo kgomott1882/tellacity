@@ -89,9 +89,18 @@ export async function POST(req: Request) {
         rating: draft.rating,
         title: draft.title,
         body: draft.body,
+
         invite_id: draft.invite_id,
         guest_email: draft.email,
+
+        // REQUIRED FIELDS
         status: "published",
+        verification_status: "verified",
+        draft: false,
+        imported: false,
+        marketing_opt_in: false,
+
+        // OPTIONAL BUT SAFE
         visibility: "visible",
       })
       .select()
