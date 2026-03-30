@@ -80,10 +80,12 @@ const PENDING_REVIEW_KEY = "tellacity_pending_review";
 const PENDING_REVIEW_DRAFT_ID_KEY = "pendingReviewDraftId";
 const PENDING_REVIEW_DRAFT_EMAIL_KEY = "pendingReviewDraftEmail";
 const GOOGLE_REVIEW_EMAIL_KEY = "google_review_email";
+const WRITE_REVIEW_GOOGLE_MODE_KEY = "write_review_google_mode";
 
 function clearGoogleReviewEmail() {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(GOOGLE_REVIEW_EMAIL_KEY);
+    window.sessionStorage.removeItem(WRITE_REVIEW_GOOGLE_MODE_KEY);
   }
 }
 
@@ -150,6 +152,7 @@ export default function WriteReviewForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [googleMode, setGoogleMode] = useState(false);
   const [checkEmailState, setCheckEmailState] = useState<{
     active: boolean;
     email: string;
@@ -177,6 +180,11 @@ export default function WriteReviewForm({
     setToast(opts);
   };
 
+  const resetGoogleReviewMode = useCallback(() => {
+    clearGoogleReviewEmail();
+    setGoogleMode(false);
+  }, []);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => {
@@ -191,7 +199,8 @@ export default function WriteReviewForm({
     setShowDuplicateModal(false);
     setIsEditing(false);
     setSubmitError(null);
-  }, [businessId]);
+    resetGoogleReviewMode();
+  }, [businessId, resetGoogleReviewMode]);
 
   // Prefill rating from URL-provided initial value (e.g. invite rating widget).
   useEffect(() => {
@@ -513,6 +522,17 @@ export default function WriteReviewForm({
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1") {
+      setGoogleMode(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (userId) setGoogleMode(false);
+  }, [userId]);
+
   const isGuest = !userId && authChecked;
 
   const isFormValid = useMemo(() => {
@@ -529,7 +549,8 @@ export default function WriteReviewForm({
 
     if (isGuest) {
       const emailToUse = reviewerEmail ?? guestEmail;
-      if (!emailToUse.trim() || !guestName.trim()) return false;
+      if (!guestName.trim()) return false;
+      if (!googleMode && !emailToUse.trim()) return false;
     }
 
     // Email invite pages pass reviewerEmail; require a display name even when logged in
@@ -554,6 +575,7 @@ export default function WriteReviewForm({
     inviteToken,
     userDisplayName,
     userEmail,
+    googleMode,
   ]);
 
   const getFinalGuestEmailTrimmed = useCallback((): string => {
@@ -642,6 +664,16 @@ export default function WriteReviewForm({
       return;
     }
 
+    if (googleMode) {
+      const {
+        data: { session },
+      } = await supabaseBrowser().auth.getSession();
+      if (!session?.user?.email) {
+        setSubmitError("Please sign in with Google first.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     if (inviteTwoStepOtp) {
       onInviteDraftFlowError?.(null);
@@ -682,7 +714,7 @@ export default function WriteReviewForm({
         }
 
         setIsEditing(false);
-        clearGoogleReviewEmail();
+        resetGoogleReviewMode();
         showToast({
           title: "Review updated",
           description: "Your changes have been saved.",
@@ -717,6 +749,7 @@ export default function WriteReviewForm({
           const errStr =
             data && typeof data.error === "string" ? data.error.trim() : "";
           if (errStr === "You have already reviewed this business.") {
+            resetGoogleReviewMode();
             setShowDuplicateModal(true);
             setSubmitError(null);
             return;
@@ -765,7 +798,7 @@ export default function WriteReviewForm({
           data.published === true &&
           typeof data.reviewId === "string"
         ) {
-          clearGoogleReviewEmail();
+          resetGoogleReviewMode();
           showToast({
             title: "Thank you",
             description: "Your review has been published.",
@@ -780,6 +813,7 @@ export default function WriteReviewForm({
           data.requiresUpdate === true &&
           typeof data.reviewId === "string"
         ) {
+          resetGoogleReviewMode();
           setShowDuplicateModal(true);
           setSubmitError(null);
           return;
@@ -840,7 +874,7 @@ export default function WriteReviewForm({
             variant: "destructive",
           });
         } else {
-          clearGoogleReviewEmail();
+          resetGoogleReviewMode();
           showToast({
             title: "Review updated",
             description:
@@ -1186,7 +1220,14 @@ export default function WriteReviewForm({
     }
   };
 
-  const handleGoogleContinue = async () => {
+  const handleGoogleToggle = () => {
+    setGoogleMode(true);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(WRITE_REVIEW_GOOGLE_MODE_KEY, "1");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
     if (typeof window === "undefined") return;
     if (!business) {
       setSubmitError("Please choose a business before continuing with Google.");
@@ -1257,6 +1298,7 @@ export default function WriteReviewForm({
         const errStr =
           typeof data.error === "string" ? data.error.trim() : "";
         if (errStr === "You have already reviewed this business.") {
+          resetGoogleReviewMode();
           setShowDuplicateModal(true);
           setSubmitError(null);
           return;
@@ -1285,6 +1327,7 @@ export default function WriteReviewForm({
           });
           if (oauthError) {
             setSubmitError(oauthError.message);
+            resetGoogleReviewMode();
           }
           return;
         }
@@ -1300,10 +1343,12 @@ export default function WriteReviewForm({
           description: mapped.message,
           variant: "destructive",
         });
+        resetGoogleReviewMode();
         return;
       }
 
       if (data.requiresUpdate === true) {
+        resetGoogleReviewMode();
         setShowDuplicateModal(true);
         setSubmitError(null);
         return;
@@ -1314,7 +1359,7 @@ export default function WriteReviewForm({
         typeof data.reviewId === "string" &&
         business.slug
       ) {
-        clearGoogleReviewEmail();
+        resetGoogleReviewMode();
         showToast({
           title: "Thank you",
           description: "Your review has been published.",
@@ -1348,6 +1393,7 @@ export default function WriteReviewForm({
         });
         if (oauthError) {
           setSubmitError(oauthError.message);
+          resetGoogleReviewMode();
         }
         return;
       }
@@ -1359,6 +1405,7 @@ export default function WriteReviewForm({
         description: mapped.message,
         variant: "destructive",
       });
+      resetGoogleReviewMode();
     } catch {
       setSubmitError("Something went wrong");
       showToast({
@@ -1366,6 +1413,7 @@ export default function WriteReviewForm({
         description: reviewErrorMessages.unexpected_error.message,
         variant: "destructive",
       });
+      resetGoogleReviewMode();
     } finally {
       setIsSubmitting(false);
     }
@@ -1390,10 +1438,10 @@ export default function WriteReviewForm({
     setShowDuplicateModal(false);
     setIsEditing(false);
     setCheckEmailState({ active: false, email: "" });
+    resetGoogleReviewMode();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
       window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
-      clearGoogleReviewEmail();
     }
   };
 
@@ -1651,7 +1699,7 @@ export default function WriteReviewForm({
                           type="email"
                           value={guestEmail}
                           onChange={(event) => setGuestEmail(event.target.value)}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || googleMode}
                           className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                         />
                         <p className="mt-1 text-xs text-gray-500">
@@ -1663,38 +1711,88 @@ export default function WriteReviewForm({
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1 inline-flex items-center gap-2 border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                  onClick={handleGoogleContinue}
-                  disabled={isSubmitting || !business}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    aria-hidden="true"
+                {!googleMode ? (
+                  <button
+                    type="button"
+                    onClick={handleGoogleToggle}
+                    disabled={isSubmitting || !business}
+                    className="mt-1 inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <path
-                      d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                  Continue with Google
-                </Button>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z"
+                        fill="#4285F4"
+                      />
+                      <path
+                        d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z"
+                        fill="#34A853"
+                      />
+                      <path
+                        d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z"
+                        fill="#FBBC05"
+                      />
+                      <path
+                        d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z"
+                        fill="#EA4335"
+                      />
+                    </svg>
+                    Continue with Google
+                  </button>
+                ) : (
+                  <div className="mt-3 rounded-md border border-green-200 bg-green-50 p-3">
+                    <p className="mb-2 text-sm text-green-700">
+                      Google selected. Manual email is disabled.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={isSubmitting || !business}
+                      className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Sign in with Google
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGoogleMode(false);
+                        if (typeof window !== "undefined") {
+                          window.sessionStorage.removeItem(
+                            WRITE_REVIEW_GOOGLE_MODE_KEY,
+                          );
+                        }
+                      }}
+                      className="ml-2 text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1763,7 +1861,9 @@ export default function WriteReviewForm({
               <Button
                 type="submit"
                 className="w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
-                disabled={isSubmitting || !isFormValid || !business}
+                disabled={
+                  isSubmitting || !isFormValid || !business || googleMode
+                }
               >
                 {isSubmitting
                   ? "Submitting your review…"
@@ -1821,10 +1921,10 @@ export default function WriteReviewForm({
           email={otpEmail}
           open={otpModalOpen}
           onSuccess={() => {
+            resetGoogleReviewMode();
             if (typeof window !== "undefined") {
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
-              clearGoogleReviewEmail();
             }
             if (business) {
               const slugToUse = business.slug;

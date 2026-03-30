@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
+import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -69,10 +70,6 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
   }
 
-  if (!guest_email_raw || !guest_email_raw.includes("@")) {
-    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-  }
-
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -90,8 +87,13 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
+  const guest_email_final = await resolveReviewGuestEmail(guest_email_raw);
+  if (!guest_email_final || !guest_email_final.includes("@")) {
+    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+  }
+
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
-  if (!invEmail || invEmail !== guest_email_raw) {
+  if (!invEmail || invEmail !== guest_email_final) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
@@ -243,7 +245,8 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
   }
 
-  if (!guest_email_raw || !guest_email_raw.includes("@")) {
+  const guest_email_final = await resolveReviewGuestEmail(guest_email_raw);
+  if (!guest_email_final || !guest_email_final.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
@@ -288,7 +291,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     .from("reviews")
     .select("id, status, draft, visibility, created_at")
     .eq("business_id", business_id)
-    .eq("guest_email", guest_email_raw)
+    .eq("guest_email", guest_email_final)
     .order("created_at", { ascending: false })
     .limit(25);
 
@@ -303,7 +306,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     .from("review_drafts")
     .select("id")
     .eq("business_id", business_id)
-    .eq("email", guest_email_raw)
+    .eq("email", guest_email_final)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -335,7 +338,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
       rating: Math.round(ratingNum),
       title: titleVal,
       body: rawBody,
-      email: guest_email_raw,
+      email: guest_email_final,
       guest_name: guest_name_raw.slice(0, 200),
       date_of_experience: date_of_experience,
       marketing_opt_in,
@@ -362,7 +365,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
 
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const { error: otpError } = await supabase.from("review_otps").insert({
-    email: guest_email_raw,
+    email: guest_email_final,
     code,
     draft_id: draft.id,
     expires_at: expiresAt,
@@ -386,7 +389,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
   try {
     const sendRes = await resend.emails.send({
       from: resendFromHeader(),
-      to: guest_email_raw,
+      to: guest_email_final,
       subject: "Your verification code",
       html: `<p>Your verification code is <strong>${code}</strong></p>`,
     });

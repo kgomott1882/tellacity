@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 type VerifyBody = {
   draft_id?: string;
@@ -129,7 +130,8 @@ export async function POST(req: Request) {
     }
 
     const d = draft as ReviewDraftRow;
-    const guestEmail = String(d.email ?? "").trim().toLowerCase();
+    const draftEmailRaw = String(d.email ?? "").trim().toLowerCase();
+    const guestEmail = await resolveReviewGuestEmail(draftEmailRaw);
     const guestNameResolved =
       (d.guest_name && String(d.guest_name).trim()) ||
       (guestEmail.includes("@") ? guestEmail.split("@")[0] : "") ||

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 type Body = {
   business_id?: string;
@@ -36,10 +37,11 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body;
     const business_id =
       typeof body.business_id === "string" ? body.business_id.trim() : "";
-    const guest_email =
+    const guest_email_raw =
       typeof body.guest_email === "string"
         ? body.guest_email.trim().toLowerCase()
         : "";
+    const guest_email = await resolveReviewGuestEmail(guest_email_raw);
     const reviewBody =
       typeof body.body === "string" ? body.body.trim() : "";
 
