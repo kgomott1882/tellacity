@@ -200,12 +200,16 @@ export async function POST(req: Request) {
 
     await supabase.from("consumer_otps").delete().eq("draft_id", draftId);
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    if (!/^\d{6}$/.test(code)) {
+      throw new Error(`OTP code generation failed: ${String(code)}`);
+    }
+    console.log("OTP CODE:", code);
 
     const { error: otpErr } = await supabase.from("consumer_otps").insert({
-      email: invEmail,
+      email: String(inv.recipient_email ?? "").trim().toLowerCase() || invEmail,
       code,
-      type: "review_verification",
+      purpose: "review",
       draft_id: draftId,
     });
 
@@ -217,6 +221,8 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    console.log("OTP inserted");
 
     if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY is missing");
@@ -230,10 +236,12 @@ export async function POST(req: Request) {
 
     const fromAddress = resendFromHeader();
 
+    console.log("Sending OTP to:", inv.recipient_email);
+
     try {
       const sendRes = await resend.emails.send({
         from: fromAddress,
-        to: invEmail,
+        to: String(inv.recipient_email ?? invEmail).trim().toLowerCase(),
         subject: "Your verification code",
         html: `<p>Your verification code is <strong>${code}</strong></p>`,
       });
