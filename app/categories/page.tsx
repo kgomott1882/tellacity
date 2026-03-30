@@ -49,6 +49,39 @@ type CategoryGroup = {
   categories: Category[];
 };
 
+const FALLBACK_GROUPS: CategoryGroup[] = [
+  {
+    id: "fallback-home-services",
+    name: "Home Services",
+    slug: "home-services",
+    categories: [
+      { id: "fb-cleaning", name: "Cleaning Services", slug: "cleaning-services" },
+      { id: "fb-plumbing", name: "Plumbing Services", slug: "plumbing-services" },
+      { id: "fb-electricians", name: "Electricians", slug: "electricians" },
+    ],
+  },
+  {
+    id: "fallback-food-beverage",
+    name: "Food & Beverage",
+    slug: "food-beverage",
+    categories: [
+      { id: "fb-restaurants", name: "Restaurants", slug: "restaurants" },
+      { id: "fb-takeaways", name: "Takeaways", slug: "takeaways" },
+      { id: "fb-coffee-shops", name: "Coffee Shops", slug: "coffee-shops" },
+    ],
+  },
+  {
+    id: "fallback-health",
+    name: "Health & Medical",
+    slug: "health-medical",
+    categories: [
+      { id: "fb-clinics", name: "Clinics", slug: "clinics" },
+      { id: "fb-pharmacies", name: "Pharmacies", slug: "pharmacies" },
+      { id: "fb-dental", name: "Dental Services", slug: "dental-services" },
+    ],
+  },
+];
+
 const ICON_MATCHES: { match: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { match: "animal", icon: Dog },
   { match: "pet", icon: Dog },
@@ -174,40 +207,60 @@ export default function CategoriesPage() {
     let isMounted = true;
 
     const fetchGroups = async () => {
-      const supabase = supabaseBrowser();
+      const setFallback = () => {
+        setGroups(FALLBACK_GROUPS);
+        setDataCount(FALLBACK_GROUPS.length);
+        setIsLoading(false);
+      };
 
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("category_groups")
-        .select("id, slug, name")
-        .order("name");
-
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from("categories")
-        .select("id, name, slug, group_slug, is_active");
+      const response = await fetch("/api/business/category-catalog", {
+        method: "GET",
+        cache: "no-store",
+      }).catch(() => null);
 
       if (!isMounted) {
         return;
       }
 
-      if (groupsError || categoriesError) {
-        console.error("Categories load error:", groupsError || categoriesError);
-        setGroups([]);
-        setDataCount(0);
-        setIsLoading(false);
+      if (!response || !response.ok) {
+        console.error("Categories load error:", response?.status ?? "network_error");
+        setFallback();
         return;
       }
 
-      const cleanedGroups = (groupsData || []).map((group) => ({
-        ...group,
-        categories: (categoriesData || []).filter(
-          (cat) =>
-            cat.group_slug === group.slug && cat.is_active === true
-        ),
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            groups?: Array<{ name: string; group_slug: string }>;
+            categories?: Array<{ name: string; slug: string; group_slug: string }>;
+          }
+        | null;
+
+      const groupsData = payload?.groups ?? [];
+      const categoriesData = payload?.categories ?? [];
+
+      const cleanedGroups = groupsData.map((group) => ({
+        id: group.group_slug,
+        name: group.name,
+        slug: group.group_slug,
+        categories: categoriesData
+          .filter((cat) => cat.group_slug === group.group_slug)
+          .map((cat) => ({
+            id: cat.slug,
+            name: cat.name,
+            slug: cat.slug,
+            group_slug: cat.group_slug,
+            is_active: true,
+          })),
       })) as CategoryGroup[];
 
       console.log("CATEGORY GROUPS:", cleanedGroups);
 
-      setGroups(cleanedGroups);
+      if (cleanedGroups.length === 0) {
+        setFallback();
+        return;
+      }
+
+      setGroups(cleanedGroups.filter((group) => group.categories.length > 0));
       setDataCount(cleanedGroups.length);
       setIsLoading(false);
     };
