@@ -82,6 +82,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });
     }
 
+    console.log("Draft being inserted:", draft);
+
     const { data: review, error } = await supabase
       .from("reviews")
       .insert({
@@ -128,10 +130,11 @@ export async function POST(req: Request) {
       success: true,
       review_id: review.id,
     });
-  } catch (e) {
-    console.error("/api/reviews/verify error:", e);
+  } catch (err: any) {
+    console.error("VERIFY ERROR:", err);
+
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: err?.message || "Unknown error" },
       { status: 500 },
     );
   }
