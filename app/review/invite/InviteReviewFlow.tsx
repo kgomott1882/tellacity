@@ -5,6 +5,13 @@ import Link from "next/link";
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
 import { Button } from "@/components/ui/button";
 
+/** review_drafts.id (UUID). Invite URL `token` is never used for /api/reviews/verify. */
+function isDraftIdUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value.trim(),
+  );
+}
+
 type InviteReviewFlowProps = {
   inviteId: string;
   inviteToken: string;
@@ -25,7 +32,8 @@ export default function InviteReviewFlow({
   reviewerEmail,
 }: InviteReviewFlowProps) {
   const [step, setStep] = useState<"form" | "otp" | "success">("form");
-  const [draftId, setDraftId] = useState<string | null>(null);
+  /** Set only from POST /api/reviews/create-draft response `draft_id` — never from URL `token`. */
+  const [storedDraftId, setStoredDraftId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +46,7 @@ export default function InviteReviewFlow({
       setError("Enter valid 6-digit code");
       return;
     }
-    if (!draftId) {
+    if (!storedDraftId || !isDraftIdUuid(storedDraftId)) {
       setError("Something went wrong. Refresh the page and try again.");
       return;
     }
@@ -51,7 +59,7 @@ export default function InviteReviewFlow({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          draft_id: draftId,
+          draft_id: storedDraftId,
           code: trimmed,
         }),
       });
@@ -199,7 +207,11 @@ export default function InviteReviewFlow({
         businessSlug={businessSlug}
         inviteTwoStepOtp
         onInviteDraftCreated={(id) => {
-          setDraftId(id);
+          if (!isDraftIdUuid(id)) {
+            setError("Invalid draft from server. Please try again.");
+            return;
+          }
+          setStoredDraftId(id.trim());
           setStep("otp");
           setError(null);
           setOtp("");
