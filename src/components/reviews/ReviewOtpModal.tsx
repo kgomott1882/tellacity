@@ -20,6 +20,7 @@ export default function ReviewOtpModal({
 }: ReviewOtpModalProps) {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState(false);
 
@@ -65,20 +66,8 @@ export default function ReviewOtpModal({
         error?: string;
       };
 
-      if (!res.ok || !data || data.success !== true) {
-        const message =
-          typeof data.error === "string" && data.error.trim()
-            ? data.error
-            : "Invalid verification code";
-
-        if (message.toLowerCase().includes("expired")) {
-          setError("Code expired");
-        } else if (message.toLowerCase().includes("too many")) {
-          setError("Too many attempts. Please try again later.");
-        } else {
-          setError(message);
-        }
-
+      if (!res.ok || data.success !== true) {
+        setError("Invalid or expired code");
         return;
       }
 
@@ -87,9 +76,34 @@ export default function ReviewOtpModal({
       onClose();
     } catch (e) {
       console.error("Failed to verify OTP:", e);
-      setError("Something went wrong. Please try again.");
+      setError("Invalid or expired code");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reviews/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft_id: draftId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!res.ok || data.success !== true) {
+        setError("Invalid or expired code");
+        return;
+      }
+      setCode("");
+    } catch {
+      setError("Invalid or expired code");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -149,13 +163,21 @@ export default function ReviewOtpModal({
             <Button
               type="submit"
               className="w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
-              disabled={submitting || code.length !== 6}
+              disabled={submitting || resending || code.length !== 6}
             >
               {submitting ? "Publishing…" : "Publish Review"}
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full rounded-full border border-neutral-300 text-sm text-[#0E0E0E] hover:bg-neutral-50"
+              disabled={submitting || resending}
+              onClick={() => void handleResend()}
+            >
+              {resending ? "Sending…" : "Resend code"}
+            </Button>
             <p className="text-center text-xs text-gray-500">
-              Check spam or promotions. If the code expired, close this window and
-              submit your review again to get a new code.
+              Check spam or promotions. You can resend a new code above.
             </p>
           </div>
         </form>

@@ -19,6 +19,10 @@ function CallbackInner() {
     () => sanitizeAuthNext(searchParams.get("next"), "/dashboard"),
     [searchParams]
   );
+  const nextRaw = useMemo(
+    () => searchParams.get("next"),
+    [searchParams]
+  );
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
 
   useEffect(() => {
@@ -43,6 +47,11 @@ function CallbackInner() {
 
         if (!isMounted) return;
         if (user?.id) {
+          if (nextRaw && nextRaw.trim()) {
+            const sanitized = sanitizeAuthNext(nextRaw, "/dashboard");
+            window.location.href = `${window.location.origin}${sanitized}`;
+            return;
+          }
           await handleRedirect(user.id);
           return;
         } else {
@@ -62,7 +71,7 @@ function CallbackInner() {
     return () => {
       isMounted = false;
     };
-  }, [router, safeNext]);
+  }, [router, safeNext, nextRaw]);
 
   if (status === "error") {
     return (

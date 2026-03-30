@@ -77,6 +77,8 @@ type PendingReviewDraft = {
 const GUEST_EMAIL_KEY = "tellacity_review_guest_email";
 const GUEST_NAME_KEY = "tellacity_review_guest_name";
 const PENDING_REVIEW_KEY = "tellacity_pending_review";
+const PENDING_REVIEW_DRAFT_ID_KEY = "pendingReviewDraftId";
+const PENDING_REVIEW_DRAFT_EMAIL_KEY = "pendingReviewDraftEmail";
 
 const isUuid = (value: string | null | undefined) =>
   !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -87,40 +89,6 @@ const todayIsoDate = () => {
   const month = `${now.getMonth() + 1}`.padStart(2, "0");
   const day = `${now.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
-};
-
-const callEdgeFunction = async (name: string, body: Record<string, unknown>) => {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!baseUrl || !anonKey) {
-    throw new Error("Supabase configuration missing.");
-  }
-
-  const response = await fetch(`${baseUrl}/functions/v1/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  let payload: any = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    const message =
-      (payload && (payload.error || payload.message)) ||
-      "Something went wrong. Please try again.";
-    throw new Error(message);
-  }
-
-  return payload;
 };
 
 export default function WriteReviewForm({
@@ -173,6 +141,8 @@ export default function WriteReviewForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [checkEmailState, setCheckEmailState] = useState<{
     active: boolean;
     email: string;
@@ -207,6 +177,14 @@ export default function WriteReviewForm({
     }, 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  const businessId = business?.id;
+
+  useEffect(() => {
+    setShowDuplicateModal(false);
+    setIsEditing(false);
+    setSubmitError(null);
+  }, [businessId]);
 
   // Prefill rating from URL-provided initial value (e.g. invite rating widget).
   useEffect(() => {
@@ -486,6 +464,34 @@ export default function WriteReviewForm({
     inviteId,
   ]);
 
+  // Resume after Google OAuth: /write-review?draft_id=…
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const draftId = searchParams.get("draft_id");
+    if (!draftId || !isUuid(draftId)) return;
+
+    setOtpDraftId(draftId);
+    const storedEmail =
+      window.localStorage.getItem(PENDING_REVIEW_DRAFT_EMAIL_KEY) ?? "";
+    if (storedEmail) {
+      setOtpEmail(storedEmail);
+      setSubmittedEmail(storedEmail);
+    }
+    setSubmitted(true);
+    setCheckEmailState({
+      active: true,
+      email: storedEmail,
+    });
+    setOtpModalOpen(true);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("draft_id");
+    const qs = params.toString();
+    router.replace(qs ? `/write-review?${qs}` : "/write-review", {
+      scroll: false,
+    });
+  }, [router, searchParams]);
+
   const isGuest = !userId && authChecked;
 
   const isFormValid = useMemo(() => {
@@ -609,6 +615,63 @@ export default function WriteReviewForm({
       onInviteDraftFlowError?.(null);
     }
 
+    if (isEditing) {
+      try {
+        const emailToUse = (reviewerEmail ?? guestEmail ?? userEmail ?? "")
+          .trim()
+          .toLowerCase();
+        if (!emailToUse.includes("@")) {
+          setSubmitError("A valid email is required to update your review.");
+          return;
+        }
+
+        const res = await fetch("/api/reviews/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: business.id,
+            guest_email: emailToUse,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            date_of_experience: dateOfExperience,
+          }),
+        });
+
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          success?: boolean;
+        };
+
+        if (!res.ok || data.error) {
+          setSubmitError(
+            typeof data.error === "string" ? data.error : "Update failed",
+          );
+          return;
+        }
+
+        setIsEditing(false);
+        showToast({
+          title: "Review updated",
+          description: "Your changes have been saved.",
+          variant: "success",
+        });
+        router.push(`/b/${business.slug}`);
+        return;
+      } catch {
+        setSubmitError("Something went wrong");
+        showToast({
+          title: reviewErrorMessages.unexpected_error.title,
+          description: reviewErrorMessages.unexpected_error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const receiptUrl = await uploadProofIfNeeded();
 
@@ -619,6 +682,13 @@ export default function WriteReviewForm({
         isInviteGuest: boolean,
       ) => {
         if (!response.ok) {
+          const errStr =
+            data && typeof data.error === "string" ? data.error.trim() : "";
+          if (errStr === "You have already reviewed this business.") {
+            setShowDuplicateModal(true);
+            setSubmitError(null);
+            return;
+          }
           if (
             !isInviteGuest &&
             data &&
@@ -677,14 +747,8 @@ export default function WriteReviewForm({
           data.requiresUpdate === true &&
           typeof data.reviewId === "string"
         ) {
-          showToast({
-            title: "Visible review already on this business",
-            description:
-              "We found a published review from this email that appears on the business profile. You can update it below.",
-            variant: "success",
-          });
-
-          router.push(`/write-review?edit=${data.reviewId}`);
+          setShowDuplicateModal(true);
+          setSubmitError(null);
           return;
         }
 
@@ -917,78 +981,53 @@ export default function WriteReviewForm({
       }
 
       if (userId) {
-        const sb = supabaseBrowser();
-
-        // Only block when a visible, published-style review exists (matches public profile rules)
-        const { data: existingRows, error: existingError } = await sb
-          .from("reviews")
-          .select("id,draft,status,visibility")
-          .eq("business_id", business.id)
-          .eq("user_id", userId)
-          .limit(25);
-
-        const existingReview = (existingRows ?? []).find((row) => {
-          if (row.draft === true) return false;
-          const s = row.status as string | null | undefined;
-          if (s != null && s !== "" && s !== "published") return false;
-          const vis = String(row.visibility ?? "visible").trim().toLowerCase();
-          if (vis !== "visible") return false;
-          return true;
-        });
-
-        if (!existingError && existingReview?.id) {
-          const mapped = reviewErrorMessages.duplicate_review;
+        const authEmail = (userEmail ?? "").trim().toLowerCase();
+        if (!authEmail || !authEmail.includes("@")) {
           showToast({
-            title: mapped.title,
-            description: mapped.message,
+            title: "Email required",
+            description: "Add your email so we can send a verification code.",
             variant: "destructive",
           });
-
-          // Do not leave the user silently authenticated from the
-          // write-review flow. Require an explicit login instead.
-          try {
-            await supabaseBrowser().auth.signOut();
-          } catch {
-            // ignore sign-out errors; we still redirect
-          }
-
-          const slugToUse = business.slug;
-          router.push(`/b/${slugToUse}?reviewNotice=duplicate_review`);
           return;
         }
 
-        const { error } = await sb.from("reviews").insert({
-          business_id: business.id,
-          user_id: userId,
-          rating: Math.max(1, Math.min(5, Math.round(rating))),
-          title: title.trim() || null,
-          body: body.trim(),
-          receipt_url: receiptUrl,
-          date_of_experience: dateOfExperience,
-          marketing_opt_in: marketingOptIn,
-          guest_email: null,
-          guest_name:
-            userDisplayName ||
-            guestName ||
-            (userEmail ? userEmail.split("@")[0] : null),
-          reference_number:
-            business.reference_number_enabled && referenceNumber.trim()
-              ? referenceNumber.trim()
-              : null,
-          status: "published",
-          draft: false,
+        const guestNameForAuth =
+          guestName.trim() ||
+          (userDisplayName ?? "").trim() ||
+          (authEmail.includes("@") ? authEmail.split("@")[0] : "") ||
+          "Customer";
+
+        const resDraftAuth = await fetch("/api/reviews/create-draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: business.id,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            guest_email: authEmail,
+            guest_name: guestNameForAuth,
+            receipt_url: receiptUrl,
+            date_of_experience: dateOfExperience,
+            marketing_opt_in: marketingOptIn,
+            reference_number:
+              business.reference_number_enabled && referenceNumber.trim()
+                ? referenceNumber.trim()
+                : null,
+          }),
         });
 
-        if (error) {
-          const anyErr = error as { code?: string; message?: string };
-          if (anyErr.code === "23505") {
-            throw new Error("duplicate_review");
-          }
-          throw new Error("unexpected_error");
-        }
-
-        const slugToUse = business.slug;
-        router.push(`/b/${slugToUse}`);
+        const dataDraftAuth = (await resDraftAuth.json().catch(() => ({}))) as Record<
+          string,
+          unknown
+        >;
+        processCreateReviewDraftResult(
+          resDraftAuth,
+          dataDraftAuth,
+          authEmail,
+          false,
+        );
         return;
       }
 
@@ -1007,47 +1046,81 @@ export default function WriteReviewForm({
         return;
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (!baseUrl || !anonKey) {
-        const mapped = reviewErrorMessages.unexpected_error;
-        showToast({
-          title: mapped.title,
-          description: mapped.message,
-          variant: "destructive",
-        });
+      if (isInviteGuest) {
+        const baseUrlInvite = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKeyInvite = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!baseUrlInvite || !anonKeyInvite) {
+          const mapped = reviewErrorMessages.unexpected_error;
+          showToast({
+            title: mapped.title,
+            description: mapped.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const responseInviteGuest = await fetch(
+          `${baseUrlInvite}/functions/v1/create-review-draft`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: anonKeyInvite,
+              Authorization: `Bearer ${anonKeyInvite}`,
+            },
+            body: JSON.stringify({
+              business_id: business.id,
+              rating: Math.max(1, Math.min(5, Math.round(rating))),
+              title: title.trim() || null,
+              body: body.trim(),
+              guest_email: guestEmailTrimmed,
+              email: guestEmailTrimmed,
+              guest_name: guestNameTrimmed,
+              receipt_url: receiptUrl,
+              date_of_experience: dateOfExperience,
+              marketing_opt_in: marketingOptIn,
+              reference_number:
+                business.reference_number_enabled && referenceNumber.trim()
+                  ? referenceNumber.trim()
+                  : null,
+              invite_token: inviteToken ?? null,
+              is_invite: true,
+            }),
+          },
+        );
+
+        const dataInviteGuest = (await responseInviteGuest.json().catch(
+          () => ({}),
+        )) as Record<string, unknown>;
+        processCreateReviewDraftResult(
+          responseInviteGuest,
+          dataInviteGuest,
+          guestEmailTrimmed,
+          true,
+        );
         return;
       }
 
-      const response = await fetch(
-        `${baseUrl}/functions/v1/create-review-draft`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: anonKey,
-            Authorization: `Bearer ${anonKey}`,
-          },
-          body: JSON.stringify({
-            business_id: business.id,
-            rating: Math.max(1, Math.min(5, Math.round(rating))),
-            title: title.trim() || null,
-            body: body.trim(),
-            guest_email: guestEmailTrimmed,
-            email: guestEmailTrimmed,
-            guest_name: guestNameTrimmed,
-            receipt_url: receiptUrl,
-            date_of_experience: dateOfExperience,
-            marketing_opt_in: marketingOptIn,
-            reference_number:
-              business.reference_number_enabled && referenceNumber.trim()
-                ? referenceNumber.trim()
-                : null,
-            invite_token: inviteToken ?? null,
-            ...(isInviteGuest ? { is_invite: true } : {}),
-          }),
-        },
-      );
+      const response = await fetch("/api/reviews/create-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          business_id: business.id,
+          rating: Math.max(1, Math.min(5, Math.round(rating))),
+          title: title.trim() || null,
+          body: body.trim(),
+          guest_email: guestEmailTrimmed,
+          guest_name: guestNameTrimmed,
+          receipt_url: receiptUrl,
+          date_of_experience: dateOfExperience,
+          marketing_opt_in: marketingOptIn,
+          reference_number:
+            business.reference_number_enabled && referenceNumber.trim()
+              ? referenceNumber.trim()
+              : null,
+        }),
+      });
 
       const data = (await response.json().catch(() => ({}))) as Record<
         string,
@@ -1057,21 +1130,24 @@ export default function WriteReviewForm({
         response,
         data,
         guestEmailTrimmed,
-        isInviteGuest,
+        false,
       );
     } catch (error) {
-      const keyFromError =
-        error instanceof Error && error.message
-          ? error.message
-          : "unexpected_error";
-      const mapped =
-        reviewErrorMessages[keyFromError] ||
-        reviewErrorMessages.unexpected_error;
-      showToast({
-        title: mapped.title,
-        description: mapped.message,
-        variant: "destructive",
-      });
+      if (!showDuplicateModal) {
+        setSubmitError("Something went wrong");
+        const keyFromError =
+          error instanceof Error && error.message
+            ? error.message
+            : "unexpected_error";
+        const mapped =
+          reviewErrorMessages[keyFromError] ||
+          reviewErrorMessages.unexpected_error;
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1084,7 +1160,22 @@ export default function WriteReviewForm({
       return;
     }
 
-    const draft: PendingReviewDraft = {
+    if (!isFormValid) {
+      setSubmitError("Please complete all required fields.");
+      return;
+    }
+
+    const experienceDate = new Date(dateOfExperience);
+    const today = new Date(todayIsoDate());
+    if (Number.isNaN(experienceDate.getTime()) || experienceDate > today) {
+      setSubmitError("Date of experience cannot be in the future.");
+      return;
+    }
+
+    const guestEmailTrimmed = (reviewerEmail ?? guestEmail).trim().toLowerCase();
+    const guestNameTrimmed = guestName.trim();
+
+    const pendingLocalDraft: PendingReviewDraft = {
       business_id: business.id,
       business_name: business.name,
       business_slug: business.slug,
@@ -1092,25 +1183,157 @@ export default function WriteReviewForm({
       title,
       body,
       date_of_experience: dateOfExperience,
-      guest_email: guestEmail,
-      guest_name: guestName,
+      guest_email: guestEmailTrimmed,
+      guest_name: guestNameTrimmed,
       marketing_opt_in: marketingOptIn,
       reference_number: referenceNumber.trim() || null,
     };
 
-    window.localStorage.setItem(PENDING_REVIEW_KEY, JSON.stringify(draft));
+    setSubmitError(null);
+    setIsSubmitting(true);
+    try {
+      const receiptUrl = await uploadProofIfNeeded();
 
-    const baseUrl = getBaseUrl();
-    const nextPath = `${window.location.pathname}${window.location.search}`;
-    const { error } = await supabaseBrowser().auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
-      },
-    });
+      const res = await fetch("/api/reviews/create-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          business_id: business.id,
+          rating: Math.max(1, Math.min(5, Math.round(rating))),
+          title: title.trim() || null,
+          body: body.trim(),
+          guest_email: guestEmailTrimmed,
+          guest_name: guestNameTrimmed,
+          receipt_url: receiptUrl,
+          date_of_experience: dateOfExperience,
+          marketing_opt_in: marketingOptIn,
+          reference_number:
+            business.reference_number_enabled && referenceNumber.trim()
+              ? referenceNumber.trim()
+              : null,
+        }),
+      });
 
-    if (error) {
-      setSubmitError(error.message);
+      const data = (await res.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+
+      if (!res.ok) {
+        const errStr =
+          typeof data.error === "string" ? data.error.trim() : "";
+        if (errStr === "You have already reviewed this business.") {
+          setShowDuplicateModal(true);
+          setSubmitError(null);
+          return;
+        }
+        if (
+          errStr === "draft_exists" &&
+          typeof data.draft_id === "string"
+        ) {
+          const did = String(data.draft_id).trim();
+          window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, did);
+          window.localStorage.setItem(
+            PENDING_REVIEW_DRAFT_EMAIL_KEY,
+            guestEmailTrimmed,
+          );
+          window.localStorage.setItem(
+            PENDING_REVIEW_KEY,
+            JSON.stringify(pendingLocalDraft),
+          );
+
+          const baseUrl = getBaseUrl();
+          const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent("/review/continue")}`,
+            },
+          });
+          if (oauthError) {
+            setSubmitError(oauthError.message);
+          }
+          return;
+        }
+
+        const errorKey =
+          (typeof data.error === "string" && data.error) || "unexpected_error";
+        const mapped =
+          reviewErrorMessages[errorKey] ||
+          reviewErrorMessages.unexpected_error;
+        setSubmitError(mapped.message);
+        showToast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.requiresUpdate === true) {
+        setShowDuplicateModal(true);
+        setSubmitError(null);
+        return;
+      }
+
+      if (
+        data.published === true &&
+        typeof data.reviewId === "string" &&
+        business.slug
+      ) {
+        showToast({
+          title: "Thank you",
+          description: "Your review has been published.",
+          variant: "success",
+        });
+        router.push(`/b/${business.slug}`);
+        return;
+      }
+
+      if (
+        data.requiresOtp === true &&
+        typeof data.draft_id === "string"
+      ) {
+        const did = String(data.draft_id).trim();
+        window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, did);
+        window.localStorage.setItem(
+          PENDING_REVIEW_DRAFT_EMAIL_KEY,
+          guestEmailTrimmed,
+        );
+        window.localStorage.setItem(
+          PENDING_REVIEW_KEY,
+          JSON.stringify(pendingLocalDraft),
+        );
+
+        const baseUrl = getBaseUrl();
+        const { error: oauthError } = await supabaseBrowser().auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent("/review/continue")}`,
+          },
+        });
+        if (oauthError) {
+          setSubmitError(oauthError.message);
+        }
+        return;
+      }
+
+      const mapped = reviewErrorMessages.unexpected_error;
+      setSubmitError(mapped.message);
+      showToast({
+        title: mapped.title,
+        description: mapped.message,
+        variant: "destructive",
+      });
+    } catch {
+      setSubmitError("Something went wrong");
+      showToast({
+        title: reviewErrorMessages.unexpected_error.title,
+        description: reviewErrorMessages.unexpected_error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1130,7 +1353,13 @@ export default function WriteReviewForm({
     setProofFile(null);
     setProofError(null);
     setSubmitError(null);
+    setShowDuplicateModal(false);
+    setIsEditing(false);
     setCheckEmailState({ active: false, email: "" });
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
+      window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
+    }
   };
 
   return (
@@ -1142,6 +1371,15 @@ export default function WriteReviewForm({
         <p className="mt-2 text-sm text-gray-600">
           Share your experience to help others make better decisions.
         </p>
+
+        {!showDuplicateModal && submitError && (
+          <div
+            className="error mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            {submitError}
+          </div>
+        )}
 
         <div
           className="mt-6 space-y-6 rounded-2xl bg-white p-6"
@@ -1514,7 +1752,7 @@ export default function WriteReviewForm({
               {otpDraftId &&
                 otpEmail &&
                 !otpModalOpen &&
-                !reviewerEmail?.trim() && (
+                !inviteTwoStepOtp && (
                 <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="font-semibold text-emerald-800">
                     Finish publishing your review
@@ -1542,15 +1780,16 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-      {!inviteTwoStepOtp &&
-        otpDraftId &&
-        otpEmail &&
-        !reviewerEmail?.trim() && (
+      {!inviteTwoStepOtp && otpDraftId && otpEmail && (
         <ReviewOtpModal
           draftId={otpDraftId}
           email={otpEmail}
           open={otpModalOpen}
           onSuccess={() => {
+            if (typeof window !== "undefined") {
+              window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
+              window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
+            }
             if (business) {
               const slugToUse = business.slug;
               router.push(`/b/${slugToUse}`);
@@ -1560,6 +1799,41 @@ export default function WriteReviewForm({
             setOtpModalOpen(false);
           }}
         />
+      )}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="animate-fadeIn relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <button
+              type="button"
+              onClick={() => setShowDuplicateModal(false)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+
+            <div className="text-center">
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">
+                You’ve already reviewed this business
+              </h2>
+
+              <p className="mb-4 text-sm text-gray-600">
+                We found a published review from this email on this business.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDuplicateModal(false);
+                  setIsEditing(true);
+                }}
+                className="text-sm font-medium text-green-600 hover:underline"
+              >
+                Update your review
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

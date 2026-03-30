@@ -74,8 +74,6 @@ export default async function BusinessPage(
 ) {
   const { slug } = await props.params;
 
-  console.log("Business page hit with slug:", slug);
-
   const supabase = createClient();
 
   const { data: businessBySlug, error } = await supabase

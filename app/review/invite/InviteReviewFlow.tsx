@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
 import { Button } from "@/components/ui/button";
@@ -33,20 +33,91 @@ export default function InviteReviewFlow({
 }: InviteReviewFlowProps) {
   const [step, setStep] = useState<"form" | "otp" | "success">("form");
   /** Set only from POST /api/reviews/create-draft response `draft_id` — never from URL `token`. */
-  const [storedDraftId, setStoredDraftId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** False until we validate (or skip) sessionStorage restore — avoids OTP with a stale draft_id. */
+  const [otpRestoreChecked, setOtpRestoreChecked] = useState(false);
 
   const businessSlug = initialBusinessSlug ?? "";
 
+  const otpStorageKey = `tellacity_invite_otp_${inviteId}`;
+
+  // Restore OTP step only if draft + OTP row still exist (create-draft deletes prior drafts per invite).
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const raw = sessionStorage.getItem(otpStorageKey);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw) as { draftId?: string; step?: string };
+        if (
+          parsed.step !== "otp" ||
+          typeof parsed.draftId !== "string" ||
+          !isDraftIdUuid(parsed.draftId)
+        ) {
+          return;
+        }
+        const id = parsed.draftId.trim();
+        const res = await fetch(
+          `/api/reviews/draft-otp-check?draft_id=${encodeURIComponent(id)}`,
+        );
+        const body = (await res.json().catch(() => ({}))) as { ok?: boolean };
+        if (cancelled) return;
+        if (res.ok && body.ok === true) {
+          setDraftId(id);
+          setStep("otp");
+        } else {
+          sessionStorage.removeItem(otpStorageKey);
+        }
+      } catch {
+        try {
+          sessionStorage.removeItem(otpStorageKey);
+        } catch {
+          // ignore
+        }
+      } finally {
+        if (!cancelled) {
+          setOtpRestoreChecked(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [otpStorageKey]);
+
+  const persistOtpSession = (persistedDraftId: string) => {
+    try {
+      sessionStorage.setItem(
+        otpStorageKey,
+        JSON.stringify({ draftId: persistedDraftId, step: "otp" }),
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearOtpSession = () => {
+    try {
+      sessionStorage.removeItem(otpStorageKey);
+    } catch {
+      // ignore
+    }
+  };
+
   const handleVerify = async () => {
-    const trimmed = otp.replace(/\D/g, "").slice(0, 6);
-    if (!trimmed || trimmed.length !== 6) {
+    const code = otp.replace(/\D/g, "").slice(0, 6);
+    if (!code || code.length !== 6) {
       setError("Enter valid 6-digit code");
       return;
     }
-    if (!storedDraftId || !isDraftIdUuid(storedDraftId)) {
+    if (!draftId) {
       setError("Something went wrong. Refresh the page and try again.");
       return;
     }
@@ -59,8 +130,8 @@ export default function InviteReviewFlow({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          draft_id: storedDraftId,
-          code: trimmed,
+          draft_id: draftId,
+          code,
         }),
       });
 
@@ -70,28 +141,33 @@ export default function InviteReviewFlow({
       };
 
       if (!res.ok) {
-        setError(
-          typeof data.error === "string" && data.error.trim()
-            ? data.error
-            : "Invalid code",
-        );
+        setError("Invalid or expired code");
         setLoading(false);
         return;
       }
 
       if (data.success === true) {
+        clearOtpSession();
         setStep("success");
         setLoading(false);
         return;
       }
 
-      setError("Invalid code");
+      setError("Invalid or expired code");
       setLoading(false);
     } catch {
       setError("Something went wrong");
       setLoading(false);
     }
   };
+
+  if (!otpRestoreChecked) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 px-4 flex items-center justify-center">
+        <p className="text-sm text-gray-600">Loading…</p>
+      </div>
+    );
+  }
 
   if (step === "otp") {
     return (
@@ -147,7 +223,11 @@ export default function InviteReviewFlow({
               type="button"
               className="mt-6 w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
               onClick={() => void handleVerify()}
-              disabled={loading || otp.replace(/\D/g, "").length !== 6}
+              disabled={
+                loading ||
+                otp.replace(/\D/g, "").length !== 6 ||
+                draftId == null
+              }
             >
               {loading ? "Verifying…" : "Verify"}
             </Button>
@@ -211,7 +291,9 @@ export default function InviteReviewFlow({
             setError("Invalid draft from server. Please try again.");
             return;
           }
-          setStoredDraftId(id.trim());
+          const clean = id.trim();
+          setDraftId(clean);
+          persistOtpSession(clean);
           setStep("otp");
           setError(null);
           setOtp("");
