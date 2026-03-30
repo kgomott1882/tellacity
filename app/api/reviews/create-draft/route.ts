@@ -5,6 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 
+const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+
 type Body = {
   business_id?: string;
   rating?: number;
@@ -57,7 +59,6 @@ export async function POST(req: Request) {
     const rawBody = typeof body.body === "string" ? body.body.trim() : "";
     const guest_email_raw =
       typeof body.guest_email === "string" ? body.guest_email.trim().toLowerCase() : "";
-    const guest_name = (typeof body.guest_name === "string" ? body.guest_name.trim() : "") || "Customer";
 
     if (!isUuid(business_id) || !invite_token || !rawBody) {
       return NextResponse.json(
@@ -227,37 +228,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
-  <p>Hi ${guest_name.replace(/</g, "&lt;")},</p>
-  <p>Your Tellacity verification code is:</p>
-  <h2 style="letter-spacing:4px">${code}</h2>
-  <p>Enter this code to publish your review. It expires in 10 minutes.</p>
-</body>
-</html>
-`.trim();
+    const fromAddress = resendFromHeader();
 
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
       const sendRes = await resend.emails.send({
-        from: resendFromHeader(),
+        from: fromAddress,
         to: invEmail,
-        subject: "Verify your Tellacity review",
-        html,
+        subject: "Your verification code",
+        html: `<p>Your verification code is <strong>${code}</strong></p>`,
       });
       if (sendRes.error) {
-        console.error("Resend error:", sendRes.error);
-        await supabase.from("consumer_otps").delete().eq("draft_id", draftId);
-        await supabase.from("review_drafts").delete().eq("id", draftId);
-        return NextResponse.json(
-          { error: "Could not send verification email." },
-          { status: 500 },
-        );
+        console.error("RESEND ERROR:", sendRes.error);
+        throw sendRes.error;
       }
-    } catch (e) {
-      console.error("Resend send failed:", e);
+    } catch (err) {
+      console.error("RESEND ERROR:", err);
       await supabase.from("consumer_otps").delete().eq("draft_id", draftId);
       await supabase.from("review_drafts").delete().eq("id", draftId);
       return NextResponse.json(
