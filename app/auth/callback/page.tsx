@@ -47,6 +47,14 @@ function CallbackInner() {
 
         if (!isMounted) return;
         if (user?.id) {
+          if (
+            typeof window !== "undefined" &&
+            user.email &&
+            user.email.trim()
+          ) {
+            window.localStorage.setItem("user_email", user.email.trim());
+            window.localStorage.setItem("google_review_email", user.email.trim());
+          }
           if (nextRaw && nextRaw.trim()) {
             const sanitized = sanitizeAuthNext(nextRaw, "/dashboard");
             window.location.href = `${window.location.origin}${sanitized}`;

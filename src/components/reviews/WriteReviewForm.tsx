@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
@@ -79,6 +79,13 @@ const GUEST_NAME_KEY = "tellacity_review_guest_name";
 const PENDING_REVIEW_KEY = "tellacity_pending_review";
 const PENDING_REVIEW_DRAFT_ID_KEY = "pendingReviewDraftId";
 const PENDING_REVIEW_DRAFT_EMAIL_KEY = "pendingReviewDraftEmail";
+const GOOGLE_REVIEW_EMAIL_KEY = "google_review_email";
+
+function clearGoogleReviewEmail() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(GOOGLE_REVIEW_EMAIL_KEY);
+  }
+}
 
 const isUuid = (value: string | null | undefined) =>
   !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -471,8 +478,12 @@ export default function WriteReviewForm({
     if (!draftId || !isUuid(draftId)) return;
 
     setOtpDraftId(draftId);
+    const googleStored =
+      window.localStorage.getItem(GOOGLE_REVIEW_EMAIL_KEY)?.trim() ?? "";
     const storedEmail =
-      window.localStorage.getItem(PENDING_REVIEW_DRAFT_EMAIL_KEY) ?? "";
+      googleStored ||
+      window.localStorage.getItem(PENDING_REVIEW_DRAFT_EMAIL_KEY) ||
+      "";
     if (storedEmail) {
       setOtpEmail(storedEmail);
       setSubmittedEmail(storedEmail);
@@ -491,6 +502,16 @@ export default function WriteReviewForm({
       scroll: false,
     });
   }, [router, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const googleEmail = window.localStorage
+      .getItem(GOOGLE_REVIEW_EMAIL_KEY)
+      ?.trim();
+    if (googleEmail) {
+      setGuestEmail(googleEmail);
+    }
+  }, []);
 
   const isGuest = !userId && authChecked;
 
@@ -534,6 +555,17 @@ export default function WriteReviewForm({
     userDisplayName,
     userEmail,
   ]);
+
+  const getFinalGuestEmailTrimmed = useCallback((): string => {
+    if (typeof window !== "undefined") {
+      const g = window.localStorage
+        .getItem(GOOGLE_REVIEW_EMAIL_KEY)
+        ?.trim()
+        .toLowerCase();
+      if (g) return g;
+    }
+    return (reviewerEmail ?? guestEmail ?? userEmail ?? "").trim().toLowerCase();
+  }, [reviewerEmail, guestEmail, userEmail]);
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setProofError(null);
@@ -617,10 +649,8 @@ export default function WriteReviewForm({
 
     if (isEditing) {
       try {
-        const emailToUse = (reviewerEmail ?? guestEmail ?? userEmail ?? "")
-          .trim()
-          .toLowerCase();
-        if (!emailToUse.includes("@")) {
+        const finalEmail = getFinalGuestEmailTrimmed();
+        if (!finalEmail.includes("@")) {
           setSubmitError("A valid email is required to update your review.");
           return;
         }
@@ -631,7 +661,7 @@ export default function WriteReviewForm({
           credentials: "include",
           body: JSON.stringify({
             business_id: business.id,
-            guest_email: emailToUse,
+            guest_email: finalEmail,
             rating: Math.max(1, Math.min(5, Math.round(rating))),
             title: title.trim() || null,
             body: body.trim(),
@@ -652,6 +682,7 @@ export default function WriteReviewForm({
         }
 
         setIsEditing(false);
+        clearGoogleReviewEmail();
         showToast({
           title: "Review updated",
           description: "Your changes have been saved.",
@@ -674,6 +705,7 @@ export default function WriteReviewForm({
 
     try {
       const receiptUrl = await uploadProofIfNeeded();
+      const finalGuestEmailTrimmed = getFinalGuestEmailTrimmed();
 
       const processCreateReviewDraftResult = (
         response: Response,
@@ -733,6 +765,7 @@ export default function WriteReviewForm({
           data.published === true &&
           typeof data.reviewId === "string"
         ) {
+          clearGoogleReviewEmail();
           showToast({
             title: "Thank you",
             description: "Your review has been published.",
@@ -807,6 +840,7 @@ export default function WriteReviewForm({
             variant: "destructive",
           });
         } else {
+          clearGoogleReviewEmail();
           showToast({
             title: "Review updated",
             description:
@@ -866,7 +900,7 @@ export default function WriteReviewForm({
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,
               body: body.trim(),
-              guest_email: reviewerEmailNorm,
+              guest_email: finalGuestEmailTrimmed,
               guest_name: guestNameForInvite,
               receipt_url: receiptUrl,
               date_of_experience: dateOfExperience,
@@ -951,8 +985,8 @@ export default function WriteReviewForm({
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,
               body: body.trim(),
-              guest_email: reviewerEmailNorm,
-              email: reviewerEmailNorm,
+              guest_email: finalGuestEmailTrimmed,
+              email: finalGuestEmailTrimmed,
               guest_name: guestNameForInvite,
               receipt_url: receiptUrl,
               date_of_experience: dateOfExperience,
@@ -974,15 +1008,14 @@ export default function WriteReviewForm({
         processCreateReviewDraftResult(
           responseInvite,
           dataInvite,
-          reviewerEmailNorm,
+          finalGuestEmailTrimmed,
           true,
         );
         return;
       }
 
       if (userId) {
-        const authEmail = (userEmail ?? "").trim().toLowerCase();
-        if (!authEmail || !authEmail.includes("@")) {
+        if (!finalGuestEmailTrimmed || !finalGuestEmailTrimmed.includes("@")) {
           showToast({
             title: "Email required",
             description: "Add your email so we can send a verification code.",
@@ -994,7 +1027,9 @@ export default function WriteReviewForm({
         const guestNameForAuth =
           guestName.trim() ||
           (userDisplayName ?? "").trim() ||
-          (authEmail.includes("@") ? authEmail.split("@")[0] : "") ||
+          (finalGuestEmailTrimmed.includes("@")
+            ? finalGuestEmailTrimmed.split("@")[0]
+            : "") ||
           "Customer";
 
         const resDraftAuth = await fetch("/api/reviews/create-draft", {
@@ -1006,7 +1041,7 @@ export default function WriteReviewForm({
             rating: Math.max(1, Math.min(5, Math.round(rating))),
             title: title.trim() || null,
             body: body.trim(),
-            guest_email: authEmail,
+            guest_email: finalGuestEmailTrimmed,
             guest_name: guestNameForAuth,
             receipt_url: receiptUrl,
             date_of_experience: dateOfExperience,
@@ -1025,14 +1060,12 @@ export default function WriteReviewForm({
         processCreateReviewDraftResult(
           resDraftAuth,
           dataDraftAuth,
-          authEmail,
+          finalGuestEmailTrimmed,
           false,
         );
         return;
       }
 
-      const emailToUse = reviewerEmail ?? guestEmail;
-      const guestEmailTrimmed = emailToUse.trim().toLowerCase();
       const guestNameTrimmed = guestName.trim();
       const isInviteGuest = Boolean(reviewerEmail?.trim());
 
@@ -1073,8 +1106,8 @@ export default function WriteReviewForm({
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,
               body: body.trim(),
-              guest_email: guestEmailTrimmed,
-              email: guestEmailTrimmed,
+              guest_email: finalGuestEmailTrimmed,
+              email: finalGuestEmailTrimmed,
               guest_name: guestNameTrimmed,
               receipt_url: receiptUrl,
               date_of_experience: dateOfExperience,
@@ -1095,7 +1128,7 @@ export default function WriteReviewForm({
         processCreateReviewDraftResult(
           responseInviteGuest,
           dataInviteGuest,
-          guestEmailTrimmed,
+          finalGuestEmailTrimmed,
           true,
         );
         return;
@@ -1110,7 +1143,7 @@ export default function WriteReviewForm({
           rating: Math.max(1, Math.min(5, Math.round(rating))),
           title: title.trim() || null,
           body: body.trim(),
-          guest_email: guestEmailTrimmed,
+          guest_email: finalGuestEmailTrimmed,
           guest_name: guestNameTrimmed,
           receipt_url: receiptUrl,
           date_of_experience: dateOfExperience,
@@ -1129,7 +1162,7 @@ export default function WriteReviewForm({
       processCreateReviewDraftResult(
         response,
         data,
-        guestEmailTrimmed,
+        finalGuestEmailTrimmed,
         false,
       );
     } catch (error) {
@@ -1172,7 +1205,7 @@ export default function WriteReviewForm({
       return;
     }
 
-    const guestEmailTrimmed = (reviewerEmail ?? guestEmail).trim().toLowerCase();
+    const guestEmailTrimmed = getFinalGuestEmailTrimmed();
     const guestNameTrimmed = guestName.trim();
 
     const pendingLocalDraft: PendingReviewDraft = {
@@ -1281,6 +1314,7 @@ export default function WriteReviewForm({
         typeof data.reviewId === "string" &&
         business.slug
       ) {
+        clearGoogleReviewEmail();
         showToast({
           title: "Thank you",
           description: "Your review has been published.",
@@ -1359,6 +1393,7 @@ export default function WriteReviewForm({
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
       window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
+      clearGoogleReviewEmail();
     }
   };
 
@@ -1789,6 +1824,7 @@ export default function WriteReviewForm({
             if (typeof window !== "undefined") {
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
+              clearGoogleReviewEmail();
             }
             if (business) {
               const slugToUse = business.slug;
