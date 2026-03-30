@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const { data: otp, error: otpError } = await supabase
       .from("review_otps")
       .select("*")
-      .eq("draft_id", draft_id)
+      .eq("draft_id", draftId)
       .eq("code", codeRaw)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -88,26 +88,59 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });
     }
 
+    const d = draft as Record<string, unknown>;
+    const inviteId = d.invite_id;
+    const hasInvite =
+      inviteId != null &&
+      typeof inviteId === "string" &&
+      inviteId.length > 0;
+
+    const emailStr = String(d.email ?? "");
+    const fromLocal = emailStr.includes("@")
+      ? (emailStr.split("@")[0] ?? "").trim()
+      : "";
+    const guestName =
+      (typeof d.guest_name === "string" && d.guest_name.trim()
+        ? d.guest_name.trim()
+        : fromLocal) || "Customer";
+
+    const insertPayload: Record<string, unknown> = {
+      business_id: draft.business_id,
+      rating: draft.rating,
+      title: draft.title,
+      body: draft.body,
+      guest_email: draft.email,
+      guest_name: guestName,
+      status: "published",
+      verification_status: "pending",
+      draft: false,
+      imported: false,
+      marketing_opt_in: Boolean(d.marketing_opt_in),
+      visibility: "visible",
+    };
+
+    if (hasInvite) {
+      insertPayload.invite_id = inviteId;
+    }
+    if (d.date_of_experience) {
+      insertPayload.date_of_experience = d.date_of_experience;
+    }
+    if (d.receipt_url) {
+      insertPayload.receipt_url = d.receipt_url;
+    }
+    if (d.reference_number) {
+      insertPayload.reference_number = d.reference_number;
+    }
+    if (d.user_id) {
+      insertPayload.user_id = d.user_id;
+    }
+    if (!d.user_id) {
+      insertPayload.source = "guest";
+    }
+
     const { data: review, error } = await supabase
       .from("reviews")
-      .insert({
-        business_id: draft.business_id,
-        rating: draft.rating,
-        title: draft.title,
-        body: draft.body,
-        invite_id: draft.invite_id,
-        guest_email: draft.email,
-
-        // REQUIRED FIELDS
-        status: "published",
-        verification_status: "pending",
-        draft: false,
-        imported: false,
-        marketing_opt_in: false,
-
-        // OPTIONAL BUT SAFE
-        visibility: "visible",
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
@@ -115,18 +148,17 @@ export async function POST(req: Request) {
 
     const reviewId = review.id as string;
 
-    await supabase
-      .from("review_invites")
-      .update({
-        review_submitted_at: new Date().toISOString(),
-        status: "completed",
-      })
-      .eq("id", draft.invite_id);
+    if (hasInvite) {
+      await supabase
+        .from("review_invites")
+        .update({
+          review_submitted_at: new Date().toISOString(),
+          status: "completed",
+        })
+        .eq("id", inviteId);
+    }
 
-    await supabase
-      .from("review_drafts")
-      .delete()
-      .eq("id", draft_id);
+    await supabase.from("review_drafts").delete().eq("id", draftId);
 
     return NextResponse.json({
       success: true,

@@ -180,7 +180,7 @@ export default function WriteReviewForm({
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
 
-  const [otpReviewId, setOtpReviewId] = useState<string | null>(null);
+  const [otpDraftId, setOtpDraftId] = useState<string | null>(null);
   const [otpEmail, setOtpEmail] = useState<string | null>(null);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
 
@@ -623,10 +623,10 @@ export default function WriteReviewForm({
             !isInviteGuest &&
             data &&
             data.error === "draft_exists" &&
-            typeof data.reviewId === "string"
+            typeof data.draft_id === "string"
           ) {
-            const reviewId = data.reviewId as string;
-            setOtpReviewId(reviewId);
+            const draftId = data.draft_id as string;
+            setOtpDraftId(draftId);
             setOtpEmail(guestEmailTrimmed);
             setSubmittedEmail(guestEmailTrimmed);
             setSubmitted(true);
@@ -700,7 +700,7 @@ export default function WriteReviewForm({
 
         if (
           !data ||
-          typeof data.reviewId !== "string" ||
+          typeof data.draft_id !== "string" ||
           data.requiresOtp !== true
         ) {
           const mapped = reviewErrorMessages.unexpected_error;
@@ -712,8 +712,8 @@ export default function WriteReviewForm({
           return;
         }
 
-        const reviewId = data.reviewId as string;
-        setOtpReviewId(reviewId);
+        const draftId = data.draft_id as string;
+        setOtpDraftId(draftId);
         setOtpEmail(guestEmailTrimmed);
         setSubmittedEmail(guestEmailTrimmed);
         setSubmitted(true);
@@ -1069,50 +1069,6 @@ export default function WriteReviewForm({
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!otpEmail || !otpReviewId) return;
-    try {
-      const res = await fetch("/api/reviews/resend-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId: otpReviewId, email: otpEmail }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-
-      if (!res.ok) {
-        let description = "Please try again in a moment.";
-        if (data.error === "email_unavailable") {
-          description = "Email isn’t configured. Please try again later.";
-        } else if (data.error === "email_failed") {
-          description = "We couldn’t send the email. Please try again.";
-        } else if (data.error === "email_mismatch" || data.error === "not_found") {
-          description = "Refresh the page and submit your review again.";
-        } else if (data.error === "not_draft") {
-          description = "This review may already be published.";
-        }
-        showToast({
-          title: "Couldn’t resend code",
-          description,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      showToast({
-        title: "New code sent",
-        description:
-          "Check your inbox for a fresh 6-digit code. Spam or promotions folders too.",
-        variant: "success",
-      });
-    } catch {
-      showToast({
-        title: "Couldn’t resend code",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -1550,7 +1506,7 @@ export default function WriteReviewForm({
                 </div>
               )}
 
-              {otpReviewId &&
+              {otpDraftId &&
                 otpEmail &&
                 !otpModalOpen &&
                 !reviewerEmail?.trim() && (
@@ -1562,21 +1518,18 @@ export default function WriteReviewForm({
                     We sent a verification code to your email. Enter the code to
                     publish your review.
                   </p>
-                  <div className="mt-3 flex gap-3">
+                  <div className="mt-3 flex flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => setOtpModalOpen(true)}
-                      className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      className="w-fit rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                     >
                       Enter verification code
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleResendCode}
-                      className="rounded-md border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
-                    >
-                      Resend code
-                    </button>
+                    <p className="text-xs text-emerald-800">
+                      Didn&apos;t get a code or it expired? Submit your review
+                      again to receive a new one.
+                    </p>
                   </div>
                 </div>
               )}
@@ -1585,11 +1538,11 @@ export default function WriteReviewForm({
         </div>
       </section>
       {!inviteTwoStepOtp &&
-        otpReviewId &&
+        otpDraftId &&
         otpEmail &&
         !reviewerEmail?.trim() && (
         <ReviewOtpModal
-          reviewId={otpReviewId}
+          draftId={otpDraftId}
           email={otpEmail}
           open={otpModalOpen}
           onSuccess={() => {

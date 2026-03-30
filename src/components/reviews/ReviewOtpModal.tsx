@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type ReviewOtpModalProps = {
-  reviewId: string;
+  draftId: string;
   email: string;
   open?: boolean;
   onSuccess: () => void;
@@ -12,7 +12,7 @@ type ReviewOtpModalProps = {
 };
 
 export default function ReviewOtpModal({
-  reviewId,
+  draftId,
   email,
   open = true,
   onSuccess,
@@ -20,10 +20,8 @@ export default function ReviewOtpModal({
 }: ReviewOtpModalProps) {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!successToast) return;
@@ -45,41 +43,6 @@ export default function ReviewOtpModal({
     }
   };
 
-  const handleResend = async () => {
-    setResendMessage(null);
-    setError(null);
-    setResending(true);
-    try {
-      const res = await fetch("/api/reviews/resend-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId, email }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-
-      if (!res.ok) {
-        if (data.error === "email_unavailable") {
-          setResendMessage("Email isn’t configured. Please try again later.");
-        } else if (data.error === "email_failed") {
-          setResendMessage("Couldn’t send the email. Please try again.");
-        } else if (data.error === "email_mismatch" || data.error === "not_found") {
-          setResendMessage("This session doesn’t match that review. Refresh the page and try again.");
-        } else if (data.error === "not_draft") {
-          setResendMessage("This review is already published or can’t be verified again.");
-        } else {
-          setResendMessage("Couldn’t resend the code. Please try again.");
-        }
-        return;
-      }
-
-      setResendMessage("We sent a new code to your email.");
-    } catch {
-      setResendMessage("Something went wrong. Please try again.");
-    } finally {
-      setResending(false);
-    }
-  };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!code || code.length !== 6) {
@@ -91,27 +54,29 @@ export default function ReviewOtpModal({
     setError(null);
 
     try {
-      const res = await fetch("/api/reviews/verify-otp", {
+      const res = await fetch("/api/reviews/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId, code }),
+        body: JSON.stringify({ draft_id: draftId, code }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
 
       if (!res.ok || !data || data.success !== true) {
-        const message = (data && data.error) || "Invalid verification code";
+        const message =
+          typeof data.error === "string" && data.error.trim()
+            ? data.error
+            : "Invalid verification code";
 
-        if (typeof message === "string") {
-          if (message.toLowerCase().includes("expired")) {
-            setError("Code expired");
-          } else if (message.toLowerCase().includes("too many")) {
-            setError("Too many attempts. Please try again later.");
-          } else {
-            setError("Invalid verification code");
-          }
+        if (message.toLowerCase().includes("expired")) {
+          setError("Code expired");
+        } else if (message.toLowerCase().includes("too many")) {
+          setError("Too many attempts. Please try again later.");
         } else {
-          setError("Invalid verification code");
+          setError(message);
         }
 
         return;
@@ -188,25 +153,10 @@ export default function ReviewOtpModal({
             >
               {submitting ? "Publishing…" : "Publish Review"}
             </Button>
-            <button
-              type="button"
-              onClick={handleResend}
-              className="w-full text-center text-xs font-medium text-[#1FAF9E] hover:text-[#169786] disabled:opacity-50"
-              disabled={submitting || resending}
-            >
-              {resending ? "Sending…" : "Resend code"}
-            </button>
-            {resendMessage && (
-              <p
-                className={`text-center text-xs ${
-                  resendMessage.startsWith("We sent")
-                    ? "text-emerald-700"
-                    : "text-amber-700"
-                }`}
-              >
-                {resendMessage}
-              </p>
-            )}
+            <p className="text-center text-xs text-gray-500">
+              Check spam or promotions. If the code expired, close this window and
+              submit your review again to get a new code.
+            </p>
           </div>
         </form>
 
@@ -219,4 +169,3 @@ export default function ReviewOtpModal({
     </div>
   );
 }
-

@@ -464,7 +464,7 @@ serve(async (req) => {
     const invite_id =
       invite_idRaw && isUuid(invite_idRaw) ? invite_idRaw : null;
 
-    // Check for an existing review for this business + guest email
+    // Check for an existing published review for this business + guest email
     const { data: guestRows, error: existingError } = await supabase
       .from("reviews")
       .select("id, status, draft, visibility, created_at")
@@ -480,12 +480,25 @@ serve(async (req) => {
 
     const guestList = guestRows ?? [];
 
-    const guestDraft = guestList.find((r) => rowIsDraft(r));
-    if (guestDraft?.id) {
+    const { data: pendingDraftRow, error: pendingDraftErr } = await supabase
+      .from("review_drafts")
+      .select("id")
+      .eq("business_id", business_id)
+      .eq("email", guest_email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingDraftErr) {
+      console.error("review_drafts lookup failed:", pendingDraftErr);
+      return json({ error: "unexpected_error" }, 500);
+    }
+
+    if (pendingDraftRow?.id) {
       return json(
         {
           error: "draft_exists",
-          reviewId: guestDraft.id,
+          draft_id: pendingDraftRow.id,
         },
         409,
       );
@@ -502,7 +515,7 @@ serve(async (req) => {
       );
     }
 
-    const insertRow: Record<string, unknown> = {
+    const draftInsert: Record<string, unknown> = {
       business_id,
       rating: ratingNum,
       title:
@@ -510,48 +523,35 @@ serve(async (req) => {
           ? payload.title.trim()
           : null,
       body,
+      email: guest_email,
       guest_name,
-      guest_email,
       date_of_experience,
       marketing_opt_in,
       receipt_url,
       reference_number,
-      source: "guest",
-      status: "draft",
-      draft: true,
     };
 
     if (invite_id) {
-      insertRow.invite_id = invite_id;
+      draftInsert.invite_id = invite_id;
     }
 
-    const { data, error } = await supabase
-      .from("reviews")
-      .insert(insertRow)
-      .select("id,business_id")
+    const { data: draftData, error: draftInsErr } = await supabase
+      .from("review_drafts")
+      .insert(draftInsert)
+      .select("id")
       .single();
 
-    if (error) {
-      console.error("Insert error:", error);
-      const anyErr = error as { code?: string; message?: string };
-
+    if (draftInsErr || !draftData?.id) {
+      console.error("review_drafts insert error:", draftInsErr);
+      const anyErr = draftInsErr as { code?: string; message?: string };
       if (anyErr?.code === "23505") {
-        return json(
-          { error: "duplicate_review" },
-          409,
-        );
+        return json({ error: "duplicate_review" }, 409);
       }
-
-      // expose actual DB error for debugging
-      return json(
-        {
-          error: "unexpected_error",
-        },
-        500,
-      );
+      return json({ error: "unexpected_error" }, 500);
     }
 
-    // After creating the draft review, generate and send a verification OTP
+    const draftId = draftData.id as string;
+
     let otpRowId: string | null = null;
     try {
       const otp = generateOtp();
@@ -559,24 +559,20 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
       const { data: otpRow, error: otpError } = await supabase
-        .from("review_email_otps")
+        .from("review_otps")
         .insert({
           email: guest_email,
           code: otp,
-          review_id: data.id,
-          attempts: 0,
-          used: false,
+          draft_id: draftId,
           expires_at: expiresAt,
         })
         .select("id")
         .single();
 
       if (otpError || !otpRow?.id) {
-        console.error("Failed to insert review_email_otps row:", otpError);
-        return json(
-          { error: "unexpected_error" },
-          500,
-        );
+        console.error("Failed to insert review_otps row:", otpError);
+        await supabase.from("review_drafts").delete().eq("id", draftId);
+        return json({ error: "unexpected_error" }, 500);
       }
 
       otpRowId = otpRow.id;
@@ -584,33 +580,17 @@ serve(async (req) => {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (!resendApiKey) {
         console.error("RESEND_API_KEY is not set");
-        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
-        return json(
-          { error: "unexpected_error" },
-          500,
-        );
+        await supabase.from("review_otps").delete().eq("draft_id", draftId);
+        await supabase.from("review_drafts").delete().eq("id", draftId);
+        return json({ error: "unexpected_error" }, 500);
       }
 
       const resendFrom = Deno.env.get("RESEND_FROM_EMAIL")?.trim() ||
         "Tellacity <notifications@tellacity.com>";
 
-      const subject = "Verify your Tellacity review";
-      const html = `
-<!DOCTYPE html>
-<html>
-<body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
-  <p>Hi ${guest_name},</p>
-
-  <p>Your Tellacity verification code is:</p>
-
-  <h2 style="letter-spacing:4px">${otp}</h2>
-
-  <p>Enter this code in the verification window to publish your review.</p>
-
-  <p>This code expires in 10 minutes.</p>
-</body>
-</html>
-`.trim();
+      const subject = "Your verification code";
+      const html =
+        `<p>Your verification code is <strong>${otp}</strong></p>`;
 
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -633,27 +613,23 @@ serve(async (req) => {
           emailResponse.status,
           errorBody,
         );
-        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
-        return json(
-          { error: "unexpected_error" },
-          500,
-        );
+        await supabase.from("review_otps").delete().eq("draft_id", draftId);
+        await supabase.from("review_drafts").delete().eq("id", draftId);
+        return json({ error: "unexpected_error" }, 500);
       }
     } catch (err) {
       console.error("OTP generation/email error:", err);
       if (otpRowId) {
-        await supabase.from("review_email_otps").delete().eq("id", otpRowId);
+        await supabase.from("review_otps").delete().eq("draft_id", draftId);
       }
-      return json(
-        { error: "unexpected_error" },
-        500,
-      );
+      await supabase.from("review_drafts").delete().eq("id", draftId);
+      return json({ error: "unexpected_error" }, 500);
     }
 
     return json(
       {
         requiresOtp: true,
-        reviewId: data.id,
+        draft_id: draftId,
       },
       200,
     );
