@@ -14,6 +14,7 @@ type Body = {
   body?: string;
   invite_token?: string;
   guest_email?: string;
+  guest_name?: string;
 };
 
 function isUuid(value: string): boolean {
@@ -171,6 +172,15 @@ export async function POST(req: Request) {
     const titleVal =
       typeof body.title === "string" && body.title.trim() ? body.title.trim() : null;
 
+    const guestNameFromBody =
+      typeof body.guest_name === "string" && body.guest_name.trim()
+        ? body.guest_name.trim().slice(0, 200)
+        : "";
+    const guestNameForDraft =
+      guestNameFromBody ||
+      (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
+      "Customer";
+
     const { data: draft, error: draftError } = await supabase
       .from("review_drafts")
       .insert({
@@ -180,6 +190,7 @@ export async function POST(req: Request) {
         body: rawBody,
         invite_id: inviteRowId,
         email: invite.recipient_email,
+        guest_name: guestNameForDraft,
       })
       .select()
       .single();

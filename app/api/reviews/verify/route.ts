@@ -44,7 +44,8 @@ export async function POST(req: Request) {
       .select("*")
       .eq("draft_id", draftId)
       .eq("code", codeRaw)
-      .is("used_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (otpFetchErr) {
@@ -59,8 +60,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 400 });
     }
 
-    const exp = otp.expires_at ? new Date(String(otp.expires_at)) : null;
-    if (!exp || Number.isNaN(exp.getTime()) || exp < new Date()) {
+    const otpRow = otp as Record<string, unknown>;
+    const nowMs = Date.now();
+    let deadlineMs: number | null = null;
+    if (otpRow.expires_at) {
+      const d = new Date(String(otpRow.expires_at));
+      if (!Number.isNaN(d.getTime())) deadlineMs = d.getTime();
+    }
+    if (deadlineMs == null && otpRow.created_at) {
+      const c = new Date(String(otpRow.created_at));
+      if (!Number.isNaN(c.getTime())) {
+        deadlineMs = c.getTime() + 10 * 60 * 1000;
+      }
+    }
+    if (deadlineMs == null || deadlineMs < nowMs) {
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
@@ -82,7 +95,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Draft not found" }, { status: 404 });
     }
 
-    console.log("Draft being inserted:", draft);
+    const guestEmailStr = String(draft.email ?? "").trim().toLowerCase();
+    const draftRow = draft as Record<string, unknown>;
+    const guestNameFromDraft =
+      typeof draftRow.guest_name === "string" && draftRow.guest_name.trim()
+        ? draftRow.guest_name.trim()
+        : "";
+    const guestNameResolved =
+      guestNameFromDraft ||
+      (guestEmailStr.includes("@")
+        ? (guestEmailStr.split("@")[0] ?? "").trim()
+        : "") ||
+      "Customer";
 
     const { data: review, error } = await supabase
       .from("reviews")
@@ -94,10 +118,12 @@ export async function POST(req: Request) {
 
         invite_id: draft.invite_id,
         guest_email: draft.email,
+        guest_name: guestNameResolved,
 
         // REQUIRED FIELDS
         status: "published",
         verification_status: "verified",
+        verified_at: new Date().toISOString(),
         draft: false,
         imported: false,
         marketing_opt_in: false,
@@ -110,25 +136,42 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    await supabase
-      .from("review_otps")
-      .update({ used_at: new Date().toISOString() })
-      .eq("id", otp.id);
+    const reviewId = review.id as string;
+    const submittedAt = new Date().toISOString();
 
-    await supabase
+    // Match create-review-draft edge function: never set review_invites.used_at (often absent in prod).
+    const { error: inviteErr } = await supabase
       .from("review_invites")
       .update({
-        review_submitted_at: new Date().toISOString(),
-        used_at: new Date().toISOString(),
+        review_submitted_at: submittedAt,
         status: "completed",
       })
       .eq("id", draft.invite_id);
 
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
+    if (inviteErr) {
+      const { error: inviteErrMinimal } = await supabase
+        .from("review_invites")
+        .update({ review_submitted_at: submittedAt })
+        .eq("id", draft.invite_id);
+      if (inviteErrMinimal) {
+        console.error("VERIFY: review_invites update failed:", inviteErr, inviteErrMinimal);
+        await supabase.from("reviews").delete().eq("id", reviewId);
+        throw inviteErrMinimal;
+      }
+    }
+
+    // Removes draft; review_otps rows cascade on draft_id FK.
+    const { error: delDraftErr } = await supabase
+      .from("review_drafts")
+      .delete()
+      .eq("id", draft.id);
+    if (delDraftErr) {
+      console.error("VERIFY: review_drafts delete failed:", delDraftErr);
+    }
 
     return NextResponse.json({
       success: true,
-      review_id: review.id,
+      review_id: reviewId,
     });
   } catch (err: any) {
     console.error("VERIFY ERROR:", err);
