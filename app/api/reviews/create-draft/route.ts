@@ -13,6 +13,7 @@ type Body = {
   title?: string | null;
   body?: string;
   invite_token?: string | null;
+  invite_id?: string | null;
   guest_email?: string;
   guest_name?: string;
   date_of_experience?: string | null;
@@ -219,7 +220,6 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
       throw updErr ?? new Error("Draft update returned no id");
     }
     draftId = String(updated.id);
-    await supabase.from("review_otps").delete().eq("draft_id", draftId);
   } else {
     const { data: inserted, error: draftError } = await supabase
       .from("review_drafts")
@@ -306,6 +306,10 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
  * Public /write-review guest path: no invite token; same draft + OTP + Resend as edge function.
  */
 async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse> {
+  const inviteId =
+    typeof body.invite_id === "string" ? body.invite_id.trim() : "";
+  const isInvitePublish = inviteId && isUuid(inviteId);
+
   const business_id =
     typeof body.business_id === "string" ? body.business_id.trim() : "";
   const rawBody = typeof body.body === "string" ? body.body.trim() : "";
@@ -411,6 +415,66 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       { requiresUpdate: true, reviewId: guestLive.id },
       { status: 200 },
     );
+  }
+
+  if (isInvitePublish) {
+    const guestEmailLower = effectiveEmail.trim().toLowerCase();
+    try {
+      const { data: review, error: pubErr } = await supabase
+        .from("reviews")
+        .insert({
+          business_id,
+          rating: Math.round(ratingNum),
+          title: titleVal,
+          body: rawBody,
+          guest_email: guestEmailLower,
+          guest_name: guest_name_raw.slice(0, 200),
+          date_of_experience,
+          status: "published",
+          visibility: "visible",
+          verification_status: "verified",
+          draft: false,
+          imported: false,
+          marketing_opt_in,
+          receipt_url,
+          reference_number,
+          invite_id: inviteId,
+          user_id: null,
+          is_flagged: false,
+        })
+        .select("id")
+        .single();
+
+      if (pubErr) {
+        const anyPub = pubErr as { code?: string };
+        if (anyPub.code === "23505") {
+          return NextResponse.json(
+            { error: "You have already reviewed this business." },
+            { status: 400 },
+          );
+        }
+        console.error("guest invite direct publish:", pubErr);
+        return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+      }
+
+      await supabase
+        .from("review_invites")
+        .update({
+          status: "completed",
+          review_submitted_at: new Date().toISOString(),
+        })
+        .eq("id", inviteId);
+
+      return NextResponse.json({
+        requiresOtp: false,
+        published: true,
+        reviewId: review?.id ?? null,
+        verification_email: effectiveEmail,
+      });
+    } catch (e) {
+      console.error("guest invite publish error:", e);
+      return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    }
   }
 
   if (isGoogleUser) {
@@ -552,6 +616,17 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
+    const inviteId =
+      typeof body.invite_id === "string" ? body.invite_id.trim() : "";
+    const isInvitePublish = inviteId && isUuid(inviteId);
+
+    if (isInvitePublish) {
+      return await guestPublicDraft(req, {
+        ...body,
+        invite_id: inviteId,
+      });
+    }
+
     const invite_token =
       typeof body.invite_token === "string" ? body.invite_token.trim() : "";
 

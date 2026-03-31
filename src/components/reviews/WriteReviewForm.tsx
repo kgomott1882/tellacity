@@ -29,6 +29,8 @@ type WriteReviewFormProps = {
   onInviteDraftCreated?: (draftId: string) => void;
   /** Clear with null when starting a new submit attempt. */
   onInviteDraftFlowError?: (message: string | null) => void;
+  /** Invite page: after review is published (OTP modal or direct), parent shows success. */
+  onInviteReviewPublished?: () => void;
 };
 
 const REFERENCE_TYPES = ["order", "invoice", "booking", "customer", "generic", "custom"] as const;
@@ -209,6 +211,7 @@ export default function WriteReviewForm({
   inviteTwoStepOtp,
   onInviteDraftCreated,
   onInviteDraftFlowError,
+  onInviteReviewPublished,
 }: WriteReviewFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1259,6 +1262,16 @@ export default function WriteReviewForm({
           typeof data.reviewId === "string"
         ) {
           resetGoogleReviewMode();
+          if (
+            onInviteReviewPublished &&
+            String(inviteId ?? "").trim()
+          ) {
+            if (userId) {
+              clearGoogleReviewStorage();
+            }
+            onInviteReviewPublished();
+            return;
+          }
           if (userId) {
             clearGoogleReviewStorage();
             router.replace("/write-review?success=1");
@@ -1289,13 +1302,34 @@ export default function WriteReviewForm({
           return;
         }
 
-        if (isInviteGuest) {
-          const mapped = reviewErrorMessages.unexpected_error;
-          showToast({
-            title: mapped.title,
-            description: mapped.message,
-            variant: "destructive",
-          });
+        if (data && data.requiresOtp === true && !inviteId) {
+          if (
+            !data ||
+            typeof data.draft_id !== "string" ||
+            data.requiresOtp !== true
+          ) {
+            const mapped = reviewErrorMessages.unexpected_error;
+            showToast({
+              title: mapped.title,
+              description: mapped.message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const draftId = data.draft_id as string;
+          setOtpDraftId(draftId);
+          setOtpEmail(verificationEmail);
+          setSubmittedEmail(verificationEmail);
+          setSubmitted(true);
+          setCheckEmailState({ active: true, email: verificationEmail });
+          setOtpModalOpen(true);
+        }
+
+        if (data && data.requiresOtp === true && inviteId) {
+          if (onInviteReviewPublished) {
+            onInviteReviewPublished();
+          }
           return;
         }
 
@@ -1312,14 +1346,6 @@ export default function WriteReviewForm({
           });
           return;
         }
-
-        const draftId = data.draft_id as string;
-        setOtpDraftId(draftId);
-        setOtpEmail(verificationEmail);
-        setSubmittedEmail(verificationEmail);
-        setSubmitted(true);
-        setCheckEmailState({ active: true, email: verificationEmail });
-        setOtpModalOpen(true);
       };
 
       // If editing an existing review, update instead of inserting
@@ -1387,6 +1413,73 @@ export default function WriteReviewForm({
           (sessionEmailNorm ? sessionEmailNorm.split("@")[0] : "") ||
           reviewerEmailNorm.split("@")[0] ||
           "Customer";
+
+        if (inviteIdTrimmed) {
+          const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
+          const inviteAccessToken =
+            inviteSessionData?.session?.access_token?.trim();
+          const headersInvitePublish: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (inviteAccessToken && inviteAccessToken.length > 0) {
+            headersInvitePublish.Authorization = `Bearer ${inviteAccessToken}`;
+          }
+
+          const resInvitePublish = await fetch("/api/reviews/create-draft", {
+            method: "POST",
+            headers: headersInvitePublish,
+            credentials: "include",
+            body: JSON.stringify({
+              business_id: business.id,
+              rating: Math.max(1, Math.min(5, Math.round(rating))),
+              title: title.trim() || null,
+              body: body.trim(),
+              guest_email: finalGuestEmailTrimmed,
+              guest_name: guestNameForInvite,
+              receipt_url: receiptUrl,
+              date_of_experience: dateOfExperience,
+              marketing_opt_in: marketingOptIn,
+              reference_number:
+                business.reference_number_enabled && referenceNumber.trim()
+                  ? referenceNumber.trim()
+                  : null,
+              invite_id: inviteIdTrimmed,
+            }),
+          });
+
+          const dataInvitePublish = (await resInvitePublish
+            .json()
+            .catch(() => ({}))) as {
+            error?: string;
+            published?: boolean;
+            requiresOtp?: boolean;
+          };
+
+          if (!resInvitePublish.ok) {
+            const msg =
+              typeof dataInvitePublish.error === "string" &&
+              dataInvitePublish.error.trim()
+                ? dataInvitePublish.error
+                : "Something went wrong";
+            setSubmitError(msg);
+            return;
+          }
+
+          if (dataInvitePublish.published === true) {
+            onInviteReviewPublished?.();
+            return;
+          }
+
+          if (dataInvitePublish.requiresOtp === true && inviteIdTrimmed) {
+            setSubmitError(
+              "Invite review unexpectedly required verification.",
+            );
+            return;
+          }
+
+          setSubmitError("Something went wrong. Please try again.");
+          return;
+        }
 
         if (inviteTwoStepOtp && onInviteDraftCreated) {
           if (!isUuid(inviteDraftIdForSubmit)) {
@@ -2273,7 +2366,8 @@ export default function WriteReviewForm({
                 otpDraftId &&
                 otpEmail &&
                 !otpModalOpen &&
-                !inviteTwoStepOtp && (
+                !inviteTwoStepOtp &&
+                !inviteId && (
                 <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="font-semibold text-emerald-800">
                     Finish publishing your review
@@ -2301,7 +2395,11 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-      {!inviteTwoStepOtp && authMode !== "google" && otpDraftId && otpEmail && (
+      {!inviteTwoStepOtp &&
+        authMode !== "google" &&
+        otpDraftId &&
+        otpEmail &&
+        !inviteId && (
         <ReviewOtpModal
           draftId={otpDraftId}
           verificationEmail={otpEmail}
@@ -2311,6 +2409,13 @@ export default function WriteReviewForm({
             if (typeof window !== "undefined") {
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
+            }
+            if (
+              onInviteReviewPublished &&
+              String(inviteId ?? "").trim()
+            ) {
+              onInviteReviewPublished();
+              return;
             }
             if (business) {
               const slugToUse = business.slug;
