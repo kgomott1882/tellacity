@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 type ReviewOtpModalProps = {
   draftId: string;
-  email: string;
+  verificationEmail: string;
   open?: boolean;
   onSuccess: () => void;
   onClose: () => void;
@@ -13,7 +13,7 @@ type ReviewOtpModalProps = {
 
 export default function ReviewOtpModal({
   draftId,
-  email,
+  verificationEmail,
   open = true,
   onSuccess,
   onClose,
@@ -117,7 +117,7 @@ export default function ReviewOtpModal({
             </h2>
             <p className="mt-1 text-xs text-gray-500">
               We sent a 6-digit verification code to{" "}
-              <span className="font-medium text-gray-700">{email}</span>.
+              <span className="font-medium text-gray-700">{verificationEmail}</span>.
               Enter the code below to publish your review.
             </p>
           </div>

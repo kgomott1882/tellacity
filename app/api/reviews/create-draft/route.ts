@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
-import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -21,6 +20,15 @@ type Body = {
   marketing_opt_in?: boolean | null;
   receipt_url?: string | null;
   reference_number?: string | null;
+};
+
+const getEffectiveEmail = async (
+  _req: Request,
+  bodyEmail?: string,
+): Promise<string> => {
+  return resolveReviewGuestEmail(
+    typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "",
+  );
 };
 
 function isUuid(value: string): boolean {
@@ -51,16 +59,12 @@ function rowIsPublicLiveReview(row: {
 /**
  * Invite link: review_drafts + review_otps + email (recipient must match invite).
  */
-async function inviteOtpDraft(body: Body): Promise<NextResponse> {
+async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   const business_id =
     typeof body.business_id === "string" ? body.business_id.trim() : "";
   const invite_token =
     typeof body.invite_token === "string" ? body.invite_token.trim() : "";
   const rawBody = typeof body.body === "string" ? body.body.trim() : "";
-  const guest_email_raw =
-    typeof body.guest_email === "string"
-      ? body.guest_email.trim().toLowerCase()
-      : "";
 
   if (!isUuid(business_id) || !invite_token || !rawBody) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -88,13 +92,13 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
-  const guest_email_final = await resolveReviewGuestEmail(guest_email_raw);
-  if (!guest_email_final || !guest_email_final.includes("@")) {
+  const effectiveEmail = await getEffectiveEmail(req, body.guest_email);
+  if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
-  if (!invEmail || invEmail !== guest_email_final) {
+  if (!invEmail || invEmail !== effectiveEmail) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
@@ -143,10 +147,13 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
       : null;
 
   const guestNameFromBody =
-    typeof body.guest_name === "string" ? body.guest_name : "";
-  const guestNameForDraft = getSafeReviewGuestDisplayName(
-    guestNameFromBody,
-  ).slice(0, 200);
+    typeof body.guest_name === "string" && body.guest_name.trim()
+      ? body.guest_name.trim().slice(0, 200)
+      : "";
+  const guestNameForDraft =
+    guestNameFromBody ||
+    (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
+    "Customer";
 
   const { data: draft, error: draftError } = await supabase
     .from("review_drafts")
@@ -217,20 +224,17 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
   return NextResponse.json({
     success: true,
     draft_id: draft.id,
+    verification_email: invEmail,
   });
 }
 
 /**
  * Public /write-review guest path: no invite token; same draft + OTP + Resend as edge function.
  */
-async function guestPublicDraft(body: Body): Promise<NextResponse> {
+async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse> {
   const business_id =
     typeof body.business_id === "string" ? body.business_id.trim() : "";
   const rawBody = typeof body.body === "string" ? body.body.trim() : "";
-  const guest_email_raw =
-    typeof body.guest_email === "string"
-      ? body.guest_email.trim().toLowerCase()
-      : "";
   const guest_name_raw =
     typeof body.guest_name === "string" ? body.guest_name.trim() : "";
 
@@ -243,14 +247,14 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
   }
 
-  const guest_email_final = await resolveReviewGuestEmail(guest_email_raw);
-  if (!guest_email_final || !guest_email_final.includes("@")) {
+  const effectiveEmail = await getEffectiveEmail(req, body.guest_email);
+  if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
-  const displayGuestName = getSafeReviewGuestDisplayName(
-    guest_name_raw,
-  ).slice(0, 200);
+  if (!guest_name_raw) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 
   let date_of_experience: string | null = null;
   if (
@@ -289,7 +293,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     .from("reviews")
     .select("id, status, draft, visibility, created_at")
     .eq("business_id", business_id)
-    .eq("guest_email", guest_email_final)
+    .eq("guest_email", effectiveEmail)
     .order("created_at", { ascending: false })
     .limit(25);
 
@@ -304,7 +308,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     .from("review_drafts")
     .select("id")
     .eq("business_id", business_id)
-    .eq("email", guest_email_final)
+    .eq("email", effectiveEmail)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -316,7 +320,11 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
 
   if (pendingDraftRow?.id) {
     return NextResponse.json(
-      { error: "draft_exists", draft_id: pendingDraftRow.id },
+      {
+        error: "draft_exists",
+        draft_id: pendingDraftRow.id,
+        verification_email: effectiveEmail,
+      },
       { status: 409 },
     );
   }
@@ -336,8 +344,8 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
       rating: Math.round(ratingNum),
       title: titleVal,
       body: rawBody,
-      email: guest_email_final,
-      guest_name: displayGuestName,
+      email: effectiveEmail,
+      guest_name: guest_name_raw.slice(0, 200),
       date_of_experience: date_of_experience,
       marketing_opt_in,
       receipt_url,
@@ -363,7 +371,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
 
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const { error: otpError } = await supabase.from("review_otps").insert({
-    email: guest_email_final,
+    email: effectiveEmail,
     code,
     draft_id: draft.id,
     expires_at: expiresAt,
@@ -387,7 +395,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
   try {
     const sendRes = await resend.emails.send({
       from: resendFromHeader(),
-      to: guest_email_final,
+      to: effectiveEmail,
       subject: "Your verification code",
       html: `<p>Your verification code is <strong>${code}</strong></p>`,
     });
@@ -407,6 +415,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
   return NextResponse.json({
     requiresOtp: true,
     draft_id: draft.id,
+    verification_email: effectiveEmail,
   });
 }
 
@@ -422,10 +431,10 @@ export async function POST(req: Request) {
       typeof body.invite_token === "string" ? body.invite_token.trim() : "";
 
     if (invite_token) {
-      return await inviteOtpDraft(body);
+      return await inviteOtpDraft(req, body);
     }
 
-    return await guestPublicDraft(body);
+    return await guestPublicDraft(req, body);
   } catch (error: any) {
     console.error("CREATE DRAFT ERROR:", error);
     return new Response(

@@ -4,16 +4,23 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
-import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 type Body = {
   business_id?: string;
   guest_email?: string;
-  guest_name?: string | null;
   rating?: number;
   title?: string | null;
   body?: string;
   date_of_experience?: string | null;
+};
+
+const getEffectiveEmail = async (
+  _req: Request,
+  bodyEmail?: string,
+): Promise<string> => {
+  return resolveReviewGuestEmail(
+    typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "",
+  );
 };
 
 function isUuid(value: string): boolean {
@@ -39,15 +46,11 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body;
     const business_id =
       typeof body.business_id === "string" ? body.business_id.trim() : "";
-    const guest_email_raw =
-      typeof body.guest_email === "string"
-        ? body.guest_email.trim().toLowerCase()
-        : "";
-    const guest_email = await resolveReviewGuestEmail(guest_email_raw);
+    const effectiveEmail = await getEffectiveEmail(req, body.guest_email);
     const reviewBody =
       typeof body.body === "string" ? body.body.trim() : "";
 
-    if (!isUuid(business_id) || !guest_email.includes("@") || !reviewBody) {
+    if (!isUuid(business_id) || !effectiveEmail.includes("@") || !reviewBody) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
@@ -77,10 +80,6 @@ export async function POST(req: Request) {
         ? body.title.trim()
         : null;
 
-    const displayName = getSafeReviewGuestDisplayName(
-      typeof body.guest_name === "string" ? body.guest_name : undefined,
-    ).slice(0, 200);
-
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -88,7 +87,7 @@ export async function POST(req: Request) {
       .from("reviews")
       .select("id, draft, status, visibility, created_at")
       .eq("business_id", business_id)
-      .eq("guest_email", guest_email)
+      .eq("guest_email", effectiveEmail)
       .order("created_at", { ascending: false })
       .limit(25);
 
@@ -109,7 +108,6 @@ export async function POST(req: Request) {
         rating: Math.round(ratingNum),
         title: titleVal,
         body: reviewBody,
-        guest_name: displayName,
         date_of_experience,
         updated_at: new Date().toISOString(),
       })

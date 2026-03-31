@@ -3,8 +3,6 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
-import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
-import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 type VerifyBody = {
   draft_id?: string;
@@ -131,11 +129,20 @@ export async function POST(req: Request) {
     }
 
     const d = draft as ReviewDraftRow;
-    const draftEmailRaw = String(d.email ?? "").trim().toLowerCase();
-    const guestEmail = await resolveReviewGuestEmail(draftEmailRaw);
-    const guestNameResolved = getSafeReviewGuestDisplayName(
-      d.guest_name != null ? String(d.guest_name) : undefined,
-    ).slice(0, 200);
+    const guestEmail = String(d.email ?? "").trim().toLowerCase();
+    if (!guestEmail.includes("@")) {
+      return NextResponse.json({ error: "Invalid draft email" }, { status: 400 });
+    }
+    if (String(otpRow.email ?? "").trim().toLowerCase() !== guestEmail) {
+      return NextResponse.json(
+        { error: "Invalid or expired code" },
+        { status: 400 },
+      );
+    }
+    const guestNameResolved =
+      (d.guest_name && String(d.guest_name).trim()) ||
+      (guestEmail.includes("@") ? guestEmail.split("@")[0] : "") ||
+      "Customer";
 
     try {
       const { error: insertErr } = await supabaseAdmin.from("reviews").insert({
@@ -143,7 +150,7 @@ export async function POST(req: Request) {
         rating: d.rating,
         title: d.title,
         body: d.body,
-        guest_name: guestNameResolved,
+        guest_name: guestNameResolved.slice(0, 200),
         guest_email: guestEmail,
         date_of_experience: d.date_of_experience,
         status: "published",

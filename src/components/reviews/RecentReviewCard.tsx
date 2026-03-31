@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/popover";
 import ReviewShareMenu from "@/components/ReviewShareMenu";
 import { similarBusinessLogoUrl } from "@/lib/logo";
-import { formatPublicReviewDisplayName } from "@/lib/reviewGuestDisplayName";
 
 type BusinessReply = { body: string; createdAt: string };
 
@@ -71,9 +70,7 @@ export default function RecentReviewCard({
     review.business?.slug ||
     null;
 
-  const reviewerName = formatPublicReviewDisplayName(
-    review.reviewer_name ?? review.guest_name,
-  );
+  const reviewerName = review.reviewer_name;
   
   let dateText = "";
   try {

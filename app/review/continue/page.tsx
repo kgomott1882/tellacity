@@ -14,12 +14,12 @@ export default function ContinueReviewPage() {
         ? window.localStorage.getItem(PENDING_REVIEW_DRAFT_ID_KEY)
         : null;
 
-    if (draftId) {
-      router.replace(`/write-review?draft_id=${encodeURIComponent(draftId)}`);
+    if (!draftId) {
+      router.replace("/");
       return;
     }
 
-    router.replace("/write-review");
+    router.replace(`/write-review?draft_id=${encodeURIComponent(draftId)}`);
   }, [router]);
 
   return (
