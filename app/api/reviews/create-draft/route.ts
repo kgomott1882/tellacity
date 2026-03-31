@@ -133,15 +133,8 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
-  const effectiveEmail = await getEffectiveEmail(req, body.guest_email);
-  if (!effectiveEmail || !effectiveEmail.includes("@")) {
-    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-  }
-  const authUser = await getAuthUser(req);
-  const isGoogleUser = !!authUser;
-
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
-  if (!invEmail || invEmail !== effectiveEmail) {
+  if (!invEmail || !invEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 

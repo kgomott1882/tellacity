@@ -143,11 +143,8 @@ export async function POST(req: Request) {
     }
 
     const d = draft as ReviewDraftRow;
-    const guestEmail = String(d.email ?? "").trim().toLowerCase();
+    const guestEmail = String(otpRow.email ?? "").trim().toLowerCase();
     if (!guestEmail.includes("@")) {
-      return NextResponse.json({ error: "Invalid draft email" }, { status: 400 });
-    }
-    if (String(otpRow.email ?? "").trim().toLowerCase() !== guestEmail) {
       return NextResponse.json(
         { error: "Invalid or expired code" },
         { status: 400 },
