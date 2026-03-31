@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { PLAN_INVITE_LIMITS, getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
+import { getMonthlyInviteLimitForBusiness } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
@@ -25,9 +25,7 @@ export async function POST(req: Request) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve effective plan via subscriptions so usage matches send endpoint
-    const effectivePlan: PlanKey = await getActivePlanKeyForBusiness(businessId, supabase);
-    const limit = PLAN_INVITE_LIMITS[effectivePlan];
+    const limit = await getMonthlyInviteLimitForBusiness(businessId, supabase);
 
     const startOfMonth = new Date();
     startOfMonth.setUTCDate(1);

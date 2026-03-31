@@ -177,13 +177,6 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     );
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  if (!/^\d{6}$/.test(code)) {
-    throw new Error(`OTP code generation failed: ${String(code)}`);
-  }
-
-  await supabase.from("review_drafts").delete().eq("invite_id", inviteRowId);
-
   const titleVal =
     typeof body.title === "string" && body.title.trim()
       ? body.title.trim()
@@ -198,46 +191,89 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
     "Customer";
 
-  const { data: draft, error: draftError } = await supabase
+  const { data: existingDraft } = await supabase
     .from("review_drafts")
-    .insert({
-      business_id,
-      rating: Math.round(ratingNum),
-      title: titleVal,
-      body: rawBody,
-      invite_id: inviteRowId,
-      email: invite.recipient_email,
-      guest_name: guestNameForDraft,
-    })
-    .select()
-    .single();
+    .select("id")
+    .eq("invite_id", inviteRowId)
+    .maybeSingle();
 
-  if (draftError) {
-    console.error("REVIEW DRAFT INSERT ERROR:", draftError);
-    throw draftError;
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error(`OTP code generation failed: ${String(code)}`);
   }
 
-  if (!draft?.id) {
-    throw new Error("Draft insert returned no id");
+  const reusedExistingDraft = Boolean(existingDraft?.id);
+  let draftId: string;
+
+  if (reusedExistingDraft && existingDraft?.id) {
+    const existingId = String(existingDraft.id);
+    const { data: updated, error: updErr } = await supabase
+      .from("review_drafts")
+      .update({
+        business_id,
+        rating: Math.round(ratingNum),
+        title: titleVal,
+        body: rawBody,
+        email: invite.recipient_email,
+        guest_name: guestNameForDraft,
+      })
+      .eq("id", existingId)
+      .select("id")
+      .single();
+
+    if (updErr || !updated?.id) {
+      console.error("REVIEW DRAFT UPDATE ERROR:", updErr);
+      throw updErr ?? new Error("Draft update returned no id");
+    }
+    draftId = String(updated.id);
+    await supabase.from("review_otps").delete().eq("draft_id", draftId);
+  } else {
+    const { data: inserted, error: draftError } = await supabase
+      .from("review_drafts")
+      .insert({
+        business_id,
+        rating: Math.round(ratingNum),
+        title: titleVal,
+        body: rawBody,
+        invite_id: inviteRowId,
+        email: invite.recipient_email,
+        guest_name: guestNameForDraft,
+      })
+      .select("id")
+      .single();
+
+    if (draftError) {
+      console.error("REVIEW DRAFT INSERT ERROR:", draftError);
+      throw draftError;
+    }
+
+    if (!inserted?.id) {
+      throw new Error("Draft insert returned no id");
+    }
+    draftId = String(inserted.id);
   }
 
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const { error: otpError } = await supabase.from("review_otps").insert({
     email: invite.recipient_email,
     code,
-    draft_id: draft.id,
+    draft_id: draftId,
     expires_at: expiresAt,
   });
 
   if (otpError) {
     console.error("review_otps insert error:", otpError);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
+    if (!reusedExistingDraft) {
+      await supabase.from("review_drafts").delete().eq("id", draftId);
+    }
     throw otpError;
   }
 
   if (!process.env.RESEND_API_KEY) {
-    await supabase.from("review_otps").delete().eq("draft_id", draft.id);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
+    await supabase.from("review_otps").delete().eq("draft_id", draftId);
+    if (!reusedExistingDraft) {
+      await supabase.from("review_drafts").delete().eq("id", draftId);
+    }
     return NextResponse.json(
       { error: "Email is not configured. Please try again later." },
       { status: 503 },
@@ -256,8 +292,10 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     }
   } catch (mailErr) {
     console.error("RESEND ERROR:", mailErr);
-    await supabase.from("review_otps").delete().eq("draft_id", draft.id);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
+    await supabase.from("review_otps").delete().eq("draft_id", draftId);
+    if (!reusedExistingDraft) {
+      await supabase.from("review_drafts").delete().eq("id", draftId);
+    }
     return NextResponse.json(
       { error: "Could not send verification email." },
       { status: 500 },
@@ -266,7 +304,7 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
 
   return NextResponse.json({
     success: true,
-    draft_id: draft.id,
+    draft_id: draftId,
     verification_email: invEmail,
   });
 }

@@ -32,7 +32,7 @@ export default function InviteReviewFlow({
   reviewerEmail,
 }: InviteReviewFlowProps) {
   const [step, setStep] = useState<"form" | "otp" | "success">("form");
-  /** Set only from POST /api/reviews/create-draft response `draft_id` — never from URL `token`. */
+  /** From GET find-draft reuse, POST create-draft, or OTP session — never from URL `token`. */
   const [draftId, setDraftId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,6 +104,23 @@ export default function InviteReviewFlow({
 
     (async () => {
       try {
+        const checkRes = await fetch(
+          `/api/reviews/find-draft?invite_id=${encodeURIComponent(inviteId)}`,
+          { credentials: "include" },
+        );
+        const checkData = (await checkRes.json().catch(() => ({}))) as {
+          draft_id?: string;
+        };
+        if (cancelled) return;
+        const existingId =
+          typeof checkData.draft_id === "string"
+            ? checkData.draft_id.trim()
+            : "";
+        if (existingId && isDraftIdUuid(existingId)) {
+          setDraftId(existingId);
+          return;
+        }
+
         const res = await fetch("/api/reviews/create-draft", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

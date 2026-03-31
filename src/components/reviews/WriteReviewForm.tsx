@@ -76,6 +76,29 @@ type PendingReviewDraft = {
   receipt_url?: string | null;
 };
 
+/** Google OAuth review payload: review content only — no guest/manual identity. */
+type GooglePendingReviewPayload = {
+  business_id: string;
+  /** For UI restore after redirect */
+  business_name?: string;
+  business_slug?: string;
+  rating: number;
+  title: string;
+  body: string;
+  date_of_experience: string;
+  /** Receipt / proof public URL after upload */
+  proof?: string | null;
+  marketing_opt_in?: boolean;
+  reference_number?: string | null;
+  /** Legacy key from older builds */
+  receipt_url?: string | null;
+};
+
+/** Canonical key for Google pre-OAuth review snapshot (must match product spec). */
+const GOOGLE_REVIEW_CONTEXT = "GOOGLE_REVIEW_CONTEXT";
+const GOOGLE_PENDING_REVIEW = "GOOGLE_PENDING_REVIEW";
+const GOOGLE_PENDING_REVIEW_LEGACY = "tellacity_google_pending_review";
+
 const GUEST_EMAIL_KEY = "tellacity_review_guest_email";
 const GUEST_NAME_KEY = "tellacity_review_guest_name";
 const PENDING_REVIEW_KEY = "tellacity_pending_review";
@@ -89,6 +112,69 @@ function clearGoogleReviewEmail() {
     window.localStorage.removeItem(GOOGLE_REVIEW_EMAIL_KEY);
     window.sessionStorage.removeItem(WRITE_REVIEW_GOOGLE_MODE_KEY);
   }
+}
+
+function readGoogleStoredReviewRaw(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    window.localStorage.getItem(GOOGLE_REVIEW_CONTEXT) ||
+    window.localStorage.getItem(GOOGLE_PENDING_REVIEW) ||
+    window.localStorage.getItem(GOOGLE_PENDING_REVIEW_LEGACY)
+  );
+}
+
+/** Normalizes GOOGLE_REVIEW_CONTEXT (camelCase slug) and legacy GOOGLE_PENDING_REVIEW shapes. */
+function parseGoogleStoredPayload(raw: string): GooglePendingReviewPayload | null {
+  try {
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    const business_id = String(p.business_id ?? "");
+    const body = String(p.body ?? "");
+    if (!business_id || !body.trim()) return null;
+    const business_slug = String(
+      (p.businessSlug ?? p.business_slug ?? "") as string,
+    ).trim();
+    return {
+      business_id,
+      business_slug,
+      business_name:
+        typeof p.business_name === "string" ? p.business_name : undefined,
+      rating: Number(p.rating) || 0,
+      title: typeof p.title === "string" ? p.title : "",
+      body,
+      date_of_experience: String(p.date_of_experience ?? ""),
+      proof:
+        typeof p.proof === "string"
+          ? p.proof
+          : typeof p.receipt_url === "string"
+            ? p.receipt_url
+            : null,
+      marketing_opt_in: Boolean(p.marketing_opt_in),
+      reference_number:
+        typeof p.reference_number === "string" ? p.reference_number : null,
+      receipt_url:
+        typeof p.receipt_url === "string" ? p.receipt_url : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearGoogleReviewStorage() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(GOOGLE_REVIEW_CONTEXT);
+    window.localStorage.removeItem(GOOGLE_PENDING_REVIEW);
+    window.localStorage.removeItem(GOOGLE_PENDING_REVIEW_LEGACY);
+  }
+}
+
+/** Clears guest/email persisted state before Google OAuth — keeps flows isolated. */
+function clearGuestPersistedStateForGoogle() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(GUEST_EMAIL_KEY);
+  window.localStorage.removeItem(GUEST_NAME_KEY);
+  window.localStorage.removeItem(PENDING_REVIEW_KEY);
+  window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
+  window.localStorage.removeItem(PENDING_REVIEW_DRAFT_EMAIL_KEY);
 }
 
 const isUuid = (value: string | null | undefined) =>
@@ -128,6 +214,9 @@ export default function WriteReviewForm({
   const searchParams = useSearchParams();
   const editReviewId = searchParams.get("edit");
   const inviteDraftIdTrimmed = String(inviteDraftId ?? "").trim();
+  const successParam = searchParams.get("success");
+  const isSuccessReviewPage =
+    successParam === "1" || successParam === "review_submitted";
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -189,6 +278,7 @@ export default function WriteReviewForm({
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
   const [restoredReceiptUrl, setRestoredReceiptUrl] = useState<string | null>(null);
   const [googleContinueHandled, setGoogleContinueHandled] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   const showToast = (opts: {
     title: string;
@@ -200,6 +290,7 @@ export default function WriteReviewForm({
 
   const resetGoogleReviewMode = useCallback(() => {
     clearGoogleReviewEmail();
+    clearGoogleReviewStorage();
     setAuthMode("email");
     setGoogleUser(null);
   }, []);
@@ -223,8 +314,7 @@ export default function WriteReviewForm({
     setShowDuplicateModal(false);
     setIsEditing(false);
     setSubmitError(null);
-    resetGoogleReviewMode();
-  }, [businessId, resetGoogleReviewMode]);
+  }, [businessId]);
 
   // Prefill rating from URL-provided initial value (e.g. invite rating widget).
   useEffect(() => {
@@ -314,11 +404,15 @@ export default function WriteReviewForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editReviewId]);
 
-  // Load auth state
+  // Load auth state (Google identity from session metadata only — not guest localStorage)
   useEffect(() => {
+    if (isSuccessReviewPage) {
+      setAuthChecked(true);
+      return;
+    }
     let isMounted = true;
     const loadAuth = async () => {
-      let data: { session: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } } | null } | null = null;
+      let data: { session: { user: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } } | null } | null = null;
       try {
         const result = await supabaseBrowser().auth.getSession();
         data = result.data;
@@ -339,16 +433,40 @@ export default function WriteReviewForm({
         (sessionUser?.user_metadata?.full_name as string | undefined) ??
         null;
       setUserDisplayName(displayName);
-      const googleStored = window.localStorage
-        .getItem(GOOGLE_REVIEW_EMAIL_KEY)
-        ?.trim()
-        .toLowerCase();
-      if (sessionEmail && googleStored && googleStored === sessionEmail.toLowerCase()) {
+
+      const googleReviewFlow =
+        typeof window !== "undefined" &&
+        window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1";
+      const provider =
+        (sessionUser?.app_metadata?.provider as string | undefined) ?? "";
+      const isGoogleProvider =
+        provider === "google" ||
+        Boolean(
+          sessionUser &&
+            "identities" in sessionUser &&
+            Array.isArray(
+              (sessionUser as { identities?: { provider?: string }[] })
+                .identities,
+            ) &&
+            (
+              sessionUser as { identities?: { provider?: string }[] }
+            ).identities?.some((i) => i.provider === "google"),
+        );
+
+      if (
+        sessionUser &&
+        sessionEmail &&
+        (googleReviewFlow || isGoogleProvider)
+      ) {
         setAuthMode("google");
-        setGoogleUser({
-          email: sessionEmail.toLowerCase(),
-          name: displayName ?? "",
-        });
+        const email = sessionEmail.trim().toLowerCase();
+        const nameFromSession =
+          (sessionUser.user_metadata?.full_name as string | undefined)?.trim() ||
+          (sessionUser.user_metadata?.name as string | undefined)?.trim() ||
+          (sessionUser.user_metadata?.display_name as string | undefined)?.trim() ||
+          (email.includes("@") ? email.split("@")[0] : "") ||
+          "";
+        setGoogleUser({ email, name: nameFromSession });
       }
       setAuthChecked(true);
     };
@@ -356,14 +474,18 @@ export default function WriteReviewForm({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isSuccessReviewPage]);
 
-  // Restore guest info from localStorage
+  // Restore guest info from localStorage (email flow only — never Google)
   useEffect(() => {
+    if (isSuccessReviewPage) return;
     if (userId) {
       return;
     }
     if (typeof window === "undefined") {
+      return;
+    }
+    if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1") {
       return;
     }
     const storedEmail = window.localStorage.getItem(GUEST_EMAIL_KEY);
@@ -374,11 +496,14 @@ export default function WriteReviewForm({
     if (storedName && !guestName) {
       setGuestName(storedName);
     }
-  }, [userId, guestEmail, guestName]);
+  }, [userId, guestEmail, guestName, isSuccessReviewPage]);
 
-  // Persist guest info
+  // Persist guest info (email flow only)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1") {
+      return;
+    }
     if (!userId && guestEmail) {
       window.localStorage.setItem(GUEST_EMAIL_KEY, guestEmail);
     }
@@ -386,6 +511,9 @@ export default function WriteReviewForm({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1") {
+      return;
+    }
     if (!userId && guestName) {
       window.localStorage.setItem(GUEST_NAME_KEY, guestName);
     }
@@ -471,9 +599,62 @@ export default function WriteReviewForm({
     };
   }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId, businessSlug]);
 
-  // Restore draft saved before Google sign-in
+  // Restore draft: Google payload (content only) OR guest email pending — mutually isolated
   useEffect(() => {
+    if (isSuccessReviewPage) {
+      setHasRestoredDraft(true);
+      return;
+    }
+    if (searchParams.get("google_continue") === "1") {
+      setHasRestoredDraft(true);
+      return;
+    }
     if (typeof window === "undefined" || hasRestoredDraft) return;
+
+    const googleFlow =
+      window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1";
+    const googleRaw = readGoogleStoredReviewRaw();
+
+    if (googleFlow && googleRaw) {
+      try {
+        const draft = parseGoogleStoredPayload(googleRaw);
+        if (draft?.business_id) {
+          setBusiness((prev) => {
+            if (prev && prev.id === draft.business_id) return prev;
+            return {
+              id: draft.business_id,
+              name:
+                draft.business_name ??
+                (inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business")),
+              slug: draft.business_slug ?? initialBusinessSlug ?? "",
+              website: null,
+            };
+          });
+        }
+        if (draft) {
+          setRating(draft.rating || 0);
+          setTitle(draft.title || "");
+          setBody(draft.body || "");
+          setDateOfExperience(draft.date_of_experience || todayIsoDate());
+          setGuestEmail("");
+          setGuestName("");
+          setMarketingOptIn(draft.marketing_opt_in || false);
+          setReferenceNumber(draft.reference_number ?? "");
+          setRestoredReceiptUrl(draft.proof ?? draft.receipt_url ?? null);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setHasRestoredDraft(true);
+      }
+      return;
+    }
+
+    if (googleFlow) {
+      setHasRestoredDraft(true);
+      return;
+    }
+
     const raw = window.localStorage.getItem(PENDING_REVIEW_KEY);
     if (!raw) {
       setHasRestoredDraft(true);
@@ -517,15 +698,19 @@ export default function WriteReviewForm({
     initialBusinessName,
     initialBusinessSlug,
     inviteId,
+    isSuccessReviewPage,
+    searchParams,
   ]);
 
-  // Resume after Google OAuth: /write-review?draft_id=…
+  // Resume after email OTP: /write-review?draft_id=… (Google flow never uses draft_id / OTP)
   useEffect(() => {
+    if (isSuccessReviewPage) return;
     if (typeof window === "undefined") return;
+    if (window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1") {
+      return;
+    }
     const draftId = searchParams.get("draft_id");
     if (!draftId || !isUuid(draftId)) return;
-    const isGoogleFlow =
-      window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1";
 
     setOtpDraftId(draftId);
     const googleStored =
@@ -543,9 +728,7 @@ export default function WriteReviewForm({
       active: true,
       email: storedEmail,
     });
-    if (!isGoogleFlow) {
-      setOtpModalOpen(true);
-    }
+    setOtpModalOpen(true);
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("draft_id");
@@ -553,19 +736,7 @@ export default function WriteReviewForm({
     router.replace(qs ? `/write-review?${qs}` : "/write-review", {
       scroll: false,
     });
-  }, [router, searchParams]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (authMode !== "google") return;
-    const googleEmail = window.localStorage
-      .getItem(GOOGLE_REVIEW_EMAIL_KEY)
-      ?.trim()
-      .toLowerCase();
-    if (googleEmail) {
-      setGuestEmail(googleEmail);
-    }
-  }, [authMode]);
+  }, [router, searchParams, isSuccessReviewPage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -574,15 +745,7 @@ export default function WriteReviewForm({
     }
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      setAuthMode("email");
-      setGoogleUser(null);
-    }
-  }, [userId]);
-
   const isGuest = !userId && authChecked;
-  const isAuthenticatedReviewer = Boolean((userEmail ?? "").trim()) || authMode === "google";
 
   const isReviewCoreValid = useMemo(() => {
     if (!business) return false;
@@ -604,8 +767,10 @@ export default function WriteReviewForm({
 
     if (isGuest) {
       const emailToUse = reviewerEmail ?? guestEmail;
-      if (!guestName.trim()) return false;
-      if (authMode === "email" && !emailToUse.trim()) return false;
+      if (authMode === "email") {
+        if (!guestName.trim()) return false;
+        if (!emailToUse.trim()) return false;
+      }
       if (authMode === "google" && !googleUser?.email?.trim()) return false;
     }
 
@@ -637,12 +802,13 @@ export default function WriteReviewForm({
     return (guestEmail ?? "").trim().toLowerCase();
   }, [guestEmail]);
 
-  // Invite pages pass reviewerEmail and hide the email field — mirror into guestEmail for the strict helper above.
+  // Invite pages: mirror invite recipient into guestEmail (not when Google-only review flow)
   useEffect(() => {
+    if (authMode === "google" && !String(inviteId ?? "").trim()) return;
     const re = (reviewerEmail ?? "").trim();
     if (!re) return;
     setGuestEmail(re);
-  }, [reviewerEmail]);
+  }, [reviewerEmail, authMode, inviteId]);
 
   const getGoogleSessionEmail = useCallback(async (): Promise<string> => {
     const {
@@ -651,14 +817,14 @@ export default function WriteReviewForm({
     const email = (session?.user?.email ?? "").trim().toLowerCase();
     if (!email) return "";
     const name =
-      (session?.user?.user_metadata?.full_name as string | undefined) ??
-      (session?.user?.user_metadata?.name as string | undefined) ??
-      "";
+      (session?.user?.user_metadata?.full_name as string | undefined)?.trim() ||
+      (session?.user?.user_metadata?.name as string | undefined)?.trim() ||
+      (session?.user?.user_metadata?.display_name as string | undefined)?.trim() ||
+      (email.includes("@") ? email.split("@")[0] : "");
     if (typeof window !== "undefined") {
       window.localStorage.setItem(GOOGLE_REVIEW_EMAIL_KEY, email);
     }
-    setGuestEmail(email);
-    setGoogleUser({ email, name });
+    setGoogleUser({ email, name: name || "" });
     return email;
   }, []);
 
@@ -677,120 +843,140 @@ export default function WriteReviewForm({
     void getGoogleSessionEmail();
   }, [authMode, getGoogleSessionEmail]);
 
+  // After Google OAuth: read GOOGLE_PENDING_REVIEW, hydrate UI, auto-submit via /api/reviews/create (no draft/OTP).
   useEffect(() => {
+    if (isSuccessReviewPage) return;
     if (typeof window === "undefined") return;
     if (googleContinueHandled) return;
-    if (!hasRestoredDraft) return;
+    if (searchParams.get("google_continue") !== "1") return;
 
-    const continueFlag = searchParams.get("google_continue");
-    if (continueFlag !== "1") return;
+    const raw = readGoogleStoredReviewRaw();
+    if (!raw) {
+      setGoogleContinueHandled(true);
+      const p = new URLSearchParams(searchParams.toString());
+      p.delete("google_continue");
+      const qs = p.toString();
+      router.replace(qs ? `/write-review?${qs}` : "/write-review", {
+        scroll: false,
+      });
+      return;
+    }
+
+    const payload = parseGoogleStoredPayload(raw);
+    if (!payload) {
+      setGoogleContinueHandled(true);
+      const p = new URLSearchParams(searchParams.toString());
+      p.delete("google_continue");
+      const qs = p.toString();
+      router.replace(qs ? `/write-review?${qs}` : "/write-review", {
+        scroll: false,
+      });
+      return;
+    }
+
+    setBusiness({
+      id: payload.business_id,
+      name: payload.business_name ?? "Business",
+      slug: payload.business_slug ?? "",
+      website: null,
+    });
+    setRating(Math.max(0, Math.round(Number(payload.rating)) || 0));
+    setTitle(payload.title ?? "");
+    setBody(String(payload.body ?? ""));
+    setDateOfExperience(payload.date_of_experience || todayIsoDate());
+    setGuestEmail("");
+    setGuestName("");
+    setRestoredReceiptUrl(payload.proof ?? payload.receipt_url ?? null);
+    setHasRestoredDraft(true);
+    sessionStorage.setItem(WRITE_REVIEW_GOOGLE_MODE_KEY, "1");
+    setAuthMode("google");
 
     const continueFromGoogle = async () => {
-      if (!business) return;
-
-      const effectiveEmail = await getGoogleSessionEmail();
-      if (!effectiveEmail.includes("@")) return;
-
+      let navigatedSuccess = false;
       setSubmitError(null);
       setIsSubmitting(true);
       try {
-        const response = await fetch("/api/reviews/create-draft", {
-          method: "POST",
-          headers: await getCreateDraftHeaders(),
-          credentials: "include",
-          body: JSON.stringify({
-            business_id: business.id,
-            rating: Math.max(1, Math.min(5, Math.round(rating))),
-            title: title.trim() || null,
-            body: body.trim(),
-            guest_email: effectiveEmail,
-            guest_name: guestName.trim(),
-            receipt_url: restoredReceiptUrl,
-            date_of_experience: dateOfExperience,
-            marketing_opt_in: marketingOptIn,
-            reference_number:
-              business.reference_number_enabled && referenceNumber.trim()
-                ? referenceNumber.trim()
-                : null,
-          }),
-        });
-
-        const data = (await response.json().catch(() => ({}))) as Record<
-          string,
-          unknown
-        >;
-        const verificationEmail =
-          (typeof data.verification_email === "string" &&
-            data.verification_email.trim().toLowerCase()) ||
-          effectiveEmail;
-
-        if (
-          data.published === true &&
-          typeof data.reviewId === "string" &&
-          business.slug
-        ) {
-          resetGoogleReviewMode();
-          showToast({
-            title: "Thank you",
-            description: "Your review has been published.",
-            variant: "success",
-          });
-          router.push(`/b/${business.slug}`);
+        await getGoogleSessionEmail();
+        const {
+          data: { session },
+        } = await supabaseBrowser().auth.getSession();
+        const accessToken = session?.access_token?.trim();
+        if (!accessToken) {
+          setSubmitError("Not authenticated");
           return;
         }
 
-        if (typeof data.draft_id === "string") {
-          const draftId = data.draft_id.trim();
-          setOtpDraftId(draftId);
-          setOtpEmail(verificationEmail);
-          setSubmittedEmail(verificationEmail);
-          setSubmitted(true);
-          setCheckEmailState({ active: true, email: verificationEmail });
-          setOtpModalOpen(true);
-          window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, draftId);
-          window.localStorage.setItem(
-            PENDING_REVIEW_DRAFT_EMAIL_KEY,
-            verificationEmail,
-          );
-        }
+        const ratingNum = Math.max(
+          1,
+          Math.min(5, Math.round(Number(payload.rating))),
+        );
+        const bodyRaw = String(payload.body ?? "").trim();
+        const titleVal =
+          typeof payload.title === "string" && payload.title.trim()
+            ? payload.title.trim()
+            : null;
 
-        if (!response.ok && typeof data.error === "string") {
-          const mapped =
-            reviewErrorMessages[data.error] ||
-            reviewErrorMessages.unexpected_error;
-          setSubmitError(mapped.message);
+        const res = await fetch("/api/reviews/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: payload.business_id,
+            rating: ratingNum,
+            title: titleVal,
+            body: bodyRaw,
+            date_of_experience: payload.date_of_experience,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        if (!res.ok) {
+          const msg = typeof data.error === "string" ? data.error.trim() : "";
+          if (
+            res.status === 409 &&
+            msg === "You have already reviewed this business."
+          ) {
+            clearGoogleReviewStorage();
+            resetGoogleReviewMode();
+            navigatedSuccess = true;
+            router.replace("/write-review?success=1");
+            return;
+          }
+          setSubmitError(data.error || "Failed to submit review");
+          return;
         }
+        clearGoogleReviewStorage();
+        resetGoogleReviewMode();
+        navigatedSuccess = true;
+        router.replace("/write-review?success=1");
       } catch {
         setSubmitError("Something went wrong");
       } finally {
         setIsSubmitting(false);
         setGoogleContinueHandled(true);
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("google_continue");
-        const qs = params.toString();
-        router.replace(qs ? `/write-review?${qs}` : "/write-review", {
-          scroll: false,
-        });
+        if (!navigatedSuccess) {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("google_continue");
+          const qs = params.toString();
+          router.replace(qs ? `/write-review?${qs}` : "/write-review", {
+            scroll: false,
+          });
+        }
       }
     };
 
     void continueFromGoogle();
   }, [
     googleContinueHandled,
-    hasRestoredDraft,
     searchParams,
-    business,
-    getGoogleSessionEmail,
-    rating,
-    title,
-    body,
-    guestName,
-    restoredReceiptUrl,
-    dateOfExperience,
-    marketingOptIn,
-    referenceNumber,
-    authMode,
     router,
+    isSuccessReviewPage,
+    resetGoogleReviewMode,
+    getGoogleSessionEmail,
   ]);
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -872,109 +1058,59 @@ export default function WriteReviewForm({
       return;
     }
 
-    const effectiveEmail =
-      (userEmail ?? "").trim().toLowerCase() ||
-      (googleUser?.email ?? "").trim().toLowerCase() ||
-      (guestEmail ?? "").trim().toLowerCase();
+    const isGoogleUser = authMode === "google";
+    const user = userId;
+    const hasInviteContext =
+      Boolean(String(inviteId ?? "").trim()) ||
+      Boolean(String(inviteToken ?? "").trim());
+    const isEditReviewFlow = Boolean(isEditing) || Boolean(editReviewId?.trim());
 
-    if (authMode === "google") {
+    if (!hasInviteContext && !isEditReviewFlow && (isGoogleUser || user)) {
       setIsSubmitting(true);
       try {
-        const finalEmail = (await getGoogleSessionEmail()) || effectiveEmail;
-        if (!finalEmail.includes("@")) {
+        const session = await supabaseBrowser().auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        if (!accessToken) {
+          setSubmitError("Not authenticated");
           return;
         }
-        const res = await fetch("/api/reviews/update", {
+
+        const res = await fetch("/api/reviews/create", {
           method: "POST",
-          headers: await getCreateDraftHeaders(),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
           credentials: "include",
           body: JSON.stringify({
             business_id: business.id,
-            guest_email: finalEmail,
             rating: Math.max(1, Math.min(5, Math.round(rating))),
             title: title.trim() || null,
             body: body.trim(),
             date_of_experience: dateOfExperience,
-            auth_mode: "authenticated",
           }),
         });
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          success?: boolean;
-        };
-        if (!res.ok || data.success !== true) {
-          throw new Error(
-            typeof data.error === "string" ? data.error : "Failed",
-          );
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          const msg = typeof err.error === "string" ? err.error.trim() : "";
+          if (
+            res.status === 409 &&
+            userId &&
+            msg === "You have already reviewed this business."
+          ) {
+            clearGoogleReviewStorage();
+            resetGoogleReviewMode();
+            router.replace("/write-review?success=1");
+            return;
+          }
+          setSubmitError(err.error || "Failed to submit review");
+          return;
         }
+        clearGoogleReviewStorage();
         resetGoogleReviewMode();
-        showToast({
-          title: "Review published successfully",
-          description: "Your review has been published.",
-          variant: "success",
-        });
-        router.push(`/b/${business.slug}`);
-        return;
-      } catch (err) {
-        console.error(err);
-        showToast({
-          title: "Something went wrong",
-          description: "Please try again.",
-          variant: "destructive",
-        });
-        return;
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-
-    if (isAuthenticatedReviewer) {
-      setIsSubmitting(true);
-      try {
-        const finalEmail = effectiveEmail || (await getGoogleSessionEmail());
-        if (!finalEmail.includes("@")) {
-          showToast({
-            title: "Email required",
-            description: "We couldn't verify your account email. Please sign in again.",
-            variant: "destructive",
-          });
-          return;
-        }
-        const res = await fetch("/api/reviews/update", {
-          method: "POST",
-          headers: await getCreateDraftHeaders(),
-          credentials: "include",
-          body: JSON.stringify({
-            business_id: business.id,
-            guest_email: finalEmail,
-            rating: Math.max(1, Math.min(5, Math.round(rating))),
-            title: title.trim() || null,
-            body: body.trim(),
-            date_of_experience: dateOfExperience,
-            auth_mode: "authenticated",
-          }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          success?: boolean;
-        };
-        if (!res.ok || data.success !== true) {
-          throw new Error(typeof data.error === "string" ? data.error : "Failed");
-        }
-        showToast({
-          title: "Thank you",
-          description: "Your review has been published.",
-          variant: "success",
-        });
-        router.push(`/b/${business.slug}`);
-        return;
-      } catch (err) {
-        console.error(err);
-        showToast({
-          title: "Something went wrong",
-          description: "Please try again.",
-          variant: "destructive",
-        });
+        router.replace("/write-review?success=1");
         return;
       } finally {
         setIsSubmitting(false);
@@ -1067,6 +1203,12 @@ export default function WriteReviewForm({
           const errStr =
             data && typeof data.error === "string" ? data.error.trim() : "";
           if (errStr === "You have already reviewed this business.") {
+            if (userId) {
+              clearGoogleReviewStorage();
+              resetGoogleReviewMode();
+              router.replace("/write-review?success=1");
+              return;
+            }
             resetGoogleReviewMode();
             setShowDuplicateModal(true);
             setSubmitError(null);
@@ -1117,6 +1259,11 @@ export default function WriteReviewForm({
           typeof data.reviewId === "string"
         ) {
           resetGoogleReviewMode();
+          if (userId) {
+            clearGoogleReviewStorage();
+            router.replace("/write-review?success=1");
+            return;
+          }
           showToast({
             title: "Thank you",
             description: "Your review has been published.",
@@ -1132,6 +1279,11 @@ export default function WriteReviewForm({
           typeof data.reviewId === "string"
         ) {
           resetGoogleReviewMode();
+          if (userId) {
+            clearGoogleReviewStorage();
+            router.replace("/write-review?success=1");
+            return;
+          }
           setShowDuplicateModal(true);
           setSubmitError(null);
           return;
@@ -1576,25 +1728,27 @@ export default function WriteReviewForm({
     }
 
     try {
-      const receiptUrl = await uploadProofIfNeeded();
-      const pendingLocalDraft: PendingReviewDraft = {
+      clearGuestPersistedStateForGoogle();
+      setGuestName("");
+      setGuestEmail("");
+      setOtpDraftId(null);
+      setOtpEmail(null);
+      setOtpModalOpen(false);
+      setSubmitted(false);
+      setSubmittedEmail("");
+      setCheckEmailState({ active: false, email: "" });
+
+      const googleContext = {
+        businessSlug: business.slug,
         business_id: business.id,
-        business_name: business.name,
-        business_slug: business.slug,
         rating,
         title,
         body,
         date_of_experience: dateOfExperience,
-        guest_email: (guestEmail ?? "").trim().toLowerCase(),
-        guest_name: guestName.trim(),
-        marketing_opt_in: marketingOptIn,
-        reference_number: referenceNumber.trim() || null,
-        receipt_url: receiptUrl,
       };
-
       window.localStorage.setItem(
-        PENDING_REVIEW_KEY,
-        JSON.stringify(pendingLocalDraft),
+        GOOGLE_REVIEW_CONTEXT,
+        JSON.stringify(googleContext),
       );
       window.sessionStorage.setItem(WRITE_REVIEW_GOOGLE_MODE_KEY, "1");
 
@@ -1602,7 +1756,7 @@ export default function WriteReviewForm({
       await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent("/review/continue")}`,
+          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent("/write-review?google_continue=1")}`,
         },
       });
     } catch {
@@ -1629,6 +1783,7 @@ export default function WriteReviewForm({
     setShowDuplicateModal(false);
     setIsEditing(false);
     setCheckEmailState({ active: false, email: "" });
+    setShowEmailForm(false);
     resetGoogleReviewMode();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
@@ -1869,68 +2024,100 @@ export default function WriteReviewForm({
 
                 {authMode === "email" && (
                   <>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label
-                          htmlFor="guest-name"
-                          className="text-xs font-medium text-[#0E0E0E]"
-                        >
-                          Your name
-                        </label>
-                        <input
-                          id="guest-name"
-                          type="text"
-                          value={guestName}
-                          onChange={(event) => setGuestName(event.target.value)}
-                          disabled={isSubmitting}
-                          className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                        />
-                      </div>
-                      <div>
-                        {reviewerEmail ? (
-                          <div className="text-sm text-gray-600">
-                            Posting as <strong>{reviewerEmail}</strong>
-                          </div>
-                        ) : (
-                          <>
+                    {!showEmailForm ? (
+                      <>
+                        <p className="mb-3 text-center text-sm text-gray-600">
+                          Choose how you&apos;d like to continue
+                        </p>
+                        <div className="space-y-3">
+                          <Button
+                            type="button"
+                            onClick={() => setShowEmailForm(true)}
+                            className="w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
+                          >
+                            Continue with Email
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={handleGoogleSelect}
+                            className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-[#B8B8B8] bg-white px-5 py-3 text-lg font-medium text-[#202124] hover:bg-[#f8f9fa]"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                              <path d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z" fill="#4285F4" />
+                              <path d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z" fill="#34A853" />
+                              <path d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z" fill="#FBBC05" />
+                              <path d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z" fill="#EA4335" />
+                            </svg>
+                            Continue with Google
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
                             <label
-                              htmlFor="guest-email"
+                              htmlFor="guest-name"
                               className="text-xs font-medium text-[#0E0E0E]"
                             >
-                              Email
+                              Your name
                             </label>
                             <input
-                              id="guest-email"
-                              type="email"
-                              value={guestEmail}
-                              onChange={(event) => setGuestEmail(event.target.value)}
+                              id="guest-name"
+                              type="text"
+                              value={guestName}
+                              onChange={(event) => setGuestName(event.target.value)}
                               disabled={isSubmitting}
                               className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                             />
-                            <p className="mt-1 text-xs text-gray-500">
-                              We&apos;ll send a one-time code to verify your review. Your
-                              email won&apos;t be shown publicly.
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                          </div>
+                          <div>
+                            {reviewerEmail ? (
+                              <div className="text-sm text-gray-600">
+                                Posting as <strong>{reviewerEmail}</strong>
+                              </div>
+                            ) : (
+                              <>
+                                <label
+                                  htmlFor="guest-email"
+                                  className="text-xs font-medium text-[#0E0E0E]"
+                                >
+                                  Email
+                                </label>
+                                <input
+                                  id="guest-email"
+                                  type="email"
+                                  value={guestEmail}
+                                  onChange={(event) => setGuestEmail(event.target.value)}
+                                  disabled={isSubmitting}
+                                  className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
+                                />
+                                <p className="mt-1 text-xs text-gray-500">
+                                  We&apos;ll send a one-time code to verify your review. Your
+                                  email won&apos;t be shown publicly.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
 
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={handleGoogleSelect}
-                        className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-[#B8B8B8] bg-white px-5 py-3 text-lg font-medium text-[#202124] hover:bg-[#f8f9fa]"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
-                          <path d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z" fill="#4285F4" />
-                          <path d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z" fill="#34A853" />
-                          <path d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z" fill="#FBBC05" />
-                          <path d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z" fill="#EA4335" />
-                        </svg>
-                        Continue with Google
-                      </button>
-                    </div>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={handleGoogleSelect}
+                            className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-[#B8B8B8] bg-white px-5 py-3 text-lg font-medium text-[#202124] hover:bg-[#f8f9fa]"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                              <path d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z" fill="#4285F4" />
+                              <path d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z" fill="#34A853" />
+                              <path d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z" fill="#FBBC05" />
+                              <path d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z" fill="#EA4335" />
+                            </svg>
+                            Continue with Google
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 
@@ -2137,22 +2324,22 @@ export default function WriteReviewForm({
       )}
       {showDuplicateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="animate-fadeIn relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          <div className="animate-fadeIn relative w-full max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-xl">
             <button
               type="button"
               onClick={() => setShowDuplicateModal(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-4 top-4 text-emerald-600/70 hover:text-emerald-800"
               aria-label="Close"
             >
               ✕
             </button>
 
             <div className="text-center">
-              <h2 className="mb-2 text-lg font-semibold text-gray-900">
-                You’ve already reviewed this business
+              <h2 className="mb-2 text-lg font-semibold text-emerald-900">
+                You&apos;ve already reviewed this business
               </h2>
 
-              <p className="mb-4 text-sm text-gray-600">
+              <p className="mb-4 text-sm text-emerald-800">
                 We found a published review from this email on this business.
               </p>
 
@@ -2162,7 +2349,7 @@ export default function WriteReviewForm({
                   setShowDuplicateModal(false);
                   setIsEditing(true);
                 }}
-                className="text-sm font-medium text-green-600 hover:underline"
+                className="text-sm font-semibold text-[#1FAF9E] hover:text-[#169786] hover:underline"
               >
                 Update your review
               </button>

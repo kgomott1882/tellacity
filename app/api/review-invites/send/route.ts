@@ -6,7 +6,10 @@ import { Resend } from "resend";
 import crypto from "crypto";
 import { getServerEnv } from "@/lib/serverEnv";
 import { renderInviteEmail } from "@/lib/inviteEmail";
-import { getActivePlanKeyForBusiness, PLAN_INVITE_LIMITS } from "@/lib/plans";
+import {
+  getActivePlanKeyForBusiness,
+  getMonthlyInviteLimitForBusiness,
+} from "@/lib/plans";
 
 export async function POST(req: Request) {
   try {
@@ -51,9 +54,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Plan + monthly limit check (subscriptions only; default free) ─────────
+    // ── Plan base + admin bonus monthly limit (matches dashboard + admin controls) ──
+    const limit = await getMonthlyInviteLimitForBusiness(businessId, supabase);
     const effectivePlan = await getActivePlanKeyForBusiness(businessId, supabase);
-    const limit = PLAN_INVITE_LIMITS[effectivePlan];
 
     const startOfMonth = new Date();
     startOfMonth.setUTCDate(1);

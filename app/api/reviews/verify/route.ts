@@ -115,23 +115,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const otpRow = (otpRows ?? []).find((r) => {
-      const row = r as OtpRow & { used_at?: string | null };
-      const used =
-        row.used_at != null && String(row.used_at).trim().length > 0;
-      return (
-        codesMatch(row.code, codeRaw) &&
-        otpNotExpired(row) &&
-        !used
-      );
-    }) as OtpRow | undefined;
+    const latestOtp = (otpRows ?? [])[0] as OtpRow | undefined;
 
-    if (!otpRow) {
+    if (
+      !latestOtp ||
+      !codesMatch(latestOtp.code, codeRaw) ||
+      !otpNotExpired(latestOtp) ||
+      (latestOtp.used_at &&
+        String(latestOtp.used_at).trim().length > 0)
+    ) {
       return NextResponse.json(
         { error: "Invalid or expired code" },
         { status: 400 },
       );
     }
+
+    const otpRow = latestOtp;
 
     const { data: draft, error: draftErr } = await supabase
       .from("review_drafts")

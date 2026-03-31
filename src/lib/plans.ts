@@ -76,3 +76,66 @@ export async function getActivePlanKeyForBusiness(
   const rawCode = await fetchActiveSubscriptionPlanCode(businessId, db);
   return normalizePlanCodeToKey(rawCode);
 }
+
+/** Matches admin `parseRpcNumber` for `get_bonus_invites` return shapes. */
+function parseBonusInvitesRpc(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.trunc(value));
+  }
+  if (
+    typeof value === "string" &&
+    value.trim() !== "" &&
+    Number.isFinite(Number(value))
+  ) {
+    return Math.max(0, Math.trunc(Number(value)));
+  }
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0] as Record<string, unknown> | number | string | null;
+    if (typeof first === "number" || typeof first === "string") {
+      return parseBonusInvitesRpc(first);
+    }
+    if (first && typeof first === "object") {
+      if ("bonus_invites" in first) {
+        return parseBonusInvitesRpc(
+          (first as Record<string, unknown>).bonus_invites,
+        );
+      }
+      if ("get_bonus_invites" in first) {
+        return parseBonusInvitesRpc(
+          (first as Record<string, unknown>).get_bonus_invites,
+        );
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Admin-granted bonus invites (RPC `get_bonus_invites`), same source as admin business controls.
+ */
+export async function getBonusInvitesForBusiness(
+  businessId: string,
+  db: SupabaseClient
+): Promise<number> {
+  const { data, error } = await db.rpc("get_bonus_invites", {
+    p_business_id: businessId,
+  });
+  if (error) {
+    console.warn("[plans] get_bonus_invites:", error.message);
+    return 0;
+  }
+  return parseBonusInvitesRpc(data);
+}
+
+/**
+ * Monthly invite cap: plan base limit + admin bonus (matches admin “Total Available”).
+ */
+export async function getMonthlyInviteLimitForBusiness(
+  businessId: string,
+  db: SupabaseClient
+): Promise<number> {
+  const plan = await getActivePlanKeyForBusiness(businessId, db);
+  const base = PLAN_INVITE_LIMITS[plan];
+  const bonus = await getBonusInvitesForBusiness(businessId, db);
+  return Math.max(0, base + bonus);
+}

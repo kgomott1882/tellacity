@@ -2,9 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
+import WriteReviewSuccessView from "./WriteReviewSuccessView";
 
 export default function WriteReviewLandingPage() {
   const searchParams = useSearchParams();
+
+  const s = searchParams.get("success");
+  const isSuccess = s === "1" || s === "review_submitted";
 
   const inviteId = searchParams.get("inviteId");
   const inviteToken = searchParams.get("inviteToken");
@@ -12,6 +16,10 @@ export default function WriteReviewLandingPage() {
     searchParams.get("businessId") || searchParams.get("business_id");
   const businessName = searchParams.get("businessName");
   const initialBusinessSlug = searchParams.get("businessSlug");
+
+  if (isSuccess) {
+    return <WriteReviewSuccessView />;
+  }
 
   return (
     <WriteReviewForm
