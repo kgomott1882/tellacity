@@ -1616,6 +1616,13 @@ export default function WriteReviewForm({
     }
   };
 
+  const showFinalizeHint =
+    !!submitError &&
+    submitError.toLowerCase().includes("please try again in a moment");
+  const bannerMessage = showFinalizeHint
+    ? "You are almost done. Click submit review below to finalise"
+    : submitError;
+
   return (
     <main className="bg-white">
       <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -1628,10 +1635,14 @@ export default function WriteReviewForm({
 
         {!showDuplicateModal && submitError && !isSubmitting && (
           <div
-            className="error mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-            role="alert"
+            className={`mt-4 rounded-md px-4 py-3 text-sm ${
+              showFinalizeHint
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border border-red-200 bg-red-50 text-red-800"
+            }`}
+            role={showFinalizeHint ? "status" : "alert"}
           >
-            {submitError}
+            {bannerMessage}
           </div>
         )}
 

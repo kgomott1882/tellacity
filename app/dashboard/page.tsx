@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
@@ -19,6 +20,7 @@ type ReviewItem = {
   title: string | null;
   body: string;
   created_at: string;
+  updated_at?: string | null;
   rating: number;
   status: string | null;
   business?: {
@@ -61,6 +63,24 @@ export default function ConsumerDashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
+  const [showWriteReviewSearch, setShowWriteReviewSearch] = useState(false);
+
+  const recentActivities = useMemo(() => {
+    return reviews.slice(0, 3).map((review) => {
+      const businessName = review.business?.name?.trim() || "a business";
+      const hasMeaningfulEdit =
+        !!review.updated_at &&
+        !!review.created_at &&
+        new Date(review.updated_at).getTime() - new Date(review.created_at).getTime() > 60_000;
+      return {
+        id: review.id,
+        text: hasMeaningfulEdit
+          ? `You updated your review for ${businessName}`
+          : `You reviewed ${businessName}`,
+        date: formatDate(hasMeaningfulEdit ? review.updated_at : review.created_at),
+      };
+    });
+  }, [reviews]);
 
   useEffect(() => {
     let isMounted = true;
@@ -123,7 +143,7 @@ export default function ConsumerDashboard() {
       const { data, error } = await supabase
         .from("reviews")
         .select(
-          "id, title, body, created_at, rating, status, business:businesses(name, slug, logo_url, website, website_display)"
+          "id, title, body, created_at, updated_at, rating, status, business:businesses(name, slug, logo_url, website, website_display)"
         )
         .eq("guest_email", userEmail)
         .order("created_at", { ascending: false });
@@ -292,28 +312,57 @@ export default function ConsumerDashboard() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Link
-                    href="/search"
+                  <button
+                    type="button"
+                    onClick={() => setShowWriteReviewSearch(true)}
                     className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786]"
                   >
                     Write a review
-                  </Link>
-                  <Link
-                    href="/categories"
-                    className="rounded-full border border-[#1FAF9E] px-5 py-2 text-sm font-semibold text-[#1FAF9E] hover:bg-[#1FAF9E]/10"
-                  >
-                    Find a business
-                  </Link>
+                  </button>
                 </div>
+                {showWriteReviewSearch && (
+                  <div className="w-full max-w-2xl">
+                    <BusinessSearchInput
+                      placeholder="Find businesses you can trust..."
+                      className="w-full"
+                      heroLayout
+                      heroButtonLabel="Find a business"
+                      onSelect={(business) => {
+                        if (business?.slug) {
+                          router.push(`/write-review?businessSlug=${business.slug}`);
+                        }
+                      }}
+                      onSubmitQuery={(query: string) => {
+                        if (!query.trim()) return;
+                        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                      }}
+                    />
+                  </div>
+                )}
                 <div>
                   <h2 className="text-lg font-semibold text-[#0E0E0E]">
                     Recent activity
                   </h2>
-                  <ul className="mt-4 space-y-3 text-sm text-gray-600">
-                    <li>You reviewed Makro</li>
-                    <li>You edited your review for ABSA</li>
-                    <li>You liked a review on Uber Eats</li>
-                  </ul>
+                  {loadingReviews ? (
+                    <div className="mt-4 space-y-2">
+                      <div className="h-4 w-52 rounded bg-gray-100" />
+                      <div className="h-4 w-44 rounded bg-gray-100" />
+                      <div className="h-4 w-48 rounded bg-gray-100" />
+                    </div>
+                  ) : recentActivities.length > 0 ? (
+                    <ul className="mt-4 space-y-3 text-sm text-gray-600">
+                      {recentActivities.map((activity) => (
+                        <li key={activity.id} className="flex items-center justify-between gap-4">
+                          <span>{activity.text}</span>
+                          <span className="shrink-0 text-xs text-gray-400">{activity.date}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-4 text-sm text-gray-500">
+                      No recent review activity yet.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
