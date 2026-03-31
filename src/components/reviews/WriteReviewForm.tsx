@@ -572,6 +572,7 @@ export default function WriteReviewForm({
   }, [userId]);
 
   const isGuest = !userId && authChecked;
+  const isAuthenticatedReviewer = Boolean((userEmail ?? "").trim()) || authMode === "google";
 
   const isReviewCoreValid = useMemo(() => {
     if (!business) return false;
@@ -861,10 +862,15 @@ export default function WriteReviewForm({
       return;
     }
 
+    const effectiveEmail =
+      (userEmail ?? "").trim().toLowerCase() ||
+      (googleUser?.email ?? "").trim().toLowerCase() ||
+      (guestEmail ?? "").trim().toLowerCase();
+
     if (authMode === "google") {
       setIsSubmitting(true);
       try {
-        const finalEmail = await getGoogleSessionEmail();
+        const finalEmail = (await getGoogleSessionEmail()) || effectiveEmail;
         if (!finalEmail.includes("@")) {
           return;
         }
@@ -879,7 +885,7 @@ export default function WriteReviewForm({
             title: title.trim() || null,
             body: body.trim(),
             date_of_experience: dateOfExperience,
-            auth_mode: "google",
+            auth_mode: "authenticated",
           }),
         });
         const data = (await res.json().catch(() => ({}))) as {
@@ -894,6 +900,59 @@ export default function WriteReviewForm({
         resetGoogleReviewMode();
         showToast({
           title: "Review published successfully",
+          description: "Your review has been published.",
+          variant: "success",
+        });
+        router.push(`/b/${business.slug}`);
+        return;
+      } catch (err) {
+        console.error(err);
+        showToast({
+          title: "Something went wrong",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    if (isAuthenticatedReviewer) {
+      setIsSubmitting(true);
+      try {
+        const finalEmail = effectiveEmail || (await getGoogleSessionEmail());
+        if (!finalEmail.includes("@")) {
+          showToast({
+            title: "Email required",
+            description: "We couldn't verify your account email. Please sign in again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const res = await fetch("/api/reviews/update", {
+          method: "POST",
+          headers: await getCreateDraftHeaders(),
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: business.id,
+            guest_email: finalEmail,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            date_of_experience: dateOfExperience,
+            auth_mode: "authenticated",
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          success?: boolean;
+        };
+        if (!res.ok || data.success !== true) {
+          throw new Error(typeof data.error === "string" ? data.error : "Failed");
+        }
+        showToast({
+          title: "Thank you",
           description: "Your review has been published.",
           variant: "success",
         });

@@ -92,7 +92,7 @@ export async function POST(req: Request) {
         ? body.title.trim()
         : null;
 
-    if (body.auth_mode === "google" && isGoogleUser) {
+    if (body.auth_mode === "authenticated" || isGoogleUser) {
       const guestName =
         (user?.user_metadata?.full_name as string | undefined)?.trim() ||
         (user?.user_metadata?.name as string | undefined)?.trim() ||
