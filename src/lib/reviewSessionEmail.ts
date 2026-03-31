@@ -20,3 +20,15 @@ export async function resolveReviewGuestEmail(
   }
   return body;
 }
+
+export async function getReviewSessionEmail(): Promise<string> {
+  try {
+    const supabase = await createSupabaseServerCookies();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.user?.email?.trim().toLowerCase() ?? "";
+  } catch {
+    return "";
+  }
+}

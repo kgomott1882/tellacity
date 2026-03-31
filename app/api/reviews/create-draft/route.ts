@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
-import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { getReviewSessionEmail, resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -23,9 +23,26 @@ type Body = {
 };
 
 const getEffectiveEmail = async (
-  _req: Request,
+  req: Request,
   bodyEmail?: string,
 ): Promise<string> => {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearer = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (bearer) {
+    try {
+      const { supabaseUrl, serviceRoleKey } = getServerEnv();
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await supabase.auth.getUser(bearer);
+      if (!error) {
+        const tokenEmail = data.user?.email?.trim().toLowerCase() ?? "";
+        if (tokenEmail) return tokenEmail;
+      }
+    } catch {
+      // fallback below
+    }
+  }
   return resolveReviewGuestEmail(
     typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "",
   );
@@ -96,6 +113,9 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
+  const sessionEmail = await getReviewSessionEmail();
+  const isGoogleVerifiedFlow =
+    !!sessionEmail && sessionEmail === effectiveEmail;
 
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
   if (!invEmail || invEmail !== effectiveEmail) {
@@ -251,6 +271,9 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
+  const sessionEmail = await getReviewSessionEmail();
+  const isGoogleVerifiedFlow =
+    !!sessionEmail && sessionEmail === effectiveEmail;
 
   if (!guest_name_raw) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -335,6 +358,54 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       { requiresUpdate: true, reviewId: guestLive.id },
       { status: 200 },
     );
+  }
+
+  if (isGoogleVerifiedFlow) {
+    try {
+      const { data: inserted, error: insertErr } = await supabase
+        .from("reviews")
+        .insert({
+          business_id,
+          rating: Math.round(ratingNum),
+          title: titleVal,
+          body: rawBody,
+          guest_email: effectiveEmail,
+          guest_name: guest_name_raw.slice(0, 200),
+          date_of_experience,
+          status: "published",
+          visibility: "visible",
+          verification_status: "verified",
+          draft: false,
+          imported: false,
+          marketing_opt_in,
+          receipt_url,
+          reference_number,
+          is_flagged: false,
+        })
+        .select("id")
+        .single();
+
+      if (insertErr || !inserted?.id) {
+        const anyErr = insertErr as { code?: string } | null;
+        if (anyErr?.code === "23505") {
+          return NextResponse.json(
+            { requiresUpdate: true, reviewId: null },
+            { status: 200 },
+          );
+        }
+        console.error("google verified direct insert:", insertErr);
+        return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        published: true,
+        reviewId: inserted.id,
+        verification_email: effectiveEmail,
+      });
+    } catch (err) {
+      console.error("google verified publish error:", err);
+      return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    }
   }
 
   const { data: draft, error: draftError } = await supabase

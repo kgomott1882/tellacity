@@ -647,6 +647,16 @@ export default function WriteReviewForm({
     return email;
   }, []);
 
+  const getCreateDraftHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const { data } = await supabaseBrowser().auth.getSession();
+    const token = data.session?.access_token?.trim();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  }, []);
+
   useEffect(() => {
     if (authMode !== "google") return;
     void getGoogleSessionEmail();
@@ -671,7 +681,7 @@ export default function WriteReviewForm({
       try {
         const response = await fetch("/api/reviews/create-draft", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await getCreateDraftHeaders(),
           credentials: "include",
           body: JSON.stringify({
             business_id: business.id,
@@ -698,6 +708,21 @@ export default function WriteReviewForm({
           (typeof data.verification_email === "string" &&
             data.verification_email.trim().toLowerCase()) ||
           effectiveEmail;
+
+        if (
+          data.published === true &&
+          typeof data.reviewId === "string" &&
+          business.slug
+        ) {
+          resetGoogleReviewMode();
+          showToast({
+            title: "Thank you",
+            description: "Your review has been published.",
+            variant: "success",
+          });
+          router.push(`/b/${business.slug}`);
+          return;
+        }
 
         if (typeof data.draft_id === "string") {
           const draftId = data.draft_id.trim();
@@ -1344,7 +1369,7 @@ export default function WriteReviewForm({
 
       const response = await fetch("/api/reviews/create-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getCreateDraftHeaders(),
         credentials: "include",
         body: JSON.stringify({
           business_id: business.id,
