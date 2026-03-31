@@ -557,13 +557,15 @@ export default function WriteReviewForm({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (authMode !== "google") return;
     const googleEmail = window.localStorage
       .getItem(GOOGLE_REVIEW_EMAIL_KEY)
-      ?.trim();
+      ?.trim()
+      .toLowerCase();
     if (googleEmail) {
       setGuestEmail(googleEmail);
     }
-  }, []);
+  }, [authMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -631,16 +633,16 @@ export default function WriteReviewForm({
   ]);
 
   const getFinalGuestEmailTrimmed = useCallback((): string => {
-    if (authMode === "google") return googleUser?.email?.trim().toLowerCase() ?? "";
-    if (typeof window !== "undefined") {
-      const g = window.localStorage
-        .getItem(GOOGLE_REVIEW_EMAIL_KEY)
-        ?.trim()
-        .toLowerCase();
-      if (g) return g;
-    }
-    return (reviewerEmail ?? guestEmail ?? userEmail ?? "").trim().toLowerCase();
-  }, [authMode, googleUser, reviewerEmail, guestEmail, userEmail]);
+    // STRICT: Guest flow must ONLY use guestEmail input
+    return (guestEmail ?? "").trim().toLowerCase();
+  }, [guestEmail]);
+
+  // Invite pages pass reviewerEmail and hide the email field — mirror into guestEmail for the strict helper above.
+  useEffect(() => {
+    const re = (reviewerEmail ?? "").trim();
+    if (!re) return;
+    setGuestEmail(re);
+  }, [reviewerEmail]);
 
   const getGoogleSessionEmail = useCallback(async (): Promise<string> => {
     const {

@@ -47,6 +47,7 @@ export default function ConsumerDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [loadingUser, setLoadingUser] = useState(true);
+  const [authUserId, setAuthUserId] = useState<string>("");
   const [userEmail, setUserEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [country, setCountry] = useState("");
@@ -110,6 +111,7 @@ export default function ConsumerDashboard() {
         router.push("/auth/login");
         return;
       }
+      setAuthUserId(data.user.id);
 
       const destination = await getPostLoginPath(data.user.id);
       if (!isMounted) return;
@@ -136,16 +138,23 @@ export default function ConsumerDashboard() {
   useEffect(() => {
     let isMounted = true;
     const fetchReviews = async () => {
-      if (!userEmail) return;
+      if (!userEmail && !authUserId) return;
       setLoadingReviews(true);
       setReviewsError("");
       const supabase = supabaseBrowser();
+      const safeEmail = userEmail.trim().toLowerCase();
       const { data, error } = await supabase
         .from("reviews")
         .select(
-          "id, title, body, created_at, updated_at, rating, status, business:businesses(name, slug, logo_url, website, website_display)"
+          "id, title, body, created_at, updated_at, rating, status, user_id, guest_email, business:businesses(name, slug, logo_url, website, website_display)"
         )
-        .eq("guest_email", userEmail)
+        .or(
+          authUserId && safeEmail
+            ? `user_id.eq.${authUserId},guest_email.ilike.${safeEmail}`
+            : authUserId
+              ? `user_id.eq.${authUserId}`
+              : `guest_email.ilike.${safeEmail}`,
+        )
         .order("created_at", { ascending: false });
       if (!isMounted) return;
       if (error) {
@@ -160,7 +169,7 @@ export default function ConsumerDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [userEmail]);
+  }, [userEmail, authUserId]);
 
   const handleSaveProfile = async () => {
     setProfileMessage("");

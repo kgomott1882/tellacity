@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
-import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -26,6 +25,15 @@ const getEffectiveEmail = async (
   req: Request,
   bodyEmail?: string,
 ): Promise<string> => {
+  const cleanBodyEmail =
+    typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "";
+
+  // PRIORITY: Always use form email if provided
+  if (cleanBodyEmail && cleanBodyEmail.includes("@")) {
+    return cleanBodyEmail;
+  }
+
+  // Fallback to auth token only if NO email provided
   const authHeader = req.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ")
     ? authHeader.slice("Bearer ".length).trim()
@@ -40,12 +48,10 @@ const getEffectiveEmail = async (
         if (tokenEmail) return tokenEmail;
       }
     } catch {
-      // fallback below
+      // ignore
     }
   }
-  return resolveReviewGuestEmail(
-    typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "",
-  );
+  return "";
 };
 
 const getAuthUser = async (req: Request) => {
@@ -131,7 +137,8 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
-  const isGoogleUser = !!(await getAuthUser(req));
+  const authUser = await getAuthUser(req);
+  const isGoogleUser = !!authUser;
 
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
   if (!invEmail || invEmail !== effectiveEmail) {
@@ -287,7 +294,8 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
-  const isGoogleUser = !!(await getAuthUser(req));
+  const authUser = await getAuthUser(req);
+  const isGoogleUser = !!authUser;
 
   if (!guest_name_raw) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -395,6 +403,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           receipt_url,
           reference_number,
           is_flagged: false,
+          user_id: isGoogleUser ? authUser?.id : null,
         })
         .select("id")
         .single();

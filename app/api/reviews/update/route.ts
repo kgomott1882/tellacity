@@ -121,6 +121,7 @@ export async function POST(req: Request) {
             date_of_experience,
             status: "published",
             verification_status: "verified",
+            user_id: user?.id ?? null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingLive.id);
@@ -146,6 +147,7 @@ export async function POST(req: Request) {
           draft: false,
           imported: false,
           is_flagged: false,
+          user_id: user?.id ?? null,
         });
       if (insertErr) {
         const insertCode = (insertErr as { code?: string }).code;
