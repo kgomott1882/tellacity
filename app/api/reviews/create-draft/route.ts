@@ -30,6 +30,21 @@ type Body = {
   reference_number?: string | null;
 };
 
+type OtpLookupRow = {
+  id: string;
+  draft_id: string;
+  created_at: string;
+  expires_at: string | null;
+};
+
+function otpIsStillValid(row: OtpLookupRow): boolean {
+  const deadline = row.expires_at
+    ? new Date(String(row.expires_at)).getTime()
+    : new Date(String(row.created_at)).getTime() + 10 * 60 * 1000;
+  if (Number.isNaN(deadline)) return false;
+  return deadline >= Date.now();
+}
+
 const getEffectiveEmail = async (
   req: Request,
   bodyEmail?: string,
@@ -188,8 +203,6 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     throw new Error(`OTP code generation failed: ${String(code)}`);
   }
 
-  await supabase.from("review_drafts").delete().eq("invite_id", inviteRowId);
-
   const titleVal =
     typeof body.title === "string" && body.title.trim()
       ? body.title.trim()
@@ -204,75 +217,117 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
     "Customer";
 
-  const { data: draft, error: draftError } = await supabase
+  const { data: existingDraft } = await supabase
     .from("review_drafts")
-    .insert({
-      business_id,
-      rating: Math.round(ratingNum),
-      title: titleVal,
-      body: rawBody,
-      invite_id: inviteRowId,
+    .select("id")
+    .eq("invite_id", inviteRowId)
+    .eq("email", invEmail)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let draftId = String(existingDraft?.id ?? "").trim();
+  if (draftId) {
+    await supabase
+      .from("review_drafts")
+      .update({
+        business_id,
+        rating: Math.round(ratingNum),
+        title: titleVal,
+        body: rawBody,
+        guest_name: guestNameForDraft,
+      })
+      .eq("id", draftId);
+  } else {
+    const { data: draft, error: draftError } = await supabase
+      .from("review_drafts")
+      .insert({
+        business_id,
+        rating: Math.round(ratingNum),
+        title: titleVal,
+        body: rawBody,
+        invite_id: inviteRowId,
+        email: invite.recipient_email,
+        guest_name: guestNameForDraft,
+      })
+      .select("id")
+      .single();
+
+    if (draftError) {
+      console.error("REVIEW DRAFT INSERT ERROR:", draftError);
+      throw draftError;
+    }
+    draftId = String(draft?.id ?? "").trim();
+    if (!draftId) {
+      throw new Error("Draft insert returned no id");
+    }
+  }
+
+  const { data: latestOtpRows, error: otpLookupErr } = await supabase
+    .from("review_otps")
+    .select("id, draft_id, created_at, expires_at")
+    .eq("draft_id", draftId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (otpLookupErr) {
+    console.error("review_otps lookup error:", otpLookupErr);
+    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+  }
+
+  const latestOtp = (latestOtpRows?.[0] as OtpLookupRow | undefined) ?? undefined;
+  const hasActiveOtp = latestOtp ? otpIsStillValid(latestOtp) : false;
+
+  if (!hasActiveOtp) {
+    await supabase.from("review_otps").delete().eq("draft_id", draftId);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const { error: otpError } = await supabase.from("review_otps").insert({
       email: invite.recipient_email,
-      guest_name: guestNameForDraft,
-    })
-    .select()
-    .single();
+      code,
+      draft_id: draftId,
+      expires_at: expiresAt,
+    });
 
-  if (draftError) {
-    console.error("REVIEW DRAFT INSERT ERROR:", draftError);
-    throw draftError;
-  }
-
-  if (!draft?.id) {
-    throw new Error("Draft insert returned no id");
-  }
-
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  const { error: otpError } = await supabase.from("review_otps").insert({
-    email: invite.recipient_email,
-    code,
-    draft_id: draft.id,
-    expires_at: expiresAt,
-  });
-
-  if (otpError) {
-    console.error("review_otps insert error:", otpError);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
-    throw otpError;
+    if (otpError) {
+      console.error("review_otps insert error:", otpError);
+      throw otpError;
+    }
   }
 
   if (!process.env.RESEND_API_KEY) {
-    await supabase.from("review_otps").delete().eq("draft_id", draft.id);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
+    await supabase.from("review_otps").delete().eq("draft_id", draftId);
+    await supabase.from("review_drafts").delete().eq("id", draftId);
     return NextResponse.json(
       { error: "Email is not configured. Please try again later." },
       { status: 503 },
     );
   }
 
-  try {
-    const sendRes = await resend.emails.send({
-      from: resendFromHeader(),
-      to: invite.recipient_email as string,
-      subject: "Your verification code",
-      html: `<p>Your verification code is <strong>${code}</strong></p>`,
-    });
-    if (sendRes.error) {
-      throw sendRes.error;
+  if (!hasActiveOtp) {
+    try {
+      const sendRes = await resend.emails.send({
+        from: resendFromHeader(),
+        to: invite.recipient_email as string,
+        subject: "Your verification code",
+        html: `<p>Your verification code is <strong>${code}</strong></p>`,
+      });
+      if (sendRes.error) {
+        throw sendRes.error;
+      }
+    } catch (mailErr) {
+      console.error("RESEND ERROR:", mailErr);
+      await supabase.from("review_otps").delete().eq("draft_id", draftId);
+      await supabase.from("review_drafts").delete().eq("id", draftId);
+      return NextResponse.json(
+        { error: "Could not send verification email." },
+        { status: 500 },
+      );
     }
-  } catch (mailErr) {
-    console.error("RESEND ERROR:", mailErr);
-    await supabase.from("review_otps").delete().eq("draft_id", draft.id);
-    await supabase.from("review_drafts").delete().eq("id", draft.id);
-    return NextResponse.json(
-      { error: "Could not send verification email." },
-      { status: 500 },
-    );
   }
 
   return NextResponse.json({
     success: true,
-    draft_id: draft.id,
+    draft_id: draftId,
     verification_email: invEmail,
   });
 }

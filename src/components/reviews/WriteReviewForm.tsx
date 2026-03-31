@@ -847,6 +847,7 @@ export default function WriteReviewForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!business) return;
+    if (isSubmitting) return;
 
     setSubmitError(null);
     setCheckEmailState({ active: false, email: "" });
