@@ -209,6 +209,11 @@ export default function WriteReviewForm({
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (!submitError) return;
+    setSubmitError(null);
+  }, [rating, body, title, dateOfExperience]);
+
   const businessId = business?.id;
 
   useEffect(() => {
@@ -1019,8 +1024,11 @@ export default function WriteReviewForm({
         });
         router.push(`/b/${business.slug}`);
         return;
-      } catch {
-        setSubmitError("Something went wrong");
+      } catch (err: any) {
+        console.error(err);
+        if (typeof err?.message === "string" && err.message.trim()) {
+          setSubmitError(err.message);
+        }
         showToast({
           title: reviewErrorMessages.unexpected_error.title,
           description: reviewErrorMessages.unexpected_error.message,
@@ -1618,7 +1626,7 @@ export default function WriteReviewForm({
           Share your experience to help others make better decisions.
         </p>
 
-        {!showDuplicateModal && submitError && (
+        {!showDuplicateModal && submitError && !isSubmitting && (
           <div
             className="error mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
             role="alert"
