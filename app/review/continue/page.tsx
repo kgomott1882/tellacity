@@ -15,7 +15,7 @@ export default function ContinueReviewPage() {
         : null;
 
     if (!draftId) {
-      router.replace("/");
+      router.replace("/write-review?google_continue=1");
       return;
     }
 

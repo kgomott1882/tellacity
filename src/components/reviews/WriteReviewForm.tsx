@@ -72,6 +72,7 @@ type PendingReviewDraft = {
   guest_name: string;
   marketing_opt_in: boolean;
   reference_number?: string | null;
+  receipt_url?: string | null;
 };
 
 const GUEST_EMAIL_KEY = "tellacity_review_guest_email";
@@ -183,6 +184,8 @@ export default function WriteReviewForm({
   } | null>(null);
 
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  const [restoredReceiptUrl, setRestoredReceiptUrl] = useState<string | null>(null);
+  const [googleContinueHandled, setGoogleContinueHandled] = useState(false);
 
   const showToast = (opts: {
     title: string;
@@ -493,6 +496,7 @@ export default function WriteReviewForm({
         setGuestName((prev) => prev || draft.guest_name || "");
         setMarketingOptIn(draft.marketing_opt_in || false);
         setReferenceNumber(draft.reference_number ?? "");
+        setRestoredReceiptUrl(draft.receipt_url ?? null);
       }
     } catch {
       // ignore parsing errors
@@ -644,6 +648,106 @@ export default function WriteReviewForm({
     if (authMode !== "google") return;
     void getGoogleSessionEmail();
   }, [authMode, getGoogleSessionEmail]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (googleContinueHandled) return;
+    if (!hasRestoredDraft) return;
+
+    const continueFlag = searchParams.get("google_continue");
+    if (continueFlag !== "1") return;
+
+    const continueFromGoogle = async () => {
+      if (!business) return;
+
+      const effectiveEmail = await getGoogleSessionEmail();
+      if (!effectiveEmail.includes("@")) return;
+
+      setSubmitError(null);
+      setIsSubmitting(true);
+      try {
+        const response = await fetch("/api/reviews/create-draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: business.id,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            guest_email: effectiveEmail,
+            guest_name: guestName.trim(),
+            receipt_url: restoredReceiptUrl,
+            date_of_experience: dateOfExperience,
+            marketing_opt_in: marketingOptIn,
+            reference_number:
+              business.reference_number_enabled && referenceNumber.trim()
+                ? referenceNumber.trim()
+                : null,
+          }),
+        });
+
+        const data = (await response.json().catch(() => ({}))) as Record<
+          string,
+          unknown
+        >;
+        const verificationEmail =
+          (typeof data.verification_email === "string" &&
+            data.verification_email.trim().toLowerCase()) ||
+          effectiveEmail;
+
+        if (typeof data.draft_id === "string") {
+          const draftId = data.draft_id.trim();
+          setOtpDraftId(draftId);
+          setOtpEmail(verificationEmail);
+          setSubmittedEmail(verificationEmail);
+          setSubmitted(true);
+          setCheckEmailState({ active: true, email: verificationEmail });
+          setOtpModalOpen(true);
+          window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, draftId);
+          window.localStorage.setItem(
+            PENDING_REVIEW_DRAFT_EMAIL_KEY,
+            verificationEmail,
+          );
+        }
+
+        if (!response.ok && typeof data.error === "string") {
+          const mapped =
+            reviewErrorMessages[data.error] ||
+            reviewErrorMessages.unexpected_error;
+          setSubmitError(mapped.message);
+        }
+      } catch {
+        setSubmitError("Something went wrong");
+      } finally {
+        setIsSubmitting(false);
+        setGoogleContinueHandled(true);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("google_continue");
+        const qs = params.toString();
+        router.replace(qs ? `/write-review?${qs}` : "/write-review", {
+          scroll: false,
+        });
+      }
+    };
+
+    void continueFromGoogle();
+  }, [
+    googleContinueHandled,
+    hasRestoredDraft,
+    searchParams,
+    business,
+    getGoogleSessionEmail,
+    rating,
+    title,
+    body,
+    guestName,
+    restoredReceiptUrl,
+    dateOfExperience,
+    marketingOptIn,
+    referenceNumber,
+    router,
+  ]);
 
   const handleProofChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setProofError(null);
@@ -1293,11 +1397,49 @@ export default function WriteReviewForm({
 
   const signInWithGoogle = async () => {
     if (typeof window === "undefined") return;
+    if (!business) {
+      setSubmitError("Please choose a business before continuing with Google.");
+      return;
+    }
+    if (!isFormValid) {
+      setSubmitError("Please complete all required fields.");
+      return;
+    }
+    const experienceDate = new Date(dateOfExperience);
+    const today = new Date(todayIsoDate());
+    if (Number.isNaN(experienceDate.getTime()) || experienceDate > today) {
+      setSubmitError("Date of experience cannot be in the future.");
+      return;
+    }
+
     try {
+      const receiptUrl = await uploadProofIfNeeded();
+      const pendingLocalDraft: PendingReviewDraft = {
+        business_id: business.id,
+        business_name: business.name,
+        business_slug: business.slug,
+        rating,
+        title,
+        body,
+        date_of_experience: dateOfExperience,
+        guest_email: (guestEmail ?? "").trim().toLowerCase(),
+        guest_name: guestName.trim(),
+        marketing_opt_in: marketingOptIn,
+        reference_number: referenceNumber.trim() || null,
+        receipt_url: receiptUrl,
+      };
+
+      window.localStorage.setItem(
+        PENDING_REVIEW_KEY,
+        JSON.stringify(pendingLocalDraft),
+      );
+      window.sessionStorage.setItem(WRITE_REVIEW_GOOGLE_MODE_KEY, "1");
+
+      const baseUrl = getBaseUrl();
       await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent("/review/continue")}`,
         },
       });
     } catch {
@@ -1604,8 +1746,14 @@ export default function WriteReviewForm({
                       <button
                         type="button"
                         onClick={handleGoogleSelect}
-                        className="w-full border rounded-lg py-2 text-sm font-medium hover:bg-gray-50"
+                        className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-[#B8B8B8] bg-white px-5 py-3 text-lg font-medium text-[#202124] hover:bg-[#f8f9fa]"
                       >
+                        <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                          <path d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z" fill="#4285F4" />
+                          <path d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z" fill="#34A853" />
+                          <path d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z" fill="#FBBC05" />
+                          <path d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z" fill="#EA4335" />
+                        </svg>
                         Continue with Google
                       </button>
                     </div>
@@ -1622,8 +1770,14 @@ export default function WriteReviewForm({
                         <button
                           type="button"
                           onClick={() => void signInWithGoogle()}
-                          className="w-full border rounded-lg py-2 text-sm font-medium hover:bg-gray-50"
+                          className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-[#B8B8B8] bg-white px-5 py-3 text-lg font-medium text-[#202124] hover:bg-[#f8f9fa]"
                         >
+                          <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
+                            <path d="M23.49 12.27c0-.81-.07-1.6-.2-2.36H12v4.48h6.47a5.54 5.54 0 01-2.4 3.64v3.02h3.88c2.27-2.09 3.54-5.18 3.54-8.78z" fill="#4285F4" />
+                            <path d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.88-3.02c-1.08.72-2.46 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.97H1.25v3.12A12 12 0 0012 24z" fill="#34A853" />
+                            <path d="M5.25 14.25a7.2 7.2 0 010-4.5V6.63H1.25a12 12 0 000 10.74l4-3.12z" fill="#FBBC05" />
+                            <path d="M12 4.78c1.76 0 3.35.6 4.6 1.77l3.45-3.45C17.96 1.14 15.23 0 12 0 7.3 0 3.22 2.69 1.25 6.63l4 3.12C6.2 6.9 8.86 4.78 12 4.78z" fill="#EA4335" />
+                          </svg>
                           Continue with Google
                         </button>
                         <button
