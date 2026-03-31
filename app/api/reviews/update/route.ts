@@ -43,6 +43,17 @@ function rowIsPublicLiveReview(row: {
 
 export async function POST(req: Request) {
   try {
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const authHeader = req.headers.get("authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+    const {
+      data: { user },
+    } = token ? await supabase.auth.getUser(token) : await supabase.auth.getUser();
+    const isGoogleUser = !!user;
+
     const body = (await req.json()) as Body;
     const business_id =
       typeof body.business_id === "string" ? body.business_id.trim() : "";
@@ -80,9 +91,6 @@ export async function POST(req: Request) {
         ? body.title.trim()
         : null;
 
-    const { supabaseUrl, serviceRoleKey } = getServerEnv();
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
     const { data: rows, error: findError } = await supabase
       .from("reviews")
       .select("id, draft, status, visibility, created_at")
@@ -102,15 +110,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
+    const updatePayload: Record<string, unknown> = {
+      rating: Math.round(ratingNum),
+      title: titleVal,
+      body: reviewBody,
+      date_of_experience,
+      updated_at: new Date().toISOString(),
+    };
+    if (isGoogleUser) {
+      updatePayload.status = "published";
+      updatePayload.verification_status = "verified";
+    }
+
     const { error: updateError } = await supabase
       .from("reviews")
-      .update({
-        rating: Math.round(ratingNum),
-        title: titleVal,
-        body: reviewBody,
-        date_of_experience,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", existing.id);
 
     if (updateError) {

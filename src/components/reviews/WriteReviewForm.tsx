@@ -516,6 +516,8 @@ export default function WriteReviewForm({
     if (typeof window === "undefined") return;
     const draftId = searchParams.get("draft_id");
     if (!draftId || !isUuid(draftId)) return;
+    const isGoogleFlow =
+      window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_KEY) === "1";
 
     setOtpDraftId(draftId);
     const googleStored =
@@ -533,7 +535,9 @@ export default function WriteReviewForm({
       active: true,
       email: storedEmail,
     });
-    setOtpModalOpen(true);
+    if (!isGoogleFlow) {
+      setOtpModalOpen(true);
+    }
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("draft_id");
@@ -731,7 +735,9 @@ export default function WriteReviewForm({
           setSubmittedEmail(verificationEmail);
           setSubmitted(true);
           setCheckEmailState({ active: true, email: verificationEmail });
-          setOtpModalOpen(true);
+          if (authMode !== "google") {
+            setOtpModalOpen(true);
+          }
           window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, draftId);
           window.localStorage.setItem(
             PENDING_REVIEW_DRAFT_EMAIL_KEY,
@@ -774,6 +780,7 @@ export default function WriteReviewForm({
     dateOfExperience,
     marketingOptIn,
     referenceNumber,
+    authMode,
     router,
   ]);
 
@@ -965,7 +972,9 @@ export default function WriteReviewForm({
             setSubmittedEmail(verificationEmail);
             setSubmitted(true);
             setCheckEmailState({ active: true, email: verificationEmail });
-            setOtpModalOpen(true);
+            if (authMode !== "google") {
+              setOtpModalOpen(true);
+            }
 
             showToast({
               title: "Finish publishing your review",
@@ -1048,7 +1057,9 @@ export default function WriteReviewForm({
         setSubmittedEmail(verificationEmail);
         setSubmitted(true);
         setCheckEmailState({ active: true, email: verificationEmail });
-        setOtpModalOpen(true);
+        if (authMode !== "google") {
+          setOtpModalOpen(true);
+        }
       };
 
       // If editing an existing review, update instead of inserting
@@ -1922,7 +1933,7 @@ export default function WriteReviewForm({
                   : "Submit review"}
               </Button>
 
-              {checkEmailState.active && !reviewerEmail?.trim() && (
+              {authMode !== "google" && checkEmailState.active && !reviewerEmail?.trim() && (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                   <p className="font-semibold">Check your email for a code</p>
                   <p className="mt-1">
@@ -1936,7 +1947,8 @@ export default function WriteReviewForm({
                 </div>
               )}
 
-              {otpDraftId &&
+              {authMode !== "google" &&
+                otpDraftId &&
                 otpEmail &&
                 !otpModalOpen &&
                 !inviteTwoStepOtp && (
@@ -1967,7 +1979,7 @@ export default function WriteReviewForm({
           </form>
         </div>
       </section>
-      {!inviteTwoStepOtp && otpDraftId && otpEmail && (
+      {!inviteTwoStepOtp && authMode !== "google" && otpDraftId && otpEmail && (
         <ReviewOtpModal
           draftId={otpDraftId}
           verificationEmail={otpEmail}

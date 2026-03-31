@@ -65,6 +65,31 @@ function codesMatch(stored: unknown, input: string): boolean {
  */
 export async function POST(req: Request) {
   try {
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const supabaseAdmin = supabase;
+    const authHeader = req.headers.get("authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+    const {
+      data: { user },
+    } = token ? await supabase.auth.getUser(token) : await supabase.auth.getUser();
+    const isGoogleUser = !!user;
+
+    if (isGoogleUser) {
+      return NextResponse.json({
+        success: true,
+        message: "Google user — no verification needed",
+      });
+    }
+
     const { draft_id, code } = (await req.json()) as VerifyBody;
     const draftId = typeof draft_id === "string" ? draft_id.trim() : "";
     const codeRaw = typeof code === "string" ? code.trim() : "";
@@ -75,16 +100,6 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-
-    const { supabaseUrl, serviceRoleKey } = getServerEnv();
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    });
-    const supabaseAdmin = supabase;
 
     const { data: otpRows, error: otpListErr } = await supabase
       .from("review_otps")

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
-import { getReviewSessionEmail, resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -46,6 +46,24 @@ const getEffectiveEmail = async (
   return resolveReviewGuestEmail(
     typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "",
   );
+};
+
+const getAuthUser = async (req: Request) => {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (!token) return null;
+  try {
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(token);
+    return user ?? null;
+  } catch {
+    return null;
+  }
 };
 
 function isUuid(value: string): boolean {
@@ -113,9 +131,7 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
-  const sessionEmail = await getReviewSessionEmail();
-  const isGoogleVerifiedFlow =
-    !!sessionEmail && sessionEmail === effectiveEmail;
+  const isGoogleUser = !!(await getAuthUser(req));
 
   const invEmail = String(invite.recipient_email ?? "").trim().toLowerCase();
   if (!invEmail || invEmail !== effectiveEmail) {
@@ -271,9 +287,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
-  const sessionEmail = await getReviewSessionEmail();
-  const isGoogleVerifiedFlow =
-    !!sessionEmail && sessionEmail === effectiveEmail;
+  const isGoogleUser = !!(await getAuthUser(req));
 
   if (!guest_name_raw) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -360,7 +374,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
     );
   }
 
-  if (isGoogleVerifiedFlow) {
+  if (isGoogleUser) {
     try {
       const { data: inserted, error: insertErr } = await supabase
         .from("reviews")
