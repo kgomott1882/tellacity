@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import WriteReviewForm from "@/components/reviews/WriteReviewForm";
-import { Button } from "@/components/ui/button";
+import ReviewOtpModal from "@/components/reviews/ReviewOtpModal";
 
 /** review_drafts.id (UUID). Invite URL `token` is never used for /api/reviews/verify. */
 function isDraftIdUuid(value: string): boolean {
@@ -34,8 +34,6 @@ export default function InviteReviewFlow({
   const [step, setStep] = useState<"form" | "otp" | "success">("form");
   /** Set only from POST /api/reviews/create-draft response `draft_id` — never from URL `token`. */
   const [draftId, setDraftId] = useState<string | null>(null);
-  const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** False until we validate (or skip) sessionStorage restore — avoids OTP with a stale draft_id. */
   const [otpRestoreChecked, setOtpRestoreChecked] = useState(false);
@@ -111,56 +109,6 @@ export default function InviteReviewFlow({
     }
   };
 
-  const handleVerify = async () => {
-    const code = otp.replace(/\D/g, "").slice(0, 6);
-    if (!code || code.length !== 6) {
-      setError("Enter valid 6-digit code");
-      return;
-    }
-    if (!draftId) {
-      setError("Something went wrong. Refresh the page and try again.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/reviews/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draft_id: draftId,
-          code,
-        }),
-      });
-
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        success?: boolean;
-      };
-
-      if (!res.ok) {
-        setError("Invalid or expired code");
-        setLoading(false);
-        return;
-      }
-
-      if (data.success === true) {
-        clearOtpSession();
-        setStep("success");
-        setLoading(false);
-        return;
-      }
-
-      setError("Invalid or expired code");
-      setLoading(false);
-    } catch {
-      setError("Something went wrong");
-      setLoading(false);
-    }
-  };
-
   if (!otpRestoreChecked) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4 flex items-center justify-center">
@@ -170,69 +118,29 @@ export default function InviteReviewFlow({
   }
 
   if (step === "otp") {
+    if (!draftId) {
+      return (
+        <div className="min-h-screen bg-gray-50 py-8 px-4 flex items-center justify-center">
+          <p className="text-sm text-gray-600">Preparing verification…</p>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="mx-auto w-full max-w-md">
-          <div
-            className="rounded-2xl bg-white p-6"
-            style={{
-              border: "3px solid #124541",
-              boxShadow:
-                "0 0 20px rgba(18, 69, 65, 0.25), 0 0 40px rgba(18, 69, 65, 0.15)",
-            }}
-          >
-            <h2 className="text-xl font-semibold text-[#0E0E0E]">
-              Verify your email
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Enter the 6-digit code sent to your email.
-            </p>
-
-            <div className="mt-6">
-              <label
-                htmlFor="invite-otp-code"
-                className="text-sm font-medium text-[#0E0E0E]"
-              >
-                Verification code
-              </label>
-              <input
-                id="invite-otp-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={otp}
-                onChange={(e) => {
-                  const next = e.target.value.replace(/\D/g, "").slice(0, 6);
-                  setOtp(next);
-                  if (error) setError(null);
-                }}
-                maxLength={6}
-                disabled={loading}
-                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-center text-lg tracking-[0.5em] text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                placeholder="••••••"
-              />
-            </div>
-
-            {error && (
-              <p className="mt-3 text-sm text-red-600" role="alert">
-                {error}
-              </p>
-            )}
-
-            <Button
-              type="button"
-              className="mt-6 w-full rounded-full bg-[#1FAF9E] text-sm font-semibold hover:bg-[#169786]"
-              onClick={() => void handleVerify()}
-              disabled={
-                loading ||
-                otp.replace(/\D/g, "").length !== 6 ||
-                draftId == null
-              }
-            >
-              {loading ? "Verifying…" : "Verify"}
-            </Button>
-          </div>
-        </div>
+        <ReviewOtpModal
+          draftId={draftId}
+          verificationEmail={reviewerEmail}
+          open
+          onSuccess={() => {
+            clearOtpSession();
+            setError(null);
+            setStep("success");
+          }}
+          onClose={() => {
+            setStep("form");
+          }}
+        />
       </div>
     );
   }
@@ -296,7 +204,6 @@ export default function InviteReviewFlow({
           persistOtpSession(clean);
           setStep("otp");
           setError(null);
-          setOtp("");
         }}
         onInviteDraftFlowError={(message) => {
           setError(message);

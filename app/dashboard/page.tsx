@@ -240,15 +240,20 @@ export default function ConsumerDashboard() {
 
     setDeletingId(id);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("reviews")
-        .delete()
-        .eq("id", id)
-        .eq("guest_email", userEmail);
-
-      if (error) {
-        throw new Error(error.message || "Unable to delete review.");
+      const res = await fetch("/api/reviews/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ review_id: id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        success?: boolean;
+      };
+      if (!res.ok || data.success !== true) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Unable to delete review.",
+        );
       }
 
       setReviews((prev) => prev.filter((item) => item.id !== id));

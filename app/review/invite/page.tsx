@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import InviteReviewFlow from "./InviteReviewFlow";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  isValidInviteToken,
+  normalizeInviteToken,
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 export const metadata: Metadata = {
   robots: {
@@ -40,14 +47,14 @@ export default async function InvitePage(props: {
   const rating = typeof searchParams.rating === "string" ? searchParams.rating : undefined;
   // Invite link token: used only for server invite lookup + create-draft body (`invite_token`).
   // OTP verification uses `draft_id` from create-draft (client state), not this param.
-  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  const token = normalizeInviteToken(rawToken);
   const parsedRating = rating ? Number(rating) : NaN;
   const initialRating =
     Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
       ? parsedRating
       : undefined;
 
-  if (!token) {
+  if (!token || !isValidInviteToken(token)) {
     return <ErrorState message="Missing invite token" />;
   }
 
@@ -62,7 +69,7 @@ export default async function InvitePage(props: {
   const { data, error } = await supabase
     .from("review_invites")
     .select("*")
-    .eq("token", token.trim())
+    .eq("token", token)
     .maybeSingle();
 
   if (error) {
@@ -74,13 +81,13 @@ export default async function InvitePage(props: {
     return <ErrorState message="Invalid invite link" />;
   }
 
-  const invite = data as InviteRow;
+  const invite = data as InviteRow & InviteRowRecord;
 
-  if (invite.review_submitted_at) {
+  if (reviewInviteRowIsUsed(invite)) {
     return <ErrorState message="This invite has already been used." />;
   }
 
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+  if (reviewInviteRowIsExpired(invite)) {
     return <ErrorState message="Invite expired" />;
   }
 

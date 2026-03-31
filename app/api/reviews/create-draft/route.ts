@@ -5,6 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import {
+  isValidInviteToken,
+  normalizeInviteToken,
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -97,11 +104,10 @@ function rowIsPublicLiveReview(row: {
 async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   const business_id =
     typeof body.business_id === "string" ? body.business_id.trim() : "";
-  const invite_token =
-    typeof body.invite_token === "string" ? body.invite_token.trim() : "";
+  const invite_token = normalizeInviteToken(body.invite_token);
   const rawBody = typeof body.body === "string" ? body.body.trim() : "";
 
-  if (!isUuid(business_id) || !invite_token || !rawBody) {
+  if (!isUuid(business_id) || !invite_token || !isValidInviteToken(invite_token) || !rawBody) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
@@ -122,6 +128,7 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   if (invErr || !invite) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
+  const inviteRow = invite as InviteRowRecord;
 
   if (String(invite.business_id) !== business_id) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
@@ -138,18 +145,15 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
-  if (invite.review_submitted_at) {
+  if (reviewInviteRowIsUsed(inviteRow)) {
     return NextResponse.json(
       { error: "This invite has already been used." },
       { status: 400 },
     );
   }
 
-  if (invite.expires_at) {
-    const exp = new Date(String(invite.expires_at));
-    if (!Number.isNaN(exp.getTime()) && exp.getTime() < Date.now()) {
-      return NextResponse.json({ error: "Invite expired" }, { status: 400 });
-    }
+  if (reviewInviteRowIsExpired(inviteRow)) {
+    return NextResponse.json({ error: "Invite expired" }, { status: 400 });
   }
 
   const inviteRowId = invite.id as string;
