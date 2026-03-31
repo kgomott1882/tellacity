@@ -735,9 +735,7 @@ export default function WriteReviewForm({
           setSubmittedEmail(verificationEmail);
           setSubmitted(true);
           setCheckEmailState({ active: true, email: verificationEmail });
-          if (authMode !== "google") {
-            setOtpModalOpen(true);
-          }
+          setOtpModalOpen(true);
           window.localStorage.setItem(PENDING_REVIEW_DRAFT_ID_KEY, draftId);
           window.localStorage.setItem(
             PENDING_REVIEW_DRAFT_EMAIL_KEY,
@@ -847,7 +845,11 @@ export default function WriteReviewForm({
     setSubmitError(null);
     setCheckEmailState({ active: false, email: "" });
 
-    if (!isFormValid) {
+    if (authMode !== "google" && !isFormValid) {
+      setSubmitError("Please complete all required fields.");
+      return;
+    }
+    if (authMode === "google" && !isReviewCoreValid) {
       setSubmitError("Please complete all required fields.");
       return;
     }
@@ -860,11 +862,53 @@ export default function WriteReviewForm({
     }
 
     if (authMode === "google") {
-      const {
-        data: { session },
-      } = await supabaseBrowser().auth.getSession();
-      if (!session?.user?.email) {
+      setIsSubmitting(true);
+      try {
+        const finalEmail = await getGoogleSessionEmail();
+        if (!finalEmail.includes("@")) {
+          return;
+        }
+        const res = await fetch("/api/reviews/update", {
+          method: "POST",
+          headers: await getCreateDraftHeaders(),
+          credentials: "include",
+          body: JSON.stringify({
+            business_id: business.id,
+            guest_email: finalEmail,
+            rating: Math.max(1, Math.min(5, Math.round(rating))),
+            title: title.trim() || null,
+            body: body.trim(),
+            date_of_experience: dateOfExperience,
+            auth_mode: "google",
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          success?: boolean;
+        };
+        if (!res.ok || data.success !== true) {
+          throw new Error(
+            typeof data.error === "string" ? data.error : "Failed",
+          );
+        }
+        resetGoogleReviewMode();
+        showToast({
+          title: "Review published successfully",
+          description: "Your review has been published.",
+          variant: "success",
+        });
+        router.push(`/b/${business.slug}`);
         return;
+      } catch (err) {
+        console.error(err);
+        showToast({
+          title: "Something went wrong",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      } finally {
+        setIsSubmitting(false);
       }
     }
 
@@ -875,9 +919,7 @@ export default function WriteReviewForm({
 
     if (isEditing) {
       try {
-        const finalEmail = authMode === "google"
-          ? await getGoogleSessionEmail()
-          : getFinalGuestEmailTrimmed();
+        const finalEmail = getFinalGuestEmailTrimmed();
         if (!finalEmail.includes("@")) {
           setSubmitError("A valid email is required to update your review.");
           return;
@@ -933,9 +975,7 @@ export default function WriteReviewForm({
 
     try {
       const receiptUrl = await uploadProofIfNeeded();
-      const finalGuestEmailTrimmed = authMode === "google"
-        ? await getGoogleSessionEmail()
-        : getFinalGuestEmailTrimmed();
+      const finalGuestEmailTrimmed = getFinalGuestEmailTrimmed();
       if (!finalGuestEmailTrimmed.includes("@")) {
         setSubmitError("A valid email is required.");
         return;
@@ -972,9 +1012,7 @@ export default function WriteReviewForm({
             setSubmittedEmail(verificationEmail);
             setSubmitted(true);
             setCheckEmailState({ active: true, email: verificationEmail });
-            if (authMode !== "google") {
-              setOtpModalOpen(true);
-            }
+            setOtpModalOpen(true);
 
             showToast({
               title: "Finish publishing your review",
@@ -1057,9 +1095,7 @@ export default function WriteReviewForm({
         setSubmittedEmail(verificationEmail);
         setSubmitted(true);
         setCheckEmailState({ active: true, email: verificationEmail });
-        if (authMode !== "google") {
-          setOtpModalOpen(true);
-        }
+        setOtpModalOpen(true);
       };
 
       // If editing an existing review, update instead of inserting

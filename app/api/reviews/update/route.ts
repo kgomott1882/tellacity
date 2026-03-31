@@ -8,6 +8,7 @@ import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 type Body = {
   business_id?: string;
   guest_email?: string;
+  auth_mode?: string;
   rating?: number;
   title?: string | null;
   body?: string;
@@ -90,6 +91,71 @@ export async function POST(req: Request) {
       typeof body.title === "string" && body.title.trim()
         ? body.title.trim()
         : null;
+
+    if (body.auth_mode === "google" && isGoogleUser) {
+      const guestName =
+        (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+        (user?.user_metadata?.name as string | undefined)?.trim() ||
+        (effectiveEmail.includes("@") ? effectiveEmail.split("@")[0] : "Anonymous");
+
+      const { data: existingRows, error: existingErr } = await supabase
+        .from("reviews")
+        .select("id, draft, status, visibility, created_at")
+        .eq("business_id", business_id)
+        .eq("guest_email", effectiveEmail)
+        .order("created_at", { ascending: false })
+        .limit(25);
+
+      if (existingErr) {
+        return NextResponse.json({ error: "update_failed" }, { status: 500 });
+      }
+
+      const existingLive = (existingRows ?? []).find((r) => rowIsPublicLiveReview(r));
+      if (existingLive?.id) {
+        const { error: updateExistingErr } = await supabase
+          .from("reviews")
+          .update({
+            rating: Math.round(ratingNum),
+            title: titleVal,
+            body: reviewBody,
+            date_of_experience,
+            status: "published",
+            verification_status: "verified",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingLive.id);
+        if (updateExistingErr) {
+          return NextResponse.json({ error: "update_failed" }, { status: 500 });
+        }
+        return NextResponse.json({ success: true });
+      }
+
+      const { error: insertErr } = await supabase
+        .from("reviews")
+        .insert({
+          business_id,
+          guest_email: effectiveEmail,
+          guest_name: guestName,
+          rating: Math.round(ratingNum),
+          title: titleVal,
+          body: reviewBody,
+          date_of_experience,
+          status: "published",
+          verification_status: "verified",
+          visibility: "visible",
+          draft: false,
+          imported: false,
+          is_flagged: false,
+        });
+      if (insertErr) {
+        const insertCode = (insertErr as { code?: string }).code;
+        if (insertCode === "23505") {
+          return NextResponse.json({ success: true });
+        }
+        return NextResponse.json({ error: "update_failed" }, { status: 500 });
+      }
+      return NextResponse.json({ success: true });
+    }
 
     const { data: rows, error: findError } = await supabase
       .from("reviews")
