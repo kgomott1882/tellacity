@@ -1204,13 +1204,15 @@ export default function WriteReviewForm({
       }
 
       const inviteTokenTrimmed = String(inviteToken ?? "").trim();
+      const inviteIdTrimmed = String(inviteId ?? "").trim();
       const reviewerEmailNorm = (reviewerEmail ?? "").trim().toLowerCase();
       const sessionEmailNorm = (userEmail ?? "").trim().toLowerCase();
+      const hasInviteIdentity = Boolean(inviteIdTrimmed || inviteTokenTrimmed);
 
       // Email invite: always use the edge function (service role) so validation matches the
       // invite recipient and published state — even when the reviewer is logged in. The
       // logged-in direct insert path skipped invite logic and could false-positive duplicates.
-      if (inviteTokenTrimmed && reviewerEmailNorm) {
+      if (hasInviteIdentity && reviewerEmailNorm) {
         if (userId && sessionEmailNorm && sessionEmailNorm !== reviewerEmailNorm) {
           showToast({
             title: "Wrong account for this invite",
@@ -1257,6 +1259,7 @@ export default function WriteReviewForm({
                   ? referenceNumber.trim()
                   : null,
               invite_token: inviteTokenTrimmed,
+              invite_id: inviteIdTrimmed || null,
             }),
           });
 
@@ -1416,7 +1419,7 @@ export default function WriteReviewForm({
       const guestNameTrimmed = guestName.trim();
       const isInviteGuest = Boolean(reviewerEmail?.trim());
 
-      if (isInviteGuest && !String(inviteToken ?? "").trim()) {
+      if (isInviteGuest && !hasInviteIdentity) {
         const mapped = reviewErrorMessages.invite_token_required;
         showToast({
           title: mapped.title,
@@ -1463,7 +1466,8 @@ export default function WriteReviewForm({
                 business.reference_number_enabled && referenceNumber.trim()
                   ? referenceNumber.trim()
                   : null,
-              invite_token: inviteToken ?? null,
+              invite_token: inviteTokenTrimmed || null,
+              invite_id: inviteIdTrimmed || null,
               is_invite: true,
             }),
           },

@@ -21,6 +21,7 @@ type Body = {
   title?: string | null;
   body?: string;
   invite_token?: string | null;
+  invite_id?: string | null;
   guest_email?: string;
   guest_name?: string;
   date_of_experience?: string | null;
@@ -105,9 +106,16 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   const business_id =
     typeof body.business_id === "string" ? body.business_id.trim() : "";
   const invite_token = normalizeInviteToken(body.invite_token);
+  const invite_id =
+    typeof body.invite_id === "string" ? body.invite_id.trim() : "";
   const rawBody = typeof body.body === "string" ? body.body.trim() : "";
 
-  if (!isUuid(business_id) || !invite_token || !isValidInviteToken(invite_token) || !rawBody) {
+  if (!isUuid(business_id) || !rawBody) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const hasInviteId = isUuid(invite_id);
+  const hasInviteToken = !!invite_token && isValidInviteToken(invite_token);
+  if (!hasInviteId && !hasInviteToken) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
@@ -119,11 +127,12 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const { data: invite, error: invErr } = await supabase
+  const inviteQuery = supabase
     .from("review_invites")
-    .select("id, business_id, recipient_email, review_submitted_at, expires_at")
-    .eq("token", invite_token)
-    .maybeSingle();
+    .select("id, business_id, recipient_email, review_submitted_at, expires_at");
+  const { data: invite, error: invErr } = hasInviteId
+    ? await inviteQuery.eq("id", invite_id).maybeSingle()
+    : await inviteQuery.eq("token", invite_token).maybeSingle();
 
   if (invErr || !invite) {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
@@ -518,8 +527,10 @@ export async function POST(req: Request) {
     const body = (await req.json()) as Body;
     const invite_token =
       typeof body.invite_token === "string" ? body.invite_token.trim() : "";
+    const invite_id =
+      typeof body.invite_id === "string" ? body.invite_id.trim() : "";
 
-    if (invite_token) {
+    if (invite_token || invite_id) {
       return await inviteOtpDraft(req, body);
     }
 

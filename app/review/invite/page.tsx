@@ -40,21 +40,31 @@ type InviteRow = {
 };
 
 export default async function InvitePage(props: {
-  searchParams: Promise<{ token?: string; rating?: string }>;
+  searchParams: Promise<{ token?: string; id?: string; rating?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const rawToken = searchParams.token;
+  const rawInviteId = searchParams.id;
   const rating = typeof searchParams.rating === "string" ? searchParams.rating : undefined;
   // Invite link token: used only for server invite lookup + create-draft body (`invite_token`).
   // OTP verification uses `draft_id` from create-draft (client state), not this param.
   const token = normalizeInviteToken(rawToken);
+  const inviteIdFromUrl =
+    typeof rawInviteId === "string" ? rawInviteId.trim() : "";
   const parsedRating = rating ? Number(rating) : NaN;
   const initialRating =
     Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
       ? parsedRating
       : undefined;
 
-  if (!token || !isValidInviteToken(token)) {
+  const hasInviteId =
+    inviteIdFromUrl.length > 0 &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      inviteIdFromUrl,
+    );
+  const hasToken = token.length > 0 && isValidInviteToken(token);
+
+  if (!hasInviteId && !hasToken) {
     return <ErrorState message="Missing invite token" />;
   }
 
@@ -66,11 +76,10 @@ export default async function InvitePage(props: {
     return <ErrorState message="Invalid invite link" />;
   }
 
-  const { data, error } = await supabase
-    .from("review_invites")
-    .select("*")
-    .eq("token", token)
-    .maybeSingle();
+  const inviteLookup = supabase.from("review_invites").select("*");
+  const { data, error } = hasInviteId
+    ? await inviteLookup.eq("id", inviteIdFromUrl).maybeSingle()
+    : await inviteLookup.eq("token", token).maybeSingle();
 
   if (error) {
     console.error("Invite lookup error:", error);
@@ -134,7 +143,7 @@ export default async function InvitePage(props: {
   return (
     <InviteReviewFlow
       inviteId={inviteId}
-      inviteToken={token}
+      inviteToken={hasToken ? token : ""}
       initialRating={initialRating}
       initialBusinessId={businessId}
       initialBusinessSlug={businessSlug}
