@@ -221,24 +221,22 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     .from("review_drafts")
     .select("id")
     .eq("invite_id", inviteRowId)
-    .eq("email", invEmail)
+    .ilike("email", invEmail)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  let draftId = String(existingDraft?.id ?? "").trim();
-  if (draftId) {
-    await supabase
-      .from("review_drafts")
-      .update({
-        business_id,
-        rating: Math.round(ratingNum),
-        title: titleVal,
-        body: rawBody,
-        guest_name: guestNameForDraft,
-      })
-      .eq("id", draftId);
-  } else {
+  const existingDraftId = String(existingDraft?.id ?? "").trim();
+  if (existingDraftId) {
+    return NextResponse.json({
+      success: true,
+      draft_id: existingDraftId,
+      verification_email: invEmail,
+    });
+  }
+
+  let draftId = "";
+  {
     const { data: draft, error: draftError } = await supabase
       .from("review_drafts")
       .insert({
@@ -254,6 +252,26 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
       .single();
 
     if (draftError) {
+      const draftErr = draftError as { code?: string };
+      if (draftErr?.code === "23505") {
+        // Unique race: fetch the existing row and return it instead of failing.
+        const { data: racedDraft } = await supabase
+          .from("review_drafts")
+          .select("id")
+          .eq("invite_id", inviteRowId)
+          .ilike("email", invEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const racedDraftId = String(racedDraft?.id ?? "").trim();
+        if (racedDraftId) {
+          return NextResponse.json({
+            success: true,
+            draft_id: racedDraftId,
+            verification_email: invEmail,
+          });
+        }
+      }
       console.error("REVIEW DRAFT INSERT ERROR:", draftError);
       throw draftError;
     }
