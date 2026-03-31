@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         }
 
         const email = invite.recipient_email;
-        const inviteUrl = `${baseUrl}/review/invite?id=${invite.id}`;
+        const inviteUrl = `${baseUrl}/review/invite?token=${invite.token}`;
         const isOpened = !!invite.opened_at;
 
         const subject = isOpened

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
-  isValidInviteToken,
-  normalizeInviteToken,
   reviewInviteRowIsExpired,
   reviewInviteRowIsUsed,
   type InviteRowRecord,
@@ -11,10 +9,9 @@ import {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const rawToken = (body || {}) as { token?: string };
-    const token = normalizeInviteToken(rawToken.token);
+    const { token } = (body || {}) as { token?: string };
 
-    if (!token || !isValidInviteToken(token)) {
+    if (!token || typeof token !== "string" || !token.trim()) {
       return NextResponse.json(
         { error: "token is required." },
         { status: 400 }
@@ -35,7 +32,7 @@ export async function POST(request: Request) {
     const { data: invite, error: fetchError } = await supabase
       .from("review_invites")
       .select("*")
-      .eq("token", token)
+      .eq("token", token.trim())
       .maybeSingle();
 
     if (fetchError) {

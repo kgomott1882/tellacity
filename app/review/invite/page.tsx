@@ -2,13 +2,6 @@ import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import InviteReviewFlow from "./InviteReviewFlow";
 import { getServerEnv } from "@/lib/serverEnv";
-import {
-  isValidInviteToken,
-  normalizeInviteToken,
-  reviewInviteRowIsExpired,
-  reviewInviteRowIsUsed,
-  type InviteRowRecord,
-} from "@/lib/reviewInviteValidation";
 
 export const metadata: Metadata = {
   robots: {
@@ -40,31 +33,21 @@ type InviteRow = {
 };
 
 export default async function InvitePage(props: {
-  searchParams: Promise<{ token?: string; id?: string; rating?: string }>;
+  searchParams: Promise<{ token?: string; rating?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const rawToken = searchParams.token;
-  const rawInviteId = searchParams.id;
   const rating = typeof searchParams.rating === "string" ? searchParams.rating : undefined;
   // Invite link token: used only for server invite lookup + create-draft body (`invite_token`).
   // OTP verification uses `draft_id` from create-draft (client state), not this param.
-  const token = normalizeInviteToken(rawToken);
-  const inviteIdFromUrl =
-    typeof rawInviteId === "string" ? rawInviteId.trim() : "";
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
   const parsedRating = rating ? Number(rating) : NaN;
   const initialRating =
     Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
       ? parsedRating
       : undefined;
 
-  const hasInviteId =
-    inviteIdFromUrl.length > 0 &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      inviteIdFromUrl,
-    );
-  const hasToken = token.length > 0 && isValidInviteToken(token);
-
-  if (!hasInviteId && !hasToken) {
+  if (!token) {
     return <ErrorState message="Missing invite token" />;
   }
 
@@ -76,10 +59,11 @@ export default async function InvitePage(props: {
     return <ErrorState message="Invalid invite link" />;
   }
 
-  const inviteLookup = supabase.from("review_invites").select("*");
-  const { data, error } = hasInviteId
-    ? await inviteLookup.eq("id", inviteIdFromUrl).maybeSingle()
-    : await inviteLookup.eq("token", token).maybeSingle();
+  const { data, error } = await supabase
+    .from("review_invites")
+    .select("*")
+    .eq("token", token.trim())
+    .maybeSingle();
 
   if (error) {
     console.error("Invite lookup error:", error);
@@ -90,13 +74,13 @@ export default async function InvitePage(props: {
     return <ErrorState message="Invalid invite link" />;
   }
 
-  const invite = data as InviteRow & InviteRowRecord;
+  const invite = data as InviteRow;
 
-  if (reviewInviteRowIsUsed(invite)) {
+  if (invite.review_submitted_at) {
     return <ErrorState message="This invite has already been used." />;
   }
 
-  if (reviewInviteRowIsExpired(invite)) {
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
     return <ErrorState message="Invite expired" />;
   }
 
@@ -143,7 +127,7 @@ export default async function InvitePage(props: {
   return (
     <InviteReviewFlow
       inviteId={inviteId}
-      inviteToken={hasToken ? token : ""}
+      inviteToken={token}
       initialRating={initialRating}
       initialBusinessId={businessId}
       initialBusinessSlug={businessSlug}

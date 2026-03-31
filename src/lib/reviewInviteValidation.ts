@@ -8,18 +8,6 @@
 
 export type InviteRowRecord = Record<string, unknown>;
 
-/** Normalize invite token from URLs/copy-paste (e.g. trailing punctuation). */
-export function normalizeInviteToken(raw: unknown): string {
-  const value = String(raw ?? "").trim();
-  if (!value) return "";
-  const match = value.match(/[0-9a-f]{64}/i);
-  return match ? match[0].toLowerCase() : value.toLowerCase();
-}
-
-export function isValidInviteToken(token: string): boolean {
-  return /^[0-9a-f]{64}$/i.test(String(token ?? "").trim());
-}
-
 function truthyTimestamp(value: unknown): boolean {
   if (value == null) return false;
   const s = String(value).trim();

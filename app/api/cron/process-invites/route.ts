@@ -71,10 +71,10 @@ function getBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 }
 
-function buildInviteLink(inviteId: string): string {
+function buildInviteLink(token: string): string {
   const base = getBaseUrl();
   if (!base) return "#";
-  return `${base}/review/invite?id=${inviteId}`;
+  return `${base}/review/invite?token=${token}`;
 }
 
 function esc(s: string | null | undefined): string {
@@ -213,7 +213,7 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       const businessName = (biz as BusinessRow | null)?.name ?? "";
-      const inviteLink = buildInviteLink(invite.id);
+      const inviteLink = buildInviteLink(invite.token);
 
       const [settings, template, premium] = await Promise.all([
         getInviteSettingsForBusiness(supabase, invite.business_id),
@@ -314,7 +314,7 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       const businessName = (biz as BusinessRow | null)?.name ?? "";
-      const inviteLink = buildInviteLink(invite.id);
+      const inviteLink = buildInviteLink(invite.token);
 
       const [settings, template, premium] = await Promise.all([
         getInviteSettingsForBusiness(supabase, invite.business_id),

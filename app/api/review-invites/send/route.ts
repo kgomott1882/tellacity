@@ -166,7 +166,7 @@ export async function POST(req: Request) {
     // ── Send immediately (same `token` as stored; no encodeURIComponent) ──────
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const inviteLink = baseUrl
-      ? `${baseUrl}/review/invite?id=${inviteId}`
+      ? `${baseUrl}/review/invite?token=${token}`
       : "#";
 
     // Load email template (subject/body overrides from review_invite_email_templates)

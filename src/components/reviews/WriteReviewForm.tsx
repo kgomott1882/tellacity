@@ -17,6 +17,7 @@ import { reviewErrorMessages } from "@/lib/errorMessages";
 type WriteReviewFormProps = {
   inviteId?: string | null;
   inviteToken?: string | null;
+  inviteDraftId?: string | null;
   initialRating?: number;
   reviewerEmail?: string;
   initialBusinessId?: string | null;
@@ -112,6 +113,7 @@ const formatDisplayName = (name: string) => {
 export default function WriteReviewForm({
   inviteId,
   inviteToken,
+  inviteDraftId,
   initialRating,
   reviewerEmail,
   initialBusinessId,
@@ -125,6 +127,7 @@ export default function WriteReviewForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const editReviewId = searchParams.get("edit");
+  const inviteDraftIdTrimmed = String(inviteDraftId ?? "").trim();
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -847,7 +850,6 @@ export default function WriteReviewForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!business) return;
-    if (isSubmitting) return;
 
     setSubmitError(null);
     setCheckEmailState({ active: false, email: "" });
@@ -1206,6 +1208,7 @@ export default function WriteReviewForm({
 
       const inviteTokenTrimmed = String(inviteToken ?? "").trim();
       const inviteIdTrimmed = String(inviteId ?? "").trim();
+      const inviteDraftIdForSubmit = inviteDraftIdTrimmed;
       const reviewerEmailNorm = (reviewerEmail ?? "").trim().toLowerCase();
       const sessionEmailNorm = (userEmail ?? "").trim().toLowerCase();
       const hasInviteIdentity = Boolean(inviteIdTrimmed || inviteTokenTrimmed);
@@ -1232,6 +1235,15 @@ export default function WriteReviewForm({
           "Customer";
 
         if (inviteTwoStepOtp && onInviteDraftCreated) {
+          if (!isUuid(inviteDraftIdForSubmit)) {
+            onInviteDraftFlowError?.("Missing draft. Please refresh and try again.");
+            showToast({
+              title: "Missing draft",
+              description: "Please refresh and try again.",
+              variant: "destructive",
+            });
+            return;
+          }
           const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
           const inviteAccessToken = inviteSessionData?.session?.access_token?.trim();
           const headers: Record<string, string> = {
@@ -1246,20 +1258,21 @@ export default function WriteReviewForm({
             headers,
             credentials: "include",
             body: JSON.stringify({
+              draft_id: inviteDraftIdForSubmit,
               business_id: business.id,
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,
               body: body.trim(),
+              date_of_experience: dateOfExperience,
               guest_email: finalGuestEmailTrimmed,
               guest_name: guestNameForInvite,
               receipt_url: receiptUrl,
-              date_of_experience: dateOfExperience,
               marketing_opt_in: marketingOptIn,
               reference_number:
                 business.reference_number_enabled && referenceNumber.trim()
                   ? referenceNumber.trim()
                   : null,
-              invite_token: inviteTokenTrimmed,
+              invite_token: inviteTokenTrimmed || null,
               invite_id: inviteIdTrimmed || null,
             }),
           });
@@ -2044,7 +2057,8 @@ export default function WriteReviewForm({
                   isSubmitting ||
                   !isFormValid ||
                   !business ||
-                  (authMode === "google" && !googleUser)
+                  (authMode === "google" && !googleUser) ||
+                  (Boolean(inviteTwoStepOtp) && !isUuid(inviteDraftIdTrimmed))
                 }
               >
                 {isSubmitting
