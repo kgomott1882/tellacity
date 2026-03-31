@@ -12,6 +12,7 @@ import { getActiveCountry } from "@/lib/getActiveCountry";
 import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
+import { formatPublicReviewDisplayName } from "@/lib/reviewGuestDisplayName";
 
 interface BusinessRow {
   address?: string | null;
@@ -641,7 +642,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       if (!error) {
         const mapped = (data ?? []).map((review) => ({
           id: review.id,
-          reviewerName: review.guest_name ?? "Anonymous",
+          reviewerName: formatPublicReviewDisplayName(review.guest_name),
           rating: Number(review.rating ?? 0),
           title: review.title ?? "",
           body: review.body ?? "",
@@ -1295,7 +1296,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                         if (!error) {
                           const mapped = (data ?? []).map((review) => ({
                             id: review.id,
-                            reviewerName: review.guest_name ?? "Anonymous",
+                            reviewerName: formatPublicReviewDisplayName(review.guest_name),
                             rating: Number(review.rating ?? 0),
                             title: review.title ?? "",
                             body: review.body ?? "",

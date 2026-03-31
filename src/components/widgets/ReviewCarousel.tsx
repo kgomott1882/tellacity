@@ -1,4 +1,5 @@
 import type { WidgetPayload } from "./types";
+import { formatPublicReviewDisplayName } from "@/lib/reviewGuestDisplayName";
 import WidgetStars from "./WidgetStars";
 import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
 
@@ -76,7 +77,8 @@ export default function ReviewCarousel({ payload }: { payload: WidgetPayload }) 
               {clampBody(review.body)}
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: "#9ca3af" }}>
-              {review.reviewer_name ?? "Anonymous"} · {formatDate(review.created_at)}
+              {formatPublicReviewDisplayName(review.reviewer_name)} ·{" "}
+              {formatDate(review.created_at)}
             </div>
 
             <div style={{ marginTop: 12, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>

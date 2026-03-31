@@ -1,4 +1,5 @@
 import type { WidgetPayload } from "./types";
+import { formatPublicReviewDisplayName } from "@/lib/reviewGuestDisplayName";
 import WidgetStars from "./WidgetStars";
 import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
 
@@ -64,7 +65,7 @@ export default function ReviewList({ payload }: { payload: WidgetPayload }) {
               {clampBody(review.body)}
             </div>
             <div style={{ marginTop: 4, fontSize: 11, color: "#9ca3af" }}>
-              - {review.reviewer_name ?? "Anonymous"}
+              - {formatPublicReviewDisplayName(review.reviewer_name)}
             </div>
           </div>
         ))

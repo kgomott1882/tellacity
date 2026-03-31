@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -142,13 +143,10 @@ async function inviteOtpDraft(body: Body): Promise<NextResponse> {
       : null;
 
   const guestNameFromBody =
-    typeof body.guest_name === "string" && body.guest_name.trim()
-      ? body.guest_name.trim().slice(0, 200)
-      : "";
-  const guestNameForDraft =
-    guestNameFromBody ||
-    (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
-    "Customer";
+    typeof body.guest_name === "string" ? body.guest_name : "";
+  const guestNameForDraft = getSafeReviewGuestDisplayName(
+    guestNameFromBody,
+  ).slice(0, 200);
 
   const { data: draft, error: draftError } = await supabase
     .from("review_drafts")
@@ -250,9 +248,9 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
 
-  if (!guest_name_raw) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
+  const displayGuestName = getSafeReviewGuestDisplayName(
+    guest_name_raw,
+  ).slice(0, 200);
 
   let date_of_experience: string | null = null;
   if (
@@ -339,7 +337,7 @@ async function guestPublicDraft(body: Body): Promise<NextResponse> {
       title: titleVal,
       body: rawBody,
       email: guest_email_final,
-      guest_name: guest_name_raw.slice(0, 200),
+      guest_name: displayGuestName,
       date_of_experience: date_of_experience,
       marketing_opt_in,
       receipt_url,

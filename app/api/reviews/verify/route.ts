@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 type VerifyBody = {
   draft_id?: string;
@@ -132,10 +133,9 @@ export async function POST(req: Request) {
     const d = draft as ReviewDraftRow;
     const draftEmailRaw = String(d.email ?? "").trim().toLowerCase();
     const guestEmail = await resolveReviewGuestEmail(draftEmailRaw);
-    const guestNameResolved =
-      (d.guest_name && String(d.guest_name).trim()) ||
-      (guestEmail.includes("@") ? guestEmail.split("@")[0] : "") ||
-      "Customer";
+    const guestNameResolved = getSafeReviewGuestDisplayName(
+      d.guest_name != null ? String(d.guest_name) : undefined,
+    ).slice(0, 200);
 
     try {
       const { error: insertErr } = await supabaseAdmin.from("reviews").insert({
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
         rating: d.rating,
         title: d.title,
         body: d.body,
-        guest_name: guestNameResolved.slice(0, 200),
+        guest_name: guestNameResolved,
         guest_email: guestEmail,
         date_of_experience: d.date_of_experience,
         status: "published",

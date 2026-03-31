@@ -4,10 +4,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { getSafeReviewGuestDisplayName } from "@/lib/reviewGuestDisplayName";
 
 type Body = {
   business_id?: string;
   guest_email?: string;
+  guest_name?: string | null;
   rating?: number;
   title?: string | null;
   body?: string;
@@ -75,6 +77,10 @@ export async function POST(req: Request) {
         ? body.title.trim()
         : null;
 
+    const displayName = getSafeReviewGuestDisplayName(
+      typeof body.guest_name === "string" ? body.guest_name : undefined,
+    ).slice(0, 200);
+
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -103,6 +109,7 @@ export async function POST(req: Request) {
         rating: Math.round(ratingNum),
         title: titleVal,
         body: reviewBody,
+        guest_name: displayName,
         date_of_experience,
         updated_at: new Date().toISOString(),
       })
