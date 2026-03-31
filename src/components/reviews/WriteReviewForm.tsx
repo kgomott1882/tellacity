@@ -569,7 +569,7 @@ export default function WriteReviewForm({
 
   const isGuest = !userId && authChecked;
 
-  const isFormValid = useMemo(() => {
+  const isReviewCoreValid = useMemo(() => {
     if (!business) return false;
     if (rating <= 0) return false;
     if (!body.trim()) return false;
@@ -580,6 +580,12 @@ export default function WriteReviewForm({
     if (Number.isNaN(experienceDate.getTime()) || experienceDate > today) {
       return false;
     }
+
+    return true;
+  }, [business, rating, body, dateOfExperience]);
+
+  const isFormValid = useMemo(() => {
+    if (!isReviewCoreValid) return false;
 
     if (isGuest) {
       const emailToUse = reviewerEmail ?? guestEmail;
@@ -599,10 +605,7 @@ export default function WriteReviewForm({
 
     return true;
   }, [
-    business,
-    rating,
-    body,
-    dateOfExperience,
+    isReviewCoreValid,
     isGuest,
     guestEmail,
     guestName,
@@ -1393,6 +1396,7 @@ export default function WriteReviewForm({
 
   const handleGoogleSelect = () => {
     setAuthMode("google");
+    setSubmitError(null);
   };
 
   const signInWithGoogle = async () => {
@@ -1401,7 +1405,7 @@ export default function WriteReviewForm({
       setSubmitError("Please choose a business before continuing with Google.");
       return;
     }
-    if (!isFormValid) {
+    if (!isReviewCoreValid) {
       setSubmitError("Please complete all required fields.");
       return;
     }
