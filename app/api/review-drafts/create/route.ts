@@ -174,52 +174,50 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invite expired" }, { status: 400 });
     }
 
-    let publishedReviewId: string | null = null;
-    try {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("reviews")
-        .insert({
-          business_id,
-          rating: Math.round(ratingNum),
-          title: titleVal,
-          body: rawBody,
-          guest_name: guest_name.slice(0, 200),
-          guest_email: submitter,
-          date_of_experience,
-          status: "published",
-          visibility: "visible",
-          verification_status: "verified",
-          draft: false,
-          imported: false,
-          marketing_opt_in: false,
-          invite_id,
-          receipt_url,
-          reference_number: null,
-          user_id: null,
-          is_flagged: false,
-        })
-        .select("id")
-        .maybeSingle();
+    const reviewPayload = {
+      business_id,
+      rating: Math.round(ratingNum),
+      title: titleVal,
+      body: rawBody,
+      guest_name: guest_name.slice(0, 200),
+      guest_email: submitter,
+      date_of_experience,
+      status: "published" as const,
+      visibility: "visible" as const,
+      verification_status: "verified" as const,
+      draft: false,
+      imported: false,
+      marketing_opt_in: false,
+      invite_id,
+      receipt_url,
+      reference_number: null,
+      user_id: null,
+      is_flagged: false,
+    };
 
-      if (insertErr) throw insertErr;
-      publishedReviewId =
-        inserted && typeof (inserted as { id?: string }).id === "string"
-          ? (inserted as { id: string }).id
-          : null;
-    } catch (error: unknown) {
-      const err = error as { code?: string };
-      if (err.code === "23505") {
-        return NextResponse.json(
-          { error: "You have already reviewed this business." },
-          { status: 400 },
-        );
-      }
-      console.error("invite publish insert reviews:", error);
+    const { data: insertedRow, error: insertReviewError } = await supabase
+      .from("reviews")
+      .insert([reviewPayload])
+      .select()
+      .single();
+
+    if (insertReviewError) {
+      console.error("INSERT REVIEW FAILED:", insertReviewError);
       return NextResponse.json(
-        { error: "Could not publish review. Please try again." },
+        {
+          error: "Insert failed",
+          details: insertReviewError.message,
+          code: insertReviewError.code,
+          hint: insertReviewError.hint,
+        },
         { status: 500 },
       );
     }
+
+    const publishedReviewId =
+      insertedRow && typeof (insertedRow as { id?: string }).id === "string"
+        ? (insertedRow as { id: string }).id
+        : null;
 
     const { error: updErr } = await supabase
       .from("review_invites")
