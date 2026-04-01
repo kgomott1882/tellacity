@@ -183,25 +183,29 @@ export function InviteFinalReviewForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+      className="relative -translate-y-1 space-y-6 rounded-2xl border-[3px] border-[#124541] bg-white p-6 sm:p-8"
+      style={{
+        boxShadow:
+          "0 20px 50px -12px rgba(31, 175, 158, 0.35), 0 0 0 1px rgba(31, 175, 158, 0.12), 0 0 48px rgba(31, 175, 158, 0.28), 0 12px 32px rgba(18, 69, 65, 0.14)",
+      }}
     >
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Write your review</h2>
-        <p className="mt-1 text-sm text-gray-600">{businessName}</p>
+        <h2 className="text-xl font-semibold text-[#124541]">Write your review</h2>
+        <p className="mt-1 text-sm text-[#0E0E0E]/80">{businessName}</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Rating</label>
+        <label className="block text-sm font-medium text-[#124541]">Rating</label>
         <div className="mt-2 flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setRating(n)}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors ${
                 rating === n
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-white text-gray-800 hover:border-gray-300"
+                  ? "border-[#1FAF9E] bg-[#1FAF9E] text-white shadow-[0_0_16px_rgba(31,175,158,0.45)]"
+                  : "border-neutral-200 bg-white text-[#0E0E0E] hover:border-[#1FAF9E]/50 hover:bg-[#1FAF9E]/5"
               }`}
             >
               {n} star{n === 1 ? "" : "s"}
@@ -211,22 +215,22 @@ export function InviteFinalReviewForm({
       </div>
 
       <div>
-        <label htmlFor="invite-review-title" className="block text-sm font-medium text-gray-700">
-          Title <span className="font-normal text-gray-500">(optional)</span>
+        <label htmlFor="invite-review-title" className="block text-sm font-medium text-[#124541]">
+          Title <span className="font-normal text-neutral-500">(optional)</span>
         </label>
         <input
           id="invite-review-title"
           type="text"
           value={title}
           onChange={(ev) => setTitle(ev.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
           maxLength={200}
           autoComplete="off"
         />
       </div>
 
       <div>
-        <label htmlFor="invite-review-body" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="invite-review-body" className="block text-sm font-medium text-[#124541]">
           Your review
         </label>
         <textarea
@@ -235,14 +239,14 @@ export function InviteFinalReviewForm({
           value={body}
           onChange={(ev) => setBody(ev.target.value)}
           rows={6}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 min-h-[140px] w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
           placeholder="Share your experience…"
         />
       </div>
 
       <div>
-        <label htmlFor="invite-review-date" className="block text-sm font-medium text-gray-700">
-          Date of experience <span className="font-normal text-gray-500">(optional)</span>
+        <label htmlFor="invite-review-date" className="block text-sm font-medium text-[#124541]">
+          Date of experience <span className="font-normal text-neutral-500">(optional)</span>
         </label>
         <input
           id="invite-review-date"
@@ -250,46 +254,46 @@ export function InviteFinalReviewForm({
           value={dateOfExperience}
           onChange={(ev) => setDateOfExperience(ev.target.value)}
           max={todayIsoDate()}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
         />
       </div>
 
       <div>
-        <label htmlFor="invite-review-proof" className="block text-sm font-medium text-gray-700">
-          Proof upload <span className="font-normal text-gray-500">(optional)</span>
+        <label htmlFor="invite-review-proof" className="block text-sm font-medium text-[#124541]">
+          Proof upload <span className="font-normal text-neutral-500">(optional)</span>
         </label>
         <input
           id="invite-review-proof"
           type="file"
           accept={PROOF_TYPES.join(",")}
           onChange={onProofChange}
-          className="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-800"
+          className="mt-1 block w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1FAF9E]/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-[#124541] hover:file:bg-[#1FAF9E]/20"
         />
         {proofError ? <p className="mt-1 text-xs text-red-600">{proofError}</p> : null}
       </div>
 
       <div>
-        <label htmlFor="invite-review-display-name" className="block text-sm font-medium text-gray-700">
-          Display name <span className="font-normal text-gray-500">(optional)</span>
+        <label htmlFor="invite-review-display-name" className="block text-sm font-medium text-[#124541]">
+          Display name <span className="font-normal text-neutral-500">(optional)</span>
         </label>
         <input
           id="invite-review-display-name"
           type="text"
           value={guestName}
           onChange={(ev) => setGuestName(ev.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
           maxLength={200}
           placeholder={defaultGuestName(reviewerEmail)}
           autoComplete="name"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-neutral-500">
           If left blank, we use the part of your email before @.
         </p>
       </div>
 
       <div>
-        <span className="block text-sm font-medium text-gray-700">Email</span>
-        <p className="mt-1 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+        <span className="block text-sm font-medium text-[#124541]">Email</span>
+        <p className="mt-1 rounded-lg border-2 border-dashed border-[#1FAF9E]/35 bg-[#1FAF9E]/[0.06] px-3 py-2 text-sm text-[#0E0E0E]">
           {reviewerEmail}
         </p>
       </div>
@@ -303,7 +307,7 @@ export function InviteFinalReviewForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-full bg-[#1FAF9E] px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(31,175,158,0.45)] transition hover:bg-[#169786] hover:shadow-[0_6px_20px_rgba(31,175,158,0.5)] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
       >
         {isSubmitting ? "Submitting…" : "Submit review"}
       </button>

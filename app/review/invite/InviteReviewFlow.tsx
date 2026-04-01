@@ -57,8 +57,8 @@ export default function InviteReviewFlow({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="mx-auto w-full max-w-lg">
+    <div className="min-h-screen bg-gray-50 py-10 px-4 pb-16">
+      <div className="mx-auto w-full max-w-lg px-1">
         <InviteFinalReviewForm
           businessId={initialBusinessId}
           businessName={businessName}
