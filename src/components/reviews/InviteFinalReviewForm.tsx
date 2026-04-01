@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RatingStars from "@/components/RatingStars";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 export type InviteFinalReviewFormProps = {
@@ -196,21 +197,23 @@ export function InviteFinalReviewForm({
 
       <div>
         <label className="block text-sm font-medium text-[#124541]">Rating</label>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setRating(n)}
-              className={`rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                rating === n
-                  ? "border-[#1FAF9E] bg-[#1FAF9E] text-white shadow-[0_0_16px_rgba(31,175,158,0.45)]"
-                  : "border-neutral-200 bg-white text-[#0E0E0E] hover:border-[#1FAF9E]/50 hover:bg-[#1FAF9E]/5"
-              }`}
-            >
-              {n} star{n === 1 ? "" : "s"}
-            </button>
-          ))}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <RatingStars
+              rating={rating ?? 0}
+              editable={!isSubmitting}
+              size={20}
+              onChange={(value) => {
+                if (isSubmitting) return;
+                setRating(value);
+              }}
+            />
+          </div>
+          <span className="text-sm text-neutral-600">
+            {(rating ?? 0) > 0
+              ? `${rating ?? 0} star${(rating ?? 0) > 1 ? "s" : ""}`
+              : "Tap a star to rate"}
+          </span>
         </div>
       </div>
 

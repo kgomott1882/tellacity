@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { InviteFinalReviewForm } from "@/components/reviews/InviteFinalReviewForm";
 
 type InviteReviewFlowProps = {
@@ -19,10 +20,22 @@ export default function InviteReviewFlow({
   initialBusinessName,
   reviewerEmail,
 }: InviteReviewFlowProps) {
+  const router = useRouter();
   const [step, setStep] = useState<"form" | "success">("form");
 
   const businessSlug = initialBusinessSlug ?? "";
   const businessName = initialBusinessName?.trim() || "Business";
+
+  const handleInviteSubmitSuccess = () => {
+    const slug = businessSlug.trim();
+    if (slug) {
+      router.push(`/b/${encodeURIComponent(slug)}`);
+      router.refresh();
+      return;
+    }
+    setStep("success");
+    router.refresh();
+  };
 
   if (step === "success") {
     return (
@@ -64,7 +77,7 @@ export default function InviteReviewFlow({
           businessName={businessName}
           reviewerEmail={reviewerEmail}
           inviteId={inviteId}
-          onSuccess={() => setStep("success")}
+          onSuccess={handleInviteSubmitSuccess}
         />
       </div>
     </div>

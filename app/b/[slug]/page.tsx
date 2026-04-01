@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
+
+export const dynamic = "force-dynamic";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 

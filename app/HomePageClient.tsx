@@ -116,6 +116,9 @@ const ADDITIONAL_MARQUEE_CATEGORIES: { label: string; slug: string }[] = [
   { label: "Garden Center", slug: "retail" },
   { label: "Travel Agency", slug: "travel-agencies" },
 ];
+/** Recent reviews on `/` — only `public.home_feed_v1` (not `reviews` directly). */
+const HOME_FEED_RECENT_LIMIT = 20;
+
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
   { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
@@ -430,13 +433,18 @@ export default function HomePageClient({
     }
   }, [pathname, searchParams, router]);
 
-  // Reviews: use only home_feed_v1 (no fallback/merge).
+  // Recent reviews: single source = `home_feed_v1` only (view enforces published + visible). Refetch on country, route, tab focus / bfcache.
   useEffect(() => {
+    if (pathname !== "/") return;
+
     let isMounted = true;
 
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
+      const silent = opts?.silent === true;
+      if (!silent) {
+        setIsLoading(true);
+        setError(null);
+      }
 
       try {
         const supabase = supabaseBrowser();
@@ -445,9 +453,7 @@ export default function HomePageClient({
           .select("*")
           .eq("country_code", activeCountryCode)
           .order("created_at", { ascending: false })
-          .limit(64);
-
-        console.log("HOME FEED DATA:", data);
+          .limit(HOME_FEED_RECENT_LIMIT);
 
         if (!isMounted) return;
 
@@ -457,12 +463,17 @@ export default function HomePageClient({
           return;
         }
 
-        const visibleReviews = (data || []).filter(
-          (r) => ((r as Record<string, unknown>).visibility ?? "visible") === "visible"
-        );
+        console.log("Homepage reviews:", data);
+        const rows = data ?? [];
+        const newestId =
+          rows[0] != null
+            ? (rows[0] as Record<string, unknown>).review_id
+            : null;
+        console.log("Homepage newest review_id:", newestId);
+        console.log("Homepage feed query: country_code =", activeCountryCode);
 
         setReviews(
-          visibleReviews.map((r) =>
+          rows.map((r) =>
             mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
           )
         );
@@ -470,16 +481,30 @@ export default function HomePageClient({
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : "Failed to load reviews.");
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted && !silent) setIsLoading(false);
       }
     };
 
-    fetchData();
+    void fetchHomeFeed();
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !isMounted) return;
+      void fetchHomeFeed({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    const onPageShow = (ev: PageTransitionEvent) => {
+      if (!isMounted) return;
+      if (ev.persisted) void fetchHomeFeed({ silent: true });
+    };
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       isMounted = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
     };
-  }, [activeCountryCode]);
+  }, [activeCountryCode, pathname]);
 
   // Keep a local copy of Best-in data and fill gaps with a direct businesses fallback
   // when the RPC returns no rows for a given category/country.

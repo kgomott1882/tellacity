@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
@@ -175,6 +174,7 @@ type BusinessClientProps = {
 export default function BusinessClient({ initialBusiness = null }: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [business, setBusiness] = useState<Business | null>(() => {
     if (!initialBusiness || typeof initialBusiness !== "object") return null;
@@ -418,58 +418,6 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
   }, [business?.categorySlug, business?.categoryGroupName, business?.categoryName]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchReviewStats = async () => {
-      if (!business?.id) {
-        setReviewStats(null);
-        return;
-      }
-
-      const sb = supabaseBrowser();
-      const { data, error, count } = await sb
-        .from("reviews")
-        .select("rating", { count: "exact" })
-        .eq("business_id", business.id)
-        .or("status.is.null,status.eq.published")
-        .or(REVIEWS_PUBLIC_VISIBILITY_OR);
-
-      if (!isMounted || error) {
-        return;
-      }
-
-      const counts: RatingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      let totalRatings = 0;
-      let sum = 0;
-
-      (data ?? []).forEach((row) => {
-        const value = Math.round(Number(row.rating ?? 0));
-        if (value >= 1 && value <= 5) {
-          const star = value as Star;
-          counts[star] += 1;
-          totalRatings += 1;
-          sum += value;
-        }
-      });
-
-      const total = count ?? totalRatings;
-      const average = totalRatings > 0 ? sum / totalRatings : 0;
-
-      setReviewStats({
-  total,
-  average,
-  counts: counts as RatingCounts,
-});
-    };
-
-    fetchReviewStats();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [business?.id]);
-
-  useEffect(() => {
     if (!business?.categorySlug || !business?.countryCode) return;
 
     const fetchRelated = async () => {
@@ -578,10 +526,59 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
   }, [business?.id, business?.categorySlug, business?.countryCode]);
 
   useEffect(() => {
-    let isMounted = true;
+    if (!business?.id) {
+      setReviewStats(null);
+      return;
+    }
 
-    const fetchReplies = async (reviewIds: string[]) => {
+    let isMounted = true;
+    const businessId = business.id;
+
+    const fetchReviewStats = async () => {
+      const sb = supabaseBrowser();
+      const { data, error, count } = await sb
+        .from("reviews")
+        .select("rating", { count: "exact" })
+        .eq("business_id", businessId)
+        .eq("status", "published")
+        .eq("visibility", "visible");
+
+      if (!isMounted || error) {
+        return;
+      }
+
+      const counts: RatingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      let totalRatings = 0;
+      let sum = 0;
+
+      (data ?? []).forEach((row) => {
+        const value = Math.round(Number(row.rating ?? 0));
+        if (value >= 1 && value <= 5) {
+          const star = value as Star;
+          counts[star] += 1;
+          totalRatings += 1;
+          sum += value;
+        }
+      });
+
+      const total = count ?? totalRatings;
+      const average = totalRatings > 0 ? sum / totalRatings : 0;
+
+      setReviewStats({
+        total,
+        average,
+        counts: counts as RatingCounts,
+      });
+    };
+
+    const fetchReplies = async (
+      reviewIds: string[],
+      replaceExisting: boolean
+    ) => {
       if (reviewIds.length === 0) {
+        if (replaceExisting) {
+          setRepliesByReviewId({});
+        }
         return;
       }
 
@@ -614,23 +611,29 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         {}
       );
 
-      setRepliesByReviewId((prev) => ({ ...prev, ...grouped }));
+      if (replaceExisting) {
+        setRepliesByReviewId(grouped);
+      } else {
+        setRepliesByReviewId((prev) => ({ ...prev, ...grouped }));
+      }
     };
 
     const fetchReviewsPage = async (
-      businessId: string,
       offset = 0,
-      append = false
+      append = false,
+      options?: { silent?: boolean }
     ) => {
+      const silent = options?.silent === true;
       const sb = supabaseBrowser();
       const { data, error, count } = await sb
         .from("reviews")
-        .select("id, guest_name, rating, title, body, created_at, status, like_count", {
-          count: "exact",
-        })
+        .select(
+          "id, guest_name, rating, title, body, created_at, status, like_count",
+          { count: "exact" }
+        )
         .eq("business_id", businessId)
-        .or("status.is.null,status.eq.published")
-        .or(REVIEWS_PUBLIC_VISIBILITY_OR)
+        .eq("status", "published")
+        .eq("visibility", "visible")
         .order("created_at", { ascending: false })
         .range(offset, offset + 4);
 
@@ -651,32 +654,50 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         }));
         setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
         const reviewIds = mapped.map((item) => item.id);
-        fetchReplies(reviewIds);
+        void fetchReplies(reviewIds, !append);
         const totalCount = count ?? mapped.length;
         setTotalReviewCount(totalCount);
         setHasMoreReviews(offset + mapped.length < totalCount);
         setReviewOffset(offset + mapped.length);
-        return;
       }
     };
 
-    if (business?.id) {
-      setReviews([]);
-      setRepliesByReviewId({});
-      setReviewOffset(0);
-      setHasMoreReviews(false);
-      setIsLoadingReviews(true);
-      fetchReviewsPage(business.id, 0, false).finally(() => {
-        if (isMounted) {
-          setIsLoadingReviews(false);
-        }
-      });
-    }
+    const loadReviewsAndStats = async (opts?: { silent?: boolean }) => {
+      const silent = opts?.silent === true;
+      if (!silent) {
+        setReviews([]);
+        setRepliesByReviewId({});
+        setReviewOffset(0);
+        setHasMoreReviews(false);
+        setIsLoadingReviews(true);
+      }
+      await fetchReviewStats();
+      await fetchReviewsPage(0, false, { silent });
+      if (isMounted && !silent) {
+        setIsLoadingReviews(false);
+      }
+    };
+
+    void loadReviewsAndStats({ silent: false });
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !isMounted) return;
+      void loadReviewsAndStats({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    const onPageShow = (ev: PageTransitionEvent) => {
+      if (!isMounted) return;
+      if (ev.persisted) void loadReviewsAndStats({ silent: true });
+    };
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       isMounted = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
     };
-  }, [business?.id]);
+  }, [business?.id, pathname]);
 
   const ratingCounts = useMemo(() => {
     const empty = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, total: 0 };
@@ -1287,8 +1308,8 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                             { count: "exact" }
                           )
                           .eq("business_id", business.id)
-                          .or("status.is.null,status.eq.published")
-                          .or(REVIEWS_PUBLIC_VISIBILITY_OR)
+                          .eq("status", "published")
+                          .eq("visibility", "visible")
                           .order("created_at", { ascending: false })
                           .range(offset, offset + 4);
 

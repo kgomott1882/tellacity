@@ -19,7 +19,15 @@ export function supabaseBrowser(): SupabaseClient {
     );
   }
 
-  client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, {
+          ...init,
+          cache: "no-store",
+        }),
+    },
+  });
   return client;
 }
 

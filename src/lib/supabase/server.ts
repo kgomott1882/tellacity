@@ -8,6 +8,13 @@ export function createSupabaseServerClient() {
       auth: {
         persistSession: false,
       },
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+          fetch(input, {
+            ...init,
+            cache: "no-store",
+          }),
+      },
     }
   );
 }
