@@ -138,12 +138,12 @@ export default async function BusinessPage({
 
   // 🚫 HARD LOOP PREVENTION
   if (finalSlug === currentSlug) {
-    return <BusinessClient business={business} />;
+    return <BusinessClient initialBusiness={business} />;
   }
 
   // 🚫 DO NOT REDIRECT IF THIS SLUG ALREADY LOOKS CANONICAL
   if (normalizedSlug === business.slug.toLowerCase()) {
-    return <BusinessClient business={business} />;
+    return <BusinessClient initialBusiness={business} />;
   }
 
   // 🚫 ONLY redirect if we are SURE this is a different valid slug
@@ -155,5 +155,5 @@ export default async function BusinessPage({
   }
 
   console.log("Business found:", (business as { name?: string | null }).name);
-  return <BusinessClient business={business} />;
+  return <BusinessClient initialBusiness={business} />;
 }
