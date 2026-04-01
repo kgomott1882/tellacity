@@ -369,54 +369,6 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const { data: guestRows, error: existingError } = await supabase
-    .from("reviews")
-    .select("id, status, draft, visibility, created_at")
-    .eq("business_id", business_id)
-    .eq("guest_email", effectiveEmail)
-    .order("created_at", { ascending: false })
-    .limit(25);
-
-  if (existingError) {
-    console.error("guest draft existing review lookup:", existingError);
-    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
-  }
-
-  const list = guestRows ?? [];
-
-  const { data: pendingDraftRow, error: pendingDraftErr } = await supabase
-    .from("review_drafts")
-    .select("id")
-    .eq("business_id", business_id)
-    .eq("email", effectiveEmail)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (pendingDraftErr) {
-    console.error("guest draft review_drafts lookup:", pendingDraftErr);
-    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
-  }
-
-  if (pendingDraftRow?.id) {
-    return NextResponse.json(
-      {
-        error: "draft_exists",
-        draft_id: pendingDraftRow.id,
-        verification_email: effectiveEmail,
-      },
-      { status: 409 },
-    );
-  }
-
-  const guestLive = list.find((r) => rowIsPublicLiveReview(r));
-  if (guestLive?.id) {
-    return NextResponse.json(
-      { requiresUpdate: true, reviewId: guestLive.id },
-      { status: 200 },
-    );
-  }
-
   if (isInvitePublish) {
     const guestEmailLower = effectiveEmail.trim().toLowerCase();
     try {
@@ -475,6 +427,54 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       console.error("guest invite publish error:", e);
       return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
     }
+  }
+
+  const { data: guestRows, error: existingError } = await supabase
+    .from("reviews")
+    .select("id, status, draft, visibility, created_at")
+    .eq("business_id", business_id)
+    .eq("guest_email", effectiveEmail)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (existingError) {
+    console.error("guest draft existing review lookup:", existingError);
+    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+  }
+
+  const list = guestRows ?? [];
+
+  const { data: pendingDraftRow, error: pendingDraftErr } = await supabase
+    .from("review_drafts")
+    .select("id")
+    .eq("business_id", business_id)
+    .eq("email", effectiveEmail)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (pendingDraftErr) {
+    console.error("guest draft review_drafts lookup:", pendingDraftErr);
+    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+  }
+
+  if (pendingDraftRow?.id) {
+    return NextResponse.json(
+      {
+        error: "draft_exists",
+        draft_id: pendingDraftRow.id,
+        verification_email: effectiveEmail,
+      },
+      { status: 409 },
+    );
+  }
+
+  const guestLive = list.find((r) => rowIsPublicLiveReview(r));
+  if (guestLive?.id) {
+    return NextResponse.json(
+      { requiresUpdate: true, reviewId: guestLive.id },
+      { status: 200 },
+    );
   }
 
   if (isGoogleUser) {
