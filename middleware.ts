@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
+  console.log("MIDDLEWARE HIT:", request.nextUrl.pathname);
   const url = request.nextUrl.clone();
 
   // 🚫 DO NOT modify or redirect /b routes at middleware level

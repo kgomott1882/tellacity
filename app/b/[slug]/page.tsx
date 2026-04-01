@@ -78,12 +78,12 @@ export default async function BusinessPage({
 }) {
   const { slug } = await params;
   const normalizedSlug = slug.trim().toLowerCase();
-  const request:
-    | { nextUrl?: { pathname?: string | null } | null }
-    | undefined = undefined;
   const resolvedSearchParams = searchParams ? await searchParams : {};
+  const isRedirected =
+    resolvedSearchParams.redirected === "1" ||
+    (Array.isArray(resolvedSearchParams.redirected) &&
+      resolvedSearchParams.redirected.includes("1"));
   const hasSearchParams = Object.keys(resolvedSearchParams).length > 0;
-  const currentPath = `/b/${normalizedSlug}`;
 
   const supabase = createClient();
 
@@ -103,7 +103,6 @@ export default async function BusinessPage({
   }
 
   let business = businessBySlug;
-  let foundViaCanonicalLookup = false;
 
   if (!business) {
     const { data: businessByCanonical } = await supabase
@@ -115,80 +114,48 @@ export default async function BusinessPage({
 
     if (businessByCanonical) {
       business = businessByCanonical;
-      foundViaCanonicalLookup = true;
     }
-  }
-
-  if (business) {
-    const canonRaw = String(
-      (business as { canonical_slug?: string | null }).canonical_slug ?? ""
-    ).trim();
-    const canon = canonRaw.toLowerCase();
-
-    // Already on canonical URL — never redirect (prevents infinite loops)
-    if (canon && normalizedSlug === canon) {
-      console.log("Business found:", business.name);
-      return <BusinessClient initialBusiness={business} />;
-    }
-
-    console.log("DEBUG_CANONICAL_FLOW", {
-      inputSlug: slug,
-      normalizedSlug,
-      canonical: canon,
-      pathname: `/b/${slug}`,
-      hasSearchParams,
-      foundViaCanonicalLookup,
-    });
-
-    if (canon) {
-      const target = `/b/${canon}`;
-      // Already at target path — never redirect again.
-      if (currentPath === target) {
-        console.log("Business found:", business.name);
-        return <BusinessClient initialBusiness={business} />;
-      }
-
-      if (
-        !foundViaCanonicalLookup &&
-        normalizedSlug !== canon &&
-        currentPath !== target &&
-        !hasSearchParams
-      ) {
-        redirect(target);
-      }
-    }
-
-    console.log("Business found:", business.name);
-
-    return <BusinessClient initialBusiness={business} />;
   }
 
   const cleanSlug = cleanSlugForRedirect(slug);
-  if (cleanSlug && cleanSlug !== normalizedSlug) {
+  if (!business && cleanSlug && cleanSlug !== normalizedSlug) {
     const { data: fallbackRow } = await supabase
       .from("businesses")
-      .select("slug")
+      .select("*")
       .eq("slug", cleanSlug)
       .eq("status", "active")
       .maybeSingle();
-
-    const canonical = String(fallbackRow?.slug ?? "").trim();
-    const canonicalNorm = canonical.toLowerCase();
-    if (canonical) {
-      const target = `/b/${canonicalNorm}`;
-      if (currentPath === target) {
-        return notFound();
-      }
-      if (
-        canonicalNorm !== normalizedSlug &&
-        currentPath !== target &&
-        !hasSearchParams
-      ) {
-        redirect(`/b/${canonical}`);
-      }
-    }
+    business = fallbackRow ?? null;
   }
 
-  console.warn("Business not found for slug:", slug);
-  return notFound();
+  if (!business || !business.slug) {
+    console.log("NO_BUSINESS_RENDER", { inputSlug: normalizedSlug });
+    return notFound();
+  }
+
+  const finalSlug = business.slug.toLowerCase();
+  const currentSlug = normalizedSlug;
+
+  // 🚫 HARD LOOP PREVENTION
+  if (finalSlug === currentSlug) {
+    return <BusinessClient initialBusiness={business} />;
+  }
+
+  // 🚫 DO NOT REDIRECT IF THIS SLUG ALREADY LOOKS CANONICAL
+  if (normalizedSlug === business.slug.toLowerCase()) {
+    return <BusinessClient initialBusiness={business} />;
+  }
+
+  // 🚫 ONLY redirect if we are SURE this is a different valid slug
+  if (!isRedirected && finalSlug !== currentSlug) {
+    console.log("FINAL_REDIRECT_SAFE", {
+      currentSlug,
+      finalSlug,
+    });
+
+    redirect(`/b/${finalSlug}?redirected=1`);
+  }
+
+  console.log("Business found:", (business as { name?: string | null }).name);
+  return <BusinessClient initialBusiness={business} />;
 }
