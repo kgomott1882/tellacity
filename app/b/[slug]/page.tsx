@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
@@ -84,6 +84,12 @@ export default async function BusinessPage({
     (Array.isArray(resolvedSearchParams.redirected) &&
       resolvedSearchParams.redirected.includes("1"));
   const hasSearchParams = Object.keys(resolvedSearchParams).length > 0;
+
+  if (hasSearchParams && !resolvedSearchParams.redirected) {
+    console.log("STRIPPING_QUERY_PARAMS_SAFE");
+
+    redirect(`/b/${normalizedSlug}?redirected=1`);
+  }
 
   const supabase = createClient();
 
