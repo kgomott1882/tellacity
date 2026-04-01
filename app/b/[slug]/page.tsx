@@ -93,45 +93,38 @@ export default async function BusinessPage({
 
   const supabase = createClient();
 
-  const { data: businessBySlug, error } = await supabase
+  // Always use normalized slug
+  const cleanSlug = normalizedSlug;
+
+  // 1. Try direct slug
+  let { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .eq("slug", slug)
-    .eq("status", "active")
-    .maybeSingle();
+    .eq("slug", cleanSlug)
+    .single();
 
-  if (error) {
-    console.warn(
-      "[b/slug] Supabase query error:",
-      error.message ?? String(error),
-      error.code ?? ""
-    );
-  }
-
-  let business = businessBySlug;
-
+  // 2. Fallback: canonical_slug
   if (!business) {
-    const { data: businessByCanonical } = await supabase
+    const { data: canonBusiness } = await supabase
       .from("businesses")
       .select("*")
-      .eq("canonical_slug", slug.trim())
-      .eq("status", "active")
-      .maybeSingle();
+      .eq("canonical_slug", cleanSlug)
+      .single();
 
-    if (businessByCanonical) {
-      business = businessByCanonical;
-    }
+    business = canonBusiness;
   }
 
-  const cleanSlug = cleanSlugForRedirect(slug);
-  if (!business && cleanSlug && cleanSlug !== normalizedSlug) {
-    const { data: fallbackRow } = await supabase
+  // 3. Final fallback: remove "unitedstates" style suffix if needed
+  if (!business) {
+    const stripped = cleanSlug.replace("unitedstates", "").trim();
+
+    const { data: fallbackBusiness } = await supabase
       .from("businesses")
       .select("*")
-      .eq("slug", cleanSlug)
-      .eq("status", "active")
-      .maybeSingle();
-    business = fallbackRow ?? null;
+      .eq("slug", stripped)
+      .single();
+
+    business = fallbackBusiness;
   }
 
   if (!business || !business.slug) {
