@@ -406,7 +406,15 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           );
         }
         console.error("guest invite direct publish:", pubErr);
-        return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+
+        return NextResponse.json(
+          {
+            error: "publish_failed",
+            details: pubErr?.message || pubErr,
+            code: pubErr?.code || null,
+          },
+          { status: 500 }
+        );
       }
 
       await supabase
