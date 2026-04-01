@@ -69,24 +69,20 @@ export async function generateMetadata(
   };
 }
 
-export default async function BusinessPage(
-  props: {
-    params: Promise<{ slug: string }>;
-    searchParams?:
-      | Promise<Record<string, string | string[] | undefined>>
-      | Record<string, string | string[] | undefined>;
-  }
-) {
-  const { slug } = await props.params;
+export default async function BusinessPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { slug } = await params;
   const normalizedSlug = slug.trim().toLowerCase();
   const request:
     | { nextUrl?: { pathname?: string | null } | null }
     | undefined = undefined;
-  const resolvedSearchParams = props.searchParams
-    ? await props.searchParams
-    : undefined;
-  const hasSearchParams =
-    !!resolvedSearchParams && Object.keys(resolvedSearchParams).length > 0;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const hasSearchParams = Object.keys(resolvedSearchParams).length > 0;
   const currentPath = `/b/${normalizedSlug}`;
 
   const supabase = createClient();
@@ -139,7 +135,7 @@ export default async function BusinessPage(
       inputSlug: slug,
       normalizedSlug,
       canonical: canon,
-      pathname: request?.nextUrl?.pathname || null,
+      pathname: `/b/${slug}`,
       hasSearchParams,
       foundViaCanonicalLookup,
     });
