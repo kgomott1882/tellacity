@@ -80,6 +80,30 @@ function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
   };
 }
 
+const HOME_FEED_DISPLAY_LIMIT = 20;
+
+function sortHomeFeedRowsByDateDesc(
+  rows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  return [...rows].sort((a, b) => {
+    const ta = new Date(String(a.created_at ?? 0)).getTime();
+    const tb = new Date(String(b.created_at ?? 0)).getTime();
+    return tb - ta;
+  });
+}
+
+/** Align with `normalizeCountryCode` / DB (e.g. UK → GB). */
+function feedRowCountryMatches(
+  row: Record<string, unknown>,
+  selectedCode: string,
+): boolean {
+  const raw = row.country_code;
+  const c = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+  if (!c) return false;
+  const normalized = c === "UK" ? "GB" : c;
+  return normalized === selectedCode;
+}
+
 const cleanDomain = (value: string | null | undefined) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
 
@@ -193,11 +217,9 @@ export default function HomePageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    if (pathname !== "/") return;
-    router.refresh();
-  }, [pathname, router]);
-  const [reviews, setReviews] = useState<HomeReview[]>([]);
+  const [homeFeedRawRows, setHomeFeedRawRows] = useState<
+    Record<string, unknown>[]
+  >([]);
   const [categoryCards, setCategoryCards] = useState<CategoryCard[]>([]);
   const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>(() =>
     LOOKING_FOR_CATEGORIES.map(({ label, slug }) => ({
@@ -229,13 +251,25 @@ export default function HomePageClient({
   const [clientBestInByCategory, setClientBestInByCategory] =
     useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
 
-  /** URL wins so `?country=ZA` always matches `home_feed_v1` / Best-in RPC (same as server `p_country_code`). */
+  /** URL wins so `?country=ZA` matches Best-in RPC and home-feed (same as server `p_country_code`). */
   const activeCountryCode = normalizeCountryCode(
     searchParams.get("country") ?? selectedCountry ?? initialSelectedCountry
   );
   const activeCountry =
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
     COUNTRIES[0];
+
+  const reviews = useMemo(
+    () =>
+      sortHomeFeedRowsByDateDesc(
+        homeFeedRawRows.filter((r) =>
+          feedRowCountryMatches(r, activeCountryCode),
+        ),
+      )
+        .slice(0, HOME_FEED_DISPLAY_LIMIT)
+        .map((r) => mapHomeFeedRowToHomeReview(r)),
+    [homeFeedRawRows, activeCountryCode],
+  );
 
   const latestBlogPost = useMemo(() => {
     const posts = getAllBlogPosts();
@@ -451,12 +485,15 @@ export default function HomePageClient({
     if (pathname !== "/") return;
 
     let isMounted = true;
+    let fetchGeneration = 0;
     const refreshBust =
       searchParams.get("refresh") === "true" ||
       searchParams.get("refresh") === "1";
 
     const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
+      const myGen = ++fetchGeneration;
+
       if (!silent) {
         setIsLoading(true);
         setError(null);
@@ -473,7 +510,7 @@ export default function HomePageClient({
         });
         const raw: unknown = await res.json();
 
-        if (!isMounted) return;
+        if (!isMounted || myGen !== fetchGeneration) return;
 
         let rows: Record<string, unknown>[] = [];
         if (Array.isArray(raw)) {
@@ -494,30 +531,26 @@ export default function HomePageClient({
               ? (raw as { error: string }).error
               : "Failed to load reviews.";
           setError(msg);
-          setReviews([]);
+          setHomeFeedRawRows([]);
           return;
         }
 
-        console.log("Homepage feed:", rows);
-        const sorted = [...rows].sort((a, b) => {
-          const ta = new Date(String(a.created_at ?? 0)).getTime();
-          const tb = new Date(String(b.created_at ?? 0)).getTime();
-          return tb - ta;
-        });
+        setHomeFeedRawRows(sortHomeFeedRowsByDateDesc(rows));
 
-        setReviews(sorted.map((r) => mapHomeFeedRowToHomeReview(r)));
-
-        if (refreshBust && isMounted) {
+        if (refreshBust && isMounted && myGen === fetchGeneration) {
           const p = new URLSearchParams(searchParams.toString());
           p.delete("refresh");
           const qs = p.toString();
           router.replace(qs ? `/?${qs}` : "/", { scroll: false });
         }
       } catch (e) {
-        if (!isMounted) return;
+        if (!isMounted || myGen !== fetchGeneration) return;
         setError(e instanceof Error ? e.message : "Failed to load reviews.");
+        setHomeFeedRawRows([]);
       } finally {
-        if (isMounted && !silent) setIsLoading(false);
+        if (isMounted && myGen === fetchGeneration) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -540,7 +573,7 @@ export default function HomePageClient({
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [activeCountryCode, pathname, homeSearchKey, router]);
+  }, [pathname, homeSearchKey, router, activeCountryCode]);
 
   useEffect(() => {
     if (pathname !== "/" || reviews.length === 0) {
@@ -1276,7 +1309,7 @@ export default function HomePageClient({
                     type="button"
                     className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white px-2 py-1 text-sm shadow-sm hover:border-gray-300"
                     onClick={() => setIsCountryMenuOpen((prev) => !prev)}
-                    aria-label="Change review country"
+                    aria-label="Change country for recent reviews, categories, and rankings"
                   >
                     <img
                       src={activeCountry.flagUrl}
@@ -1326,7 +1359,8 @@ export default function HomePageClient({
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Reviews are written by real customers and moderated for authenticity.
+              Real customer reviews in {activeCountry.name}, moderated for authenticity—newest
+              first. The same country applies to categories and rankings on this page.
             </p>
           </div>
           <div className="flex items-center gap-1.5">

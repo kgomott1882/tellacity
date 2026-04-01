@@ -41,8 +41,21 @@ const COUNTRY_TO_CODE: Record<string, string> = {
   "South Africa":"ZA","United States":"US","United Kingdom":"GB","Australia":"AU",
   "Canada":"CA","Germany":"DE","France":"FR","Netherlands":"NL","Ireland":"IE",
   "New Zealand":"NZ","India":"IN","Nigeria":"NG","Kenya":"KE","Ghana":"GH",
-  "Zimbabwe":"ZW","Botswana":"BW","Namibia":"NA","Other":"ZA",
+  "Zimbabwe":"ZW","Botswana":"BW","Namibia":"NA",
 };
+
+/** Do not map "Other" or unknown labels to ZA — preserves DB ISO code (e.g. US) when the dropdown shows Other. */
+function resolvePersistedCountryCode(
+  selectedCountryLabel: string,
+  loadedIsoFromDb: string,
+): string {
+  const fromDropdown = COUNTRY_TO_CODE[selectedCountryLabel];
+  if (fromDropdown) return fromDropdown;
+  const l = loadedIsoFromDb.trim().toUpperCase();
+  if (l === "UK") return "GB";
+  if (/^[A-Z]{2}$/.test(l)) return l;
+  return "ZA";
+}
 
 const REFERENCE_TYPES = [
   { value: "order",    label: "Order" },
@@ -85,6 +98,7 @@ export default function BusinessProfilePage() {
   const [logoPreview,   setLogoPreview]   = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadedCountryCodeRef = useRef<string>("");
 
   // Profile form
   const [form, setForm] = useState({
@@ -117,7 +131,15 @@ export default function BusinessProfilePage() {
         if (!mounted) return;
         const row = json.business;
         const code = (row.country_code as string) ?? getActiveCountry() ?? "";
-        const countryName = code.length === 2 ? COUNTRY_CODE_TO_NAME[code] ?? "Other" : code;
+        const normalizedCode =
+          code.trim().toUpperCase() === "UK" ? "GB" : code.trim().toUpperCase();
+        loadedCountryCodeRef.current = /^[A-Z]{2}$/.test(normalizedCode)
+          ? normalizedCode
+          : "";
+        const countryName =
+          normalizedCode.length === 2
+            ? (COUNTRY_CODE_TO_NAME[normalizedCode] ?? "Other")
+            : code;
         const cityVal = (row.city as string) ?? "";
 
         setForm((p) => ({
@@ -216,7 +238,10 @@ export default function BusinessProfilePage() {
       website_display:  displayDomain || null,
       address:          form.address.trim() || null,
       city:             form.city.trim() || null,
-      country_code:     COUNTRY_TO_CODE[form.country] ?? "ZA",
+      country_code:     resolvePersistedCountryCode(
+        form.country,
+        loadedCountryCodeRef.current,
+      ),
       description:      form.description.trim() || null,
       phone:            form.phone.trim() || null,
       email:            form.email.trim() || null,
@@ -241,6 +266,10 @@ export default function BusinessProfilePage() {
 
     setSaving(false);
     if (error) { setMessage({ type: "error", text: error.message }); return; }
+    const savedCc = String(payload.country_code ?? "").trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(savedCc)) {
+      loadedCountryCodeRef.current = savedCc === "UK" ? "GB" : savedCc;
+    }
     setMessage({ type: "success", text: "Saved." });
     setRefreshKey((k) => k + 1);
   };
