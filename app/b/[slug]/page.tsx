@@ -149,9 +149,10 @@ export default async function BusinessPage({
       }
 
       if (
+        !foundViaCanonicalLookup &&
         normalizedSlug !== canon &&
         currentPath !== target &&
-        (hasSearchParams || !foundViaCanonicalLookup)
+        !hasSearchParams
       ) {
         redirect(target);
       }
@@ -178,7 +179,11 @@ export default async function BusinessPage({
       if (currentPath === target) {
         return notFound();
       }
-      if (canonicalNorm !== normalizedSlug && currentPath !== target) {
+      if (
+        canonicalNorm !== normalizedSlug &&
+        currentPath !== target &&
+        !hasSearchParams
+      ) {
         redirect(`/b/${canonical}`);
       }
     }
