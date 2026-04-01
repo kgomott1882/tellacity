@@ -5,12 +5,9 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
 
-  // ----------------------------------------
-  // KEEP EXISTING: Canonical cleanup
-  // ----------------------------------------
-  if (url.pathname.startsWith("/b/") && url.searchParams.has("country")) {
-    url.searchParams.delete("country");
-    return NextResponse.redirect(url);
+  // 🚫 DO NOT modify or redirect /b routes at middleware level
+  if (url.pathname.startsWith("/b/")) {
+    return NextResponse.next();
   }
 
   // ----------------------------------------
