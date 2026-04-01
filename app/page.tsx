@@ -5,6 +5,7 @@ import HomePageClient from "./HomePageClient";
 import type { BestInBusiness } from "./HomePageClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { comparisonLinks } from "@/lib/comparisonLinks";
+import { normalizeCountryCode } from "@/lib/country";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",
@@ -36,7 +37,11 @@ export default async function HomePage(props: PageProps) {
 
   try {
     const searchParams = await props.searchParams;
-    country = searchParams?.country ?? "US";
+    const rawCountry = searchParams?.country;
+    const countryParam = Array.isArray(rawCountry)
+      ? rawCountry[0]
+      : rawCountry;
+    country = normalizeCountryCode(countryParam);
 
     const supabase = createSupabaseServerClient();
     if (!supabase) {

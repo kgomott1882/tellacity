@@ -7,7 +7,7 @@ type ReviewOtpModalProps = {
   draftId: string;
   verificationEmail: string;
   open?: boolean;
-  onSuccess: () => void;
+  onSuccess: (reviewId?: string) => void;
   onClose: () => void;
 };
 
@@ -64,6 +64,7 @@ export default function ReviewOtpModal({
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
+        review_id?: string;
       };
 
       if (!res.ok || data.success !== true) {
@@ -72,7 +73,11 @@ export default function ReviewOtpModal({
       }
 
       setSuccessToast(true);
-      onSuccess();
+      const rid =
+        typeof data.review_id === "string" && data.review_id.trim()
+          ? data.review_id.trim()
+          : undefined;
+      onSuccess(rid);
       onClose();
     } catch (e) {
       console.error("Failed to verify OTP:", e);

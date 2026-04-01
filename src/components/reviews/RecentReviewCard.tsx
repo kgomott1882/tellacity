@@ -27,6 +27,10 @@ type RecentReviewCardProps = {
   className?: string;
   isMobile?: boolean;
   bgColor?: string;
+  /** Homepage: roomier title/body spacing and gentler line clamps. */
+  variant?: "default" | "landing";
+  /** Pulse highlight (e.g. after publishing — homepage). */
+  highlight?: boolean;
 };
 
 export default function RecentReviewCard({
@@ -36,6 +40,8 @@ export default function RecentReviewCard({
   className,
   isMobile,
   bgColor,
+  variant = "default",
+  highlight = false,
 }: RecentReviewCardProps) {
   const router = useRouter();
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -117,11 +123,15 @@ export default function RecentReviewCard({
     }
   };
 
+  const isLanding = variant === "landing";
+
   return (
     <div
       onClick={handleCardClick}
       className={cn(
-        "flex flex-col h-full rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all cursor-pointer overflow-hidden",
+        "flex flex-col h-full rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all duration-500 cursor-pointer overflow-hidden",
+        highlight &&
+          "ring-2 ring-[#1FAF9E]/80 bg-emerald-50/90 shadow-[0_0_28px_rgba(31,175,158,0.45)]",
         bgColor,
         isMobile ? "h-[320px]" : "",
         className
@@ -182,31 +192,53 @@ export default function RecentReviewCard({
 
       <div className="h-px bg-slate-200" />
 
-      <div className="flex flex-col gap-2 p-4 flex-grow">
-        <div className="flex justify-between text-xs text-slate-500">
-          <span className="truncate font-semibold text-slate-900">
+      <div
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col p-4",
+          isLanding ? "gap-0" : "gap-2 flex-grow",
+        )}
+      >
+        <div className="flex justify-between gap-2 text-xs text-slate-500">
+          <span className="min-w-0 truncate font-semibold text-slate-900">
             {reviewerName}
           </span>
-          <span>{dateText}</span>
+          <span className="shrink-0">{dateText}</span>
         </div>
 
         {title && (
-          <div className="font-semibold text-sm text-slate-900 line-clamp-1">
+          <div
+            className={cn(
+              "break-words font-semibold text-sm text-slate-900",
+              isLanding ? "mt-3 line-clamp-2" : "mt-0 line-clamp-1",
+            )}
+          >
             {title}
           </div>
         )}
 
         <p
           className={cn(
-            "text-sm text-slate-600 leading-relaxed",
-            !showMore && (isMobile ? "line-clamp-4" : "line-clamp-5")
+            "text-sm leading-relaxed text-slate-600 break-words [overflow-wrap:anywhere]",
+            isLanding
+              ? cn("min-h-[4.5rem] sm:min-h-[5.25rem]", title ? "mt-2" : "mt-3")
+              : "mt-0",
+            !showMore &&
+              (isLanding
+                ? isMobile
+                  ? "line-clamp-4"
+                  : "line-clamp-4 sm:line-clamp-6"
+                : isMobile
+                  ? "line-clamp-4"
+                  : "line-clamp-5"),
+            isLanding && "mb-4",
+            !isLanding && "flex-grow",
           )}
         >
           {body}
         </p>
 
         {showMoreSection && (
-          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+          <div className={cn("mt-2", isLanding && "mb-1")} onClick={(e) => e.stopPropagation()}>
             {!showMore ? (
               <button
                 type="button"

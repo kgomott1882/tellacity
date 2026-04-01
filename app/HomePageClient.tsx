@@ -19,6 +19,10 @@ import {
 } from "@/lib/country";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { getAllBlogPosts } from "../data/blogPosts";
+import {
+  clearHomeFeedHighlight,
+  readHomeFeedHighlight,
+} from "@/lib/homeFeedHighlight";
 
 type HomeReview = {
   review_id: string;
@@ -203,6 +207,9 @@ export default function HomePageClient({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
+  const [highlightedReviewId, setHighlightedReviewId] = useState<
+    string | null
+  >(null);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(
     initialSelectedCountry ?? null
@@ -210,6 +217,8 @@ export default function HomePageClient({
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
+  const recentReviewsSectionRef = useRef<HTMLElement | null>(null);
+  const homeHighlightClearTimerRef = useRef<number | null>(null);
   const heroStarFieldRef = useRef<HeroStarFieldHandle | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
   const [bestInMetrics, setBestInMetrics] = useState<
@@ -218,8 +227,9 @@ export default function HomePageClient({
   const [clientBestInByCategory, setClientBestInByCategory] =
     useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
 
+  /** URL wins so `?country=ZA` always matches `home_feed_v1` / Best-in RPC (same as server `p_country_code`). */
   const activeCountryCode = normalizeCountryCode(
-    selectedCountry ?? searchParams.get("country")
+    searchParams.get("country") ?? selectedCountry ?? initialSelectedCountry
   );
   const activeCountry =
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
@@ -451,7 +461,7 @@ export default function HomePageClient({
         const { data, error } = await supabase
           .from("home_feed_v1")
           .select("*")
-          .eq("country_code", activeCountryCode)
+          .ilike("country_code", activeCountryCode)
           .order("created_at", { ascending: false })
           .limit(HOME_FEED_RECENT_LIMIT);
 
@@ -463,14 +473,14 @@ export default function HomePageClient({
           return;
         }
 
-        console.log("Homepage reviews:", data);
-        const rows = data ?? [];
-        const newestId =
-          rows[0] != null
-            ? (rows[0] as Record<string, unknown>).review_id
-            : null;
-        console.log("Homepage newest review_id:", newestId);
-        console.log("Homepage feed query: country_code =", activeCountryCode);
+        console.log("Recent reviews data:", data);
+        const rows = [...(data ?? [])].sort((a, b) => {
+          const ra = a as Record<string, unknown>;
+          const rb = b as Record<string, unknown>;
+          const ta = new Date(String(ra.created_at ?? 0)).getTime();
+          const tb = new Date(String(rb.created_at ?? 0)).getTime();
+          return tb - ta;
+        });
 
         setReviews(
           rows.map((r) =>
@@ -505,6 +515,52 @@ export default function HomePageClient({
       window.removeEventListener("pageshow", onPageShow);
     };
   }, [activeCountryCode, pathname]);
+
+  useEffect(() => {
+    if (pathname !== "/" || reviews.length === 0) {
+      return;
+    }
+    const hint = readHomeFeedHighlight();
+    if (!hint) {
+      return;
+    }
+    clearHomeFeedHighlight();
+    setReviewPage(0);
+
+    const pickId =
+      hint.type === "review" && reviews.some((r) => r.review_id === hint.id)
+        ? hint.id
+        : reviews[0]?.review_id ?? null;
+
+    if (pickId) {
+      setHighlightedReviewId(pickId);
+    }
+
+    requestAnimationFrame(() => {
+      recentReviewsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      reviewsScrollRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+    });
+
+    if (homeHighlightClearTimerRef.current != null) {
+      window.clearTimeout(homeHighlightClearTimerRef.current);
+    }
+    homeHighlightClearTimerRef.current = window.setTimeout(() => {
+      setHighlightedReviewId(null);
+      homeHighlightClearTimerRef.current = null;
+    }, 6000);
+  }, [reviews, pathname]);
+
+  useEffect(() => {
+    return () => {
+      if (homeHighlightClearTimerRef.current != null) {
+        window.clearTimeout(homeHighlightClearTimerRef.current);
+        homeHighlightClearTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Keep a local copy of Best-in data and fill gaps with a direct businesses fallback
   // when the RPC returns no rows for a given category/country.
@@ -1174,7 +1230,10 @@ export default function HomePageClient({
       </section>
 
       {/* RECENT REVIEWS */}
-      <section className="mx-auto max-w-7xl px-6 py-8 sm:py-10 md:py-12">
+      <section
+        ref={recentReviewsSectionRef}
+        className="mx-auto max-w-7xl px-6 py-8 sm:py-10 md:py-12"
+      >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
@@ -1321,7 +1380,12 @@ export default function HomePageClient({
                     key={review.review_id}
                     className="transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
                   >
-                    <RecentReviewCard review={review} showMoreAndReply={false} />
+                    <RecentReviewCard
+                      review={review}
+                      showMoreAndReply={false}
+                      variant="landing"
+                      highlight={highlightedReviewId === review.review_id}
+                    />
                   </div>
                 ))}
               </div>
@@ -1344,7 +1408,12 @@ export default function HomePageClient({
                 key={review.review_id}
                 className="transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl"
               >
-                <RecentReviewCard review={review} showMoreAndReply={false} />
+                <RecentReviewCard
+                  review={review}
+                  showMoreAndReply={false}
+                  variant="landing"
+                  highlight={highlightedReviewId === review.review_id}
+                />
               </div>
             ))}
         </div>

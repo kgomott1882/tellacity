@@ -156,28 +156,37 @@ export async function POST(req: Request) {
       (guestEmail.includes("@") ? guestEmail.split("@")[0] : "") ||
       "Customer";
 
+    let publishedReviewId: string | null = null;
     try {
-      const { error: insertErr } = await supabaseAdmin.from("reviews").insert({
-        business_id: d.business_id,
-        rating: d.rating,
-        title: d.title,
-        body: d.body,
-        guest_name: guestNameResolved.slice(0, 200),
-        guest_email: guestEmail,
-        date_of_experience: d.date_of_experience,
-        status: "published",
-        visibility: "visible",
-        verification_status: "verified",
-        draft: false,
-        imported: false,
-        marketing_opt_in: Boolean(d.marketing_opt_in),
-        invite_id: d.invite_id,
-        receipt_url: d.receipt_url,
-        reference_number: d.reference_number,
-        user_id: d.user_id,
-        is_flagged: false,
-      });
+      const { data: inserted, error: insertErr } = await supabaseAdmin
+        .from("reviews")
+        .insert({
+          business_id: d.business_id,
+          rating: d.rating,
+          title: d.title,
+          body: d.body,
+          guest_name: guestNameResolved.slice(0, 200),
+          guest_email: guestEmail,
+          date_of_experience: d.date_of_experience,
+          status: "published",
+          visibility: "visible",
+          verification_status: "verified",
+          draft: false,
+          imported: false,
+          marketing_opt_in: Boolean(d.marketing_opt_in),
+          invite_id: d.invite_id,
+          receipt_url: d.receipt_url,
+          reference_number: d.reference_number,
+          user_id: d.user_id,
+          is_flagged: false,
+        })
+        .select("id")
+        .maybeSingle();
       if (insertErr) throw insertErr;
+      publishedReviewId =
+        inserted && typeof (inserted as { id?: string }).id === "string"
+          ? (inserted as { id: string }).id
+          : null;
     } catch (error: any) {
       if (error.code === "23505") {
         return new Response(
@@ -204,7 +213,10 @@ export async function POST(req: Request) {
     await supabase.from("review_otps").delete().eq("draft_id", draftId);
     await supabase.from("review_drafts").delete().eq("id", draftId);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      review_id: publishedReviewId,
+    });
   } catch (e: unknown) {
     console.error("VERIFY ERROR:", e);
     const err = e as { code?: string };

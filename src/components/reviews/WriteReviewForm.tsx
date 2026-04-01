@@ -13,6 +13,10 @@ import BusinessSearchInput, {
 } from "@/components/search/BusinessSearchInput";
 import ReviewOtpModal from "@/components/reviews/ReviewOtpModal";
 import { reviewErrorMessages } from "@/lib/errorMessages";
+import {
+  primeHomeFeedHighlightNewest,
+  primeHomeFeedHighlightReviewId,
+} from "@/lib/homeFeedHighlight";
 
 type WriteReviewFormProps = {
   inviteId?: string | null;
@@ -1166,6 +1170,7 @@ export default function WriteReviewForm({
           description: "Your changes have been saved.",
           variant: "success",
         });
+        primeHomeFeedHighlightNewest();
         router.push(`/b/${business.slug}`);
         return;
       } catch (err: any) {
@@ -1282,6 +1287,7 @@ export default function WriteReviewForm({
             description: "Your review has been published.",
             variant: "success",
           });
+          primeHomeFeedHighlightReviewId(data.reviewId);
           router.push(`/b/${business.slug}`);
           return;
         }
@@ -1379,6 +1385,7 @@ export default function WriteReviewForm({
           });
           if (business) {
             const slugToUse = business.slug;
+            primeHomeFeedHighlightNewest();
             router.push(`/b/${slugToUse}`);
           }
         }
@@ -2356,7 +2363,7 @@ export default function WriteReviewForm({
           draftId={otpDraftId}
           verificationEmail={otpEmail}
           open={otpModalOpen}
-          onSuccess={() => {
+          onSuccess={(publishedReviewId) => {
             resetGoogleReviewMode();
             if (typeof window !== "undefined") {
               window.localStorage.removeItem(PENDING_REVIEW_DRAFT_ID_KEY);
@@ -2371,6 +2378,11 @@ export default function WriteReviewForm({
             }
             if (business) {
               const slugToUse = business.slug;
+              if (publishedReviewId) {
+                primeHomeFeedHighlightReviewId(publishedReviewId);
+              } else {
+                primeHomeFeedHighlightNewest();
+              }
               router.push(`/b/${slugToUse}`);
             }
           }}
