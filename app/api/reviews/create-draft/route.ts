@@ -329,8 +329,6 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   if (!effectiveEmail || !effectiveEmail.includes("@")) {
     return NextResponse.json({ error: "Invalid email" }, { status: 400 });
   }
-  const authUser = await getAuthUser(req);
-  const isGoogleUser = !!authUser;
 
   if (!guest_name_raw) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -381,6 +379,8 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           body: rawBody,
           guest_email: guestEmailLower,
           guest_name: guest_name_raw.slice(0, 200),
+          user_id: null,
+          consumer_id: null,
           date_of_experience,
           status: "published",
           visibility: "visible",
@@ -391,7 +391,6 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           receipt_url,
           reference_number,
           invite_id: inviteId,
-          user_id: null,
           is_flagged: false,
         })
         .select("id")
@@ -436,6 +435,9 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
     }
   }
+
+  const authUser = await getAuthUser(req);
+  const isGoogleUser = !!authUser;
 
   const { data: guestRows, error: existingError } = await supabase
     .from("reviews")
