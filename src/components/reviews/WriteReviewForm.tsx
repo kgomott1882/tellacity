@@ -1388,7 +1388,6 @@ export default function WriteReviewForm({
 
       const inviteTokenTrimmed = String(inviteToken ?? "").trim();
       const inviteIdTrimmed = String(inviteId ?? "").trim();
-      const inviteDraftIdForSubmit = inviteDraftIdTrimmed;
       const reviewerEmailNorm = (reviewerEmail ?? "").trim().toLowerCase();
       const sessionEmailNorm = (userEmail ?? "").trim().toLowerCase();
       const hasInviteIdentity = Boolean(inviteIdTrimmed || inviteTokenTrimmed);
@@ -1397,16 +1396,6 @@ export default function WriteReviewForm({
       // invite recipient and published state — even when the reviewer is logged in. The
       // logged-in direct insert path skipped invite logic and could false-positive duplicates.
       if (hasInviteIdentity && reviewerEmailNorm) {
-        if (userId && sessionEmailNorm && sessionEmailNorm !== reviewerEmailNorm) {
-          showToast({
-            title: "Wrong account for this invite",
-            description:
-              "Sign out and open the link again, or sign in with the email address that received the invitation.",
-            variant: "destructive",
-          });
-          return;
-        }
-
         const guestNameForInvite =
           guestName.trim() ||
           (userDisplayName ?? "").trim() ||
@@ -1415,20 +1404,9 @@ export default function WriteReviewForm({
           "Customer";
 
         if (inviteIdTrimmed) {
-          const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
-          const inviteAccessToken =
-            inviteSessionData?.session?.access_token?.trim();
-          const headersInvitePublish: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-          if (inviteAccessToken && inviteAccessToken.length > 0) {
-            headersInvitePublish.Authorization = `Bearer ${inviteAccessToken}`;
-          }
-
-          const resInvitePublish = await fetch("/api/reviews/create-draft", {
+          const resInvitePublish = await fetch("/api/review-drafts/create", {
             method: "POST",
-            headers: headersInvitePublish,
-            credentials: "include",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               business_id: business.id,
               rating: Math.max(1, Math.min(5, Math.round(rating))),
@@ -1436,14 +1414,9 @@ export default function WriteReviewForm({
               body: body.trim(),
               guest_email: finalGuestEmailTrimmed,
               guest_name: guestNameForInvite,
-              receipt_url: receiptUrl,
-              date_of_experience: dateOfExperience,
-              marketing_opt_in: marketingOptIn,
-              reference_number:
-                business.reference_number_enabled && referenceNumber.trim()
-                  ? referenceNumber.trim()
-                  : null,
               invite_id: inviteIdTrimmed,
+              date_of_experience: dateOfExperience,
+              receipt_url: receiptUrl,
             }),
           });
 
@@ -1451,8 +1424,8 @@ export default function WriteReviewForm({
             .json()
             .catch(() => ({}))) as {
             error?: string;
-            published?: boolean;
-            requiresOtp?: boolean;
+            success?: boolean;
+            draft_id?: string | null;
           };
 
           if (!resInvitePublish.ok) {
@@ -1465,15 +1438,8 @@ export default function WriteReviewForm({
             return;
           }
 
-          if (dataInvitePublish.published === true) {
+          if (dataInvitePublish.success === true) {
             onInviteReviewPublished?.();
-            return;
-          }
-
-          if (dataInvitePublish.requiresOtp === true && inviteIdTrimmed) {
-            setSubmitError(
-              "Invite review unexpectedly required verification.",
-            );
             return;
           }
 
@@ -1482,51 +1448,37 @@ export default function WriteReviewForm({
         }
 
         if (inviteTwoStepOtp && onInviteDraftCreated) {
-          if (!isUuid(inviteDraftIdForSubmit)) {
-            onInviteDraftFlowError?.("Missing draft. Please refresh and try again.");
+          if (!isUuid(inviteIdTrimmed)) {
+            onInviteDraftFlowError?.(
+              "Invalid invite. Please open the link from your email again.",
+            );
             showToast({
-              title: "Missing draft",
-              description: "Please refresh and try again.",
+              title: "Invalid invite",
+              description: "Please open the link from your email again.",
               variant: "destructive",
             });
             return;
           }
-          const { data: inviteSessionData } = await supabaseBrowser().auth.getSession();
-          const inviteAccessToken = inviteSessionData?.session?.access_token?.trim();
-          const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-          if (inviteAccessToken && inviteAccessToken.length > 0) {
-            headers.Authorization = `Bearer ${inviteAccessToken}`;
-          }
-
-          const resDraft = await fetch("/api/reviews/create-draft", {
+          const resDraft = await fetch("/api/review-drafts/create", {
             method: "POST",
-            headers,
-            credentials: "include",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              draft_id: inviteDraftIdForSubmit,
               business_id: business.id,
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,
               body: body.trim(),
-              date_of_experience: dateOfExperience,
               guest_email: finalGuestEmailTrimmed,
               guest_name: guestNameForInvite,
+              invite_id: inviteIdTrimmed,
+              date_of_experience: dateOfExperience,
               receipt_url: receiptUrl,
-              marketing_opt_in: marketingOptIn,
-              reference_number:
-                business.reference_number_enabled && referenceNumber.trim()
-                  ? referenceNumber.trim()
-                  : null,
-              invite_token: inviteTokenTrimmed || null,
-              invite_id: inviteIdTrimmed || null,
             }),
           });
 
           const dataDraft = (await resDraft.json().catch(() => ({}))) as {
             error?: string;
-            draft_id?: string;
+            success?: boolean;
+            draft_id?: string | null;
           };
 
           if (!resDraft.ok) {
@@ -1536,14 +1488,14 @@ export default function WriteReviewForm({
                 : "Something went wrong";
             onInviteDraftFlowError?.(msg);
             showToast({
-              title: "Couldn’t send code",
+              title: "Couldn’t save draft",
               description: msg,
               variant: "destructive",
             });
             return;
           }
 
-          const did = dataDraft.draft_id;
+          const did = dataDraft.success ? dataDraft.draft_id : undefined;
           const draftIdOk =
             typeof did === "string" &&
             /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

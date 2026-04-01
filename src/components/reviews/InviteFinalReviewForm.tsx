@@ -134,28 +134,27 @@ export function InviteFinalReviewForm({
         receipt_url = await uploadProofIfNeeded();
       }
 
-      const payload: Record<string, unknown> = {
+      const payload = {
         business_id: businessId,
         rating,
         title: title.trim() || null,
         body: trimmedBody,
         guest_email: reviewerEmail.trim(),
         guest_name,
-        date_of_experience,
         invite_id: inviteId,
+        date_of_experience,
+        receipt_url,
       };
-      if (receipt_url) {
-        payload.receipt_url = receipt_url;
-      }
 
-      const res = await fetch("/api/reviews/create-draft", {
+      const res = await fetch("/api/review-drafts/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = (await res.json().catch(() => ({}))) as {
-        published?: boolean;
+        success?: boolean;
+        draft_id?: string | null;
         error?: string;
       };
 
@@ -164,13 +163,13 @@ export function InviteFinalReviewForm({
         return;
       }
 
-      if (data.published === true) {
+      if (data.success === true) {
         onSuccess?.();
         return;
       }
 
       setSubmitError(
-        "Your review could not be published from this form. Please try again or contact support.",
+        "Your review could not be saved. Please try again or contact support.",
       );
     } catch (err) {
       setSubmitError(
