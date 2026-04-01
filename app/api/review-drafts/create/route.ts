@@ -10,6 +10,10 @@ function isUuid(value: string): boolean {
   );
 }
 
+function normEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 type Body = {
   business_id?: string;
   rating?: number;
@@ -20,11 +24,22 @@ type Body = {
   invite_id?: string;
   date_of_experience?: string | null;
   receipt_url?: string | null;
+  /** Default: publish to `reviews` when invite is valid. Use `draft` only for OTP two-step flows. */
+  intent?: "draft" | "publish";
+};
+
+type InviteRow = {
+  id: string;
+  business_id: string;
+  recipient_email?: string | null;
+  review_submitted_at?: string | null;
+  expires_at?: string | null;
 };
 
 /**
- * Invite-only guest draft: insert into review_drafts only.
- * No auth.users, profiles, or user-resolution RPCs.
+ * Invite guest flow:
+ * - Default (`intent` omitted or `publish`): validate invite → insert published `reviews` row → mark invite used.
+ * - `intent: 'draft'`: legacy OTP path — insert `review_drafts` only.
  */
 export async function POST(req: Request) {
   try {
@@ -89,33 +104,140 @@ export async function POST(req: Request) {
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data, error } = await supabase
-      .from("review_drafts")
-      .insert({
-        business_id,
-        rating: Math.round(ratingNum),
-        title: titleVal,
-        body: rawBody,
-        email: guest_email,
-        guest_name,
-        invite_id,
-        date_of_experience,
-        receipt_url,
-      })
-      .select("id")
-      .single();
+    const intent = body.intent === "draft" ? "draft" : "publish";
 
-    if (error) {
-      console.error("review-drafts create:", error);
+    if (intent === "draft") {
+      const { data, error } = await supabase
+        .from("review_drafts")
+        .insert({
+          business_id,
+          rating: Math.round(ratingNum),
+          title: titleVal,
+          body: rawBody,
+          email: guest_email,
+          guest_name,
+          invite_id,
+          date_of_experience,
+          receipt_url,
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("review-drafts create:", error);
+        return NextResponse.json(
+          { error: error.message || "Failed to save draft" },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        draft_id: data?.id ?? null,
+        published: false,
+      });
+    }
+
+    const { data: inviteRow, error: inviteErr } = await supabase
+      .from("review_invites")
+      .select("id, business_id, recipient_email, review_submitted_at, expires_at")
+      .eq("id", invite_id)
+      .maybeSingle();
+
+    if (inviteErr || !inviteRow) {
+      console.error("review-invites lookup:", inviteErr);
+      return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
+    }
+
+    const inv = inviteRow as InviteRow;
+    if (String(inv.business_id ?? "").trim() !== business_id) {
+      return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
+    }
+
+    const invitedTo = normEmail(String(inv.recipient_email ?? ""));
+    const submitter = normEmail(guest_email);
+    if (!invitedTo || invitedTo !== submitter) {
       return NextResponse.json(
-        { error: error.message || "Failed to save draft" },
+        { error: "This review must be submitted with the invited email address." },
         { status: 400 },
       );
     }
 
+    if (inv.review_submitted_at) {
+      return NextResponse.json(
+        { error: "This invite has already been used." },
+        { status: 400 },
+      );
+    }
+
+    if (inv.expires_at && new Date(String(inv.expires_at)) < new Date()) {
+      return NextResponse.json({ error: "Invite expired" }, { status: 400 });
+    }
+
+    let publishedReviewId: string | null = null;
+    try {
+      const { data: inserted, error: insertErr } = await supabase
+        .from("reviews")
+        .insert({
+          business_id,
+          rating: Math.round(ratingNum),
+          title: titleVal,
+          body: rawBody,
+          guest_name: guest_name.slice(0, 200),
+          guest_email: submitter,
+          date_of_experience,
+          status: "published",
+          visibility: "visible",
+          verification_status: "verified",
+          draft: false,
+          imported: false,
+          marketing_opt_in: false,
+          invite_id,
+          receipt_url,
+          reference_number: null,
+          user_id: null,
+          is_flagged: false,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (insertErr) throw insertErr;
+      publishedReviewId =
+        inserted && typeof (inserted as { id?: string }).id === "string"
+          ? (inserted as { id: string }).id
+          : null;
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === "23505") {
+        return NextResponse.json(
+          { error: "You have already reviewed this business." },
+          { status: 400 },
+        );
+      }
+      console.error("invite publish insert reviews:", error);
+      return NextResponse.json(
+        { error: "Could not publish review. Please try again." },
+        { status: 500 },
+      );
+    }
+
+    const { error: updErr } = await supabase
+      .from("review_invites")
+      .update({
+        review_submitted_at: new Date().toISOString(),
+        status: "completed",
+      })
+      .eq("id", invite_id);
+
+    if (updErr) {
+      console.error("review_invites update after publish:", updErr);
+    }
+
     return NextResponse.json({
       success: true,
-      draft_id: data?.id ?? null,
+      published: true,
+      review_id: publishedReviewId,
+      draft_id: null,
     });
   } catch (e) {
     console.error("review-drafts create:", e);

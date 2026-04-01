@@ -1470,6 +1470,7 @@ export default function WriteReviewForm({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              intent: "draft",
               business_id: business.id,
               rating: Math.max(1, Math.min(5, Math.round(rating))),
               title: title.trim() || null,

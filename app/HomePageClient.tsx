@@ -120,9 +120,6 @@ const ADDITIONAL_MARQUEE_CATEGORIES: { label: string; slug: string }[] = [
   { label: "Garden Center", slug: "retail" },
   { label: "Travel Agency", slug: "travel-agencies" },
 ];
-/** Recent reviews on `/` — only `public.home_feed_v1` (not `reviews` directly). */
-const HOME_FEED_RECENT_LIMIT = 20;
-
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
   { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
@@ -448,11 +445,15 @@ export default function HomePageClient({
     }
   }, [pathname, searchParams, router]);
 
-  // Live feed: only `home_feed_v1` (never `reviews`). Browser fetch uses cache: no-store + no-cache headers.
+  // Recent reviews: always hit `/api/home-feed` with `cache: "no-store"` (avoids client Supabase / stale state after navigation).
+  const homeSearchKey = searchParams.toString();
   useEffect(() => {
     if (pathname !== "/") return;
 
     let isMounted = true;
+    const refreshBust =
+      searchParams.get("refresh") === "true" ||
+      searchParams.get("refresh") === "1";
 
     const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
@@ -462,36 +463,56 @@ export default function HomePageClient({
       }
 
       try {
-        const supabase = supabaseBrowser();
-        const { data, error } = await supabase
-          .from("home_feed_v1")
-          .select("*")
-          .ilike("country_code", activeCountryCode)
-          .order("created_at", { ascending: false })
-          .limit(HOME_FEED_RECENT_LIMIT);
+        const q = new URLSearchParams();
+        q.set("country", activeCountryCode);
+        if (refreshBust) {
+          q.set("_", String(Date.now()));
+        }
+        const res = await fetch(`/api/home-feed?${q.toString()}`, {
+          cache: "no-store",
+        });
+        const raw: unknown = await res.json();
 
         if (!isMounted) return;
 
-        if (error) {
-          setError(error.message);
+        let rows: Record<string, unknown>[] = [];
+        if (Array.isArray(raw)) {
+          rows = raw as Record<string, unknown>[];
+        } else if (
+          raw &&
+          typeof raw === "object" &&
+          Array.isArray((raw as { data?: unknown }).data)
+        ) {
+          rows = (raw as { data: Record<string, unknown>[] }).data;
+        }
+
+        if (!res.ok) {
+          const msg =
+            raw &&
+            typeof raw === "object" &&
+            typeof (raw as { error?: string }).error === "string"
+              ? (raw as { error: string }).error
+              : "Failed to load reviews.";
+          setError(msg);
           setReviews([]);
           return;
         }
 
-        console.log("Homepage feed:", data);
-        const rows = [...(data ?? [])].sort((a, b) => {
-          const ra = a as Record<string, unknown>;
-          const rb = b as Record<string, unknown>;
-          const ta = new Date(String(ra.created_at ?? 0)).getTime();
-          const tb = new Date(String(rb.created_at ?? 0)).getTime();
+        console.log("Homepage feed:", rows);
+        const sorted = [...rows].sort((a, b) => {
+          const ta = new Date(String(a.created_at ?? 0)).getTime();
+          const tb = new Date(String(b.created_at ?? 0)).getTime();
           return tb - ta;
         });
 
-        setReviews(
-          rows.map((r) =>
-            mapHomeFeedRowToHomeReview(r as Record<string, unknown>)
-          )
-        );
+        setReviews(sorted.map((r) => mapHomeFeedRowToHomeReview(r)));
+
+        if (refreshBust && isMounted) {
+          const p = new URLSearchParams(searchParams.toString());
+          p.delete("refresh");
+          const qs = p.toString();
+          router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+        }
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : "Failed to load reviews.");
@@ -519,7 +540,7 @@ export default function HomePageClient({
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [activeCountryCode, pathname]);
+  }, [activeCountryCode, pathname, homeSearchKey, router]);
 
   useEffect(() => {
     if (pathname !== "/" || reviews.length === 0) {

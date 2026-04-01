@@ -9,7 +9,8 @@ export type InviteFinalReviewFormProps = {
   businessName: string;
   reviewerEmail: string;
   inviteId: string;
-  onSuccess?: () => void;
+  /** Called after the review is published to `reviews` (includes new `review_id` when returned). */
+  onSuccess?: (reviewId: string | null) => void;
 };
 
 const PROOF_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"];
@@ -35,6 +36,18 @@ function humanizeApiError(payload: { error?: string }): string {
   if (e === "Invalid request") return "Please check your review and try again.";
   if (e === "Invalid rating") return "Please choose a rating from 1 to 5.";
   if (e === "Invalid email") return "This invite email is not valid.";
+  if (e === "This invite has already been used.")
+    return "This invite has already been used.";
+  if (e === "Invite expired") return "This invite has expired.";
+  if (
+    e ===
+    "This review must be submitted with the invited email address."
+  ) {
+    return "Use the same email address this invite was sent to.";
+  }
+  if (e === "You have already reviewed this business.") {
+    return "You have already reviewed this business.";
+  }
   return e;
 }
 
@@ -155,6 +168,8 @@ export function InviteFinalReviewForm({
 
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
+        published?: boolean;
+        review_id?: string | null;
         draft_id?: string | null;
         error?: string;
       };
@@ -164,8 +179,19 @@ export function InviteFinalReviewForm({
         return;
       }
 
+      if (data.success === true && data.published === true) {
+        const rid =
+          typeof data.review_id === "string" && data.review_id.trim()
+            ? data.review_id.trim()
+            : null;
+        onSuccess?.(rid);
+        return;
+      }
+
       if (data.success === true) {
-        onSuccess?.();
+        setSubmitError(
+          "Your review was saved but not published. Please contact support.",
+        );
         return;
       }
 
