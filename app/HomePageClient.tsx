@@ -195,6 +195,11 @@ export default function HomePageClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+    router.refresh();
+  }, [pathname, router]);
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [categoryCards, setCategoryCards] = useState<CategoryCard[]>([]);
   const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>(() =>
@@ -443,7 +448,7 @@ export default function HomePageClient({
     }
   }, [pathname, searchParams, router]);
 
-  // Recent reviews: single source = `home_feed_v1` only (view enforces published + visible). Refetch on country, route, tab focus / bfcache.
+  // Live feed: only `home_feed_v1` (never `reviews`). Browser fetch uses cache: no-store + no-cache headers.
   useEffect(() => {
     if (pathname !== "/") return;
 
@@ -473,7 +478,7 @@ export default function HomePageClient({
           return;
         }
 
-        console.log("Recent reviews data:", data);
+        console.log("Homepage feed:", data);
         const rows = [...(data ?? [])].sort((a, b) => {
           const ra = a as Record<string, unknown>;
           const rb = b as Record<string, unknown>;

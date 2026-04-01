@@ -21,11 +21,19 @@ export function supabaseBrowser(): SupabaseClient {
 
   client = createBrowserClient(supabaseUrl, supabaseAnonKey, {
     global: {
-      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
-        fetch(input, {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        headers.set(
+          "Cache-Control",
+          "no-cache, no-store, max-age=0, must-revalidate",
+        );
+        headers.set("Pragma", "no-cache");
+        return fetch(input, {
           ...init,
+          headers,
           cache: "no-store",
-        }),
+        });
+      },
     },
   });
   return client;
