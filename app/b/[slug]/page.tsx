@@ -70,9 +70,24 @@ export async function generateMetadata(
 }
 
 export default async function BusinessPage(
-  props: { params: Promise<{ slug: string }> }
+  props: {
+    params: Promise<{ slug: string }>;
+    searchParams?:
+      | Promise<Record<string, string | string[] | undefined>>
+      | Record<string, string | string[] | undefined>;
+  }
 ) {
   const { slug } = await props.params;
+  const normalizedSlug = slug.trim().toLowerCase();
+  const request:
+    | { nextUrl?: { pathname?: string | null } | null }
+    | undefined = undefined;
+  const resolvedSearchParams = props.searchParams
+    ? await props.searchParams
+    : undefined;
+  const hasSearchParams =
+    !!resolvedSearchParams && Object.keys(resolvedSearchParams).length > 0;
+  const currentPath = `/b/${normalizedSlug}`;
 
   const supabase = createClient();
 
@@ -109,13 +124,40 @@ export default async function BusinessPage(
   }
 
   if (business) {
-    if (!foundViaCanonicalLookup) {
-      const canon = String(
-        (business as { canonical_slug?: string | null }).canonical_slug ?? ""
-      ).trim();
-      const urlSlug = slug.trim();
-      if (canon && canon.toLowerCase() !== urlSlug.toLowerCase()) {
-        redirect(`/b/${canon}`);
+    const canonRaw = String(
+      (business as { canonical_slug?: string | null }).canonical_slug ?? ""
+    ).trim();
+    const canon = canonRaw.toLowerCase();
+
+    // Already on canonical URL — never redirect (prevents infinite loops)
+    if (canon && normalizedSlug === canon) {
+      console.log("Business found:", business.name);
+      return <BusinessClient initialBusiness={business} />;
+    }
+
+    console.log("DEBUG_CANONICAL_FLOW", {
+      inputSlug: slug,
+      normalizedSlug,
+      canonical: canon,
+      pathname: request?.nextUrl?.pathname || null,
+      hasSearchParams,
+      foundViaCanonicalLookup,
+    });
+
+    if (canon) {
+      const target = `/b/${canon}`;
+      // Already at target path — never redirect again.
+      if (currentPath === target) {
+        console.log("Business found:", business.name);
+        return <BusinessClient initialBusiness={business} />;
+      }
+
+      if (
+        normalizedSlug !== canon &&
+        currentPath !== target &&
+        (hasSearchParams || !foundViaCanonicalLookup)
+      ) {
+        redirect(target);
       }
     }
 
@@ -124,9 +166,8 @@ export default async function BusinessPage(
     return <BusinessClient initialBusiness={business} />;
   }
 
-  const normalized = slug.trim().toLowerCase();
   const cleanSlug = cleanSlugForRedirect(slug);
-  if (cleanSlug && cleanSlug !== normalized) {
+  if (cleanSlug && cleanSlug !== normalizedSlug) {
     const { data: fallbackRow } = await supabase
       .from("businesses")
       .select("slug")
@@ -135,8 +176,15 @@ export default async function BusinessPage(
       .maybeSingle();
 
     const canonical = String(fallbackRow?.slug ?? "").trim();
+    const canonicalNorm = canonical.toLowerCase();
     if (canonical) {
-      redirect(`/b/${canonical}`);
+      const target = `/b/${canonicalNorm}`;
+      if (currentPath === target) {
+        return notFound();
+      }
+      if (canonicalNorm !== normalizedSlug && currentPath !== target) {
+        redirect(`/b/${canonical}`);
+      }
     }
   }
 
