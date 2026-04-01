@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
@@ -138,24 +138,22 @@ export default async function BusinessPage({
 
   // 🚫 HARD LOOP PREVENTION
   if (finalSlug === currentSlug) {
-    return <BusinessClient initialBusiness={business} />;
+    return <BusinessClient business={business} />;
   }
 
   // 🚫 DO NOT REDIRECT IF THIS SLUG ALREADY LOOKS CANONICAL
   if (normalizedSlug === business.slug.toLowerCase()) {
-    return <BusinessClient initialBusiness={business} />;
+    return <BusinessClient business={business} />;
   }
 
   // 🚫 ONLY redirect if we are SURE this is a different valid slug
   if (!isRedirected && finalSlug !== currentSlug) {
-    console.log("FINAL_REDIRECT_SAFE", {
+    console.log("REDIRECT_DISABLED", {
       currentSlug,
       finalSlug,
     });
-
-    redirect(`/b/${finalSlug}?redirected=1`);
   }
 
   console.log("Business found:", (business as { name?: string | null }).name);
-  return <BusinessClient initialBusiness={business} />;
+  return <BusinessClient business={business} />;
 }
