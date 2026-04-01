@@ -12,14 +12,15 @@ export type AdminOverviewStats = {
   consumer_users?: number | null;
 } & Record<string, unknown>;
 
-/** Row from RPC `admin_get_recent_activity` (includes `email` for all activity types). */
+/** Row from RPC `admin_get_recent_activity`. */
 export type AdminRecentActivityItem = {
   item_type: string;
-  /** UUID from Postgres */
-  item_id: string;
+  /** Present only when RPC returns an id column (legacy enrich helpers). */
+  item_id?: string | null;
   title: string;
-  subtitle: string;
+  subtitle: string | null;
   email: string | null;
+  name: string | null;
   created_at: string;
 };
 

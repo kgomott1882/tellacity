@@ -34,11 +34,16 @@ export async function enrichAdminRecentActivity(
   const userIdsNeedingCompany = new Set<string>();
 
   for (const r of out) {
+    const id =
+      r.item_id != null && String(r.item_id).trim() !== ""
+        ? String(r.item_id).trim()
+        : null;
+    if (!id) continue;
     if (isBusinessRow(r) && isBlankEmail(r.email)) {
-      businessIdsNeedingEmail.add(r.item_id);
+      businessIdsNeedingEmail.add(id);
     }
     if (isUserRow(r) && isBlankBusinessName(r.subtitle)) {
-      userIdsNeedingCompany.add(r.item_id);
+      userIdsNeedingCompany.add(id);
     }
   }
 
@@ -116,8 +121,12 @@ export async function enrichAdminRecentActivity(
 
     for (let i = 0; i < out.length; i++) {
       const r = out[i]!;
-      if (isBusinessRow(r) && isBlankEmail(r.email)) {
-        const resolved = resolveBusinessEmail(r.item_id);
+      const bid =
+        r.item_id != null && String(r.item_id).trim() !== ""
+          ? String(r.item_id).trim()
+          : null;
+      if (isBusinessRow(r) && isBlankEmail(r.email) && bid) {
+        const resolved = resolveBusinessEmail(bid);
         if (resolved) {
           out[i] = { ...r, email: resolved };
         }
@@ -162,8 +171,12 @@ export async function enrichAdminRecentActivity(
 
     for (let i = 0; i < out.length; i++) {
       const r = out[i]!;
-      if (isUserRow(r) && isBlankBusinessName(r.subtitle)) {
-        const name = bpNameByUserId.get(r.item_id) ?? metaCompanyByUserId.get(r.item_id);
+      const uid =
+        r.item_id != null && String(r.item_id).trim() !== ""
+          ? String(r.item_id).trim()
+          : null;
+      if (isUserRow(r) && isBlankBusinessName(r.subtitle) && uid) {
+        const name = bpNameByUserId.get(uid) ?? metaCompanyByUserId.get(uid);
         if (name) {
           out[i] = { ...r, subtitle: name };
         }

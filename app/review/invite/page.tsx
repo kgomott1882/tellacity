@@ -33,19 +33,11 @@ type InviteRow = {
 };
 
 export default async function InvitePage(props: {
-  searchParams: Promise<{ token?: string; rating?: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const rawToken = searchParams.token;
-  const rating = typeof searchParams.rating === "string" ? searchParams.rating : undefined;
-  // Invite link token: used only for server invite lookup + create-draft body (`invite_token`).
-  // OTP verification uses `draft_id` from create-draft (client state), not this param.
   const token = typeof rawToken === "string" ? rawToken.trim() : "";
-  const parsedRating = rating ? Number(rating) : NaN;
-  const initialRating =
-    Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
-      ? parsedRating
-      : undefined;
 
   if (!token) {
     return <ErrorState message="Missing invite token" />;
@@ -127,8 +119,6 @@ export default async function InvitePage(props: {
   return (
     <InviteReviewFlow
       inviteId={inviteId}
-      inviteToken={token}
-      initialRating={initialRating}
       initialBusinessId={businessId}
       initialBusinessSlug={businessSlug}
       initialBusinessName={businessName}

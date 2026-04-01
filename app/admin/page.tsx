@@ -3,7 +3,6 @@ import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
 import { getAdminOverviewStats, getAdminRecentActivity } from "@/lib/admin";
-import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +18,14 @@ function formatWhen(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
+}
+
+function activityTypeLabel(itemType: string | null | undefined): string {
+  const t = String(itemType ?? "").trim().toLowerCase();
+  if (t === "review") return "Review submitted";
+  if (t === "user") return "User signed up";
+  if (t === "business") return "Business created";
+  return t ? t : "—";
 }
 
 export default async function AdminOverviewPage() {
@@ -37,15 +44,11 @@ export default async function AdminOverviewPage() {
 
   const [statsRes, activityRes] = await Promise.all([
     getAdminOverviewStats(supabase),
-    getAdminRecentActivity(supabase, 60),
+    getAdminRecentActivity(supabase, 10),
   ]);
 
   const recentActivityError = activityRes.error;
-  const activityRaw = activityRes.data ?? [];
-  const activity =
-    activityRaw.length > 0
-      ? await enrichAdminRecentActivity(adminSupabase, activityRaw)
-      : activityRaw;
+  const activity = activityRes.data ?? [];
 
   const [{ data: businessOwners }, { data: businessMembers }] = await Promise.all([
     adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
@@ -86,7 +89,7 @@ export default async function AdminOverviewPage() {
         <AdminStatCard title="Consumer users" value={num(s?.consumer_users)} />
       </div>
 
-      <AdminTableShell title="Recent activity">
+      <AdminTableShell title="Recent Activity">
         {activity.length === 0 ? (
           <div className="p-4">
             <AdminEmptyState message="No recent activity returned." />
@@ -97,26 +100,44 @@ export default async function AdminOverviewPage() {
               <tr>
                 <th className="px-4 py-2 font-medium">When</th>
                 <th className="px-4 py-2 font-medium">Type</th>
+                <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium">Business</th>
                 <th className="px-4 py-2 font-medium">Email</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {activity.map((item, i) => {
-                const key = `${item.item_type}-${item.item_id}-${item.created_at}-${i}`;
+              {activity.map((row, i) => {
+                const key = `${row.item_type}-${row.created_at}-${i}`;
+                const businessDisplay =
+                  row.subtitle != null && String(row.subtitle).trim() !== ""
+                    ? String(row.subtitle).trim()
+                    : row.item_type === "business" && row.title
+                      ? String(row.title).trim()
+                      : null;
                 return (
                   <tr key={key} className="bg-white">
                     <td className="whitespace-nowrap px-4 py-2 text-neutral-600">
-                      {formatWhen(item.created_at)}
+                      {formatWhen(row.created_at)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-neutral-900">
+                      <span className="font-medium">
+                        {activityTypeLabel(row.item_type)}
+                      </span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.title}</span>
+                      <span className="font-medium">{row.name || "Guest"}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.subtitle}</span>
+                      <span className="font-medium">
+                        {businessDisplay ?? "—"}
+                      </span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{item.email ?? "—"}</span>
+                      <span className="font-medium">
+                        {row.email != null && String(row.email).trim() !== ""
+                          ? String(row.email).trim()
+                          : "—"}
+                      </span>
                     </td>
                   </tr>
                 );
