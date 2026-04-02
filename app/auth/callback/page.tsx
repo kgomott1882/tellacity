@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { handleRedirect } from "@/lib/postLoginRedirect";
+import { WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY } from "@/lib/writeReviewGoogleSession";
 
 /**
  * OAuth callback: Supabase redirects here with hash (#access_token=...).
@@ -54,6 +55,13 @@ function CallbackInner() {
           ) {
             window.localStorage.setItem("user_email", user.email.trim());
             window.localStorage.setItem("google_review_email", user.email.trim());
+          }
+          if (
+            typeof window !== "undefined" &&
+            window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY) === "1"
+          ) {
+            window.location.href = `${window.location.origin}/write-review?google_continue=1`;
+            return;
           }
           if (nextRaw && nextRaw.trim()) {
             const sanitized = sanitizeAuthNext(nextRaw, "/dashboard");
