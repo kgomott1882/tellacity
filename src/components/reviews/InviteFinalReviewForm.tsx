@@ -48,6 +48,12 @@ function humanizeApiError(payload: { error?: string }): string {
   if (e === "You have already reviewed this business.") {
     return "You have already reviewed this business.";
   }
+  if (
+    e ===
+    "You already reviewd this businesses before. Review not accepted."
+  ) {
+    return e;
+  }
   return e;
 }
 

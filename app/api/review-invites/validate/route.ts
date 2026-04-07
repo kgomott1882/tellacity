@@ -5,6 +5,7 @@ import {
   reviewInviteRowIsUsed,
   type InviteRowRecord,
 } from "@/lib/reviewInviteValidation";
+import { logInviteOpenedActivity } from "@/lib/logBusinessActivity";
 
 export async function POST(request: Request) {
   try {
@@ -88,6 +89,25 @@ export async function POST(request: Request) {
       biz && typeof biz === "object" && "slug" in biz
         ? (biz as { slug: string | null }).slug
         : null;
+
+    const inviteIdStr = String(invite.id ?? "");
+    if (inviteIdStr) {
+      const { data: recentOpens } = await supabase
+        .from("business_activity_logs")
+        .select("metadata")
+        .eq("business_id", businessId)
+        .eq("action_type", "invite_opened")
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      const alreadyLogged = (recentOpens ?? []).some((row) => {
+        const meta = row.metadata as { invite_id?: string } | null;
+        return meta?.invite_id === inviteIdStr;
+      });
+      if (!alreadyLogged) {
+        void logInviteOpenedActivity({ businessId, inviteId: inviteIdStr });
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -10,6 +10,11 @@ import {
   getActivePlanKeyForBusiness,
   getMonthlyInviteLimitForBusiness,
 } from "@/lib/plans";
+import { logBusinessActivity } from "@/lib/logBusinessActivity";
+import {
+  canAccessBusiness,
+  resolveDashboardDb,
+} from "@/lib/supabase/businessDashboardServer";
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +33,13 @@ export async function POST(req: Request) {
         { error: "Invalid email format." },
         { status: 400 }
       );
+    }
+
+    const authCtx = await resolveDashboardDb(req);
+    let activityUserId: string | null = null;
+    if (authCtx.ok) {
+      const allowed = await canAccessBusiness(authCtx.db, authCtx.userId, businessId);
+      if (allowed) activityUserId = authCtx.userId;
     }
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
@@ -158,6 +170,12 @@ export async function POST(req: Request) {
 
     // ── If delayed, return early - cron worker will send later ───────────────
     if (!sendImmediately) {
+      void logBusinessActivity({
+        businessId,
+        userId: activityUserId,
+        action: "invite_sent",
+        metadata: { count: 1, scheduled: true },
+      });
       return NextResponse.json({
         success: true,
         scheduled: true,
@@ -342,6 +360,13 @@ export async function POST(req: Request) {
       console.error("Failed to mark invite as sent:", updateError);
       // Email was sent; still return success
     }
+
+    void logBusinessActivity({
+      businessId,
+      userId: activityUserId,
+      action: "invite_sent",
+      metadata: { count: 1, scheduled: false },
+    });
 
     return NextResponse.json({ success: true, scheduled: false });
   } catch (err: unknown) {

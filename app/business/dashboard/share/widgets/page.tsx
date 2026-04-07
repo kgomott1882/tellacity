@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { Check, Copy } from "lucide-react";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 const WIDGETS = [
   {
@@ -118,6 +119,13 @@ export default function WebsiteWidgetsPage() {
     navigator.clipboard.writeText(embedCode).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      if (selectedBusiness?.id) {
+        logDashboardActivityClient({
+          businessId: selectedBusiness.id,
+          action: "widget_generated",
+          metadata: { widget_type: selected },
+        });
+      }
     });
   }
 

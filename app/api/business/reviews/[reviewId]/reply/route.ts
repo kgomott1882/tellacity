@@ -3,6 +3,7 @@ import {
   requireUserSession,
   canAccessBusiness,
 } from "@/lib/supabase/businessDashboardServer";
+import { logBusinessActivity } from "@/lib/logBusinessActivity";
 
 export async function POST(
   req: Request,
@@ -55,6 +56,13 @@ export async function POST(
       console.error("[reply POST] update reviews", updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
+
+    void logBusinessActivity({
+      businessId: String(review.business_id),
+      userId,
+      action: "review_replied",
+      metadata: { review_id: reviewId },
+    });
 
     return NextResponse.json({
       success: true,

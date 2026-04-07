@@ -19,6 +19,18 @@ import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 import BusinessOnboardingModal from "./BusinessOnboardingModal";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
+
+function dashboardViewActionFromPath(pathname: string): string | null {
+  if (pathname.includes("/analytics")) return "analytics_viewed";
+  if (pathname.includes("/manage-reviews")) return "reviews_viewed";
+  if (pathname.includes("/get-reviews")) return "invitations_viewed";
+  if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets_viewed";
+  if (pathname.includes("/integrations")) return "integrations_viewed";
+  if (pathname.includes("/billing")) return "billing_viewed";
+  if (pathname.includes("/settings")) return "settings_viewed";
+  return null;
+}
 
 const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[] }> = {
   "manage-reviews": {
@@ -220,6 +232,37 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       setMobileSubSection(null);
     }
   }, [pathname]);
+
+  const prevViewLogKey = React.useRef<string>("");
+
+  useEffect(() => {
+    if (!selectedBusiness?.id || !user?.id || !pathname?.startsWith("/business/dashboard")) return;
+    try {
+      const key = `tc_dash_login_${selectedBusiness.id}`;
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+      logDashboardActivityClient({
+        businessId: selectedBusiness.id,
+        action: "dashboard_login",
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [selectedBusiness?.id, user?.id, pathname]);
+
+  useEffect(() => {
+    if (!selectedBusiness?.id || !user?.id || !pathname) return;
+    if (!pathname.startsWith("/business/dashboard")) return;
+    const dedupeKey = `${selectedBusiness.id}|${pathname}`;
+    if (prevViewLogKey.current === dedupeKey) return;
+    prevViewLogKey.current = dedupeKey;
+    const act = dashboardViewActionFromPath(pathname);
+    if (!act) return;
+    logDashboardActivityClient({
+      businessId: selectedBusiness.id,
+      action: act,
+    });
+  }, [pathname, selectedBusiness?.id, user?.id]);
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
   const emailStr = user?.email?.trim() ?? "";

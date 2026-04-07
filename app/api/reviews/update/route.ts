@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
+import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
 
 type Body = {
   business_id?: string;
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      const { error: insertErr } = await supabase
+      const { data: inserted, error: insertErr } = await supabase
         .from("reviews")
         .insert({
           business_id,
@@ -148,13 +149,29 @@ export async function POST(req: Request) {
           imported: false,
           is_flagged: false,
           user_id: user?.id ?? null,
-        });
+        })
+        .select("id, business_id, user_id, rating")
+        .single();
       if (insertErr) {
         const insertCode = (insertErr as { code?: string }).code;
         if (insertCode === "23505") {
           return NextResponse.json({ success: true });
         }
         return NextResponse.json({ error: "update_failed" }, { status: 500 });
+      }
+      if (inserted?.id && inserted.business_id != null) {
+        const ins = inserted as {
+          id: string;
+          business_id: string;
+          user_id: string | null;
+          rating: number;
+        };
+        void logReviewReceivedActivity({
+          businessId: ins.business_id,
+          userId: ins.user_id,
+          reviewId: ins.id,
+          rating: ins.rating,
+        });
       }
       return NextResponse.json({ success: true });
     }

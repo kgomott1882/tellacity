@@ -8,6 +8,7 @@ import { useBusinessContext } from "../../_context/BusinessContext";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import WidgetStars from "@/components/widgets/WidgetStars";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -21,12 +22,19 @@ type ProfileStats = {
   logo_url: string | null;
 };
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({
+  text,
+  onCopied,
+}: {
+  text: string;
+  onCopied?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
+      onCopied?.();
       setTimeout(() => setCopied(false), 2000);
     });
   }
@@ -190,7 +198,17 @@ export default function SocialSharePage() {
             </p>
             <div className="flex items-center rounded-xl border-2 border-[#2fb2a8] bg-white px-4 py-3 shadow-sm">
               <span className="flex-1 truncate text-sm text-gray-700">{profileUrl}</span>
-              <CopyButton text={profileUrl} />
+              <CopyButton
+                text={profileUrl}
+                onCopied={() => {
+                  if (businessId) {
+                    logDashboardActivityClient({
+                      businessId,
+                      action: "profile_link_copied",
+                    });
+                  }
+                }}
+              />
             </div>
           </div>
 

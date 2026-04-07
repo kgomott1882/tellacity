@@ -11,18 +11,6 @@ import type { AdminBusinessRow } from "@/lib/admin";
 import { COUNTRIES, adminCountryDisplay } from "@/lib/adminCountries";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
-const BUSINESS_STATUS_OPTIONS = [
-  "active",
-  "suspended",
-  "under_review",
-] as const;
-
-type BusinessStatus = (typeof BUSINESS_STATUS_OPTIONS)[number];
-
-function isBusinessStatus(value: string): value is BusinessStatus {
-  return (BUSINESS_STATUS_OPTIONS as readonly string[]).includes(value);
-}
-
 function businessId(row: AdminBusinessRow): string {
   return String(row.business_id ?? row.id ?? "");
 }
@@ -43,6 +31,15 @@ function websiteHref(raw: string | null | undefined): string | null {
 
 function truncateBusinessId(id: string): string {
   return id.slice(0, 8);
+}
+
+function sourceLabel(source: unknown): string {
+  if (typeof source !== "string") return "—";
+  const normalized = source.trim().toLowerCase();
+  if (normalized === "seeded") return "Seeded";
+  if (normalized === "user_suggested") return "Suggested";
+  if (normalized === "owner_signup") return "Owner Signup";
+  return "—";
 }
 
 function parseRpcCount(data: unknown): number {
@@ -102,82 +99,37 @@ export default function AdminBusinessesTable() {
       newStatus?: string,
       newSubmissionStatus?: string
     ) => {
-      console.log("Updating business:", {
-        businessId,
-        newStatus,
-        newSubmissionStatus,
-      });
-
       if (!businessId) {
         window.alert("Missing business ID");
         return;
       }
 
-      const target_business_id = businessId;
-      const statusTrimmed = newStatus?.trim() ?? "";
-      const submissionTrimmed = newSubmissionStatus?.trim() ?? "";
-      const wantsStatus = statusTrimmed.length > 0;
-      const wantsSubmission = submissionTrimmed.length > 0;
-
-      let rpcNewStatus: string | null = null;
-      let rpcNewSubmission: string | null = null;
-
-      if (wantsStatus) {
-        const normalizedStatus = statusTrimmed.toLowerCase();
-        if (!isBusinessStatus(normalizedStatus)) {
-          console.error("Invalid status attempted:", newStatus);
-          window.alert("Invalid status value");
-          return;
-        }
-        rpcNewStatus = normalizedStatus;
-        rpcNewSubmission = null;
-      }
-
-      if (wantsSubmission) {
-        rpcNewSubmission = submissionTrimmed.toLowerCase();
-        if (!wantsStatus) {
-          rpcNewStatus = null;
-        }
-      }
-
-      if (!wantsStatus && !wantsSubmission) {
-        window.alert("Nothing to update");
-        return;
-      }
-
       setUpdatingId(businessId);
       try {
-        const supabase = supabaseBrowser();
+        const res = await fetch("/api/admin/update-business-status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            businessId,
+            newStatus: newStatus ?? null,
+            newSubmissionStatus: newSubmissionStatus ?? null,
+          }),
+        });
 
-        const { data, error } = await supabase.rpc(
-          "admin_update_business_status",
-          {
-            new_status: rpcNewStatus,
-            new_submission_status: rpcNewSubmission,
-            target_business_id,
-          }
-        );
-
-        console.log("RPC response:", { data, error });
-
-        if (error) {
-          console.error("FULL Supabase error:", error);
-          console.error("STRINGIFIED:", JSON.stringify(error, null, 2));
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase PostgrestError shape varies
-          const message =
-            (error as any)?.message ||
-            (error as any)?.details ||
-            "Unknown error occurred";
-
-          window.alert(message);
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          console.error("Failed to update business", res.status, data);
+          window.alert(data.error ?? "Failed to update business");
           return;
         }
 
         setListRefreshToken((t) => t + 1);
         router.refresh();
       } catch (err) {
-        console.error("Unexpected error:", err);
+        console.error(err);
         window.alert("Unexpected failure during update.");
       } finally {
         setUpdatingId(null);
@@ -460,6 +412,7 @@ export default function AdminBusinessesTable() {
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Submission</th>
                   <th className="px-3 py-2 font-medium">Category</th>
+                  <th className="px-3 py-2 font-medium">Source</th>
                   <th className="px-3 py-2 font-medium">Created</th>
                   <th className="px-3 py-2 font-medium">Actions</th>
                 </tr>
@@ -467,13 +420,13 @@ export default function AdminBusinessesTable() {
               <tbody className="divide-y divide-neutral-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={10} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={10} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Unable to load businesses.
                     </td>
                   </tr>
@@ -544,6 +497,11 @@ export default function AdminBusinessesTable() {
                         >
                           {category}
                         </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          <span className="rounded bg-gray-100 px-2 py-1 text-xs">
+                            {sourceLabel(row.source)}
+                          </span>
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                           {formatDate(row.created_at)}
                         </td>
@@ -552,7 +510,9 @@ export default function AdminBusinessesTable() {
                             <button
                               type="button"
                               disabled={updatingId === id || deletingId === id}
-                              onClick={() => handleStatusUpdate(id, "active")}
+                              onClick={() =>
+                                handleStatusUpdate(id, "active", "approved")
+                              }
                               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
                             >
                               {updatingId === id
@@ -564,7 +524,9 @@ export default function AdminBusinessesTable() {
                             <button
                               type="button"
                               disabled={updatingId === id || deletingId === id}
-                              onClick={() => handleStatusUpdate(id, "suspended")}
+                              onClick={() =>
+                                handleStatusUpdate(id, "suspended", "suspended")
+                              }
                               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Suspended"}
@@ -572,7 +534,9 @@ export default function AdminBusinessesTable() {
                             <button
                               type="button"
                               disabled={updatingId === id || deletingId === id}
-                              onClick={() => handleStatusUpdate(id, "under_review")}
+                              onClick={() =>
+                                handleStatusUpdate(id, "under_review", "under_review")
+                              }
                               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Under review"}
@@ -581,7 +545,7 @@ export default function AdminBusinessesTable() {
                               type="button"
                               disabled={updatingId === id || deletingId === id}
                               onClick={() =>
-                                handleStatusUpdate(id, undefined, "approved")
+                                handleStatusUpdate(id, "active", "approved")
                               }
                               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
                             >

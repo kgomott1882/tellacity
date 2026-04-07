@@ -15,6 +15,8 @@ type Review = {
   body: string | null;
   created_at: string;
   business_id: string;
+  owner_response: string | null;
+  owner_response_at: string | null;
   businesses: { name: string | null; slug: string | null } | null;
 };
 
@@ -55,7 +57,9 @@ export default function ReviewPage() {
       const supabase = supabaseBrowser();
       const { data: reviewData, error: reviewErr } = await supabase
         .from("reviews")
-        .select("id, guest_name, rating, title, body, created_at, business_id, businesses(name, slug)")
+        .select(
+          "id, guest_name, rating, title, body, created_at, business_id, owner_response, owner_response_at, businesses(name, slug)"
+        )
         .eq("id", id)
         .or("status.is.null,status.eq.published")
         .or(REVIEWS_PUBLIC_VISIBILITY_OR)
@@ -120,6 +124,9 @@ export default function ReviewPage() {
   const business = review.businesses;
   const businessSlug = business?.slug;
   const businessName = business?.name ?? "Business";
+  const ownerReplyBody = review.owner_response?.trim() ?? "";
+  const hasOwnerReply = ownerReplyBody.length > 0;
+  const hasAnyReply = replies.length > 0 || hasOwnerReply;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -156,11 +163,21 @@ export default function ReviewPage() {
           <p className="mt-2 whitespace-pre-wrap text-gray-700">{review.body ?? ""}</p>
         </article>
 
-        {replies.length > 0 && (
+        {hasAnyReply && (
           <section className="mt-6 space-y-4">
             <p className="font-semibold text-sm text-gray-800">
               Reply from {businessName}
             </p>
+            {hasOwnerReply && (
+              <div className="rounded-2xl border border-[#124541]/20 bg-[#124541]/5 p-5">
+                <p className="whitespace-pre-wrap text-gray-800">{ownerReplyBody}</p>
+                {review.owner_response_at ? (
+                  <p className="mt-3 text-xs text-gray-500">
+                    {formatDate(review.owner_response_at)}
+                  </p>
+                ) : null}
+              </div>
+            )}
             {replies.map((reply) => (
               <div
                 key={reply.id}
@@ -173,7 +190,7 @@ export default function ReviewPage() {
           </section>
         )}
 
-        {replies.length === 0 && (
+        {!hasAnyReply && (
           <p className="mt-6 text-center text-sm text-gray-500">No response from the business yet.</p>
         )}
       </div>

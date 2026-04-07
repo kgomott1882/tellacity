@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  logInviteConvertedActivity,
+  logReviewReceivedActivity,
+} from "@/lib/logBusinessActivity";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -203,6 +207,20 @@ export async function POST(req: Request) {
 
     if (insertReviewError) {
       console.error("INSERT REVIEW FAILED:", insertReviewError);
+      const errBlob = `${insertReviewError.details ?? ""} ${insertReviewError.message ?? ""}`;
+      const dupGuestBusiness =
+        insertReviewError.code === "23505" &&
+        errBlob.includes("reviews_guest_email_business_unique");
+      if (dupGuestBusiness) {
+        return NextResponse.json(
+          {
+            error:
+              "You already reviewd this businesses before. Review not accepted.",
+            code: insertReviewError.code,
+          },
+          { status: 409 },
+        );
+      }
       return NextResponse.json(
         {
           error: "Insert failed",
@@ -229,6 +247,27 @@ export async function POST(req: Request) {
 
     if (updErr) {
       console.error("review_invites update after publish:", updErr);
+    }
+
+    if (insertedRow && publishedReviewId) {
+      const r = insertedRow as {
+        id: string;
+        business_id: string;
+        user_id?: string | null;
+        rating: number;
+      };
+      void logReviewReceivedActivity({
+        businessId: r.business_id,
+        userId: r.user_id ?? null,
+        reviewId: r.id,
+        rating: r.rating,
+      });
+      void logInviteConvertedActivity({
+        businessId: r.business_id,
+        userId: r.user_id ?? null,
+        inviteId: invite_id,
+        reviewId: r.id,
+      });
     }
 
     return NextResponse.json({

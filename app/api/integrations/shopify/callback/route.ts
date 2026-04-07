@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getShopifyEnv } from "@/lib/shopifyEnv";
+import { logBusinessActivity } from "@/lib/logBusinessActivity";
 
 export const runtime = "nodejs";
 
@@ -125,6 +126,15 @@ export async function GET(request: Request) {
     if (upsertError) {
       console.error("[Shopify callback] Supabase upsert error:", upsertError);
       return redirectError(baseUrl, "Failed to save connection");
+    }
+
+    if (businessId) {
+      void logBusinessActivity({
+        businessId,
+        userId: null,
+        action: "integration_connected",
+        metadata: { provider: "shopify", shop: shopDomain },
+      });
     }
 
     try {

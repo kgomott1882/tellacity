@@ -4,6 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
 
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
@@ -101,21 +102,25 @@ export async function POST(req: Request) {
     const rating = Math.round(ratingNum);
     const guest_name = reviewerDisplayNameFromAuthUser(user);
 
-    const { error: insertError } = await supabase.from("reviews").insert({
-      business_id,
-      user_id: user.id,
-      guest_name,
-      rating,
-      title,
-      body,
-      date_of_experience,
-      status: "published",
-      visibility: "visible",
-      verification_status: "verified",
-      draft: false,
-      imported: false,
-      is_flagged: false,
-    });
+    const { data: createdRow, error: insertError } = await supabase
+      .from("reviews")
+      .insert({
+        business_id,
+        user_id: user.id,
+        guest_name,
+        rating,
+        title,
+        body,
+        date_of_experience,
+        status: "published",
+        visibility: "visible",
+        verification_status: "verified",
+        draft: false,
+        imported: false,
+        is_flagged: false,
+      })
+      .select("id, business_id, user_id, rating")
+      .single();
 
     if (insertError) {
       // Handle duplicate review cleanly
@@ -131,6 +136,21 @@ export async function POST(req: Request) {
         { error: insertError.message || "Failed to submit review" },
         { status: 400 },
       );
+    }
+
+    if (createdRow?.id && createdRow.business_id != null) {
+      const r = createdRow as {
+        id: string;
+        business_id: string;
+        user_id: string | null;
+        rating: number;
+      };
+      void logReviewReceivedActivity({
+        businessId: r.business_id,
+        userId: r.user_id,
+        reviewId: r.id,
+        rating: r.rating,
+      });
     }
 
     return NextResponse.json({ success: true });

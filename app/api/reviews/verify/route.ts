@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  logInviteConvertedActivity,
+  logReviewReceivedActivity,
+} from "@/lib/logBusinessActivity";
 
 type VerifyBody = {
   draft_id?: string;
@@ -187,6 +191,22 @@ export async function POST(req: Request) {
         inserted && typeof (inserted as { id?: string }).id === "string"
           ? (inserted as { id: string }).id
           : null;
+      if (publishedReviewId) {
+        void logReviewReceivedActivity({
+          businessId: d.business_id,
+          userId: d.user_id ?? null,
+          reviewId: publishedReviewId,
+          rating: d.rating,
+        });
+        if (d.invite_id) {
+          void logInviteConvertedActivity({
+            businessId: d.business_id,
+            userId: d.user_id ?? null,
+            inviteId: d.invite_id,
+            reviewId: publishedReviewId,
+          });
+        }
+      }
     } catch (error: any) {
       if (error.code === "23505") {
         return new Response(

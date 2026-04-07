@@ -141,7 +141,7 @@ export async function POST(request: Request) {
         description:
           typeof notes === "string" && notes.trim() ? notes.trim() : null,
         source: "user_suggested",
-        submission_status: "under_review",
+        submission_status: "approved",
         status: "active",
       })
       .select("slug")

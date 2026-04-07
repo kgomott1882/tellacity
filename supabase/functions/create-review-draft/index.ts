@@ -1,4 +1,5 @@
 /// <reference lib="deno.ns" />
+/** Deploy after edits: `supabase functions deploy create-review-draft` */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -56,6 +57,65 @@ function rowIsPublicLiveReview(row: {
   if (st && st !== "published") return false;
   const vis = String(row.visibility ?? "visible").trim().toLowerCase();
   return vis === "visible";
+}
+
+/**
+ * Inserts `review_received` (service role). Awaited so rows appear before the HTTP response.
+ * Temporary debug logs — remove when stable.
+ */
+async function logReviewReceivedEdge(
+  supabase: ReturnType<typeof createClient>,
+  p: {
+    businessId: string;
+    userId: string | null;
+    reviewId: string;
+    rating: number;
+  },
+): Promise<void> {
+  const { businessId, reviewId, rating } = p;
+  console.log("LOGGING review_received", {
+    businessId,
+    reviewId,
+    rating,
+  });
+  try {
+    const { error } = await supabase.from("business_activity_logs").insert({
+      business_id: businessId,
+      action_type: "review_received",
+      metadata: { review_id: reviewId, rating },
+    });
+    if (error) {
+      console.error("LOG FAILED", error);
+      return;
+    }
+    console.log("LOG SUCCESS");
+  } catch (error) {
+    console.error("LOG FAILED", error);
+  }
+}
+
+function logInviteConvertedEdge(
+  supabase: ReturnType<typeof createClient>,
+  p: {
+    businessId: string;
+    userId: string | null;
+    inviteId: string;
+    reviewId: string;
+  },
+): void {
+  void (async () => {
+    try {
+      const { error } = await supabase.from("business_activity_logs").insert({
+        business_id: p.businessId,
+        user_id: p.userId,
+        action_type: "invite_converted",
+        metadata: { invite_id: p.inviteId, review_id: p.reviewId },
+      });
+      if (error) console.error("invite_converted log failed:", error.message);
+    } catch (e) {
+      console.error("invite_converted log failed:", e);
+    }
+  })();
 }
 
 type DraftPayload = {
@@ -372,6 +432,19 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
+        await logReviewReceivedEdge(supabase, {
+          businessId: business_id,
+          userId: userIdForReview,
+          reviewId: draftRow.id,
+          rating: Math.round(ratingNum),
+        });
+        logInviteConvertedEdge(supabase, {
+          businessId: business_id,
+          userId: userIdForReview,
+          inviteId: inviteRowId,
+          reviewId: draftRow.id,
+        });
+
         return json(
           {
             published: true,
@@ -411,6 +484,19 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
+        await logReviewReceivedEdge(supabase, {
+          businessId: business_id,
+          userId: userIdForReview,
+          reviewId: salvageRow.id,
+          rating: Math.round(ratingNum),
+        });
+        logInviteConvertedEdge(supabase, {
+          businessId: business_id,
+          userId: userIdForReview,
+          inviteId: inviteRowId,
+          reviewId: salvageRow.id,
+        });
+
         return json(
           {
             published: true,
@@ -446,6 +532,19 @@ serve(async (req) => {
       if (!(await markInviteSubmitted())) {
         return json({ error: "unexpected_error" }, 500);
       }
+
+      await logReviewReceivedEdge(supabase, {
+        businessId: business_id,
+        userId: userIdForReview,
+        reviewId: publishedRow.id,
+        rating: Math.round(ratingNum),
+      });
+      logInviteConvertedEdge(supabase, {
+        businessId: business_id,
+        userId: userIdForReview,
+        inviteId: inviteRowId,
+        reviewId: publishedRow.id,
+      });
 
       return json(
         {

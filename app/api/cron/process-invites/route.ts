@@ -22,6 +22,7 @@ import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
+import { logBusinessActivity } from "@/lib/logBusinessActivity";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -254,6 +255,17 @@ export async function GET(request: Request) {
           last_send_error: null,
         })
         .eq("id", invite.id);
+
+      void logBusinessActivity({
+        businessId: invite.business_id,
+        userId: null,
+        action: "invite_sent",
+        metadata: {
+          invite_id: invite.id,
+          scheduled: true,
+          from_cron: true,
+        },
+      });
 
       sentInvites++;
     } catch (err: unknown) {

@@ -4,6 +4,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  logInviteConvertedActivity,
+  logReviewReceivedActivity,
+} from "@/lib/logBusinessActivity";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -424,6 +428,21 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         })
         .eq("id", inviteId);
 
+      if (review?.id) {
+        void logReviewReceivedActivity({
+          businessId: business_id,
+          userId: null,
+          reviewId: review.id,
+          rating: Math.round(ratingNum),
+        });
+        void logInviteConvertedActivity({
+          businessId: business_id,
+          userId: null,
+          inviteId: inviteId,
+          reviewId: review.id,
+        });
+      }
+
       return NextResponse.json({
         requiresOtp: false,
         published: true,
@@ -524,6 +543,13 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         console.error("google verified direct insert:", insertErr);
         return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
       }
+
+      void logReviewReceivedActivity({
+        businessId: business_id,
+        userId: authUser?.id ?? null,
+        reviewId: inserted.id,
+        rating: Math.round(ratingNum),
+      });
 
       return NextResponse.json({
         published: true,

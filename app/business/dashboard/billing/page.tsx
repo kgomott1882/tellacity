@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import SimplePage from "../_components/SimplePage";
 import { useBusinessContext } from "../_context/BusinessContext";
 import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   free: "Free",
@@ -48,6 +49,13 @@ export default function BillingPage() {
         <button
           type="button"
           className="mt-6 rounded-lg bg-[#124541] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0f3a35]"
+          onClick={() => {
+            logDashboardActivityClient({
+              businessId: selectedBusiness.id,
+              action: "upgrade_clicked",
+              metadata: { from_plan: planKey, to_plan: "checkout" },
+            });
+          }}
         >
           Upgrade plan
         </button>
