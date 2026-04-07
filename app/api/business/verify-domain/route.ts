@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sendBusinessDomainVerificationOtp } from "@/lib/sendBusinessDomainVerificationOtp";
+import { notifyBusinessClaimSuccess } from "@/lib/businessClaimEmail";
 import {
   httpStatusForVerifyDomainOutcome,
   isVerifyDomainRpcMissing,
@@ -145,7 +146,11 @@ export async function POST(req: Request) {
     });
 
     if (!serviceRpc.error && serviceRpc.data != null) {
-      return nextResponseForRpcResult(serviceRpc.data as RpcResult);
+      const data = serviceRpc.data as RpcResult;
+      if (data?.ok && !data?.already_owner) {
+        void notifyBusinessClaimSuccess(admin, user, businessId);
+      }
+      return nextResponseForRpcResult(data);
     }
 
     if (serviceRpc.error && !isVerifyDomainRpcMissing(serviceRpc.error)) {
@@ -181,7 +186,11 @@ export async function POST(req: Request) {
       });
 
       if (!jwtRpc.error && jwtRpc.data != null) {
-        return nextResponseForRpcResult(jwtRpc.data as RpcResult);
+        const data = jwtRpc.data as RpcResult;
+        if (data?.ok && !data?.already_owner) {
+          void notifyBusinessClaimSuccess(admin, user, businessId);
+        }
+        return nextResponseForRpcResult(data);
       }
 
       if (jwtRpc.error && !isVerifyDomainRpcMissing(jwtRpc.error)) {
@@ -227,6 +236,7 @@ export async function POST(req: Request) {
     if (fallback.already_owner) {
       return NextResponse.json({ ok: true, alreadyOwner: true });
     }
+    void notifyBusinessClaimSuccess(admin, user, businessId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("verify-domain:", e);

@@ -2,8 +2,16 @@ import AdminStatCard from "@/components/admin/AdminStatCard";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import { getAdminOverviewStats, getAdminRecentActivity } from "@/lib/admin";
+import {
+  getAdminOverviewStats,
+  getAdminRecentActivity,
+  type AdminRecentActivityItem,
+} from "@/lib/admin";
+import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
+
+const RECENT_ACTIVITY_PAGE_SIZE = 15;
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +36,32 @@ function activityTypeLabel(itemType: string | null | undefined): string {
   return t ? t : "—";
 }
 
-export default async function AdminOverviewPage() {
+function activityPersonCell(row: AdminRecentActivityItem): string {
+  const raw = (row.person_name ?? row.name ?? "").trim();
+  if (raw) return raw;
+  if (row.item_type === "review") return "Guest";
+  return "—";
+}
+
+function activityBusinessCell(row: AdminRecentActivityItem): string {
+  const sub = row.subtitle != null ? String(row.subtitle).trim() : "";
+  if (sub && sub !== "—") return sub;
+  return "—";
+}
+
+function parseActivityPage(raw: string | undefined): number {
+  const n = Number.parseInt(String(raw ?? "").trim(), 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n;
+}
+
+export default async function AdminOverviewPage(props: {
+  searchParams?: Promise<{ activityPage?: string }>;
+}) {
+  const searchParams = props.searchParams ? await props.searchParams : {};
+  const activityPage = parseActivityPage(searchParams.activityPage);
+  const activityOffset = (activityPage - 1) * RECENT_ACTIVITY_PAGE_SIZE;
+
   const { supabase } = await requireAdminSession();
 
   const adminSupabase = createClient(
@@ -44,11 +77,24 @@ export default async function AdminOverviewPage() {
 
   const [statsRes, activityRes] = await Promise.all([
     getAdminOverviewStats(supabase),
-    getAdminRecentActivity(supabase, 10),
+    getAdminRecentActivity(
+      supabase,
+      RECENT_ACTIVITY_PAGE_SIZE + 1,
+      activityOffset
+    ),
   ]);
 
   const recentActivityError = activityRes.error;
-  const activity = activityRes.data ?? [];
+  let rawActivity = activityRes.data ?? [];
+  const hasOlderActivity = rawActivity.length > RECENT_ACTIVITY_PAGE_SIZE;
+  if (hasOlderActivity) {
+    rawActivity = rawActivity.slice(0, RECENT_ACTIVITY_PAGE_SIZE);
+  }
+  let activity = rawActivity;
+  if (!recentActivityError && activity.length > 0) {
+    activity = await enrichAdminRecentActivity(adminSupabase, activity);
+  }
+  const hasNewerPage = activityPage > 1;
 
   const [{ data: businessOwners }, { data: businessMembers }] = await Promise.all([
     adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
@@ -108,12 +154,6 @@ export default async function AdminOverviewPage() {
             <tbody className="divide-y divide-neutral-100">
               {activity.map((row, i) => {
                 const key = `${row.item_type}-${row.created_at}-${i}`;
-                const businessDisplay =
-                  row.subtitle != null && String(row.subtitle).trim() !== ""
-                    ? String(row.subtitle).trim()
-                    : row.item_type === "business" && row.title
-                      ? String(row.title).trim()
-                      : null;
                 return (
                   <tr key={key} className="bg-white">
                     <td className="whitespace-nowrap px-4 py-2 text-neutral-600">
@@ -125,12 +165,10 @@ export default async function AdminOverviewPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">{row.name || "Guest"}</span>
+                      <span className="font-medium">{activityPersonCell(row)}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
-                      <span className="font-medium">
-                        {businessDisplay ?? "—"}
-                      </span>
+                      <span className="font-medium">{activityBusinessCell(row)}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
                       <span className="font-medium">
@@ -145,6 +183,52 @@ export default async function AdminOverviewPage() {
             </tbody>
           </table>
         )}
+        {!recentActivityError && (activity.length > 0 || activityPage > 1) ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 bg-neutral-50/80 px-4 py-3 text-sm">
+            <span className="text-neutral-600">
+              Page {activityPage}
+              {activity.length > 0
+                ? ` · ${RECENT_ACTIVITY_PAGE_SIZE} per page`
+                : ""}
+            </span>
+            <div className="flex gap-2">
+              {hasNewerPage ? (
+                <Link
+                  href={
+                    activityPage <= 2
+                      ? "/admin"
+                      : `/admin?activityPage=${activityPage - 1}`
+                  }
+                  className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-medium text-neutral-800 shadow-sm transition hover:bg-neutral-50"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <span
+                  className="cursor-not-allowed rounded-md border border-neutral-100 bg-neutral-100 px-3 py-1.5 font-medium text-neutral-400"
+                  aria-disabled="true"
+                >
+                  Previous
+                </span>
+              )}
+              {hasOlderActivity ? (
+                <Link
+                  href={`/admin?activityPage=${activityPage + 1}`}
+                  className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 font-medium text-neutral-800 shadow-sm transition hover:bg-neutral-50"
+                >
+                  Next
+                </Link>
+              ) : (
+                <span
+                  className="cursor-not-allowed rounded-md border border-neutral-100 bg-neutral-100 px-3 py-1.5 font-medium text-neutral-400"
+                  aria-disabled="true"
+                >
+                  Next
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
       </AdminTableShell>
     </div>
   );

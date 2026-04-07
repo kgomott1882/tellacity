@@ -10,17 +10,59 @@ function isBlankBusinessName(s: string | null | undefined): boolean {
   return t === "" || t === "—";
 }
 
+/** Placeholder person labels we try to replace with real signup / profile data. */
+function isPlaceholderPerson(s: string | null | undefined): boolean {
+  const t = s == null ? "" : String(s).trim();
+  return t === "" || t === "Guest" || t === "User" || t === "Business Owner";
+}
+
 function isBusinessRow(r: AdminRecentActivityItem): boolean {
   return r.item_type === "business" || r.title === "Business created";
+}
+
+/** Business-created rows: empty, em dash, or generic label — replace with real owner when possible. */
+function needsBusinessOwnerPerson(r: AdminRecentActivityItem): boolean {
+  if (!isBusinessRow(r)) return false;
+  const t = (r.person_name ?? r.name ?? "").trim();
+  return t === "" || t === "—" || t === "Business Owner";
 }
 
 function isUserRow(r: AdminRecentActivityItem): boolean {
   return r.item_type === "user" || r.title === "New user";
 }
 
+function personFromAuthMeta(meta: Record<string, unknown> | undefined): string {
+  if (!meta) return "";
+  const fn = typeof meta.signup_first_name === "string" ? meta.signup_first_name.trim() : "";
+  const ln = typeof meta.signup_last_name === "string" ? meta.signup_last_name.trim() : "";
+  const combined = [fn, ln].filter(Boolean).join(" ").trim();
+  if (combined) return combined;
+  const full =
+    (typeof meta.full_name === "string" && meta.full_name.trim()) ||
+    (typeof meta.display_name === "string" && meta.display_name.trim()) ||
+    "";
+  return full;
+}
+
+type ProfileNameRow = {
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+};
+
+function personFromProfileRow(p: ProfileNameRow | undefined): string {
+  if (!p) return "";
+  const full = typeof p.full_name === "string" ? p.full_name.trim() : "";
+  if (full) return full;
+  const fn = typeof p.first_name === "string" ? p.first_name.trim() : "";
+  const ln = typeof p.last_name === "string" ? p.last_name.trim() : "";
+  const combined = [fn, ln].filter(Boolean).join(" ").trim();
+  return combined;
+}
+
 /**
  * Fills gaps when `admin_get_recent_activity` returns null email / empty business name
- * (stale RPC, RLS, or rows created before DB backfills). Uses service-role reads + Auth Admin API.
+ * or placeholder person names. Uses service-role reads + Auth Admin API.
  */
 export async function enrichAdminRecentActivity(
   admin: SupabaseClient,
@@ -31,7 +73,8 @@ export async function enrichAdminRecentActivity(
   const out = rows.map((r) => ({ ...r }));
 
   const businessIdsNeedingEmail = new Set<string>();
-  const userIdsNeedingCompany = new Set<string>();
+  const businessIdsNeedingPerson = new Set<string>();
+  const userIdsNeedingMeta = new Set<string>();
 
   for (const r of out) {
     const id =
@@ -42,12 +85,19 @@ export async function enrichAdminRecentActivity(
     if (isBusinessRow(r) && isBlankEmail(r.email)) {
       businessIdsNeedingEmail.add(id);
     }
-    if (isUserRow(r) && isBlankBusinessName(r.subtitle)) {
-      userIdsNeedingCompany.add(id);
+    if (isBusinessRow(r) && needsBusinessOwnerPerson(r)) {
+      businessIdsNeedingPerson.add(id);
+    }
+    if (isUserRow(r)) {
+      if (isBlankBusinessName(r.subtitle) || isPlaceholderPerson(r.person_name ?? r.name)) {
+        userIdsNeedingMeta.add(id);
+      }
     }
   }
 
-  const bizIds = [...businessIdsNeedingEmail];
+  const bizIds = [
+    ...new Set<string>([...businessIdsNeedingEmail, ...businessIdsNeedingPerson]),
+  ];
   type BizRow = { id: string; owner_id: string | null; email: string | null };
   const businessesById = new Map<string, BizRow>();
 
@@ -66,6 +116,26 @@ export async function enrichAdminRecentActivity(
         });
       }
     }
+
+    const ownerUserIdByBusinessId = new Map<string, string>();
+    const { data: boRows, error: boErr } = await admin
+      .from("business_owners")
+      .select("business_id, owner_user_id")
+      .in("business_id", bizIds);
+
+    if (!boErr) {
+      for (const row of boRows ?? []) {
+        const bid = String(row.business_id ?? "");
+        const uid = row.owner_user_id != null ? String(row.owner_user_id) : "";
+        if (bid && uid) ownerUserIdByBusinessId.set(bid, uid);
+      }
+    }
+
+    const resolveOwnerUserId = (businessId: string): string | null => {
+      const b = businessesById.get(businessId);
+      if (b?.owner_id) return b.owner_id;
+      return ownerUserIdByBusinessId.get(businessId) ?? null;
+    };
 
     const verifyEmailByBizId = new Map<string, string>();
     const { data: verData, error: verErr } = await admin
@@ -91,30 +161,62 @@ export async function enrichAdminRecentActivity(
 
     const ownerIds = new Set<string>();
     for (const id of bizIds) {
-      const b = businessesById.get(id);
-      if (b?.owner_id) ownerIds.add(b.owner_id);
+      const uid = resolveOwnerUserId(id);
+      if (uid) ownerIds.add(uid);
     }
 
-    const ownerEmailById = new Map<string, string>();
+    type OwnerInfo = { email: string; personFromAuth: string };
+    const ownerInfoById = new Map<string, OwnerInfo>();
     await Promise.all(
       [...ownerIds].map(async (oid) => {
         try {
           const { data, error } = await admin.auth.admin.getUserById(oid);
-          if (!error && data?.user?.email?.trim()) {
-            ownerEmailById.set(oid, data.user.email.trim());
-          }
+          if (error || !data?.user) return;
+          const meta = data.user.user_metadata as Record<string, unknown> | undefined;
+          const personFromAuth = personFromAuthMeta(meta);
+          const email = typeof data.user.email === "string" ? data.user.email.trim() : "";
+          ownerInfoById.set(oid, { email, personFromAuth });
         } catch {
           /* ignore */
         }
       })
     );
 
+    const profileByOwnerId = new Map<string, ProfileNameRow>();
+    if (ownerIds.size > 0) {
+      const { data: profData, error: profErr } = await admin
+        .from("profiles")
+        .select("id, full_name, first_name, last_name")
+        .in("id", [...ownerIds]);
+
+      if (!profErr) {
+        for (const row of profData ?? []) {
+          const id = String(row.id ?? "");
+          if (id) profileByOwnerId.set(id, row);
+        }
+      }
+    }
+
+    const resolveOwnerDisplayPerson = (ownerUid: string): string => {
+      const prof = personFromProfileRow(profileByOwnerId.get(ownerUid));
+      if (prof) return prof;
+      const auth = ownerInfoById.get(ownerUid);
+      if (auth?.personFromAuth) return auth.personFromAuth;
+      const em = auth?.email ?? "";
+      if (em.includes("@")) {
+        const local = em.split("@")[0]?.trim() ?? "";
+        if (local) return local;
+      }
+      return "";
+    };
+
     const resolveBusinessEmail = (businessId: string): string | null => {
-      const b = businessesById.get(businessId);
-      if (b?.owner_id) {
-        const oe = ownerEmailById.get(b.owner_id);
+      const uid = resolveOwnerUserId(businessId);
+      if (uid) {
+        const oe = ownerInfoById.get(uid)?.email;
         if (oe) return oe;
       }
+      const b = businessesById.get(businessId);
       if (b?.email?.trim()) return b.email.trim();
       return verifyEmailByBizId.get(businessId) ?? null;
     };
@@ -125,18 +227,32 @@ export async function enrichAdminRecentActivity(
         r.item_id != null && String(r.item_id).trim() !== ""
           ? String(r.item_id).trim()
           : null;
-      if (isBusinessRow(r) && isBlankEmail(r.email) && bid) {
+      if (!bid || !isBusinessRow(r)) continue;
+
+      let next = { ...r };
+
+      if (isBlankEmail(next.email)) {
         const resolved = resolveBusinessEmail(bid);
-        if (resolved) {
-          out[i] = { ...r, email: resolved };
+        if (resolved) next = { ...next, email: resolved };
+      }
+
+      if (needsBusinessOwnerPerson(next)) {
+        const uid = resolveOwnerUserId(bid);
+        if (uid) {
+          const resolvedPerson = resolveOwnerDisplayPerson(uid);
+          if (resolvedPerson) {
+            next = { ...next, person_name: resolvedPerson, name: resolvedPerson };
+          }
         }
       }
+
+      out[i] = next;
     }
   }
 
-  const userIds = [...userIdsNeedingCompany];
+  const userIds = [...userIdsNeedingMeta];
   if (userIds.length > 0) {
-    const bpNameByUserId = new Map<string, string>();
+    const bpByUserId = new Map<string, { business_name: string }>();
     const { data: bpRows, error: bpErr } = await admin
       .from("business_profiles")
       .select("id, business_name")
@@ -146,23 +262,28 @@ export async function enrichAdminRecentActivity(
       for (const row of bpRows ?? []) {
         const id = String(row.id ?? "");
         const n = typeof row.business_name === "string" ? row.business_name.trim() : "";
-        if (id && n) bpNameByUserId.set(id, n);
+        if (id && n) bpByUserId.set(id, { business_name: n });
       }
     }
 
-    const metaCompanyByUserId = new Map<string, string>();
+    const authMetaByUserId = new Map<
+      string,
+      { company: string; person: string; email: string }
+    >();
+
     await Promise.all(
       userIds.map(async (uid) => {
-        if (bpNameByUserId.has(uid)) return;
         try {
           const { data, error } = await admin.auth.admin.getUserById(uid);
           if (error || !data?.user) return;
           const meta = data.user.user_metadata as Record<string, unknown> | undefined;
-          const c =
+          const company =
             (typeof meta?.signup_company_name === "string" && meta.signup_company_name.trim()) ||
             (typeof meta?.company_name === "string" && meta.company_name.trim()) ||
             "";
-          if (c) metaCompanyByUserId.set(uid, c);
+          const person = personFromAuthMeta(meta);
+          const email = typeof data.user.email === "string" ? data.user.email.trim() : "";
+          authMetaByUserId.set(uid, { company, person, email });
         } catch {
           /* ignore */
         }
@@ -175,12 +296,31 @@ export async function enrichAdminRecentActivity(
         r.item_id != null && String(r.item_id).trim() !== ""
           ? String(r.item_id).trim()
           : null;
-      if (isUserRow(r) && isBlankBusinessName(r.subtitle) && uid) {
-        const name = bpNameByUserId.get(uid) ?? metaCompanyByUserId.get(uid);
-        if (name) {
-          out[i] = { ...r, subtitle: name };
+      if (!uid || !isUserRow(r)) continue;
+
+      const bp = bpByUserId.get(uid);
+      const auth = authMetaByUserId.get(uid);
+      let next = { ...r };
+
+      if (isBlankBusinessName(next.subtitle)) {
+        const companyName = bp?.business_name ?? auth?.company ?? "";
+        if (companyName) {
+          next = { ...next, subtitle: companyName };
         }
       }
+
+      if (isPlaceholderPerson(next.person_name ?? next.name)) {
+        const fromAuth = auth?.person ?? "";
+        const local = auth?.email?.includes("@")
+          ? auth.email.split("@")[0]?.trim() ?? ""
+          : "";
+        const resolved = fromAuth || local;
+        if (resolved) {
+          next = { ...next, person_name: resolved, name: resolved };
+        }
+      }
+
+      out[i] = next;
     }
   }
 

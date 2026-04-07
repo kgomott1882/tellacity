@@ -20,7 +20,10 @@ export type AdminRecentActivityItem = {
   title: string;
   subtitle: string | null;
   email: string | null;
-  name: string | null;
+  /** Signup/review actor display name (RPC column `person_name`). */
+  person_name?: string | null;
+  /** Legacy RPC column; prefer `person_name`. */
+  name?: string | null;
   created_at: string;
 };
 
@@ -110,10 +113,12 @@ export async function getAdminOverviewStats(
 
 export async function getAdminRecentActivity(
   supabase: SupabaseClient,
-  limitCount: number
+  limitCount: number,
+  offsetCount = 0
 ): Promise<{ data: AdminRecentActivityItem[]; error: string | null }> {
   const { data, error } = await supabase.rpc("admin_get_recent_activity", {
     limit_count: limitCount,
+    offset_count: offsetCount,
   });
   if (error) return { data: [], error: error.message };
   return {

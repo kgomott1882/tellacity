@@ -6,7 +6,6 @@ import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
-import { sendBusinessSignupWelcomeEmails } from "@/lib/businessSignupWelcomeEmail";
 import {
   cleanupSignupUserRows,
   formatSignupProfileErrorForClient,
@@ -196,6 +195,8 @@ export async function POST(req: Request) {
         full_name: fullName,
         role: "business",
         display_name: fullName,
+        signup_first_name: payload.firstName.trim(),
+        signup_last_name: payload.lastName.trim(),
         signup_website: normalizeWebsiteDomain(payload.website ?? ""),
         signup_company_name: payload.companyName.trim(),
         signup_job_title:
@@ -255,13 +256,6 @@ export async function POST(req: Request) {
       .update({ consumed_at: new Date().toISOString() })
       .eq("id", row.id)
       .is("consumed_at", null);
-
-    await sendBusinessSignupWelcomeEmails({
-      toEmail: email,
-      businessName: payload.companyName.trim() || "Your business",
-      fullName,
-      countryCode: countryCode || undefined,
-    });
 
     return NextResponse.json({
       success: true,
