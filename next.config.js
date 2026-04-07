@@ -21,11 +21,6 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
-      {
-        source: "/business/forgot-password",
-        destination: "/",
-        permanent: true,
-      },
 
       // HELP (legacy)
       {

@@ -30,11 +30,20 @@ function CallbackInner() {
     let isMounted = true;
 
     const run = async () => {
-      // Password recovery: do not treat as login – send to reset-password page with hash so user can set new password
+      // Password recovery: send to the correct reset page (business vs consumer) with hash intact
       if (typeof window !== "undefined" && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         if (hashParams.get("type") === "recovery") {
-          router.replace("/auth/reset-password" + window.location.hash);
+          const nextParam = searchParams.get("next");
+          const sanitized = nextParam
+            ? sanitizeAuthNext(nextParam, "/auth/reset-password")
+            : "/auth/reset-password";
+          const recoveryPath =
+            sanitized === "/business/reset-password" ||
+            sanitized.startsWith("/business/reset-password")
+              ? "/business/reset-password"
+              : "/auth/reset-password";
+          router.replace(recoveryPath + window.location.hash);
           return;
         }
       }
@@ -87,7 +96,7 @@ function CallbackInner() {
     return () => {
       isMounted = false;
     };
-  }, [router, safeNext, nextRaw]);
+  }, [router, safeNext, nextRaw, searchParams]);
 
   if (status === "error") {
     return (

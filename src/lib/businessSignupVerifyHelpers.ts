@@ -120,7 +120,7 @@ export type AttachResult =
 
 /**
  * Claim or align `businesses` row for this user (legacy / non-OTP flows).
- * Dashboard domain OTP uses {@link ensureBusinessOwnershipRow} from `POST /api/business/verify-domain`.
+ * Dashboard domain OTP finalizes via RPC `verify_domain_finish_business_claim` in `POST /api/business/verify-domain`.
  */
 export async function attachUserToResolvedBusiness(
   admin: SupabaseClient,

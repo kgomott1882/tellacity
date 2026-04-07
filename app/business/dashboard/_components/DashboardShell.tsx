@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -367,6 +368,16 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                   <DashboardMainSkeleton />
                 ) : needsOnboarding && !bizError ? (
                   <div className="mx-auto max-w-lg rounded-xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+                    <div className="mb-6 flex justify-center">
+                      <Image
+                        src="/brand/Congrats.png"
+                        alt="Welcome — your Tellacity Business journey starts here"
+                        width={320}
+                        height={240}
+                        className="h-auto w-full max-w-[280px] object-contain"
+                        priority
+                      />
+                    </div>
                     <p className="text-base font-semibold text-gray-900">Link or create a business</p>
                     <p className="mt-2 text-sm text-gray-600">
                       Add a business to this account to use reviews, widgets, integrations, and settings.

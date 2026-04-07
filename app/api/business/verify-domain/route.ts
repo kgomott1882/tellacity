@@ -4,15 +4,87 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
-import { sessionEmailDomainMatchesBusinessWebsite } from "@/lib/businessDomainVerification";
-import { ensureBusinessOwnershipRow } from "@/lib/businessSignupVerifyHelpers";
 import { sendBusinessDomainVerificationOtp } from "@/lib/sendBusinessDomainVerificationOtp";
+import {
+  httpStatusForVerifyDomainOutcome,
+  isVerifyDomainRpcMissing,
+  verifyDomainFinishWithServiceRole,
+} from "@/lib/verifyDomainFinishServer";
+
+type RpcResult = {
+  ok?: boolean;
+  error?: string;
+  already_owner?: boolean;
+};
+
+function statusForRpcError(err: string | undefined): number {
+  switch (err) {
+    case "not_authenticated":
+      return 401;
+    case "business_not_found":
+      return 404;
+    case "domain_mismatch":
+      return 403;
+    case "already_claimed":
+      return 409;
+    case "invalid_code":
+    case "no_pending_code":
+    case "code_expired":
+    case "wrong_code":
+    case "invalid_email":
+    case "unsupported_business_status":
+      return 400;
+    case "business_update_failed":
+      return 500;
+    default:
+      return 400;
+  }
+}
+
+function messageForVerifyError(err: string): string | undefined {
+  switch (err) {
+    case "domain_mismatch":
+      return "Your email domain must match this business website.";
+    case "already_claimed":
+      return "This business already has an owner.";
+    case "no_pending_code":
+      return "Request a new code first.";
+    case "code_expired":
+      return "This code has expired.";
+    case "wrong_code":
+      return "That code is incorrect.";
+    case "unsupported_business_status":
+      return "This listing cannot be verified in its current state.";
+    case "business_update_failed":
+      return "Could not update the business. Try again or contact support.";
+    default:
+      return undefined;
+  }
+}
+
+function nextResponseForRpcResult(result: RpcResult | null): NextResponse {
+  if (!result?.ok) {
+    const err = result?.error ?? "unknown";
+    const status = statusForRpcError(err);
+    const message = messageForVerifyError(err);
+    return NextResponse.json(
+      {
+        error: err,
+        ...(message ? { message } : {}),
+      },
+      { status }
+    );
+  }
+  if (result.already_owner) {
+    return NextResponse.json({ ok: true, alreadyOwner: true });
+  }
+  return NextResponse.json({ ok: true });
+}
 
 /**
  * Domain OTP for post-login onboarding.
  * - Without `code`: insert pending verification row and email a 6-digit code to the session email.
- * - With `code`: validate, activate/claim `businesses` first, then INSERT business_owners ON CONFLICT DO NOTHING.
- * Email vs website uses normalizeWebsiteDomain (sessionEmailDomainMatchesBusinessWebsite, sendBusinessDomainVerificationOtp).
+ * - With `code`: prefer SECURITY DEFINER RPC via service_role (no direct UPDATE), then JWT RPC, then TS fallback.
  */
 export async function POST(req: Request) {
   try {
@@ -28,9 +100,6 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-
-    const userId = user.id;
-    const sessionEmail = user.email.trim().toLowerCase();
 
     const body = (await req.json().catch(() => ({}))) as {
       businessId?: string;
@@ -68,163 +137,96 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, sent: true });
     }
 
-    const { data: biz, error: bizErr } = await admin
-      .from("businesses")
-      .select("id, website, owner_id, is_claimed, status")
-      .eq("id", businessId)
-      .maybeSingle();
-
-    if (bizErr || !biz) {
-      return NextResponse.json({ error: "business_not_found" }, { status: 404 });
-    }
-
-    if (!sessionEmailDomainMatchesBusinessWebsite(sessionEmail, biz.website)) {
-      return NextResponse.json(
-        { error: "domain_mismatch", message: "Your email domain must match this business website." },
-        { status: 403 }
-      );
-    }
-
-    const statusLower = String(biz.status ?? "").toLowerCase();
-    const isDraft = statusLower === "pending_verification";
-    const isActiveListing =
-      statusLower === "active" || statusLower === "" || biz.status == null;
-
-    const { data: existingBo } = await admin
-      .from("business_owners")
-      .select("owner_user_id")
-      .eq("business_id", businessId)
-      .maybeSingle();
-
-    if (existingBo?.owner_user_id && existingBo.owner_user_id !== userId) {
-      return NextResponse.json(
-        { error: "already_claimed", message: "This business already has an owner." },
-        { status: 409 }
-      );
-    }
-
-    if (!/^\d{6}$/.test(codeRaw)) {
-      return NextResponse.json({ error: "invalid_code" }, { status: 400 });
-    }
-
-    const { data: vRow, error: vFetchErr } = await admin
-      .from("business_domain_verifications")
-      .select("id, code, expires_at, consumed_at")
-      .eq("user_id", userId)
-      .eq("business_id", businessId)
-      .is("consumed_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (vFetchErr || !vRow) {
-      return NextResponse.json(
-        { error: "no_pending_code", message: "Request a new code first." },
-        { status: 400 }
-      );
-    }
-
-    if (new Date(vRow.expires_at).getTime() < Date.now()) {
-      return NextResponse.json({ error: "code_expired" }, { status: 400 });
-    }
-
-    if (vRow.code !== codeRaw) {
-      return NextResponse.json({ error: "wrong_code" }, { status: 400 });
-    }
-
-    if (existingBo?.owner_user_id === userId) {
-      await admin
-        .from("business_domain_verifications")
-        .update({ consumed_at: new Date().toISOString() })
-        .eq("id", vRow.id);
-      return NextResponse.json({ ok: true, alreadyOwner: true });
-    }
-
-    if (isDraft) {
-      const { error: upBiz } = await admin
-        .from("businesses")
-        .update({
-          owner_id: userId,
-          is_claimed: true,
-          status: "active",
-          submission_status: "approved",
-        })
-        .eq("id", businessId)
-        .eq("status", "pending_verification");
-
-      if (upBiz) {
-        console.error("verify-domain activate draft business:", upBiz);
-        return NextResponse.json(
-          {
-            error: "business_update_failed",
-            message: upBiz.message,
-            ...(process.env.NODE_ENV === "development"
-              ? { db_code: upBiz.code, db_message: upBiz.message }
-              : {}),
-          },
-          { status: 500 }
-        );
-      }
-    } else if (isActiveListing) {
-      const { error: upBiz } = await admin
-        .from("businesses")
-        .update({
-          owner_id: userId,
-          is_claimed: true,
-        })
-        .eq("id", businessId)
-        .is("owner_id", null);
-
-      if (upBiz) {
-        console.error("verify-domain claim listing:", upBiz);
-        return NextResponse.json(
-          {
-            error: "business_update_failed",
-            message: upBiz.message,
-            ...(process.env.NODE_ENV === "development"
-              ? { db_code: upBiz.code, db_message: upBiz.message }
-              : {}),
-          },
-          { status: 500 }
-        );
-      }
-    }
-
-    const ownership = await ensureBusinessOwnershipRow(admin, businessId, userId, {
-      supabaseClientRole: "service_role",
+    // 1) Server-only RPC (service_role): avoids permission denied on public.users from direct UPDATE + triggers.
+    const serviceRpc = await admin.rpc("verify_domain_finish_business_claim_service", {
+      p_business_id: businessId,
+      p_user_id: user.id,
+      p_code: codeRaw,
     });
 
-    if (!ownership.ok) {
-      console.error("verify-domain ensureBusinessOwnershipRow failed", {
-        businessId,
-        userId,
-        error: ownership.error,
-      });
+    if (!serviceRpc.error && serviceRpc.data != null) {
+      return nextResponseForRpcResult(serviceRpc.data as RpcResult);
+    }
+
+    if (serviceRpc.error && !isVerifyDomainRpcMissing(serviceRpc.error)) {
+      console.error("verify-domain service rpc:", serviceRpc.error);
       return NextResponse.json(
         {
-          error: "owner_link_failed",
-          message: ownership.error.message,
+          error: "rpc_failed",
+          message: serviceRpc.error.message,
           ...(process.env.NODE_ENV === "development"
-            ? {
-                db_error: {
-                  code: ownership.error.code,
-                  message: ownership.error.message,
-                  details: ownership.error.details,
-                  hint: ownership.error.hint,
-                  phase: ownership.error.phase,
-                },
-              }
+            ? { db_code: serviceRpc.error.code, db_message: serviceRpc.error.message }
             : {}),
         },
         { status: 500 }
       );
     }
 
-    await admin
-      .from("business_domain_verifications")
-      .update({ consumed_at: new Date().toISOString() })
-      .eq("id", vRow.id);
+    // 2) Authenticated RPC (user JWT)
+    const {
+      data: { session },
+    } = await supabaseUser.auth.getSession();
+    const accessToken = session?.access_token;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+    if (accessToken && anonKey) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${accessToken}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+
+      const jwtRpc = await userClient.rpc("verify_domain_finish_business_claim", {
+        p_business_id: businessId,
+        p_code: codeRaw,
+      });
+
+      if (!jwtRpc.error && jwtRpc.data != null) {
+        return nextResponseForRpcResult(jwtRpc.data as RpcResult);
+      }
+
+      if (jwtRpc.error && !isVerifyDomainRpcMissing(jwtRpc.error)) {
+        console.error("verify-domain jwt rpc:", jwtRpc.error);
+        return NextResponse.json(
+          {
+            error: "rpc_failed",
+            message: jwtRpc.error.message,
+            ...(process.env.NODE_ENV === "development"
+              ? { db_code: jwtRpc.error.code, db_message: jwtRpc.error.message }
+              : {}),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // 3) Last resort: direct PostgREST (may hit permission denied for table users on some DBs).
+    console.warn(
+      "verify-domain: RPCs missing; using direct update fallback. Apply migrations 20260608120000 and 20260608140000."
+    );
+    const fallback = await verifyDomainFinishWithServiceRole(admin, {
+      businessId,
+      code: codeRaw,
+      userId: user.id,
+      sessionEmail: user.email,
+    });
+    if (!fallback.ok) {
+      const status = httpStatusForVerifyDomainOutcome(fallback);
+      const err = fallback.error;
+      const message =
+        messageForVerifyError(err) ??
+        (err === "owner_link_failed" ? fallback.message : undefined);
+      return NextResponse.json(
+        {
+          error: err,
+          ...(message ? { message } : {}),
+          ...(fallback.dev ?? {}),
+        },
+        { status }
+      );
+    }
+    if (fallback.already_owner) {
+      return NextResponse.json({ ok: true, alreadyOwner: true });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("verify-domain:", e);
