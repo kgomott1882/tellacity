@@ -4,10 +4,18 @@ import TrustBadge from "@/components/widgets/TrustBadge";
 import ReviewCarousel from "@/components/widgets/ReviewCarousel";
 import ReviewList from "@/components/widgets/ReviewList";
 import ReviewCollector from "@/components/widgets/ReviewCollector";
+import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
+import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 export const dynamic = "force-dynamic";
 
-const VALID_TYPES: WidgetType[] = ["badge", "carousel", "list", "collector"];
+const VALID_TYPES: WidgetType[] = [
+  "badge",
+  "carousel",
+  "list",
+  "collector",
+  "review_us",
+];
 
 function getSupabase() {
   return createClient(
@@ -50,15 +58,28 @@ export default async function WidgetEmbedPage({
     <>
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { padding: 10px; background: transparent; }
+        body { padding: 20px 24px; background: transparent; }
       `}</style>
 
       {type === "carousel" && <ReviewCarousel payload={payload} />}
       {type === "list" && <ReviewList payload={payload} />}
       {type === "collector" && <ReviewCollector payload={payload} />}
-      {(type === "badge" || !VALID_TYPES.includes(type)) && (
-        <TrustBadge payload={payload} />
+      {type === "review_us" && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: 44,
+          }}
+        >
+          <TellacityReviewUsBadge
+            href={getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug)}
+            size="md"
+          />
+        </div>
       )}
+      {type === "badge" && <TrustBadge payload={payload} />}
 
       <script
         dangerouslySetInnerHTML={{

@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import crypto from "crypto";
 import { getServerEnv } from "@/lib/serverEnv";
+import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import {
   getActivePlanKeyForBusiness,
@@ -78,7 +79,8 @@ export async function POST(req: Request) {
       .from("review_invites")
       .select("*", { count: "exact", head: true })
       .eq("business_id", businessId)
-      .gte("created_at", startOfMonth.toISOString());
+      .gte("created_at", startOfMonth.toISOString())
+      .or("source.is.null,source.neq.email_widget");
 
     if (countError) {
       console.error("Invite count error:", countError);
@@ -185,10 +187,7 @@ export async function POST(req: Request) {
     }
 
     // ── Send immediately (same `token` as stored; no encodeURIComponent) ──────
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-    const inviteLink = baseUrl
-      ? `${baseUrl}/review/invite?token=${token}`
-      : "#";
+    const inviteLink = `${getPublicAppOrigin()}/review/invite?token=${token}`;
 
     // Load email template (subject/body overrides from review_invite_email_templates)
     const templateKey = templateType === "custom" ? "custom" : "standard";

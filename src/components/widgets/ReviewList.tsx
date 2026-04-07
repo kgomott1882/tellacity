@@ -1,6 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
-import { TELLACITY_BRAND_ICON_PATH } from "@/lib/emailBranding";
+import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
 
 function formatDate(iso: string) {
   try {
@@ -74,7 +74,7 @@ export default function ReviewList({ payload }: { payload: WidgetPayload }) {
       <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 11, color: "#9ca3af", display: "inline-flex", alignItems: "center", gap: 4 }}>
           Verified by{" "}
-          <img src={TELLACITY_BRAND_ICON_PATH} alt="Tellacity" width={20} height={20} style={{ width: 13, height: 13, objectFit: "contain", borderRadius: 3 }} />
+          <img src={TELLACITY_BRAND_ICON_SRC} alt="Tellacity" width={20} height={20} style={{ width: 13, height: 13, objectFit: "contain", borderRadius: 3 }} />
           <span style={{ color: "#000", fontWeight: 600 }}>Tellacity</span>
         </span>
         <a

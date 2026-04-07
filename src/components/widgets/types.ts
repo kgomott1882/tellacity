@@ -16,4 +16,9 @@ export type WidgetPayload = {
   reviews: WidgetReview[];
 };
 
-export type WidgetType = "badge" | "carousel" | "list" | "collector";
+export type WidgetType =
+  | "badge"
+  | "carousel"
+  | "list"
+  | "collector"
+  | "review_us";

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
+import { getPublicAppOrigin } from "@/lib/emailBranding";
 
 type ReminderInvite = {
   id: string;
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
     }
 
     const rows = (invites ?? []) as ReminderInvite[];
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+    const baseUrl = getPublicAppOrigin();
     let processed = 0;
 
     console.log(`[send-reminders] fetched invites: ${rows.length}`);

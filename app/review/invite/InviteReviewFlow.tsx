@@ -12,6 +12,8 @@ type InviteReviewFlowProps = {
   initialBusinessSlug: string | null;
   initialBusinessName: string | null;
   reviewerEmail: string;
+  /** From email widget rating ladder (?rating=1–5). */
+  initialRating?: number;
 };
 
 export default function InviteReviewFlow({
@@ -20,6 +22,7 @@ export default function InviteReviewFlow({
   initialBusinessSlug,
   initialBusinessName,
   reviewerEmail,
+  initialRating,
 }: InviteReviewFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "success">("form");
@@ -152,6 +155,7 @@ export default function InviteReviewFlow({
           businessName={businessName}
           reviewerEmail={reviewerEmail}
           inviteId={inviteId}
+          initialRating={initialRating}
           onSuccess={handleInviteSubmitSuccess}
         />
       </div>

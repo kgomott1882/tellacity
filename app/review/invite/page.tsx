@@ -32,12 +32,22 @@ type InviteRow = {
   expires_at?: string | null;
 };
 
+function parseRatingParam(raw: string | undefined): number | undefined {
+  if (raw == null || raw === "") return undefined;
+  const n = Number.parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n < 1 || n > 5) return undefined;
+  return n;
+}
+
 export default async function InvitePage(props: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; rating?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const rawToken = searchParams.token;
   const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  const initialRating = parseRatingParam(
+    typeof searchParams.rating === "string" ? searchParams.rating : undefined,
+  );
 
   if (!token) {
     return <ErrorState message="Missing invite token" />;
@@ -123,6 +133,7 @@ export default async function InvitePage(props: {
       initialBusinessSlug={businessSlug}
       initialBusinessName={businessName}
       reviewerEmail={recipientEmail}
+      initialRating={initialRating}
     />
   );
 }

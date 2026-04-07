@@ -5,6 +5,7 @@ const HEIGHT_DEFAULTS: Record<string, number> = {
   collector: 70,
   list: 420,
   carousel: 260,
+  review_us: 72,
 };
 
 const SCRIPT = `
@@ -21,7 +22,7 @@ const SCRIPT = `
   if (isNaN(limit) || limit < 1) limit = 1;
   if (limit > 20) limit = 20;
 
-  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260 };
+  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72 };
   var defaultHeight = heightDefaults[type] || 110;
   var height = parseInt(script.dataset.height || String(defaultHeight), 10);
   if (isNaN(height)) height = defaultHeight;

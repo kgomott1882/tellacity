@@ -41,19 +41,22 @@ export async function POST(req: Request) {
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId)
-        .gte("created_at", monthStartIso),
+        .gte("created_at", monthStartIso)
+        .or("source.is.null,source.neq.email_widget"),
       supabase
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId)
         .not("sent_at", "is", null)
-        .gte("sent_at", monthStartIso),
+        .gte("sent_at", monthStartIso)
+        .or("source.is.null,source.neq.email_widget"),
       supabase
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId)
         .not("opened_at", "is", null)
-        .gte("opened_at", monthStartIso),
+        .gte("opened_at", monthStartIso)
+        .or("source.is.null,source.neq.email_widget"),
     ]);
 
     return NextResponse.json({

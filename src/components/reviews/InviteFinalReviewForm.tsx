@@ -9,6 +9,8 @@ export type InviteFinalReviewFormProps = {
   businessName: string;
   reviewerEmail: string;
   inviteId: string;
+  /** Pre-selected rating (e.g. email widget ladder links). */
+  initialRating?: number;
   /** Called after the review is published to `reviews` (includes new `review_id` when returned). */
   onSuccess?: (reviewId: string | null) => void;
 };
@@ -27,6 +29,15 @@ function todayIsoDate(): string {
 function defaultGuestName(email: string): string {
   const local = email.trim().split("@")[0]?.trim() ?? "";
   return local || "Guest";
+}
+
+function normalizedInviteInitialRating(
+  value: number | undefined,
+): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  const r = Math.round(Number(value));
+  if (r < 1 || r > 5) return null;
+  return r;
 }
 
 function humanizeApiError(payload: { error?: string }): string {
@@ -62,9 +73,12 @@ export function InviteFinalReviewForm({
   businessName,
   reviewerEmail,
   inviteId,
+  initialRating,
   onSuccess,
 }: InviteFinalReviewFormProps) {
-  const [rating, setRating] = useState<number | null>(null);
+  const [rating, setRating] = useState<number | null>(() =>
+    normalizedInviteInitialRating(initialRating) ?? null,
+  );
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [guestName, setGuestName] = useState("");

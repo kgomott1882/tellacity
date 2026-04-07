@@ -11,6 +11,7 @@ import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
 import { Download } from "lucide-react";
+import { getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 const INVITATION_METHODS_PATH = "/business/dashboard/get-reviews/invitation-methods";
 const SENT_PAGE_SIZE = 25;
@@ -343,8 +344,10 @@ export default function GetReviewsOverviewPage() {
     };
   }, [businessId, fetchUsage, fetchSentInvites]);
 
+  const reviewOrigin =
+    typeof window !== "undefined" ? window.location.origin : "https://tellacity.com";
   const reviewUrl = selectedBusiness?.slug
-    ? `${typeof window !== "undefined" ? window.location.origin : "https://tellacity.com"}/b/${selectedBusiness.slug}/write-review`
+    ? getPublicWriteReviewUrl(reviewOrigin, selectedBusiness.slug)
     : "";
 
   function downloadQR() {

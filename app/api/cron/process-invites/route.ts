@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
+import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
@@ -68,14 +69,8 @@ function makeSupabase() {
   return createClient(supabaseUrl, serviceRoleKey);
 }
 
-function getBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-}
-
 function buildInviteLink(token: string): string {
-  const base = getBaseUrl();
-  if (!base) return "#";
-  return `${base}/review/invite?token=${token}`;
+  return `${getPublicAppOrigin()}/review/invite?token=${token}`;
 }
 
 function esc(s: string | null | undefined): string {

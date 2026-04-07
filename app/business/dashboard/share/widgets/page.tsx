@@ -30,6 +30,12 @@ const WIDGETS = [
     description: "Button to collect new reviews.",
     previewHeight: 80,
   },
+  {
+    id: "review_us",
+    name: "Review Strip",
+    description: "Elegant review collector strip",
+    previewHeight: 88,
+  },
 ] as const;
 
 type WidgetId = (typeof WIDGETS)[number]["id"];
@@ -143,7 +149,7 @@ export default function WebsiteWidgetsPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Choose a widget
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {WIDGETS.map((widget) => {
             const isActive = selected === widget.id;
             return (
@@ -177,7 +183,7 @@ export default function WebsiteWidgetsPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Live preview
         </h2>
-        <div className="rounded-xl border-2 border-[#2fb2a8] bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm sm:p-10">
           {!slug ? (
             <p className="text-sm text-gray-400">
               No business selected. Please select a business to preview the widget.
@@ -201,7 +207,7 @@ export default function WebsiteWidgetsPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Embed code
         </h2>
-        <div className="rounded-xl border-2 border-[#2fb2a8] bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
             <span className="text-xs font-medium text-gray-500">HTML</span>
             <button

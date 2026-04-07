@@ -9,6 +9,7 @@ import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import WidgetStars from "@/components/widgets/WidgetStars";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
+import { getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -104,7 +105,7 @@ export default function SocialSharePage() {
   const slug = selectedBusiness?.slug ?? "";
 
   const profileUrl = slug ? `${BASE_URL}/b/${slug}` : "";
-  const reviewUrl = slug ? `${BASE_URL}/b/${slug}/write-review` : "";
+  const reviewUrl = slug ? getPublicWriteReviewUrl(BASE_URL, slug) : "";
 
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);

@@ -9,7 +9,9 @@ import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
 import TellacityStarStrip from "@/components/widgets/TellacityStarStrip";
+import WidgetStars from "@/components/widgets/WidgetStars";
 import { EMAIL_WIDGET_CTA_BORDER, EMAIL_WIDGET_CTA_TEXT } from "@/lib/emailBranding";
 
 const DEFAULT_STANDARD_SUBJECT = "You're invited to leave a review";
@@ -69,9 +71,9 @@ export default function EmailTemplatesPage() {
     remove_tellacity_branding: false,
     reply_to_email: "",
   });
-  const [widgetLayoutStyle, setWidgetLayoutStyle] = useState<"standard" | "elite_branded">(
-    "standard"
-  );
+  const [widgetLayoutStyle, setWidgetLayoutStyle] = useState<
+    "standard" | "elite_branded" | "review_card" | "rating_ladder"
+  >("standard");
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
   const [savingWidget, setSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -164,8 +166,15 @@ export default function EmailTemplatesPage() {
         const widget = filteredRows.find((r: { template_key: string }) => r.template_key === "widget") as (TemplateRow & { intro_message?: string | null; layout_style?: string | null }) | undefined;
         setWidgetSubject(widget?.subject ?? "");
         setWidgetIntro((widget as any)?.intro_message ?? "");
+        const wls = (widget as { layout_style?: string | null })?.layout_style;
         setWidgetLayoutStyle(
-          (widget as any)?.layout_style === "elite_branded" ? "elite_branded" : "standard"
+          wls === "elite_branded"
+            ? "elite_branded"
+            : wls === "review_card"
+              ? "review_card"
+              : wls === "rating_ladder"
+                ? "rating_ladder"
+                : "standard",
         );
         if (widget) {
           setWidgetSignature({
@@ -287,9 +296,21 @@ export default function EmailTemplatesPage() {
     setSavingWidget(true);
     setWidgetMessage(null);
     try {
-      // Only elite plan may persist elite_branded; force standard otherwise
-      const effectiveLayoutStyle =
-        normalizedPlan === "elite" ? widgetLayoutStyle : "standard";
+      let effectiveLayoutStyle:
+        | "standard"
+        | "elite_branded"
+        | "review_card"
+        | "rating_ladder" = "standard";
+      if (normalizedPlan === "elite") {
+        effectiveLayoutStyle = widgetLayoutStyle;
+      } else if (normalizedPlan === "premium") {
+        effectiveLayoutStyle =
+          widgetLayoutStyle === "elite_branded"
+            ? "standard"
+            : widgetLayoutStyle;
+      } else {
+        effectiveLayoutStyle = "standard";
+      }
 
       const payload: Record<string, unknown> = {
         subject: widgetSubject || null,
@@ -615,7 +636,7 @@ export default function EmailTemplatesPage() {
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-800">Premium Widget Layout</p>
+                    <p className="text-sm font-semibold text-gray-800">Review Strip</p>
                     {widgetLayoutStyle === "standard" && (
                       <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
                         <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -624,23 +645,106 @@ export default function EmailTemplatesPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mb-3 text-xs text-gray-500">Default Tellacity email layout.</p>
-                  {/* Mini preview */}
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-5 text-center">
-                    <p className="mb-2 text-xs font-semibold text-gray-800">Tell us about your experience</p>
-                    <div className="flex justify-center">
-                      <TellacityStarStrip size={11} />
+                  <p className="mb-3 text-xs text-gray-500">Elegant review collector strip</p>
+                  <div className="pointer-events-none flex justify-center rounded-lg border border-gray-100 bg-gray-50 px-4 py-5">
+                    <TellacityReviewUsBadge size="sm" />
+                  </div>
+                </button>
+
+                {/* Review showcase — Premium & Elite */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (normalizedPlan === "premium" || normalizedPlan === "elite") {
+                      setWidgetLayoutStyle("review_card");
+                    }
+                  }}
+                  className={`relative rounded-xl border p-4 text-left transition focus:outline-none ${
+                    normalizedPlan !== "premium" && normalizedPlan !== "elite"
+                      ? "cursor-not-allowed border-dashed border-gray-300 bg-white"
+                      : widgetLayoutStyle === "review_card"
+                        ? "border-[#124541] ring-1 ring-[#124541]"
+                        : "border-gray-200 bg-white hover:border-gray-400"
+                  }`}
+                >
+                  {(normalizedPlan !== "premium" && normalizedPlan !== "elite") && (
+                    <div className="absolute right-4 top-4 flex items-center gap-1 rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white shadow-md">
+                      🔒 Locked
                     </div>
-                    <div
-                      className="mt-2 inline-block rounded border px-3 py-1 text-[11px] font-semibold leading-tight bg-transparent"
-                      style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
-                    >
-                      Leave a Review
+                  )}
+                  {widgetLayoutStyle === "review_card" &&
+                    (normalizedPlan === "premium" || normalizedPlan === "elite") && (
+                      <span className="absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
+                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  <p className="mb-1 text-sm font-semibold text-gray-800">Review showcase</p>
+                  <p className="mb-3 text-xs text-gray-500">
+                    Card with latest public review, aggregate stats, Tellacity stars (Premium+).
+                  </p>
+                  <div className="rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm">
+                    <div className="h-1 bg-gray-100" />
+                    <div className="pt-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <WidgetStars rating={4} size={10} />
+                        <span className="text-[9px] text-gray-400">20 Jun 2019</span>
+                      </div>
+                      <p className="mt-1 text-[9px] text-gray-400">by Sample Customer</p>
+                      <p className="mt-1 text-[11px] font-bold text-gray-900">Recent review</p>
+                      <p className="mt-0.5 line-clamp-2 text-[10px] text-gray-600">
+                        Short excerpt from the review…
+                      </p>
                     </div>
-                    <p className="mt-2 text-center text-[10px] leading-snug text-gray-400">
-                      Verified reviews powered by{" "}
-                      <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
-                    </p>
+                    <div className="mt-2 border-t border-gray-100 py-2 text-center text-[9px] text-gray-600">
+                      Rated <strong>4.8</strong> out of <strong>5</strong> on{" "}
+                      <strong className="text-[#0E0E0E]">Tellacity</strong>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Rating ladder — Premium & Elite */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (normalizedPlan === "premium" || normalizedPlan === "elite") {
+                      setWidgetLayoutStyle("rating_ladder");
+                    }
+                  }}
+                  className={`relative rounded-xl border p-4 text-left transition focus:outline-none ${
+                    normalizedPlan !== "premium" && normalizedPlan !== "elite"
+                      ? "cursor-not-allowed border-dashed border-gray-300 bg-white"
+                      : widgetLayoutStyle === "rating_ladder"
+                        ? "border-[#124541] ring-1 ring-[#124541]"
+                        : "border-gray-200 bg-white hover:border-gray-400"
+                  }`}
+                >
+                  {(normalizedPlan !== "premium" && normalizedPlan !== "elite") && (
+                    <div className="absolute right-4 top-4 flex items-center gap-1 rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white shadow-md">
+                      🔒 Locked
+                    </div>
+                  )}
+                  {widgetLayoutStyle === "rating_ladder" &&
+                    (normalizedPlan === "premium" || normalizedPlan === "elite") && (
+                      <span className="absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
+                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  <p className="mb-1 text-sm font-semibold text-gray-800">Rating ladder</p>
+                  <p className="mb-3 text-xs text-gray-500">
+                    &quot;How did we do?&quot; rows; each row links to your review page with that rating (Tellacity stars).
+                  </p>
+                  <div className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-left">
+                    <p className="mb-1.5 text-center text-[9px] font-bold text-gray-800 underline">How did we do?</p>
+                    {[5, 4, 3].map((r) => (
+                      <div key={r} className="flex items-center gap-2 border-b border-gray-50 py-1 last:border-0">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-gray-300" />
+                        <WidgetStars rating={r} size={9} />
+                      </div>
+                    ))}
                   </div>
                 </button>
 
@@ -731,6 +835,14 @@ export default function EmailTemplatesPage() {
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#124541] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
                     <span>★</span> Elite Branded Layout
                   </span>
+                ) : widgetLayoutStyle === "review_card" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#124541] bg-[#f0faf8] px-2.5 py-1 text-[11px] font-semibold text-[#124541]">
+                    Review showcase
+                  </span>
+                ) : widgetLayoutStyle === "rating_ladder" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#124541] bg-[#f0faf8] px-2.5 py-1 text-[11px] font-semibold text-[#124541]">
+                    Rating ladder
+                  </span>
                 ) : (
                   <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600">
                     Standard Layout
@@ -767,23 +879,80 @@ export default function EmailTemplatesPage() {
                       {widgetIntro.trim() || "We'd love to hear about your experience. It only takes a minute."}
                     </p>
 
-                    {/* Review Collector block */}
-                    <div className="my-5 rounded-lg border border-gray-200 p-5 text-center">
-                      <p className="text-sm font-semibold text-gray-900">Tell us about your experience</p>
-                      <div className="mt-2 flex justify-center">
-                        <TellacityStarStrip size={13} />
+                    {widgetLayoutStyle === "rating_ladder" ? (
+                      <>
+                        <p className="mt-4 text-base font-bold text-gray-900 underline">How did we do?</p>
+                        <div className="my-4 overflow-hidden rounded-md border border-gray-200 bg-white">
+                          {[5, 4, 3, 2, 1].map((r) => (
+                            <div
+                              key={r}
+                              className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0"
+                            >
+                              <span className="h-4 w-4 shrink-0 rounded-full border-2 border-gray-300" />
+                              <WidgetStars rating={r} size={11} />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs leading-relaxed text-gray-600">
+                          Each row links to the invite-style review form with that star count pre-selected (Tellacity tier stars).
+                        </p>
+                        <p className="mt-3 text-center text-[11px] text-gray-500">
+                          Verified reviews powered by{" "}
+                          <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
+                        </p>
+                      </>
+                    ) : widgetLayoutStyle === "review_card" ? (
+                      <>
+                        <div className="my-5 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                          <div className="h-2 bg-gray-100" />
+                          <div className="px-5 py-4 text-left">
+                            <div className="flex items-start justify-between gap-3">
+                              <WidgetStars rating={4} size={11} />
+                              <span className="shrink-0 text-xs text-gray-400">20 Jun 2019</span>
+                            </div>
+                            <p className="mt-2 text-xs text-gray-400">by Sample Customer</p>
+                            <p className="mt-2 text-sm font-bold text-gray-900">Your latest public review</p>
+                            <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                              Sent emails use your most recent published, visible review and live stats from Tellacity.
+                            </p>
+                          </div>
+                          <div className="border-t border-gray-200 px-4 py-3 text-center text-xs text-gray-600">
+                            Rated <strong>4.8</strong> out of <strong>5</strong> | <strong>1,672</strong> reviews on{" "}
+                            <strong className="text-[#0E0E0E]">Tellacity</strong>
+                          </div>
+                          <div className="h-2 bg-gray-100" />
+                        </div>
+                        <div className="text-center">
+                          <span
+                            className="inline-block rounded border px-4 py-1.5 text-xs font-semibold leading-tight"
+                            style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
+                          >
+                            Leave a review
+                          </span>
+                        </div>
+                        <p className="mt-3 text-center text-[11px] text-gray-500">
+                          Verified reviews powered by{" "}
+                          <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
+                        </p>
+                      </>
+                    ) : (
+                      <div className="my-5 rounded-lg border border-gray-200 p-5 text-center">
+                        <p className="text-sm font-semibold text-gray-900">Tell us about your experience</p>
+                        <div className="mt-2 flex justify-center">
+                          <TellacityStarStrip size={13} />
+                        </div>
+                        <div
+                          className="mt-3 inline-block rounded border px-4 py-1.5 text-xs font-semibold leading-tight bg-transparent"
+                          style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
+                        >
+                          Leave a Review
+                        </div>
+                        <p className="mt-3 text-center text-[11px] text-gray-500">
+                          Verified reviews powered by{" "}
+                          <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
+                        </p>
                       </div>
-                      <div
-                        className="mt-3 inline-block rounded border px-4 py-1.5 text-xs font-semibold leading-tight bg-transparent"
-                        style={{ borderColor: EMAIL_WIDGET_CTA_BORDER, color: EMAIL_WIDGET_CTA_TEXT }}
-                      >
-                        Leave a Review
-                      </div>
-                      <p className="mt-3 text-center text-[11px] text-gray-500">
-                        Verified reviews powered by{" "}
-                        <span className="font-semibold text-[#0E0E0E]">Tellacity</span>
-                      </p>
-                    </div>
+                    )}
 
                     {/* Signature hint */}
                     {widgetSignature.signature_enabled && widgetSignature.signature_name && (

@@ -8,6 +8,13 @@ type Props = {
   businessSlug: string;
 };
 
+function parseRatingQuery(value: string | null): number | undefined {
+  if (value == null || value === "") return undefined;
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 1 || n > 5) return undefined;
+  return n;
+}
+
 export default function WriteReviewSlugClient({ businessSlug }: Props) {
   const searchParams = useSearchParams();
   const s = searchParams.get("success");
@@ -17,6 +24,8 @@ export default function WriteReviewSlugClient({ businessSlug }: Props) {
     return <WriteReviewSuccessView />;
   }
 
+  const initialRating = parseRatingQuery(searchParams.get("rating"));
+
   return (
     <WriteReviewForm
       inviteId={null}
@@ -25,6 +34,7 @@ export default function WriteReviewSlugClient({ businessSlug }: Props) {
       initialBusinessId={null}
       initialBusinessSlug={businessSlug}
       initialBusinessName={null}
+      initialRating={initialRating}
     />
   );
 }
