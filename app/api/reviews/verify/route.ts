@@ -51,12 +51,21 @@ type OtpRow = {
   used_at?: string | null;
 };
 
+/** Extra window after `expires_at` to reduce false “expired” from clock skew, DB latency, or slow mobile networks. */
+const OTP_EXPIRY_GRACE_MS = 120_000;
+
+function otpExpiresAtMs(row: OtpRow): number {
+  if (row.expires_at) {
+    const t = new Date(String(row.expires_at)).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+  return new Date(row.created_at).getTime() + 10 * 60 * 1000;
+}
+
 function otpNotExpired(row: OtpRow): boolean {
-  const deadline = row.expires_at
-    ? new Date(String(row.expires_at)).getTime()
-    : new Date(row.created_at).getTime() + 10 * 60 * 1000;
+  const deadline = otpExpiresAtMs(row);
   if (Number.isNaN(deadline)) return false;
-  return deadline >= Date.now();
+  return Date.now() <= deadline + OTP_EXPIRY_GRACE_MS;
 }
 
 function codesMatch(stored: unknown, input: string): boolean {
@@ -100,7 +109,10 @@ export async function POST(req: Request) {
 
     if (!isValidUuid(draftId) || !isSixDigitCode(codeRaw)) {
       return NextResponse.json(
-        { error: "Invalid or expired code" },
+        {
+          error: "Enter the 6-digit code from your email.",
+          error_code: "invalid_request",
+        },
         { status: 400 },
       );
     }
@@ -114,23 +126,58 @@ export async function POST(req: Request) {
     if (otpListErr) {
       console.error("review_otps select:", otpListErr);
       return NextResponse.json(
-        { error: "Invalid or expired code" },
+        {
+          error: "Could not verify the code. Please try again.",
+          error_code: "server_error",
+        },
+        { status: 500 },
+      );
+    }
+
+    const list = otpRows ?? [];
+    const matchingOtp = list.find(
+      (row) => String(row.code).trim() === codeRaw,
+    );
+
+    if (!matchingOtp) {
+      if (list.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "No active verification code for this review. Tap Resend code or submit your review again.",
+            error_code: "otp_missing",
+          },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json(
+        {
+          error: "That code does not match the one we sent.",
+          error_code: "wrong_code",
+        },
         { status: 400 },
       );
     }
 
-    const matchingOtp = (otpRows ?? []).find(
-      (row) => String(row.code).trim() === codeRaw,
-    );
-
-    if (
-      !matchingOtp ||
-      !otpNotExpired(matchingOtp) ||
-      (matchingOtp.used_at &&
-        String(matchingOtp.used_at).trim().length > 0)
-    ) {
+    const used =
+      matchingOtp.used_at != null &&
+      String(matchingOtp.used_at).trim().length > 0;
+    if (used) {
       return NextResponse.json(
-        { error: "Invalid or expired code" },
+        {
+          error: "This code was already used.",
+          error_code: "otp_used",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!otpNotExpired(matchingOtp)) {
+      return NextResponse.json(
+        {
+          error: "That code has expired. Tap Resend code for a new one.",
+          error_code: "otp_expired",
+        },
         { status: 400 },
       );
     }
@@ -144,15 +191,24 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (draftErr || !draft) {
-      return NextResponse.json({ error: "Draft not found" }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "Draft not found",
+          error_code: "draft_not_found",
+        },
+        { status: 404 },
+      );
     }
 
     const d = draft as ReviewDraftRow;
     const guestEmail = String(otpRow.email ?? "").trim().toLowerCase();
     if (!guestEmail.includes("@")) {
       return NextResponse.json(
-        { error: "Invalid or expired code" },
-        { status: 400 },
+        {
+          error: "Invalid verification data.",
+          error_code: "server_error",
+        },
+        { status: 500 },
       );
     }
     const guestNameResolved =
@@ -192,7 +248,7 @@ export async function POST(req: Request) {
           ? (inserted as { id: string }).id
           : null;
       if (publishedReviewId) {
-        void logReviewReceivedActivity({
+        await logReviewReceivedActivity({
           businessId: d.business_id,
           userId: d.user_id ?? null,
           reviewId: publishedReviewId,
@@ -207,12 +263,14 @@ export async function POST(req: Request) {
           });
         }
       }
-    } catch (error: any) {
-      if (error.code === "23505") {
-        return new Response(
-          JSON.stringify({
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === "23505") {
+        return NextResponse.json(
+          {
             error: "You have already reviewed this business.",
-          }),
+            error_code: "duplicate_review",
+          },
           { status: 400 },
         );
       }
@@ -239,24 +297,22 @@ export async function POST(req: Request) {
     });
   } catch (e: unknown) {
     console.error("VERIFY ERROR:", e);
-    const err = e as { code?: string };
+    const err = e as { code?: string; message?: string };
     if (err.code === "23505") {
-      return new Response(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: "You have already reviewed this business.",
-        }),
+          error_code: "duplicate_review",
+        },
         { status: 400 },
       );
     }
-    if (typeof err.code === "string" && err.code.length > 0) {
-      return NextResponse.json(
-        { error: "Could not publish review. Please try again." },
-        { status: 500 },
-      );
-    }
     return NextResponse.json(
-      { error: "Invalid or expired code" },
-      { status: 400 },
+      {
+        error: "Could not publish your review. Please try again in a moment.",
+        error_code: "server_error",
+      },
+      { status: 500 },
     );
   }
 }

@@ -166,7 +166,7 @@ export async function POST(req: Request) {
           user_id: string | null;
           rating: number;
         };
-        void logReviewReceivedActivity({
+        await logReviewReceivedActivity({
           businessId: ins.business_id,
           userId: ins.user_id,
           reviewId: ins.id,

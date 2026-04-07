@@ -14,6 +14,7 @@ import {
   readSignupBusinessSessionStorage,
   type AccountApiOnboarding,
 } from "@/lib/businessOnboardingPrefill";
+import { emailDomainToBusinessSearchHint } from "@/lib/emailDomainBusinessHint";
 
 function stripWebsiteInput(raw: string): string {
   return raw
@@ -70,6 +71,8 @@ export default function BusinessOnboardingModal({
   const [claimBusinessId, setClaimBusinessId] = useState<string | null>(null);
   const [selectedHit, setSelectedHit] = useState<SearchHit | null>(null);
   const [claimSearchKey, setClaimSearchKey] = useState(0);
+  /** Pre-filled from work email domain when user picks “listed on Tellacity”. */
+  const [claimSearchInitialQuery, setClaimSearchInitialQuery] = useState("");
   const [claimEligibilityLoading, setClaimEligibilityLoading] = useState(false);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,6 +107,7 @@ export default function BusinessOnboardingModal({
     setDuplicateOverlay(null);
     setPrefillSummary(null);
     createFormPrefillLoadedRef.current = false;
+    setClaimSearchInitialQuery("");
   }, []);
 
   useEffect(() => {
@@ -437,6 +441,9 @@ export default function BusinessOnboardingModal({
               <button
                 type="button"
                 onClick={() => {
+                  setClaimSearchInitialQuery(
+                    emailDomainToBusinessSearchHint(userEmail)
+                  );
                   setClaimSearchKey((k) => k + 1);
                   setStep("claim_search");
                   setError("");
@@ -747,6 +754,12 @@ export default function BusinessOnboardingModal({
               we&apos;ll check that it&apos;s still available to claim. Your work email must match
               the business website when you continue.
             </p>
+            {claimSearchInitialQuery.trim() ? (
+              <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/90 px-3 py-2 text-sm text-emerald-900">
+                We pre-filled the search from your email domain — edit it if needed, then use{" "}
+                <span className="font-semibold">FIND A BUSINESS</span> or pick a result below.
+              </p>
+            ) : null}
             <div className="relative mt-4 w-full max-w-3xl mx-auto">
               {claimEligibilityLoading ? (
                 <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70">
@@ -758,6 +771,7 @@ export default function BusinessOnboardingModal({
                 inputId="dashboard-claim-business-search"
                 className="w-full"
                 placeholder="Find businesses you can trust..."
+                initialQuery={claimSearchInitialQuery}
                 heroLayout
                 heroButtonLabel="FIND A BUSINESS"
                 hideSuggestMissing

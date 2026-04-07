@@ -429,7 +429,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         .eq("id", inviteId);
 
       if (review?.id) {
-        void logReviewReceivedActivity({
+        await logReviewReceivedActivity({
           businessId: business_id,
           userId: null,
           reviewId: review.id,
@@ -544,7 +544,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
       }
 
-      void logReviewReceivedActivity({
+      await logReviewReceivedActivity({
         businessId: business_id,
         userId: authUser?.id ?? null,
         reviewId: inserted.id,

@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { normalizeCountryCode } from "@/lib/country";
 
-/** Enough rows for the carousel after filtering to `businesses.country_code`. */
-const HOME_FEED_FETCH_LIMIT = 80;
+/** Enough rows for the homepage Recent reviews carousel (up to 64 shown per country). */
+const HOME_FEED_FETCH_LIMIT = 96;
 
 /**
  * Public homepage recent reviews — `home_feed_v1` filtered by business country (same idea as Best-in RPC).

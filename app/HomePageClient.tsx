@@ -80,7 +80,8 @@ function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
   };
 }
 
-const HOME_FEED_DISPLAY_LIMIT = 20;
+/** Max reviews in Recent reviews carousel (desktop pages of 8; mobile horizontal strip). */
+const HOME_FEED_DISPLAY_LIMIT = 64;
 
 function sortHomeFeedRowsByDateDesc(
   rows: Record<string, unknown>[],
@@ -400,14 +401,50 @@ export default function HomePageClient({
     reviewPage * reviewsPerPage,
     reviewPage * reviewsPerPage + reviewsPerPage
   );
-  // Mobile: chunk into pairs for vertical stack (1 top, 1 bottom) per slide
-  const reviewPairs = useMemo(() => {
+  // Mobile: one horizontal strip of all reviews (pairs of 2 cards) for swipe + prev/next
+  const allReviewPairs = useMemo(() => {
     const pairs: HomeReview[][] = [];
-    for (let i = 0; i < visibleReviews.length; i += 2) {
-      pairs.push(visibleReviews.slice(i, i + 2));
+    for (let i = 0; i < reviews.length; i += 2) {
+      pairs.push(reviews.slice(i, i + 2));
     }
     return pairs;
-  }, [visibleReviews]);
+  }, [reviews]);
+
+  const scrollMobileReviewCarousel = (direction: "prev" | "next") => {
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    const firstSlide = el.querySelector<HTMLElement>("[data-review-slide]");
+    if (!firstSlide) return;
+    const gapPx = 24;
+    const step = firstSlide.getBoundingClientRect().width + gapPx;
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const forward = direction === "next";
+    const eps = 2;
+    if (!forward && el.scrollLeft <= eps) {
+      el.scrollTo({ left: maxScroll, behavior: "smooth" });
+    } else if (forward && el.scrollLeft >= maxScroll - eps) {
+      el.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      el.scrollBy({ left: (forward ? 1 : -1) * step, behavior: "smooth" });
+    }
+  };
+
+  const navigateRecentReviews = (direction: "prev" | "next") => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 640px)").matches
+    ) {
+      setReviewPage((prev) => {
+        const tp = Math.max(1, Math.ceil(reviews.length / reviewsPerPage));
+        if (direction === "prev") {
+          return prev === 0 ? tp - 1 : prev - 1;
+        }
+        return prev === tp - 1 ? 0 : prev + 1;
+      });
+      return;
+    }
+    scrollMobileReviewCarousel(direction);
+  };
 
   const activeBestInSlug =
     rotatingCategorySlugs && rotatingCategorySlugs.length > 0
@@ -676,6 +713,10 @@ export default function HomePageClient({
   useEffect(() => {
     setReviewPage(0);
   }, [selectedCountry]);
+
+  useEffect(() => {
+    reviewsScrollRef.current?.scrollTo({ left: 0 });
+  }, [activeCountryCode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1368,11 +1409,7 @@ export default function HomePageClient({
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Previous reviews"
-              onClick={() =>
-                setReviewPage((prev) =>
-                  prev === 0 ? totalReviewPages - 1 : prev - 1
-                )
-              }
+              onClick={() => navigateRecentReviews("prev")}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1390,11 +1427,7 @@ export default function HomePageClient({
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
               aria-label="Next reviews"
-              onClick={() =>
-                setReviewPage((prev) =>
-                  prev === totalReviewPages - 1 ? 0 : prev + 1
-                )
-              }
+              onClick={() => navigateRecentReviews("next")}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1428,10 +1461,10 @@ export default function HomePageClient({
               </div>
             ))}
           {!isLoading &&
-            reviewPairs.length > 0 &&
-            reviewPairs.map((pair, idx) => (
+            allReviewPairs.length > 0 &&
+            allReviewPairs.map((pair, idx) => (
               <div
-                key={idx}
+                key={pair[0]?.review_id ?? `slide-${idx}`}
                 data-review-slide
                 className="flex w-[calc((100vw-3rem)*0.67)] min-w-[260px] shrink-0 snap-center flex-col gap-4"
               >

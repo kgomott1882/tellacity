@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BUSINESS_LOGIN_NO_ACCOUNT_MESSAGE } from "@/lib/businessLoginMessages";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { handleRedirect } from "@/lib/postLoginRedirect";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
@@ -11,10 +12,12 @@ export default function BusinessLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showNoAccountSignupCta, setShowNoAccountSignupCta] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setShowNoAccountSignupCta(false);
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
@@ -27,6 +30,29 @@ export default function BusinessLoginPage() {
       });
 
       if (signInError) {
+        const code = (signInError as { code?: string }).code;
+        const msg = signInError.message ?? "";
+        const isInvalidCreds =
+          code === "invalid_credentials" ||
+          /invalid login credentials/i.test(msg);
+
+        if (isInvalidCreds) {
+          try {
+            const res = await fetch("/api/auth/check-email-exists", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: email.trim().toLowerCase() }),
+            });
+            const payload = (await res.json()) as { exists?: boolean };
+            if (res.ok && payload.exists === false) {
+              setShowNoAccountSignupCta(true);
+              return;
+            }
+          } catch {
+            /* fall through to generic message */
+          }
+        }
+
         setError(signInError.message);
         return;
       }
@@ -125,7 +151,10 @@ export default function BusinessLoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setShowNoAccountSignupCta(false);
+                }}
                 className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
               />
             </div>
@@ -136,7 +165,10 @@ export default function BusinessLoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setShowNoAccountSignupCta(false);
+                }}
                 className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
               />
             </div>
@@ -149,6 +181,16 @@ export default function BusinessLoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+          {showNoAccountSignupCta ? (
+            <div className="mt-4">
+              <Link
+                href={`/business/signup?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+                className="flex w-full cursor-pointer items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-950 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+              >
+                {BUSINESS_LOGIN_NO_ACCOUNT_MESSAGE}
+              </Link>
+            </div>
+          ) : null}
           <div className="mt-6 flex items-center justify-between text-sm">
             <Link href="/business/forgot-password" className="text-[#1FAF9E]">
               Forgot password?

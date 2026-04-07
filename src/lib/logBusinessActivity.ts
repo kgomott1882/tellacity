@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { notifyBusinessOwnerOfNewReview } from "@/lib/notifyBusinessOwnerNewReview";
 
 let _service: SupabaseClient | null = null;
 
@@ -58,6 +59,12 @@ export async function logReviewReceivedActivity(input: {
       userId: input.userId ?? null,
       action: "review_received",
       metadata: { review_id: input.reviewId, rating: input.rating },
+    });
+    // Must await so serverless/route handlers don’t return before Resend runs.
+    await notifyBusinessOwnerOfNewReview({
+      businessId: input.businessId,
+      reviewId: input.reviewId,
+      rating: input.rating,
     });
   } catch (err) {
     console.error("Activity log failed:", err);

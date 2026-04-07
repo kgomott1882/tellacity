@@ -338,6 +338,13 @@ export default function BusinessSignupClient() {
   const autoCompanyFromDomainRef = useRef<{ host: string; label: string } | null>(null);
 
   useEffect(() => {
+    const em = searchParams.get("email");
+    if (em?.trim()) {
+      setEmailValue(em.trim().toLowerCase());
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     let cancelled = false;
     const domain = normalizeBusinessDomain(website);
 
@@ -907,7 +914,7 @@ export default function BusinessSignupClient() {
                           emailValue ? "text-green-600" : "text-gray-500"
                         }`}
                       >
-                        Use your business email address to verify ownership
+                        Use your business email that is same as domain to verify ownership
                       </p>
                       {fieldErrors.workEmail || workEmailDomainError ? (
                         <p className="mt-1 text-sm text-red-500">

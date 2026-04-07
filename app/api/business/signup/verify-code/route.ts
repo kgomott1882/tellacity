@@ -163,7 +163,7 @@ export async function POST(req: Request) {
     if (websiteDomain !== emailDomain) {
       return jsonError(
         "domain_mismatch",
-        "Use your business email address to verify ownership",
+        "Use your business email that is same as domain to verify ownership",
         400
       );
     }

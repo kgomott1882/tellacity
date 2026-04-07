@@ -37,6 +37,8 @@ type BusinessSearchInputProps = {
   heroLayout?: boolean;
   /** Label for the primary hero button (defaults to "Find a business"). */
   heroButtonLabel?: string;
+  /** Initial value for the search field (e.g. claim flow from work email domain). */
+  initialQuery?: string;
 };
 
 function sanitizeSearchToken(q: string): string {
@@ -58,8 +60,9 @@ export default function BusinessSearchInput({
   onSubmitQuery,
   heroLayout = false,
   heroButtonLabel = "Find a business",
+  initialQuery = "",
 }: BusinessSearchInputProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(() => initialQuery.trim());
   const [searchResults, setSearchResults] = useState<BusinessSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 

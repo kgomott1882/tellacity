@@ -1,5 +1,7 @@
 /// <reference lib="deno.ns" />
-/** Deploy after edits: `supabase functions deploy create-review-draft` */
+/** Deploy after edits: `supabase functions deploy create-review-draft`
+ *  Set secrets: NEXT_PUBLIC_APP_URL (app origin), SUPABASE_SERVICE_ROLE_KEY (for owner notify POST).
+ */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -63,6 +65,44 @@ function rowIsPublicLiveReview(row: {
  * Inserts `review_received` (service role). Awaited so rows appear before the HTTP response.
  * Temporary debug logs — remove when stable.
  */
+/** Same owner email as Next.js `notifyBusinessOwnerOfNewReview` (service-role → app API). */
+async function fireNotifyOwnerFromEdge(p: {
+  businessId: string;
+  reviewId: string;
+  rating: number;
+}): Promise<void> {
+  const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL")?.trim();
+  const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (!appUrl || !sr) {
+    if (!appUrl) {
+      console.error("review-owner-notify: NEXT_PUBLIC_APP_URL is not set");
+    }
+    return;
+  }
+  try {
+    const url = `${appUrl.replace(/\/$/, "")}/api/internal/review-owner-notify`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sr}`,
+      },
+      body: JSON.stringify({
+        business_id: p.businessId,
+        review_id: p.reviewId,
+        rating: p.rating,
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      console.error("review-owner-notify HTTP", res.status, t);
+    }
+  } catch (e) {
+    console.error("review-owner-notify fetch", e);
+  }
+}
+
+/** Returns true when the activity row was inserted (caller may notify after publish). */
 async function logReviewReceivedEdge(
   supabase: ReturnType<typeof createClient>,
   p: {
@@ -71,7 +111,7 @@ async function logReviewReceivedEdge(
     reviewId: string;
     rating: number;
   },
-): Promise<void> {
+): Promise<boolean> {
   const { businessId, reviewId, rating } = p;
   console.log("LOGGING review_received", {
     businessId,
@@ -86,11 +126,13 @@ async function logReviewReceivedEdge(
     });
     if (error) {
       console.error("LOG FAILED", error);
-      return;
+      return false;
     }
     console.log("LOG SUCCESS");
+    return true;
   } catch (error) {
     console.error("LOG FAILED", error);
+    return false;
   }
 }
 
@@ -432,12 +474,19 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
-        await logReviewReceivedEdge(supabase, {
+        const logged = await logReviewReceivedEdge(supabase, {
           businessId: business_id,
           userId: userIdForReview,
           reviewId: draftRow.id,
           rating: Math.round(ratingNum),
         });
+        if (logged) {
+          await fireNotifyOwnerFromEdge({
+            businessId: business_id,
+            reviewId: draftRow.id,
+            rating: Math.round(ratingNum),
+          });
+        }
         logInviteConvertedEdge(supabase, {
           businessId: business_id,
           userId: userIdForReview,
@@ -484,12 +533,19 @@ serve(async (req) => {
           return json({ error: "unexpected_error" }, 500);
         }
 
-        await logReviewReceivedEdge(supabase, {
+        const loggedSalvage = await logReviewReceivedEdge(supabase, {
           businessId: business_id,
           userId: userIdForReview,
           reviewId: salvageRow.id,
           rating: Math.round(ratingNum),
         });
+        if (loggedSalvage) {
+          await fireNotifyOwnerFromEdge({
+            businessId: business_id,
+            reviewId: salvageRow.id,
+            rating: Math.round(ratingNum),
+          });
+        }
         logInviteConvertedEdge(supabase, {
           businessId: business_id,
           userId: userIdForReview,
@@ -533,12 +589,19 @@ serve(async (req) => {
         return json({ error: "unexpected_error" }, 500);
       }
 
-      await logReviewReceivedEdge(supabase, {
+      const loggedInsert = await logReviewReceivedEdge(supabase, {
         businessId: business_id,
         userId: userIdForReview,
         reviewId: publishedRow.id,
         rating: Math.round(ratingNum),
       });
+      if (loggedInsert) {
+        await fireNotifyOwnerFromEdge({
+          businessId: business_id,
+          reviewId: publishedRow.id,
+          rating: Math.round(ratingNum),
+        });
+      }
       logInviteConvertedEdge(supabase, {
         businessId: business_id,
         userId: userIdForReview,

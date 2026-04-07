@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  messageForReviewVerifyError,
+  type ReviewVerifyErrorCode,
+} from "@/lib/reviewOtpVerifyMessages";
 
 type ReviewOtpModalProps = {
   draftId: string;
@@ -23,6 +27,8 @@ export default function ReviewOtpModal({
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState(false);
+  /** Prevents double POST (iOS can fire click + synthetic events after many interactions). */
+  const verifyInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!successToast) return;
@@ -46,11 +52,13 @@ export default function ReviewOtpModal({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (verifyInFlightRef.current) return;
     if (!code || code.length !== 6) {
       setError("Enter the 6-digit code from your email.");
       return;
     }
 
+    verifyInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
 
@@ -64,11 +72,19 @@ export default function ReviewOtpModal({
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
+        error_code?: string;
         review_id?: string;
       };
 
       if (!res.ok || data.success !== true) {
-        setError("Invalid or expired code");
+        const codeKey = data.error_code as ReviewVerifyErrorCode | undefined;
+        setError(
+          messageForReviewVerifyError(
+            codeKey ?? "",
+            data.error?.trim() ||
+              "Something went wrong. Try again or tap Resend code."
+          )
+        );
         return;
       }
 
@@ -81,8 +97,14 @@ export default function ReviewOtpModal({
       onClose();
     } catch (e) {
       console.error("Failed to verify OTP:", e);
-      setError("Invalid or expired code");
+      setError(
+        messageForReviewVerifyError(
+          "server_error",
+          "Network error. Check your connection and try again."
+        )
+      );
     } finally {
+      verifyInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -101,12 +123,26 @@ export default function ReviewOtpModal({
         error?: string;
       };
       if (!res.ok || data.success !== true) {
-        setError("Invalid or expired code");
+        const msg = data.error?.trim();
+        if (res.status === 404) {
+          setError(
+            "We couldn’t find your draft. Close this window and submit your review again."
+          );
+        } else if (res.status === 503) {
+          setError(
+            msg ||
+              "Email isn’t available right now. Please try again in a few minutes."
+          );
+        } else {
+          setError(
+            msg || "Could not send a new code. Please try again shortly."
+          );
+        }
         return;
       }
       setCode("");
     } catch {
-      setError("Invalid or expired code");
+      setError("Network error. Try Resend again in a moment.");
     } finally {
       setResending(false);
     }
