@@ -6,6 +6,11 @@ import RatingStars from "@/components/RatingStars";
 const cleanDomain = (value) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
 
+const metricsKey = (id) =>
+  String(id ?? "")
+    .trim()
+    .toLowerCase();
+
 export default function RotatingBestCategorySection({
   categorySlug,
   categoryLabel,
@@ -81,7 +86,9 @@ export default function RotatingBestCategorySection({
               className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {businesses.map((business) => {
-                const liveMetrics = metricsByBusinessId[business.id];
+                const mk = metricsKey(business.id);
+                const liveMetrics =
+                  metricsByBusinessId[mk] ?? metricsByBusinessId[business.id];
                 const hasLive = !!liveMetrics;
                 const reviewCount = hasLive
                   ? Number(liveMetrics.review_count ?? 0) || 0
@@ -158,7 +165,9 @@ export default function RotatingBestCategorySection({
             {/* Desktop / tablet: grid layout */}
             <div className="mt-8 hidden gap-4 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {businesses.map((business) => {
-                const liveMetrics = metricsByBusinessId[business.id];
+                const mk = metricsKey(business.id);
+                const liveMetrics =
+                  metricsByBusinessId[mk] ?? metricsByBusinessId[business.id];
                 const hasLive = !!liveMetrics;
                 const reviewCount = hasLive
                   ? Number(liveMetrics.review_count ?? 0) || 0

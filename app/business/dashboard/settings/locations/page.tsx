@@ -76,13 +76,17 @@ export default function LocationsPage() {
           .order("created_at", { ascending: true });
         if (!mounted) return;
         if (error) {
-          console.error("Failed to fetch locations:", error);
+          const msg =
+            typeof error === "object" && error !== null && "message" in error
+              ? String((error as { message?: string }).message)
+              : String(error);
+          console.warn("Failed to fetch locations:", msg || (error as { code?: string }).code || "unknown");
           setLocations([]);
           return;
         }
         setLocations((data as LocationRow[]) ?? []);
-      } catch (error) {
-        console.error("Failed to load locations:", error);
+      } catch (err) {
+        console.warn("Failed to load locations:", err instanceof Error ? err.message : String(err));
         if (mounted) setLocations([]);
       } finally {
         if (mounted) setLoading(false);
@@ -533,7 +537,7 @@ function AddLocationModal({
               Cancel
             </button>
             <button type="submit" disabled={saving} className="rounded-lg bg-[#2fb2a8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#269a91] disabled:opacity-50">
-              {saving ? "SavingÔÇª" : isEdit ? "Save changes" : "Save"}
+              {saving ? "Saving…" : isEdit ? "Save changes" : "Save"}
             </button>
           </div>
         </form>

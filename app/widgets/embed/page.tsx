@@ -5,6 +5,7 @@ import ReviewCarousel from "@/components/widgets/ReviewCarousel";
 import ReviewList from "@/components/widgets/ReviewList";
 import ReviewCollector from "@/components/widgets/ReviewCollector";
 import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
+import TellacityScoreStrip from "@/components/widgets/TellacityScoreStrip";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ const VALID_TYPES: WidgetType[] = [
   "list",
   "collector",
   "review_us",
+  "score_strip",
 ];
 
 function getSupabase() {
@@ -80,6 +82,7 @@ export default async function WidgetEmbedPage({
         </div>
       )}
       {type === "badge" && <TrustBadge payload={payload} />}
+      {type === "score_strip" && <TellacityScoreStrip payload={payload} />}
 
       <script
         dangerouslySetInnerHTML={{

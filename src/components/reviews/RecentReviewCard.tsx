@@ -59,7 +59,14 @@ export default function RecentReviewCard({
   const reviewId = review.review_id || review.id;
 
   const logoUrl = similarBusinessLogoUrl({
+    resolved_logo_url:
+      review.resolved_logo_url ?? review.business?.resolved_logo_url ?? null,
     logo_url: review.logo_url ?? review.business?.logo_url ?? null,
+    website:
+      review.business_website ??
+      review.website ??
+      review.business?.website ??
+      null,
   });
 
   useEffect(() => {
@@ -117,7 +124,8 @@ export default function RecentReviewCard({
     }
   }
 
-  const handleCardClick = () => {
+  const goToBusiness = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (businessSlug) {
       router.push(`/b/${businessSlug}`);
     }
@@ -127,17 +135,34 @@ export default function RecentReviewCard({
 
   return (
     <div
-      onClick={handleCardClick}
+      onClick={!isLanding ? () => businessSlug && router.push(`/b/${businessSlug}`) : undefined}
       className={cn(
-        "flex flex-col h-full rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all duration-500 cursor-pointer overflow-hidden",
+        "flex flex-col rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all duration-500 overflow-hidden",
+        !isLanding && "h-full cursor-pointer",
+        isLanding &&
+          "h-[328px] sm:h-[336px] cursor-default hover:shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)]",
         highlight &&
           "ring-2 ring-[#1FAF9E]/80 bg-emerald-50/90 shadow-[0_0_28px_rgba(31,175,158,0.45)]",
         bgColor,
-        isMobile ? "h-[320px]" : "",
         className
       )}
     >
-      <div className="flex gap-3 p-4">
+      <div
+        className={cn("flex gap-3", isLanding ? "cursor-pointer shrink-0 px-3 py-3" : "p-4")}
+        onClick={isLanding ? goToBusiness : undefined}
+        role={isLanding ? "link" : undefined}
+        tabIndex={isLanding ? 0 : undefined}
+        onKeyDown={
+          isLanding
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  businessSlug && router.push(`/b/${businessSlug}`);
+                }
+              }
+            : undefined
+        }
+      >
         <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
           {logoUrl && !logoImageError ? (
             <img
@@ -190,55 +215,55 @@ export default function RecentReviewCard({
         </div>
       </div>
 
-      <div className="h-px bg-slate-200" />
+      <div className="h-px shrink-0 bg-slate-200" />
 
       <div
         className={cn(
-          "flex min-h-0 min-w-0 flex-1 flex-col p-4",
-          isLanding ? "gap-0" : "gap-2 flex-grow",
+          "flex min-h-0 min-w-0 flex-1 flex-col",
+          isLanding ? "min-h-0 gap-0 px-3 pb-2 pt-2" : "gap-2 flex-grow p-4",
         )}
       >
-        <div className="flex justify-between gap-2 text-xs text-slate-500">
+        <div className="flex shrink-0 justify-between gap-2 text-xs text-slate-500">
           <span className="min-w-0 truncate font-semibold text-slate-900">
             {reviewerName}
           </span>
           <span className="shrink-0">{dateText}</span>
         </div>
 
-        {title && (
-          <div
-            className={cn(
-              "break-words font-semibold text-sm text-slate-900",
-              isLanding ? "mt-3 line-clamp-2" : "mt-0 line-clamp-1",
-            )}
-          >
+        {!isLanding && title && (
+          <div className="mt-0 line-clamp-1 break-words font-semibold text-sm text-slate-900">
             {title}
           </div>
         )}
 
+        {/* Landing: max 5 lines with … (do not use flex-1 here — it breaks line-clamp/ellipsis) */}
         <p
           className={cn(
             "text-sm leading-relaxed text-slate-600 break-words [overflow-wrap:anywhere]",
-            isLanding
-              ? cn("min-h-[4.5rem] sm:min-h-[5.25rem]", title ? "mt-2" : "mt-3")
-              : "mt-0",
-            !showMore &&
-              (isLanding
-                ? isMobile
-                  ? "line-clamp-4"
-                  : "line-clamp-4 sm:line-clamp-6"
-                : isMobile
-                  ? "line-clamp-4"
-                  : "line-clamp-5"),
-            isLanding && "mb-4",
+            isLanding ? "mt-2 line-clamp-5 overflow-hidden" : "mt-0",
+            !isLanding &&
+              !showMore &&
+              (isMobile ? "line-clamp-4" : "line-clamp-5"),
             !isLanding && "flex-grow",
           )}
         >
           {body}
         </p>
 
-        {showMoreSection && (
-          <div className={cn("mt-2", isLanding && "mb-1")} onClick={(e) => e.stopPropagation()}>
+        {isLanding && reviewId && (
+          <div className="mt-auto shrink-0 pt-1.5" onClick={(e) => e.stopPropagation()}>
+            <Link
+              href={`/review/${reviewId}`}
+              className="inline-flex items-center gap-0.5 text-xs font-medium text-[#1FAF9E] hover:underline"
+            >
+              More
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            </Link>
+          </div>
+        )}
+
+        {!isLanding && showMoreSection && (
+          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
             {!showMore ? (
               <button
                 type="button"
@@ -272,10 +297,13 @@ export default function RecentReviewCard({
         )}
       </div>
 
-      <div className="h-px bg-slate-200" />
+      <div className="h-px shrink-0 bg-slate-200" />
 
       <div
-        className="flex items-center justify-between px-3 py-2 bg-white"
+        className={cn(
+          "flex shrink-0 items-center justify-between bg-white",
+          isLanding ? "px-2.5 py-1.5" : "px-3 py-2",
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <ReviewReactionButtons

@@ -94,7 +94,6 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
     title: "SETTINGS",
     items: [
       { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
-      { label: "Invite Settings",  path: "/business/dashboard/settings/invite-settings" },
       { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
       { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
       { label: "Account",          path: "/business/dashboard/settings/account" },

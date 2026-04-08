@@ -520,7 +520,10 @@ export default function EmailWidgetsPage() {
       </div>
 
       {/* Preview + send: single flow */}
-      <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm ring-1 ring-black/[0.04]">
+      <div
+        className="mt-8 overflow-hidden rounded-2xl border-4 border-[#124541] bg-white"
+        style={{ boxShadow: "0 14px 44px -10px rgba(33, 69, 65, 0.45), 0 6px 18px -6px rgba(33, 69, 65, 0.28)" }}
+      >
         <div className="border-b border-gray-100 bg-gradient-to-r from-[#124541]/[0.07] via-white to-white px-5 py-4 sm:px-8 sm:py-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">

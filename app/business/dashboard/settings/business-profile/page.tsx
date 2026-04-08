@@ -2,25 +2,18 @@
 
 /**
  * Business Profile - consolidated settings page.
- * Sections: Basic Info · Description · Contact Info · Categories · Locations · Review Settings (reference number)
- *
- * All logic is preserved from the original split pages:
- *   settings/public/profile    → Basic Info, Description, Contact Info
- *   settings/public/categories → Categories section (links to dedicated page)
- *   settings/public/locations  → Locations section (links to dedicated page)
- *   settings/public/reference  → Review Settings section
+ * Sections: Basic Info · Description · Contact Info · Categories
  */
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ExternalLink, Upload, HelpCircle, Pencil } from "lucide-react";
+import { ExternalLink, Upload } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
-import RatingStars from "@/components/RatingStars";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -57,21 +50,6 @@ function resolvePersistedCountryCode(
   return "ZA";
 }
 
-const REFERENCE_TYPES = [
-  { value: "order",    label: "Order" },
-  { value: "invoice",  label: "Invoice" },
-  { value: "booking",  label: "Booking" },
-  { value: "customer", label: "Customer" },
-  { value: "generic",  label: "Generic" },
-  { value: "custom",   label: "Other (custom)" },
-] as const;
-type ReferenceType = (typeof REFERENCE_TYPES)[number]["value"];
-
-function referenceLabel(type: ReferenceType, customLabel: string | null): string {
-  if (type === "custom" && customLabel?.trim()) return customLabel.trim();
-  return REFERENCE_TYPES.find((t) => t.value === type)?.label ?? "Reference number";
-}
-
 // ─── Section heading ──────────────────────────────────────────────────────────
 
 function SectionHeading({ title, sub }: { title: string; sub?: string }) {
@@ -106,12 +84,6 @@ export default function BusinessProfilePage() {
     address: "", city: "", postcode: "", country: "South Africa",
     email: "", phone: "",
   });
-
-  // Reference number state
-  const [refEnabled,     setRefEnabled]     = useState(false);
-  const [refType,        setRefType]        = useState<ReferenceType>("generic");
-  const [refCustomLabel, setRefCustomLabel] = useState("");
-  const [refPreviewTab,  setRefPreviewTab]  = useState<"reviewer" | "you">("reviewer");
 
   // ── Fetch (server session + RLS via route — avoids client getSession / empty rows on refresh) ──
 
@@ -158,11 +130,6 @@ export default function BusinessProfilePage() {
         const logo = (row.logo_url as string) ?? null;
         if (logo) setLogoUrl(normalizeLogoUrl(logo) ?? null);
         else setLogoUrl(null);
-
-        setRefEnabled(Boolean(row.reference_number_enabled));
-        const t = row.reference_number_type as string;
-        setRefType(REFERENCE_TYPES.some((r) => r.value === t) ? (t as ReferenceType) : "generic");
-        setRefCustomLabel((row.reference_number_label_custom as string) ?? "");
       } catch (e) {
         console.error("[BusinessProfile] load", e);
         if (mounted) {
@@ -245,9 +212,6 @@ export default function BusinessProfilePage() {
       description:      form.description.trim() || null,
       phone:            form.phone.trim() || null,
       email:            form.email.trim() || null,
-      reference_number_enabled:      refEnabled,
-      reference_number_type:         refType,
-      reference_number_label_custom: refType === "custom" ? refCustomLabel.trim() || null : null,
     };
 
     const supabase = supabaseBrowser();
@@ -284,7 +248,7 @@ export default function BusinessProfilePage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">Business Profile</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Manage your public profile, categories, locations, and review settings.</p>
+          <p className="mt-0.5 text-sm text-gray-500">Manage your public profile and categories.</p>
         </div>
         {publicProfileHref && (
           <a href={publicProfileHref} target="_blank" rel="noopener noreferrer"
@@ -411,7 +375,7 @@ export default function BusinessProfilePage() {
           </div>
         </div>
 
-        {/* ── Section 3: Categories (link to dedicated page) ── */}
+        {/* ── Categories (link to dedicated page) ── */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <SectionHeading title="Categories" sub="Control how your business is discovered." />
           <p className="text-sm text-gray-600 mb-4">
@@ -421,108 +385,6 @@ export default function BusinessProfilePage() {
             className="inline-flex items-center gap-2 rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91]">
             Manage Categories →
           </Link>
-        </div>
-
-        {/* ── Section 4: Locations (link to dedicated page) ── */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <SectionHeading title="Locations" sub="Add and manage your business locations." />
-          <p className="text-sm text-gray-600 mb-4">
-            Each location gets its own review profile and ranking.
-          </p>
-          <Link href="/business/dashboard/settings/locations"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91]">
-            Manage Locations →
-          </Link>
-        </div>
-
-        {/* ── Section 5: Review Settings (reference number) ── */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <SectionHeading title="Review Settings" sub="Ask reviewers for a reference number to link reviews to real transactions." />
-          <div className="grid gap-8 lg:grid-cols-2">
-            {/* Config */}
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input type="radio" name="reference" checked={!refEnabled} onChange={() => setRefEnabled(false)}
-                    className="mt-1 h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541]" />
-                  <span className="text-sm text-gray-800">No thanks, I don&apos;t want a reference number from reviewers</span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input type="radio" name="reference" checked={refEnabled} onChange={() => setRefEnabled(true)}
-                    className="mt-1 h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541]" />
-                  <span className="text-sm text-gray-800">Yes please, I&apos;d like reviewers to provide a reference number</span>
-                </label>
-              </div>
-
-              {refEnabled && (
-                <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#0E0E0E]">Reference type</label>
-                    <select value={refType} onChange={(e) => setRefType(e.target.value as ReferenceType)}
-                      className="mt-2 w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/20">
-                      {REFERENCE_TYPES.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
-                  </div>
-                  {refType === "custom" && (
-                    <div>
-                      <label className="block text-sm font-medium text-[#0E0E0E]">Custom label</label>
-                      <input type="text" value={refCustomLabel} onChange={(e) => setRefCustomLabel(e.target.value)}
-                        placeholder="e.g. Ticket number"
-                        className="mt-2 w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/20" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Preview */}
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <div className="flex gap-2 border-b border-gray-200 pb-3">
-                {(["reviewer","you"] as const).map((tab) => (
-                  <button key={tab} type="button" onClick={() => setRefPreviewTab(tab)}
-                    className={`rounded px-3 py-1.5 text-sm font-medium capitalize ${refPreviewTab === tab ? "bg-gray-100 text-[#0E0E0E]" : "text-gray-600 hover:bg-gray-50"}`}>
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-xs text-gray-600">
-                {refEnabled
-                  ? `Reviewers will see an optional "${referenceLabel(refType, refCustomLabel)}" field.`
-                  : "Enable reference number to show an optional field on the reviewer form."}
-              </p>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-gray-700">Rate your recent experience</p>
-                  <div className="mt-1"><RatingStars rating={3} size={14} editable={false} /></div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Give your review a title</label>
-                  <div className="relative mt-1">
-                    <input readOnly type="text" value="Good service"
-                      className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-3 pr-8 text-sm text-gray-600" />
-                    <Pencil size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Your review</label>
-                  <textarea readOnly rows={2} value="Very helpful and sorted out what I needed"
-                    className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600" />
-                </div>
-                {refEnabled && (
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
-                      {referenceLabel(refType, refCustomLabel)} <span className="text-gray-400">(optional)</span>
-                      <span className="cursor-help text-gray-400" title="Helps the business link your review to your experience.">
-                        <HelpCircle size={13} />
-                      </span>
-                    </label>
-                    <input readOnly type="text" placeholder="e.g. order or booking ID"
-                      className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Save */}

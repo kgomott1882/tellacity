@@ -60,6 +60,35 @@ export async function notifyBusinessOwnerOfNewReview({
       return;
     }
 
+    const { data: review, error: revErr } = await supabase
+      .from("reviews")
+      .select("rating, title, body, guest_name")
+      .eq("id", reviewId)
+      .maybeSingle();
+
+    if (revErr || !review) {
+      return;
+    }
+
+    const rawRating = Number(review.rating ?? rating);
+    const r = Number.isFinite(rawRating)
+      ? Math.min(5, Math.max(1, Math.round(rawRating)))
+      : Math.min(5, Math.max(1, Math.round(Number(rating))));
+
+    const { data: prefRow } = await supabase
+      .from("business_notification_preferences")
+      .select("*")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    const notify_1_2_star = prefRow?.notify_1_2_star ?? true;
+    const notify_3_star = prefRow?.notify_3_star ?? true;
+    const notify_4_5_star = prefRow?.notify_4_5_star ?? true;
+
+    if (r <= 2 && !notify_1_2_star) return;
+    if (r === 3 && !notify_3_star) return;
+    if (r >= 4 && !notify_4_5_star) return;
+
     let ownerUserId: string | null =
       biz.owner_id != null ? String(biz.owner_id).trim() : null;
 
@@ -109,16 +138,6 @@ export async function notifyBusinessOwnerOfNewReview({
       return;
     }
 
-    const { data: review, error: revErr } = await supabase
-      .from("reviews")
-      .select("rating, title, body, guest_name")
-      .eq("id", reviewId)
-      .maybeSingle();
-
-    if (revErr || !review) {
-      return;
-    }
-
     const businessName =
       typeof biz.name === "string" && biz.name.trim()
         ? biz.name.trim()
@@ -137,7 +156,7 @@ export async function notifyBusinessOwnerOfNewReview({
     const stars =
       Number.isFinite(ratingNum) && ratingNum >= 1 && ratingNum <= 5
         ? ratingNum
-        : Math.round(rating);
+        : r;
 
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const manageUrl = appUrl

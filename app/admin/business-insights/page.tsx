@@ -13,6 +13,7 @@ type PageProps = {
     plan?: string;
     activity?: string;
     country?: string;
+    page?: string;
   }>;
 };
 
@@ -47,6 +48,12 @@ function normalizeActivity(raw: string | undefined): ActivityFilter {
 
 function normalizeCountry(raw: string | undefined): string {
   return raw?.trim().toUpperCase() || "";
+}
+
+function normalizePage(raw: string | undefined): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -93,10 +100,12 @@ function conversionRate(reviews: number, invites: number): string {
 }
 
 export default async function AdminBusinessInsightsPage(props: PageProps) {
+  const PAGE_SIZE = 20;
   const searchParams = await props.searchParams;
   const planFilter = normalizePlan(searchParams.plan);
   const activityFilter = normalizeActivity(searchParams.activity);
   const countryFilter = normalizeCountry(searchParams.country);
+  const requestedPage = normalizePage(searchParams.page);
 
   const adminSupabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -145,12 +154,18 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
   });
 
   const afterActivity = mapped.filter((row) => matchesActivityFilter(row, activityFilter, now));
-  const filtered = afterActivity.slice(0, 100);
+  const totalRows = afterActivity.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = afterActivity.slice(pageStart, pageStart + PAGE_SIZE);
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
 
   const hasFilters =
     Boolean(planFilter || countryFilter) || activityFilter !== "all";
   const emptyMessage =
-    filtered.length === 0 && (mapped.length > 0 || hasFilters)
+    afterActivity.length === 0 && (mapped.length > 0 || hasFilters)
       ? "No businesses match your filters."
       : "No businesses found.";
 
@@ -207,7 +222,7 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
           </form>
         }
       >
-        {filtered.length === 0 ? (
+        {pageRows.length === 0 ? (
           <div className="p-4">
             <AdminEmptyState message={emptyMessage} />
           </div>
@@ -229,7 +244,7 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {filtered.map((row) => {
+                {pageRows.map((row) => {
                   const invites = row.total_invites ?? 0;
                   const reviews = row.total_reviews ?? 0;
                   const status = activityStatusFromLastActivity(row.last_activity, now);
@@ -296,6 +311,48 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
                 })}
               </tbody>
             </table>
+            <div className="flex items-center justify-between gap-3 border-t border-neutral-100 px-3 py-3 text-xs text-neutral-600">
+              <span>
+                Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, totalRows)} of {totalRows}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`?${new URLSearchParams({
+                    plan: planFilter,
+                    activity: activityFilter,
+                    country: countryFilter,
+                    page: String(Math.max(1, currentPage - 1)),
+                  }).toString()}`}
+                  aria-disabled={!hasPrev}
+                  className={`rounded-md border px-2 py-1 font-medium ${
+                    hasPrev
+                      ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                      : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                  }`}
+                >
+                  Previous
+                </a>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <a
+                  href={`?${new URLSearchParams({
+                    plan: planFilter,
+                    activity: activityFilter,
+                    country: countryFilter,
+                    page: String(currentPage + 1),
+                  }).toString()}`}
+                  aria-disabled={!hasNext}
+                  className={`rounded-md border px-2 py-1 font-medium ${
+                    hasNext
+                      ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                      : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                  }`}
+                >
+                  Next
+                </a>
+              </div>
+            </div>
           </div>
         )}
       </AdminTableShell>

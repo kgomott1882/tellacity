@@ -16,6 +16,7 @@ type PageProps = {
     action_type?: string;
     range?: string;
     business_id?: string;
+    page?: string;
   }>;
 };
 
@@ -49,6 +50,12 @@ function normalizeBusinessId(raw: string | undefined): string {
   return raw?.trim() || "";
 }
 
+function normalizePage(raw: string | undefined): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n;
+}
+
 function metadataPreview(row: ActivityLogRow): string {
   const raw =
     row.metadata ?? row.meta ?? row.payload ?? row.details ?? row.context ?? row.extra;
@@ -80,10 +87,12 @@ function businessIdFromLog(row: ActivityLogRow): string | null {
 }
 
 export default async function AdminBusinessActivityPage(props: PageProps) {
+  const PAGE_SIZE = 20;
   const searchParams = await props.searchParams;
   const selectedRange = normalizeRange(searchParams.range);
   const selectedActionType = normalizeActionType(searchParams.action_type);
   const selectedBusinessId = normalizeBusinessId(searchParams.business_id);
+  const requestedPage = normalizePage(searchParams.page);
   const createdAfter = startDateForRange(selectedRange);
 
   const adminSupabase = createClient(
@@ -145,7 +154,7 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
 
   let logs: ActivityLogRow[];
   if (selectedActionType) {
-    logs = withoutNoise.slice(0, 100);
+    logs = withoutNoise;
   } else {
     logs = [...withoutNoise].sort((a, b) => {
       const aa =
@@ -166,10 +175,19 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
       const tb = new Date(createdAt(b) ?? 0).getTime();
       return tb - ta;
     });
-    logs = logs.slice(0, 100);
   }
+  const totalLogs = logs.length;
+  const totalPages = Math.max(1, Math.ceil(totalLogs / PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageLogs = logs.slice(pageStart, pageStart + PAGE_SIZE);
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
   const businessIds = [
-    ...new Set(logs.map(businessIdFromLog).filter((id): id is string => id != null && id !== "")),
+    ...new Set(
+      pageLogs.map(businessIdFromLog).filter((id): id is string => id != null && id !== "")
+    ),
   ];
 
   let nameByBusinessId = new Map<string, string>();
@@ -242,7 +260,7 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
           </form>
         }
       >
-        {logs.length === 0 ? (
+        {pageLogs.length === 0 ? (
           <div className="p-4">
             <AdminEmptyState message={emptyMessage} />
           </div>
@@ -260,7 +278,7 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {logs.map((row, idx) => {
+                {pageLogs.map((row, idx) => {
                   const bid = businessIdFromLog(row);
                   const name = bid ? (nameByBusinessId.get(bid) ?? "—") : "—";
                   const actionRaw =
@@ -319,6 +337,48 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
                 })}
               </tbody>
             </table>
+            <div className="flex items-center justify-between gap-3 border-t border-neutral-100 px-3 py-3 text-xs text-neutral-600">
+              <span>
+                Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, totalLogs)} of {totalLogs}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`?${new URLSearchParams({
+                    action_type: selectedActionType,
+                    range: selectedRange,
+                    business_id: selectedBusinessId,
+                    page: String(Math.max(1, currentPage - 1)),
+                  }).toString()}`}
+                  aria-disabled={!hasPrev}
+                  className={`rounded-md border px-2 py-1 font-medium ${
+                    hasPrev
+                      ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                      : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                  }`}
+                >
+                  Previous
+                </a>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <a
+                  href={`?${new URLSearchParams({
+                    action_type: selectedActionType,
+                    range: selectedRange,
+                    business_id: selectedBusinessId,
+                    page: String(currentPage + 1),
+                  }).toString()}`}
+                  aria-disabled={!hasNext}
+                  className={`rounded-md border px-2 py-1 font-medium ${
+                    hasNext
+                      ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                      : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                  }`}
+                >
+                  Next
+                </a>
+              </div>
+            </div>
           </div>
         )}
       </AdminTableShell>

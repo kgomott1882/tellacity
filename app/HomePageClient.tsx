@@ -23,6 +23,7 @@ import {
   clearHomeFeedHighlight,
   readHomeFeedHighlight,
 } from "@/lib/homeFeedHighlight";
+import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
 
 type HomeReview = {
   review_id: string;
@@ -169,6 +170,28 @@ function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
   return /^[a-z0-9-]+$/.test(clean);
+}
+
+/** Map RPC row from get_top_businesses_for_category_global to card props (logo + scores). */
+function mapRpcRowToBestIn(row: Record<string, unknown>): BestInBusiness {
+  const logo =
+    (typeof row.logo_url === "string" && row.logo_url.trim() !== "" && row.logo_url) ||
+    (typeof row.resolved_logo_url === "string" &&
+      row.resolved_logo_url.trim() !== "" &&
+      row.resolved_logo_url) ||
+    null;
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    slug: String(row.slug ?? ""),
+    website: typeof row.website === "string" ? row.website : null,
+    website_display:
+      typeof row.website_display === "string" ? row.website_display : null,
+    trust_score: row.trust_score != null ? Number(row.trust_score) : 0,
+    review_count: row.review_count != null ? Number(row.review_count) : 0,
+    logo_url: logo,
+    resolved_logo_url: logo,
+  };
 }
 
 // 24 items for the rotating marquee: 8 existing + 16 additional (all use existing slugs)
@@ -458,19 +481,23 @@ export default function HomePageClient({
     if (!Array.isArray(list) || list.length === 0) return [];
 
     const withScores = list.map((biz) => {
-      const metrics = bestInMetrics[biz.id];
+      const idKey = normalizeBusinessIdKey(biz.id);
+      const metrics = bestInMetrics[idKey];
       const reviewCount = metrics
-        ? (Number(metrics.review_count ?? 0)) || 0
-        : (Number(biz.review_count ?? 0)) || 0;
+        ? Number(metrics.review_count ?? 0) || 0
+        : Number(biz.review_count ?? 0) || 0;
       const rating = metrics
-        ? (Number(metrics.trust_score ?? 0)) || 0
+        ? Number(metrics.trust_score ?? 0) || 0
         : typeof biz.trust_score === "number"
-        ? biz.trust_score || 0
-        : 0;
+          ? biz.trust_score || 0
+          : 0;
       return { biz, reviewCount, rating };
     });
 
     withScores.sort((a, b) => {
+      const aZero = a.reviewCount === 0 ? 1 : 0;
+      const bZero = b.reviewCount === 0 ? 1 : 0;
+      if (aZero !== bZero) return aZero - bZero;
       if (b.rating !== a.rating) return b.rating - a.rating;
       if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
       return (a.biz.name || "").localeCompare(b.biz.name || "");
@@ -703,6 +730,112 @@ export default function HomePageClient({
 
     fetchFallbackForEmptyCategories();
   }, [bestInByCategory, activeCountryCode]);
+
+  // Re-fetch "Best in" per country + overlay live aggregates (matches Recent reviews / home_feed metrics).
+  useEffect(() => {
+    if (pathname !== "/") return;
+    if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;
+
+    let cancelled = false;
+
+    const refresh = async () => {
+      const supabase = supabaseBrowser();
+      const next: Record<string, BestInBusiness[]> = {};
+
+      await Promise.all(
+        rotatingCategorySlugs.map(async (slug) => {
+          const { data, error } = await supabase.rpc(
+            "get_top_businesses_for_category_global",
+            {
+              p_category_slug: slug,
+              p_country_code: activeCountryCode,
+              p_min_rating: null,
+              p_limit: 24,
+              p_offset: 0,
+            }
+          );
+          if (cancelled) return;
+          if (error) {
+            console.warn("Best-in RPC:", slug, error.message);
+            next[slug] = [];
+            return;
+          }
+          const rows = Array.isArray(data) ? data : [];
+          next[slug] = rows.map((row) =>
+            mapRpcRowToBestIn(row as Record<string, unknown>)
+          );
+        })
+      );
+
+      if (cancelled) return;
+      setClientBestInByCategory(next);
+
+      const allIds = [
+        ...new Set(
+          Object.values(next)
+            .flat()
+            .map((b) => b.id)
+            .filter(Boolean)
+        ),
+      ];
+      if (allIds.length === 0) {
+        setBestInMetrics({});
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/home-best-in-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: allIds }),
+          cache: "no-store",
+        });
+        if (!res.ok || cancelled) return;
+        const map = (await res.json()) as unknown;
+        if (
+          cancelled ||
+          !map ||
+          typeof map !== "object" ||
+          ("error" in (map as object) &&
+            typeof (map as { error?: string }).error === "string")
+        ) {
+          return;
+        }
+        const apiMap = map as Record<
+          string,
+          { review_count: number; trust_score: number }
+        >;
+        const merged: Record<
+          string,
+          { review_count: number; trust_score: number }
+        > = { ...apiMap };
+        for (const biz of Object.values(next).flat()) {
+          const k = normalizeBusinessIdKey(biz.id);
+          const rcRpc = Number(biz.review_count ?? 0) || 0;
+          const tsRpc = Number(biz.trust_score ?? 0) || 0;
+          const cur = merged[k];
+          const rcApi = cur ? Number(cur.review_count ?? 0) || 0 : 0;
+          const tsApi = cur ? Number(cur.trust_score ?? 0) || 0 : 0;
+          if (!cur) {
+            merged[k] = { review_count: rcRpc, trust_score: tsRpc };
+          } else if (rcApi >= rcRpc) {
+            merged[k] = { review_count: rcApi, trust_score: tsApi };
+          } else {
+            merged[k] = { review_count: rcRpc, trust_score: tsRpc };
+          }
+        }
+        setBestInMetrics(merged);
+      } catch {
+        if (!cancelled) setBestInMetrics({});
+      }
+    };
+
+    void refresh();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, activeCountryCode, rotatingCategorySlugs]);
 
   useEffect(() => {
     if (reviewPage >= totalReviewPages) {
@@ -1224,7 +1357,7 @@ export default function HomePageClient({
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
         metricsByBusinessId={bestInMetrics}
-        countryCode={selectedCountry ?? initialSelectedCountry ?? "US"}
+        countryCode={activeCountryCode}
         onPrevious={() =>
           setBestInIndex((prev) =>
             rotatingCategorySlugs?.length
@@ -1485,13 +1618,13 @@ export default function HomePageClient({
             ))}
         </div>
 
-        {/* Tablet / desktop: grid */}
-        <div className="mt-6 hidden gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        {/* Tablet: 2 cols; desktop: 4 cards per row */}
+        <div className="mt-6 hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-4">
           {isLoading &&
-            [1, 2, 3, 4].map((i) => (
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div
                 key={i}
-                className="h-64 rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
+                className="h-[328px] rounded-xl border border-gray-200 bg-gray-50 animate-pulse"
               />
             ))}
           {!isLoading &&

@@ -11,6 +11,7 @@ import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import {
+  ADMIN_REVIEWS_PAGE_SIZE,
   adminReviewIsFlagged,
   adminReviewVisibility,
   applyAdminReviewsListFilter,
@@ -74,7 +75,10 @@ function mergeVisibilityIntoRows(
   );
   if (listFilter === "all") return updated;
   return normalizeReviews(
-    applyAdminReviewsListFilter(updated as AdminReviewRow[], listFilter).slice(0, 50)
+    applyAdminReviewsListFilter(updated as AdminReviewRow[], listFilter).slice(
+      0,
+      ADMIN_REVIEWS_PAGE_SIZE
+    )
   );
 }
 
@@ -89,15 +93,33 @@ function mergeFlagIntoRows(
   );
   if (listFilter === "all") return updated;
   return normalizeReviews(
-    applyAdminReviewsListFilter(updated as AdminReviewRow[], listFilter).slice(0, 50)
+    applyAdminReviewsListFilter(updated as AdminReviewRow[], listFilter).slice(
+      0,
+      ADMIN_REVIEWS_PAGE_SIZE
+    )
   );
 }
+
+function adminReviewsListUrl(filter: AdminReviewListFilter, page: number): string {
+  const p = new URLSearchParams();
+  p.set("filter", filter);
+  if (page > 1) p.set("page", String(page));
+  return `/admin/reviews?${p.toString()}`;
+}
+
+type PaginationProps = {
+  currentPage: number;
+  totalPages: number;
+  totalRows: number;
+  pageSize: number;
+};
 
 type Props = {
   listFilter: AdminReviewListFilter;
   initialReviews: AdminReviewRow[];
   initialListError: string | null;
   urlError: string | undefined;
+  pagination: PaginationProps;
 };
 
 export default function AdminReviewsClient({
@@ -105,6 +127,7 @@ export default function AdminReviewsClient({
   initialReviews,
   initialListError,
   urlError,
+  pagination,
 }: Props) {
   const router = useRouter();
   const [reviews, setReviews] = useState<AdminReviewTableRow[]>(() =>
@@ -185,6 +208,11 @@ export default function AdminReviewsClient({
         : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
     }`;
 
+  const { currentPage, totalPages, totalRows, pageSize } = pagination;
+  const pageStart = (currentPage - 1) * pageSize;
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
   return (
     <div className="space-y-4">
       {urlError ? <AdminActionMessage type="error" text={urlError} /> : null}
@@ -212,97 +240,135 @@ export default function AdminReviewsClient({
             <AdminEmptyState message="No reviews match this filter." />
           </div>
         ) : (
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">Business</th>
-                <th className="px-3 py-2 font-medium">Email</th>
-                <th className="px-3 py-2 font-medium">Rating</th>
-                <th className="px-3 py-2 font-medium">Title</th>
-                <th className="px-3 py-2 font-medium">Body preview</th>
-                <th className="px-3 py-2 font-medium">Verification</th>
-                <th className="px-3 py-2 font-medium">Publication</th>
-                <th className="px-3 py-2 font-medium">Visibility</th>
-                <th className="px-3 py-2 font-medium">Flagged</th>
-                <th className="px-3 py-2 font-medium">Created</th>
-                <th className="px-3 py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {reviews.map((review, i) => {
-                const visPending = pendingActionKey === `${review.id}:visibility`;
-                const flagPending = pendingActionKey === `${review.id}:flag`;
-                const rowBusy = visPending || flagPending;
-                return (
-                  <tr key={review.id || `r-${i}`} className="bg-white align-top">
-                    <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
-                      {review.business_name?.trim() || "—"}
-                    </td>
-                    <td
-                      className="max-w-[220px] truncate px-3 py-2 text-neutral-700"
-                      title={review.reviewer_email ?? ""}
-                    >
-                      {review.reviewer_email?.trim() || "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {review.rating != null ? String(review.rating) : "—"}
-                    </td>
-                    <td
-                      className="max-w-[160px] truncate px-3 py-2 text-neutral-700"
-                      title={review.title ?? ""}
-                    >
-                      {review.title?.trim() || "—"}
-                    </td>
-                    <td className="max-w-[240px] px-3 py-2 text-neutral-600">{bodyPreview(review)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {review.verification_status?.trim() || "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {review.status?.trim() || "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{review.visibility}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {review.is_flagged ? "Yes" : "No"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                      {review.created_at &&
-                      !Number.isNaN(new Date(review.created_at).getTime())
-                        ? formatDate(review.created_at)
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex max-w-[280px] flex-wrap gap-1">
-                        <button
-                          type="button"
-                          disabled={rowBusy}
-                          onClick={() => void handleToggleVisibility(review)}
-                          className={
-                            review.visibility === "visible"
-                              ? "rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-900 hover:bg-red-100 disabled:opacity-50"
-                              : "rounded-md border border-emerald-600 bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                          }
-                        >
-                          {visPending ? "…" : review.visibility === "visible" ? "Hide" : "Show Review"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={rowBusy}
-                          onClick={() => void handleToggleFlag(review)}
-                          className={
-                            review.is_flagged
-                              ? "rounded-md border border-amber-600 bg-white px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
-                              : "rounded-md bg-amber-500 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
-                          }
-                        >
-                          {flagPending ? "…" : review.is_flagged ? "Unflag" : "Flag"}
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Business</th>
+                    <th className="px-3 py-2 font-medium">Email</th>
+                    <th className="px-3 py-2 font-medium">Rating</th>
+                    <th className="px-3 py-2 font-medium">Title</th>
+                    <th className="px-3 py-2 font-medium">Body preview</th>
+                    <th className="px-3 py-2 font-medium">Verification</th>
+                    <th className="px-3 py-2 font-medium">Publication</th>
+                    <th className="px-3 py-2 font-medium">Visibility</th>
+                    <th className="px-3 py-2 font-medium">Flagged</th>
+                    <th className="px-3 py-2 font-medium">Created</th>
+                    <th className="px-3 py-2 font-medium">Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {reviews.map((review, i) => {
+                    const visPending = pendingActionKey === `${review.id}:visibility`;
+                    const flagPending = pendingActionKey === `${review.id}:flag`;
+                    const rowBusy = visPending || flagPending;
+                    return (
+                      <tr key={review.id || `r-${i}`} className="bg-white align-top">
+                        <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
+                          {review.business_name?.trim() || "—"}
+                        </td>
+                        <td
+                          className="max-w-[220px] truncate px-3 py-2 text-neutral-700"
+                          title={review.reviewer_email ?? ""}
+                        >
+                          {review.reviewer_email?.trim() || "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          {review.rating != null ? String(review.rating) : "—"}
+                        </td>
+                        <td
+                          className="max-w-[160px] truncate px-3 py-2 text-neutral-700"
+                          title={review.title ?? ""}
+                        >
+                          {review.title?.trim() || "—"}
+                        </td>
+                        <td className="max-w-[240px] px-3 py-2 text-neutral-600">{bodyPreview(review)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          {review.verification_status?.trim() || "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          {review.status?.trim() || "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{review.visibility}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          {review.is_flagged ? "Yes" : "No"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
+                          {review.created_at &&
+                          !Number.isNaN(new Date(review.created_at).getTime())
+                            ? formatDate(review.created_at)
+                            : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex max-w-[280px] flex-wrap gap-1">
+                            <button
+                              type="button"
+                              disabled={rowBusy}
+                              onClick={() => void handleToggleVisibility(review)}
+                              className={
+                                review.visibility === "visible"
+                                  ? "rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-900 hover:bg-red-100 disabled:opacity-50"
+                                  : "rounded-md border border-emerald-600 bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                              }
+                            >
+                              {visPending ? "…" : review.visibility === "visible" ? "Hide" : "Show Review"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowBusy}
+                              onClick={() => void handleToggleFlag(review)}
+                              className={
+                                review.is_flagged
+                                  ? "rounded-md border border-amber-600 bg-white px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                                  : "rounded-md bg-amber-500 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+                              }
+                            >
+                              {flagPending ? "…" : review.is_flagged ? "Unflag" : "Flag"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {totalRows > 0 ? (
+              <div className="flex items-center justify-between gap-3 border-t border-neutral-100 px-3 py-3 text-xs text-neutral-600">
+                <span>
+                  Showing {pageStart + 1}-{Math.min(pageStart + pageSize, totalRows)} of {totalRows}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={adminReviewsListUrl(listFilter, Math.max(1, currentPage - 1))}
+                    aria-disabled={!hasPrev}
+                    className={`rounded-md border px-2 py-1 font-medium ${
+                      hasPrev
+                        ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                        : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                    }`}
+                  >
+                    Previous
+                  </Link>
+                  <span>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Link
+                    href={adminReviewsListUrl(listFilter, currentPage + 1)}
+                    aria-disabled={!hasNext}
+                    className={`rounded-md border px-2 py-1 font-medium ${
+                      hasNext
+                        ? "border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
+                        : "pointer-events-none border-neutral-100 bg-neutral-50 text-neutral-400"
+                    }`}
+                  >
+                    Next
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
       </AdminTableShell>
     </div>

@@ -61,9 +61,30 @@ export async function GET(req: Request) {
       return serverError(invitesErr.message);
     }
 
+    const all = (invites ?? []) as Array<{
+      id: string;
+      email: string;
+      role: string;
+      status: string;
+      created_at: string;
+      accepted_at: string | null;
+    }>;
+
+    const pendingInvites = all.filter((i) => i.status === "pending");
+    const inviteHistory = all
+      .filter((i) => i.status !== "pending")
+      .sort((a, b) => {
+        const ta = new Date(a.accepted_at ?? a.created_at).getTime();
+        const tb = new Date(b.accepted_at ?? b.created_at).getTime();
+        return tb - ta;
+      });
+
     return NextResponse.json({
       members: enriched,
-      invites: invites ?? [],
+      pendingInvites,
+      inviteHistory,
+      /** @deprecated use pendingInvites */
+      invites: all,
     });
   } catch (err: any) {
     console.error("[team-access GET] unhandled:", err);

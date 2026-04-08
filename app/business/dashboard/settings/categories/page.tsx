@@ -90,7 +90,8 @@ export default function CategoriesPage() {
 
         if (!mounted) return;
         if (groupsError) {
-          console.error("Could not load category groups:", groupsError);
+          const ge = groupsError as { message?: string; code?: string };
+          console.warn("Could not load category groups:", ge.message ?? ge.code ?? groupsError);
           setCategoriesError("Could not load category groups.");
           setCategoryGroups([]);
           setCategoriesByGroupSlug({});
@@ -154,7 +155,7 @@ export default function CategoriesPage() {
         setCategoriesByGroupSlug(byGroup);
         setAllCategoriesForSearch(flat);
       } catch (error) {
-        console.error("Failed to load categories:", error);
+        console.warn("Failed to load categories:", error instanceof Error ? error.message : String(error));
         if (!mounted) return;
         setCategoriesError("Could not load categories.");
         setCategoryGroups([]);
@@ -222,7 +223,8 @@ export default function CategoriesPage() {
 
         if (!mounted) return;
         if (error) {
-          console.error("Could not load business categories:", error);
+          const be = error as { message?: string; code?: string };
+          console.warn("Could not load business categories:", be.message ?? be.code ?? error);
           return;
         }
         if (data) {
@@ -236,7 +238,7 @@ export default function CategoriesPage() {
           setBusinessSecondarySlugs((row.secondary_category_slugs ?? []) as string[]);
         }
       } catch (error) {
-        console.error("Failed to load business category slugs:", error);
+        console.warn("Failed to load business category slugs:", error instanceof Error ? error.message : String(error));
       } finally {
         if (mounted) setLoading(false);
       }

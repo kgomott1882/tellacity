@@ -1,6 +1,7 @@
 import AdminReviewsClient from "@/components/admin/AdminReviewsClient";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
 import {
+  ADMIN_REVIEWS_PAGE_SIZE,
   applyAdminReviewsListFilter,
   type AdminReviewListFilter,
   type AdminReviewRow,
@@ -11,8 +12,14 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams: Promise<{ e?: string; filter?: string }>;
+  searchParams: Promise<{ e?: string; filter?: string; page?: string }>;
 };
+
+function normalizePage(raw: string | undefined): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return n;
+}
 
 function moderationFilterParam(raw: string | undefined): AdminReviewListFilter {
   const v = raw?.trim().toLowerCase();
@@ -50,6 +57,7 @@ export default async function AdminReviewsPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const err = searchParams.e;
   const listFilter = moderationFilterParam(searchParams.filter);
+  const requestedPage = normalizePage(searchParams.page);
 
   await requireAdminSession();
 
@@ -63,9 +71,6 @@ export default async function AdminReviewsPage(props: PageProps) {
       },
     }
   );
-
-  const wideFetch = listFilter !== "all";
-  const limit = wideFetch ? 500 : 50;
 
   const { data: reviewRows, error: listError } = await adminSupabase
     .from("reviews")
@@ -95,7 +100,7 @@ export default async function AdminReviewsPage(props: PageProps) {
     `
     )
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(500);
 
   const rows = (reviewRows ?? []) as Record<string, unknown>[];
 
@@ -162,7 +167,12 @@ export default async function AdminReviewsPage(props: PageProps) {
     };
   });
 
-  const reviews = applyAdminReviewsListFilter(rawReviews, listFilter).slice(0, 50);
+  const filtered = applyAdminReviewsListFilter(rawReviews, listFilter);
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / ADMIN_REVIEWS_PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageStart = (currentPage - 1) * ADMIN_REVIEWS_PAGE_SIZE;
+  const reviews = filtered.slice(pageStart, pageStart + ADMIN_REVIEWS_PAGE_SIZE);
 
   return (
     <AdminReviewsClient
@@ -170,6 +180,12 @@ export default async function AdminReviewsPage(props: PageProps) {
       initialReviews={reviews}
       initialListError={listError?.message ?? null}
       urlError={err}
+      pagination={{
+        currentPage,
+        totalPages,
+        totalRows,
+        pageSize: ADMIN_REVIEWS_PAGE_SIZE,
+      }}
     />
   );
 }

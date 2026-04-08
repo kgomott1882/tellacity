@@ -88,6 +88,9 @@ export function adminReviewIsFlagged(row: AdminReviewRow): boolean {
 
 export type AdminReviewListFilter = "all" | "flagged" | "hidden";
 
+/** Admin reviews table: rows per page (server + client optimistic merge). */
+export const ADMIN_REVIEWS_PAGE_SIZE = 25;
+
 export function applyAdminReviewsListFilter(
   rows: AdminReviewRow[],
   filter: AdminReviewListFilter

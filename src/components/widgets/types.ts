@@ -21,4 +21,5 @@ export type WidgetType =
   | "carousel"
   | "list"
   | "collector"
-  | "review_us";
+  | "review_us"
+  | "score_strip";

@@ -62,6 +62,18 @@ const nextConfig = {
         permanent: true,
       },
 
+      // Removed Invite Settings (customer review invite tuning)
+      {
+        source: "/business/dashboard/settings/invite-settings",
+        destination: "/business/dashboard/get-reviews/overview",
+        permanent: true,
+      },
+      {
+        source: "/business/dashboard/settings/invitations/:path*",
+        destination: "/business/dashboard/get-reviews/overview",
+        permanent: true,
+      },
+
       // GARBAGE ROUTES
       {
         source: "/&",

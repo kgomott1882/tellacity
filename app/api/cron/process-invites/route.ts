@@ -96,22 +96,13 @@ function buildSignatureBlock(template: TemplateRow | null, isPremiumOrElite: boo
 `.trim();
 }
 
-async function getInviteSettingsForBusiness(
-  supabase: ReturnType<typeof makeSupabase>,
-  businessId: string
-): Promise<InviteSettings> {
-  const { data } = await supabase
-    .from("business_invite_settings")
-    .select("custom_subject, custom_message, custom_signature, legal_footer_enabled")
-    .eq("business_id", businessId)
-    .maybeSingle();
-  return {
-    custom_subject:       data?.custom_subject       ?? null,
-    custom_message:       data?.custom_message       ?? null,
-    custom_signature:     data?.custom_signature     ?? null,
-    legal_footer_enabled: data?.legal_footer_enabled ?? false,
-  };
-}
+/** No per-business invite email overrides (Invite Settings UI removed); templates + defaults only. */
+const DEFAULT_INVITE_EMAIL_SETTINGS: InviteSettings = {
+  custom_subject: null,
+  custom_message: null,
+  custom_signature: null,
+  legal_footer_enabled: false,
+};
 
 async function getEmailTemplate(
   supabase: ReturnType<typeof makeSupabase>,
@@ -211,11 +202,11 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [settings, template, premium] = await Promise.all([
-        getInviteSettingsForBusiness(supabase, invite.business_id),
+      const [template, premium] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
         isPremiumOrElite(supabase, invite.business_id),
       ]);
+      const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
       const signatureBlock = buildSignatureBlock(template, premium);
 
@@ -323,11 +314,11 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [settings, template, premium] = await Promise.all([
-        getInviteSettingsForBusiness(supabase, invite.business_id),
+      const [template, premium] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
         isPremiumOrElite(supabase, invite.business_id),
       ]);
+      const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
       const signatureBlock = buildSignatureBlock(template, premium);
 

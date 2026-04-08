@@ -97,32 +97,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Load invite settings ─────────────────────────────────────────────────
-    const { data: inviteSettings } = await supabase
-      .from("business_invite_settings")
-      .select(
-        "send_delay_days, reminder_enabled, reminder_delay_days, custom_subject, custom_message, custom_signature, legal_footer_enabled"
-      )
-      .eq("business_id", businessId)
-      .maybeSingle();
-
-    const sendDelayDays: number = inviteSettings?.send_delay_days ?? 0;
-    const reminderEnabled: boolean = inviteSettings?.reminder_enabled ?? false;
-    const reminderDelayDays: number = inviteSettings?.reminder_delay_days ?? 3;
-
-    // ── Compute schedule timestamps ──────────────────────────────────────────
-    const now = new Date();
-
-    const sendAt = new Date(now);
-    sendAt.setUTCDate(sendAt.getUTCDate() + sendDelayDays);
-
-    let reminderAt: Date | null = null;
-    if (reminderEnabled) {
-      reminderAt = new Date(sendAt);
-      reminderAt.setUTCDate(reminderAt.getUTCDate() + reminderDelayDays);
-    }
-
-    const sendImmediately = sendDelayDays === 0;
+    // Send time: now (no delayed scheduling or reminders; Invite Settings UI removed).
+    const sendAt = new Date();
 
     // ── Insert invite row (single raw token; no hashing or mutation) ─────────
     const token = crypto.randomBytes(32).toString("hex");
@@ -138,7 +114,7 @@ export async function POST(req: Request) {
         created_at: createdAt,
         channel: "email",
         send_at: sendAt.toISOString(),
-        reminder_at: reminderAt ? reminderAt.toISOString() : null,
+        reminder_at: null,
       })
       .select("id")
       .maybeSingle();
@@ -168,22 +144,6 @@ export async function POST(req: Request) {
         { error: "Internal server error." },
         { status: 500 }
       );
-    }
-
-    // ── If delayed, return early - cron worker will send later ───────────────
-    if (!sendImmediately) {
-      void logBusinessActivity({
-        businessId,
-        userId: activityUserId,
-        action: "invite_sent",
-        metadata: { count: 1, scheduled: true },
-      });
-      return NextResponse.json({
-        success: true,
-        scheduled: true,
-        sendAt: sendAt.toISOString(),
-        reminderAt: reminderAt ? reminderAt.toISOString() : null,
-      });
     }
 
     // ── Send immediately (same `token` as stored; no encodeURIComponent) ──────
@@ -246,14 +206,13 @@ export async function POST(req: Request) {
     const layoutStyle =
       (template as { layout_style?: string | null } | null)?.layout_style ?? "standard";
 
-    // Render final email - invite settings overrides take priority over template
     const rendered = renderInviteEmail({
       businessName: bizRecord.name ?? "",
       inviteLink,
-      customSubject:       inviteSettings?.custom_subject   || templateSubject || null,
-      customMessage:       inviteSettings?.custom_message   || templateBody    || null,
-      customSignature:     inviteSettings?.custom_signature ?? null,
-      legalFooterEnabled:  inviteSettings?.legal_footer_enabled ?? false,
+      customSubject:       templateSubject || null,
+      customMessage:       templateBody || null,
+      customSignature:     null,
+      legalFooterEnabled:  false,
       signatureBlock,
       layoutStyle,
       isReminder: false,
@@ -268,9 +227,7 @@ export async function POST(req: Request) {
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
-    const bodyText = String(
-      inviteSettings?.custom_message || templateBody || "We'd love your feedback."
-    ).trim();
+    const bodyText = String(templateBody || "We'd love your feedback.").trim();
     const safeInviteLink = escHtml(inviteLink);
 
     const ratingWidgetHtml = `

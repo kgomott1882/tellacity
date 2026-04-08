@@ -36,6 +36,12 @@ const WIDGETS = [
     description: "Elegant review collector strip",
     previewHeight: 88,
   },
+  {
+    id: "score_strip",
+    name: "Tellacity Score",
+    description: "Trust-style score strip with block stars and review count.",
+    previewHeight: 150,
+  },
 ] as const;
 
 type WidgetId = (typeof WIDGETS)[number]["id"];
@@ -149,7 +155,7 @@ export default function WebsiteWidgetsPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Choose a widget
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {WIDGETS.map((widget) => {
             const isActive = selected === widget.id;
             return (

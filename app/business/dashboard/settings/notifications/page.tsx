@@ -1,172 +1,208 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useBusinessAuth } from "@/lib/useBusinessAuth";
+import { useCallback, useEffect, useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Prefs = {
-  newsletter: boolean;
-  service_1_2_star: boolean;
-  service_3_star: boolean;
-  service_4_5_star: boolean;
-  product_1_star: boolean;
-  product_2_star: boolean;
-  product_3_star: boolean;
-  product_4_star: boolean;
-  product_5_star: boolean;
-  product_modified_reviews: boolean;
-  product_questions: boolean;
-  product_replies: boolean;
+  newsletter_enabled: boolean;
+  notify_1_2_star: boolean;
+  notify_3_star: boolean;
+  notify_4_5_star: boolean;
 };
 
 const DEFAULT_PREFS: Prefs = {
-  newsletter: false,
-  service_1_2_star: true,
-  service_3_star: true,
-  service_4_5_star: true,
-  product_1_star: false,
-  product_2_star: false,
-  product_3_star: false,
-  product_4_star: false,
-  product_5_star: false,
-  product_modified_reviews: false,
-  product_questions: false,
-  product_replies: false,
+  newsletter_enabled: false,
+  notify_1_2_star: true,
+  notify_3_star: true,
+  notify_4_5_star: true,
 };
 
 export default function NotificationsPage() {
-  const { user } = useBusinessAuth();
   const { selectedBusiness } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
+  /** `notify_only_low_reviews` — UI only; API not wired yet */
+  const [notifyOnlyLowReviews, setNotifyOnlyLowReviews] = useState(false);
 
-  const businessName = selectedBusiness?.name ?? "your business";
+  const businessId = selectedBusiness.id;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch(
+        `/api/business/notification-preferences?businessId=${encodeURIComponent(businessId)}`,
+        { credentials: "same-origin" }
+      );
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+      if (!res.ok) {
+        const text =
+          typeof body.error === "string" ? body.error : `Could not load preferences (${res.status}).`;
+        setMessage({ type: "error", text });
+        setPrefs(DEFAULT_PREFS);
+        return;
+      }
+
+      setPrefs((prev) => ({
+        ...prev,
+        newsletter_enabled:
+          typeof body.newsletter_enabled === "boolean" ? body.newsletter_enabled : DEFAULT_PREFS.newsletter_enabled,
+        notify_1_2_star:
+          typeof body.notify_1_2_star === "boolean" ? body.notify_1_2_star : DEFAULT_PREFS.notify_1_2_star,
+        notify_3_star: typeof body.notify_3_star === "boolean" ? body.notify_3_star : DEFAULT_PREFS.notify_3_star,
+        notify_4_5_star:
+          typeof body.notify_4_5_star === "boolean" ? body.notify_4_5_star : DEFAULT_PREFS.notify_4_5_star,
+      }));
+    } catch (error) {
+      console.error("Failed to load notification preferences:", error);
+      setMessage({ type: "error", text: "Could not load preferences. Please try again." });
+      setPrefs(DEFAULT_PREFS);
+    } finally {
+      setLoading(false);
+    }
+  }, [businessId]);
 
   useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      setLoading(true);
-      try {
-        if (!user?.id) return;
-        const supabase = supabaseBrowser();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) return;
-        const { data, error } = await supabase
-          .from("user_notification_preferences")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (!mounted) return;
-        if (error) {
-          console.error("Failed to load notification preferences:", error);
-          return;
-        }
-        if (data) {
-          setPrefs({
-            newsletter: Boolean((data as any).newsletter),
-            service_1_2_star: Boolean((data as any).service_1_2_star),
-            service_3_star: Boolean((data as any).service_3_star),
-            service_4_5_star: Boolean((data as any).service_4_5_star),
-            product_1_star: Boolean((data as any).product_1_star),
-            product_2_star: Boolean((data as any).product_2_star),
-            product_3_star: Boolean((data as any).product_3_star),
-            product_4_star: Boolean((data as any).product_4_star),
-            product_5_star: Boolean((data as any).product_5_star),
-            product_modified_reviews: Boolean((data as any).product_modified_reviews),
-            product_questions: Boolean((data as any).product_questions),
-            product_replies: Boolean((data as any).product_replies),
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load notifications page data:", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    load();
-    return () => { mounted = false; };
-  }, [user?.id]);
+    void load();
+  }, [load]);
 
   const setPref = <K extends keyof Prefs>(key: K, value: boolean) =>
     setPrefs((p) => ({ ...p, [key]: value }));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) return;
-    setMessage(null); setSaving(true);
+    setMessage(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/business/notification-preferences", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId,
+          newsletter_enabled: prefs.newsletter_enabled,
+          notify_1_2_star: prefs.notify_1_2_star,
+          notify_3_star: prefs.notify_3_star,
+          notify_4_5_star: prefs.notify_4_5_star,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
 
-    const supabase = supabaseBrowser();
-    const { error } = await supabase
-      .from("user_notification_preferences")
-      .upsert({ user_id: user.id, ...prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    setSaving(false);
-    if (error) { setMessage({ type: "error", text: error.message }); return; }
-    setMessage({ type: "success", text: "Saved." });
+      if (!res.ok || !body.success) {
+        const text =
+          typeof body.error === "string" ? body.error : res.ok ? "Save failed." : `Save failed (${res.status}).`;
+        setMessage({ type: "error", text });
+        return;
+      }
+
+      setMessage({ type: "success", text: "Saved." });
+    } catch (error) {
+      console.error("Failed to save notification preferences:", error);
+      setMessage({ type: "error", text: "Could not save. Please try again." });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const Checkbox = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
-    <label className="flex cursor-pointer items-center gap-3">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-gray-300 text-[#124541] focus:ring-[#124541]" />
-      <span className="text-sm text-gray-700">{label}</span>
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg py-1.5 transition-colors hover:bg-gray-50/80">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-[#124541] focus:ring-[#124541]"
+      />
+      <span className="text-sm leading-snug text-gray-800">{label}</span>
     </label>
   );
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-[#0E0E0E]">Notifications</h1>
-      <p className="mt-1 text-sm text-gray-500">Choose which email notifications you receive.</p>
+    <div className="max-w-xl">
+      <h1 className="text-2xl font-semibold tracking-tight text-[#0E0E0E]">Notifications</h1>
+      <p className="mt-1.5 text-sm text-gray-500">Control email updates for your business.</p>
 
       {message && (
-        <div className={`mt-4 rounded-lg border px-4 py-3 text-sm ${message.type === "success" ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+        <div
+          className={`mt-5 rounded-xl border px-4 py-3 text-sm ${
+            message.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-red-200 bg-red-50 text-red-800"
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-      <form onSubmit={handleSave} className="mt-6 space-y-8">
-        <div>
-          <h2 className="text-base font-semibold text-[#0E0E0E]">Tellacity&apos;s newsletter</h2>
-          <div className="mt-3">
-            <Checkbox label="Yes, I'd like to subscribe to Tellacity's newsletter." checked={prefs.newsletter} onChange={(v) => setPref("newsletter", v)} />
+      <form onSubmit={handleSave} className="mt-8 space-y-6">
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Newsletter</h2>
+          <p className="mt-1 text-sm text-gray-600">Product news and tips from Tellacity.</p>
+          <div className="mt-4">
+            <Checkbox
+              label="Subscribe to the Tellacity newsletter"
+              checked={prefs.newsletter_enabled}
+              onChange={(v) => setPref("newsletter_enabled", v)}
+            />
           </div>
-        </div>
+        </section>
 
-        <div>
-          <h2 className="text-base font-semibold text-[#0E0E0E]">
-            Service Reviews for {businessName} – email me about:
-          </h2>
-          <div className="mt-3 space-y-2">
-            <Checkbox label="1 and 2-star reviews"  checked={prefs.service_1_2_star} onChange={(v) => setPref("service_1_2_star", v)} />
-            <Checkbox label="3-star reviews"         checked={prefs.service_3_star}   onChange={(v) => setPref("service_3_star", v)} />
-            <Checkbox label="4 and 5-star reviews"   checked={prefs.service_4_5_star} onChange={(v) => setPref("service_4_5_star", v)} />
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Review notifications</h2>
+          <p className="mt-1 text-sm text-gray-600">When someone publishes a new review of your business.</p>
+          <div className="mt-4 space-y-1">
+            <Checkbox
+              label="Bad reviews (1–2★)"
+              checked={prefs.notify_1_2_star}
+              onChange={(v) => setPref("notify_1_2_star", v)}
+            />
+            <Checkbox
+              label="Neutral reviews (3★)"
+              checked={prefs.notify_3_star}
+              onChange={(v) => setPref("notify_3_star", v)}
+            />
+            <Checkbox
+              label="Positive reviews (4–5★)"
+              checked={prefs.notify_4_5_star}
+              onChange={(v) => setPref("notify_4_5_star", v)}
+            />
           </div>
-        </div>
 
-        <div>
-          <h2 className="text-base font-semibold text-[#0E0E0E]">
-            Product Reviews for {businessName} – email me about:
-          </h2>
-          <div className="mt-3 space-y-2">
-            <Checkbox label="1-star reviews"                                    checked={prefs.product_1_star}          onChange={(v) => setPref("product_1_star", v)} />
-            <Checkbox label="2-star reviews"                                    checked={prefs.product_2_star}          onChange={(v) => setPref("product_2_star", v)} />
-            <Checkbox label="3-star reviews"                                    checked={prefs.product_3_star}          onChange={(v) => setPref("product_3_star", v)} />
-            <Checkbox label="4-star reviews"                                    checked={prefs.product_4_star}          onChange={(v) => setPref("product_4_star", v)} />
-            <Checkbox label="5-star reviews"                                    checked={prefs.product_5_star}          onChange={(v) => setPref("product_5_star", v)} />
-            <Checkbox label="Modified reviews resulting from moderation requests" checked={prefs.product_modified_reviews} onChange={(v) => setPref("product_modified_reviews", v)} />
-            <Checkbox label="Questions via the Product Q&A widget"              checked={prefs.product_questions}       onChange={(v) => setPref("product_questions", v)} />
-            <Checkbox label="Replies to reviews"                                checked={prefs.product_replies}         onChange={(v) => setPref("product_replies", v)} />
+          <div className="mt-5 border-t border-gray-100 pt-5">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notifyOnlyLowReviews}
+                aria-label="Only notify for negative reviews"
+                onClick={() => setNotifyOnlyLowReviews((v) => !v)}
+                className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-[#124541]/30 focus:ring-offset-2 ${
+                  notifyOnlyLowReviews ? "bg-[#124541]" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                    notifyOnlyLowReviews ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Only notify me for negative reviews</p>
+                <p className="mt-0.5 text-xs text-gray-500">Account sync for this option is not available yet.</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <button type="submit" disabled={saving}
-          className="rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91] disabled:opacity-50">
-          Save changes
+        <button
+          type="submit"
+          disabled={saving || loading}
+          className="rounded-xl bg-[#124541] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a36] disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save changes"}
         </button>
       </form>
     </div>
