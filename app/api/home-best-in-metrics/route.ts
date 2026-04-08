@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
 
@@ -13,15 +13,16 @@ type AggregateRow = {
 };
 
 async function loadAggregatesChunk(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   chunk: string[]
 ): Promise<Record<string, { review_count: number; trust_score: number }>> {
   const local: Record<string, { review_count: number; trust_score: number }> =
     {};
 
+  // DB RPC exists in Postgres; generated Supabase types may omit args — keep runtime payload.
   const { data, error } = await supabase.rpc("get_public_review_aggregates", {
     p_business_ids: chunk,
-  });
+  } as never);
 
   if (!error && data) {
     for (const row of (data ?? []) as AggregateRow[]) {
@@ -71,7 +72,7 @@ async function loadAggregatesChunk(
  * so long `?ids=` URLs cannot truncate the request.
  */
 async function loadAggregates(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   ids: string[]
 ): Promise<Record<string, { review_count: number; trust_score: number }>> {
   const out: Record<string, { review_count: number; trust_score: number }> =
