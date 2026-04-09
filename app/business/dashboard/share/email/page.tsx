@@ -212,7 +212,7 @@ export default function EmailWidgetsPage() {
   const [upgradePreviewLayout, setUpgradePreviewLayout] = useState<
     "standard" | "review_hunter" | "elite_branded" | "rating_ladder" | null
   >(null);
-  const sendSectionRef = useRef<HTMLDivElement>(null);
+  const sendSectionRef = useRef<HTMLFormElement>(null);
   const emailLayoutMigratedRef = useRef(false);
 
   const FEATURE_LOCKED = "email_widget" as const;

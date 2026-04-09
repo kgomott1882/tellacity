@@ -305,7 +305,7 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
       activeBonus = asNonNegativeInt(parseRpcNumber(bonusInvites));
       baseLimit = PLAN_INVITE_LIMITS[plan] ?? 0;
       finalLimit = baseLimit + activeBonus;
-      used = usedInvites ?? 0;
+      used = monthlyUsedInvites ?? 0;
       remaining = Math.max(finalLimit - used, 0);
       currentPlan = PLAN_OPTIONS.includes(plan) ? plan : "free";
       if (bonusError?.message) {
