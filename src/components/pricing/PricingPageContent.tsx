@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";
 import PaystackPlanButton from "@/components/billing/PaystackPlanButton";
+import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
 
 type Plan = {
   name: string;
@@ -36,10 +37,9 @@ const plans: Plan[] = [
     description: "Essential tools to actively build trust and collect reviews.",
     features: [
       "150 review invites per month",
-      "Email & SMS review invitations",
+      "Email review invitations",
       "Customisable email invite templates",
       "QR code reviews",
-      "Photo reviews (with proof upload)",
       "Standard on-site widget library",
       "Review & invite performance analytics",
     ],
@@ -60,7 +60,6 @@ const plans: Plan[] = [
       "Team alerts & notifications",
       "Premium Credibility Badge",
       "Multi-user logins (10 users)",
-      "API access (read-only)",
     ],
     connectors: ["Twilio", "Klaviyo", "Magento", "HubSpot", "Slack", "Zendesk"],
     highlight: true,
@@ -75,7 +74,6 @@ const plans: Plan[] = [
       "3,000 review invites per month",
       "Bulk upload & automation rules",
       "White-label solution options",
-      "Full API access (read/write)",
       "Strategic insights & benchmarking",
       'Priority placement ("Featured")',
       "Role-based team access (Unlimited)",
@@ -99,9 +97,7 @@ const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "f
   { type: "feature", row: ["Email invites", "✓", "✓", "✓", "✓"] },
   { type: "feature", row: ["Customisable email templates", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["QR code reviews", "–", "✓", "✓", "✓"] },
-  { type: "feature", row: ["API access", "–", "–", "Read-only", "Full Read/Write"] },
   { type: "section", label: "VERIFY" },
-  { type: "feature", row: ["Photo reviews with proof", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["Credibility & visibility", "Profile", "Verified Badge", "Premium Badge", "Featured placement"] },
   { type: "section", label: "MANAGE" },
   { type: "feature", row: ["Multi-location management", "–", "–", "✓", "✓"] },
@@ -115,7 +111,7 @@ const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "f
   { type: "feature", row: ["Strategic insights", "–", "–", "Sentiment", "Sentiment + Benchmarks"] },
   { type: "feature", row: ["Data exports", "–", "CSV", "CSV + JSON", "Scheduled auto-exports"] },
   { type: "section", label: "INTEGRATE" },
-  { type: "feature", row: ["Integration connectors", "–", "3", "Unlimited", "Unlimited"] },
+  { type: "feature", row: ["Integration connectors", "–", "Available integrations", "Unlimited", "Unlimited"] },
   { type: "feature", row: ["Custom enterprise integrations", "–", "–", "–", "✓"] },
 ];
 
@@ -159,7 +155,21 @@ export type PricingPageContentProps = {
   variant?: "public" | "dashboard";
   dashboardBusinessId?: string;
   dashboardUserEmail?: string;
+  /** Current workspace plan — used to show “Recommended for you” on the next tier only. */
+  dashboardCurrentPlanKey?: PlanKey;
+  /** Stronger Premium card emphasis (e.g. billing deep-link with upgrade reason). */
+  emphasizePremiumAnchor?: boolean;
+  /** Use a div root when embedding inside the dashboard (avoids nested main landmark). */
+  embedInDashboard?: boolean;
 };
+
+function recommendedPlanNameForDashboard(plan: PlanKey | undefined): string | null {
+  if (!plan) return null;
+  if (plan === "free") return "Grow";
+  if (plan === "grow") return "Premium";
+  if (plan === "premium") return "Elite";
+  return null;
+}
 
 /** ZAR amounts in kobo for Paystack; premium test amount matches Plans & billing. */
 function dashboardPlanKobo(
@@ -182,6 +192,9 @@ export function PricingPageContent({
   variant = "public",
   dashboardBusinessId,
   dashboardUserEmail,
+  dashboardCurrentPlanKey,
+  emphasizePremiumAnchor = false,
+  embedInDashboard = false,
 }: PricingPageContentProps = {}) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -204,6 +217,11 @@ export function PricingPageContent({
     Boolean(dashboardBusinessId?.trim()) &&
     Boolean(dashboardUserEmail?.trim());
 
+  const recommendedPlanName =
+    variant === "dashboard" && dashboardCurrentPlanKey
+      ? recommendedPlanNameForDashboard(dashboardCurrentPlanKey)
+      : null;
+
   const prices = {
     grow: {
       monthly: 69,
@@ -225,8 +243,10 @@ export function PricingPageContent({
     left: (index * 31) % 100,
   }));
 
+  const Root = embedInDashboard ? "div" : "main";
+
   return (
-    <main className="bg-[#F7F8FA]">
+    <Root className="bg-[#F7F8FA]">
       {/* HERO */}
       <section className="mx-auto w-full max-w-6xl px-6 py-16 grid gap-10 md:grid-cols-2 items-center">
         <motion.div
@@ -384,7 +404,13 @@ export function PricingPageContent({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-4">
-          {plans.map((plan, index) => (
+          {plans.map((plan, index) => {
+            const isRecommendedForYou =
+              Boolean(recommendedPlanName) && plan.name === recommendedPlanName;
+            const premiumAnchorBoost =
+              emphasizePremiumAnchor && plan.name === "Premium" && plan.highlight;
+
+            return (
             <motion.div
               key={plan.name}
               initial={{ opacity: 0, y: 30 }}
@@ -403,17 +429,31 @@ export function PricingPageContent({
               <div
                 className={`relative flex h-full flex-col rounded-3xl border ${
                   plan.highlight
-                    ? "border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
+                    ? premiumAnchorBoost
+                      ? "border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/35 scale-[1.03]"
+                      : "border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
                     : "border-neutral-200 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1"
                 } p-6 transition-all duration-300`}
               >
                 {plan.highlight && (
-                  <div className="absolute inset-x-0 -top-4 flex justify-center">
+                  <div className="absolute inset-x-0 -top-4 flex flex-col items-center gap-1.5">
                     <span className="rounded-full bg-gradient-to-r from-[#1FAF9E] to-[#0E3B36] px-4 py-1 text-[10px] font-semibold text-white shadow-sm">
                       Most Popular
                     </span>
+                    {isRecommendedForYou ? (
+                      <span className="rounded-full border border-amber-200/80 bg-amber-50 px-3 py-0.5 text-[10px] font-semibold text-amber-900 shadow-sm">
+                        Recommended for you
+                      </span>
+                    ) : null}
                   </div>
                 )}
+                {!plan.highlight && isRecommendedForYou ? (
+                  <div className="absolute inset-x-0 -top-4 flex justify-center">
+                    <span className="rounded-full border border-amber-200/80 bg-amber-50 px-3 py-1 text-[10px] font-semibold text-amber-900 shadow-sm">
+                      Recommended for you
+                    </span>
+                  </div>
+                ) : null}
                 <h3 className="mt-2 text-sm font-semibold text-[#0E0E0E]">
                   {plan.name}
                 </h3>
@@ -529,7 +569,9 @@ export function PricingPageContent({
                     email={dashboardUserEmail!}
                     className={pricingButtonClass}
                   >
-                    Choose This Plan
+                    {isRecommendedForYou && dashboardCurrentPlanKey
+                      ? nextTierUpgradeCtaLabel(dashboardCurrentPlanKey)
+                      : "Choose This Plan"}
                   </PaystackPlanButton>
                 ) : (
                   <button
@@ -552,7 +594,8 @@ export function PricingPageContent({
                 )}
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-6 rounded-xl border border-gray-200 bg-white px-6 py-6 text-xs text-gray-600 shadow-sm">
@@ -1034,7 +1077,7 @@ export function PricingPageContent({
               {selectedPlan === "grow" && (
                 <ul className="space-y-2 text-sm text-black">
                   <li>✓ 150 review invites/month</li>
-                  <li>✓ Email &amp; SMS invites</li>
+                  <li>✓ Email invites</li>
                   <li>✓ Performance analytics</li>
                 </ul>
               )}
@@ -1052,7 +1095,6 @@ export function PricingPageContent({
                 <ul className="space-y-2 text-sm text-black">
                   <li>✓ 3,000 review invites/month</li>
                   <li>✓ White-label options</li>
-                  <li>✓ API access</li>
                   <li>✓ Dedicated account manager</li>
                 </ul>
               )}
@@ -1078,6 +1120,6 @@ export function PricingPageContent({
         </div>
       )}
 
-    </main>
+    </Root>
   );
 }

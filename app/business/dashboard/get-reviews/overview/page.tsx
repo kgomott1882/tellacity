@@ -6,8 +6,15 @@ import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
-import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import {
+  canUseCustomEmail,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+  type PlanKey,
+} from "@/lib/plans";
+import { incrementUpgradeClickCount, upgradeModalTitleForClickCount } from "@/lib/upgradeClickStorage";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
 import { Download } from "lucide-react";
@@ -15,6 +22,7 @@ import { getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 const INVITATION_METHODS_PATH = "/business/dashboard/get-reviews/invitation-methods";
 const SENT_PAGE_SIZE = 25;
+const QR_UPGRADE_FEATURE_KEY = "qr_code_reviews_overview" as const;
 
 /** Supabase errors are often truthy but print as `{}`; avoid console.error (Next.js dev overlay). */
 function formatClientFetchIssue(err: unknown): string | null {
@@ -109,6 +117,9 @@ export default function GetReviewsOverviewPage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sentOffset, setSentOffset] = useState<number>(0);
   const [hasMoreSent, setHasMoreSent] = useState<boolean>(true);
+  const [inviteLimitModalOpen, setInviteLimitModalOpen] = useState(false);
+  const [qrUpgradeModalOpen, setQrUpgradeModalOpen] = useState(false);
+  const [qrUpgradeModalTitle, setQrUpgradeModalTitle] = useState("Unlock this feature");
 
   const fetchUsage = useCallback(async () => {
     if (!businessId) {
@@ -169,12 +180,44 @@ export default function GetReviewsOverviewPage() {
   }, []);
 
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const canQrReviews = canUseCustomEmail(normalizedPlan);
   const remainingInvites = Math.max(monthlyLimit - monthlyUsage, 0);
   const isLimitReached = monthlyUsage >= monthlyLimit;
-  const canSetUpInvites = !!businessId && !isLimitReached;
+  const nearMonthlyInviteLimit =
+    monthlyLimit > 0 && monthlyUsage / monthlyLimit > 0.8 && !isLimitReached;
+  const moderateInviteUsageNudge =
+    monthlyLimit > 0 &&
+    monthlyUsage / monthlyLimit > 0.5 &&
+    !nearMonthlyInviteLimit &&
+    !isLimitReached;
+  const openInviteLimitModal = () => {
+    if (businessId) {
+      logDashboardActivityClient({
+        businessId,
+        action: "invite_limit_hit",
+      });
+    }
+    setInviteLimitModalOpen(true);
+  };
+
+  const openQrUpgradeModal = () => {
+    if (!businessId) return;
+    const n = incrementUpgradeClickCount(QR_UPGRADE_FEATURE_KEY);
+    setQrUpgradeModalTitle(upgradeModalTitleForClickCount(n));
+    logDashboardActivityClient({
+      businessId,
+      action: "feature_locked_clicked",
+      metadata: { feature: QR_UPGRADE_FEATURE_KEY },
+    });
+    setQrUpgradeModalOpen(true);
+  };
 
   const handleSetUpInvitations = () => {
-    if (!canSetUpInvites) return;
+    if (!businessId) return;
+    if (isLimitReached) {
+      openInviteLimitModal();
+      return;
+    }
     router.push(INVITATION_METHODS_PATH);
   };
 
@@ -351,6 +394,7 @@ export default function GetReviewsOverviewPage() {
     : "";
 
   function downloadQR() {
+    if (!canQrReviews) return;
     const svg = document.getElementById("review-qr-overview");
     if (!svg) return;
     const serializer = new XMLSerializer();
@@ -442,6 +486,35 @@ export default function GetReviewsOverviewPage() {
             <div className="mt-1 text-xs text-gray-400">
               {remainingInvites} remaining this month
             </div>
+            {moderateInviteUsageNudge ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <p className="text-xs font-medium text-emerald-900">
+                  You&apos;re actively collecting reviews. Upgrade your plan to accelerate growth.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/business/dashboard/billing?reason=limit")}
+                  className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
+                >
+                  {nextTierUpgradeCtaLabel(normalizedPlan)}
+                </button>
+              </div>
+            ) : null}
+            {nearMonthlyInviteLimit ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <p className="text-xs font-medium text-amber-800">
+                  You&apos;re close to your limit. New review requests will stop when you hit your
+                  cap—upgrade before then to avoid interruptions in your review flow.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/business/dashboard/billing?reason=limit")}
+                  className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
+                >
+                  {nextTierUpgradeCtaLabel(normalizedPlan)}
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="text-xs uppercase tracking-wide text-gray-500">
@@ -523,6 +596,11 @@ export default function GetReviewsOverviewPage() {
             )}
           </div>
         </div>
+        {monthlyUsage > 0 ? (
+          <p className="mt-4 text-xs text-gray-500" role="status">
+            You&apos;re actively collecting reviews — keep the momentum going.
+          </p>
+        ) : null}
       </div>
 
       {/* Section B - Invites sent */}
@@ -623,10 +701,31 @@ export default function GetReviewsOverviewPage() {
             Use a direct link or printable QR code to collect reviews in-store or at events.
           </p>
           <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start">
-            {/* QR code */}
-            <div className="flex-shrink-0 rounded-xl border border-gray-200 bg-white p-5 shadow-sm inline-flex flex-col items-center gap-3">
-              <QRCode id="review-qr-overview" value={reviewUrl} size={220} />
-              <span className="text-xs text-gray-400">Scan to leave a review</span>
+            {/* QR code — Grow+ via canUseCustomEmail; Free sees locked preview */}
+            <div className="relative flex-shrink-0 inline-flex flex-col">
+              <div
+                className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm inline-flex flex-col items-center gap-3 ${
+                  !canQrReviews ? "opacity-50 blur-sm" : ""
+                }`}
+              >
+                <QRCode id="review-qr-overview" value={reviewUrl} size={220} />
+                <span className="text-xs text-gray-400">Scan to leave a review</span>
+              </div>
+              {!canQrReviews ? (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/75 px-4 text-center backdrop-blur-md">
+                  <h3 className="text-sm font-semibold text-gray-900">Unlock QR code reviews</h3>
+                  <p className="max-w-[220px] text-xs text-gray-600">
+                    Collect reviews in-store using QR codes with a Grow plan.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openQrUpgradeModal}
+                    className="rounded-lg bg-[#124541] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35]"
+                  >
+                    {nextTierUpgradeCtaLabel(normalizedPlan)}
+                  </button>
+                </div>
+              ) : null}
             </div>
             {/* URL + download */}
             <div className="flex flex-col gap-4 flex-1">
@@ -638,8 +737,13 @@ export default function GetReviewsOverviewPage() {
               </div>
               <button
                 type="button"
+                disabled={!canQrReviews}
                 onClick={downloadQR}
-                className="inline-flex items-center gap-2 self-start rounded-lg bg-[#124541] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0f3a35] transition"
+                className={`inline-flex items-center gap-2 self-start rounded-lg px-4 py-2.5 text-sm font-medium text-white transition ${
+                  !canQrReviews
+                    ? "cursor-not-allowed bg-gray-400 opacity-50"
+                    : "bg-[#124541] hover:bg-[#0f3a35]"
+                }`}
               >
                 <Download size={15} />
                 Download QR as PNG
@@ -664,10 +768,10 @@ export default function GetReviewsOverviewPage() {
           </p>
           <button
             type="button"
-            disabled={!canSetUpInvites}
+            disabled={!businessId}
             onClick={handleSetUpInvitations}
             className={`mt-6 rounded-lg px-8 py-3 font-medium text-white transition ${
-              !canSetUpInvites
+              !businessId
                 ? "cursor-not-allowed bg-gray-400"
                 : "bg-[#124541] hover:bg-[#0f3a35]"
             }`}
@@ -676,6 +780,97 @@ export default function GetReviewsOverviewPage() {
           </button>
         </div>
       </div>
+
+      {qrUpgradeModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setQrUpgradeModalOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="overview-qr-upgrade-title"
+          >
+            <h2
+              id="overview-qr-upgrade-title"
+              className="text-lg font-semibold text-[#0E0E0E]"
+            >
+              {qrUpgradeModalTitle}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Collect reviews in-store using QR codes with a Grow plan.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setQrUpgradeModalOpen(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setQrUpgradeModalOpen(false);
+                  router.push("/business/dashboard/billing");
+                }}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(normalizedPlan)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {inviteLimitModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setInviteLimitModalOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="overview-invite-limit-title"
+          >
+            <h2
+              id="overview-invite-limit-title"
+              className="text-lg font-semibold text-[#0E0E0E]"
+            >
+              You&apos;ve reached your limit
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Upgrade your plan to continue sending review invitations and keep growing your feedback.
+              New review requests will stop until you upgrade.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setInviteLimitModalOpen(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteLimitModalOpen(false);
+                  router.push("/business/dashboard/billing?reason=limit");
+                }}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(normalizedPlan)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

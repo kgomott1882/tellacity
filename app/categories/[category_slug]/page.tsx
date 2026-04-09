@@ -3,6 +3,7 @@ export const revalidate = 60;
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import CategoryClient from "./CategoryClient";
+import { normalizeCountryCode } from "@/lib/country";
 
 type PageProps = {
   params: Promise<{ category_slug: string }>;
@@ -41,20 +42,20 @@ export async function generateMetadata(props: {
 
   let categoryName: string | null = null;
 
-  if (category_slug) {
+  if (safeCategorySlug) {
     const { data } = await supabase
       .from("categories")
       .select("name")
-      .eq("slug", category_slug)
+      .eq("slug", safeCategorySlug)
       .maybeSingle();
 
     categoryName = data?.name ?? null;
   }
 
-  const fallbackTitle = category_slug
-      .split("-")
+  const fallbackTitle = safeCategorySlug
+    .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+    .join(" ");
 
   const title = categoryName ?? fallbackTitle;
   const baseTitle = `${title} Reviews & Top Rated Companies | Tellacity`;
@@ -88,7 +89,7 @@ export default async function Page(props: PageProps) {
   const { data: category } = await supabase
     .from("categories")
     .select("slug,name,group_slug")
-    .eq("slug", category_slug)
+    .eq("slug", safeCategorySlug)
     .maybeSingle();
 
   if (!category) {
@@ -122,7 +123,7 @@ export default async function Page(props: PageProps) {
   const { data: businessesData } = await supabase.rpc(
     "get_top_businesses_for_category_global",
     {
-      p_category_slug: category_slug,
+      p_category_slug: safeCategorySlug,
       p_country_code: countryCode,
       p_min_rating: null,
       p_limit: 10,
@@ -137,7 +138,7 @@ export default async function Page(props: PageProps) {
   const { data: countData } = await supabase.rpc(
         "get_category_business_count",
         {
-      p_category_slug: category_slug,
+      p_category_slug: safeCategorySlug,
       p_country_code: countryCode,
       p_min_rating: null,
     }

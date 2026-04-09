@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import WidgetBrandLogoSlot from "./WidgetBrandLogoSlot";
 import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
 
 function formatDate(iso: string) {
@@ -20,7 +21,13 @@ function clampBody(text: string | null, max = 180) {
  * Renders all reviews in a horizontally scrollable row.
  * JavaScript-free navigation via CSS scroll-snap.
  */
-export default function ReviewCarousel({ payload }: { payload: WidgetPayload }) {
+export default function ReviewCarousel({
+  payload,
+  dashboardDemo,
+}: {
+  payload: WidgetPayload;
+  dashboardDemo?: boolean;
+}) {
   const reviews = (payload.reviews ?? []).slice(0, 10);
   const profileUrl = `https://tellacity.com/b/${payload.slug}`;
 
@@ -60,11 +67,7 @@ export default function ReviewCarousel({ payload }: { payload: WidgetPayload }) 
           >
             {/* Business header */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              {payload.logo_url && (
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: "#f9fafb", border: "1px solid #e5e7eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2 }}>
-                  <img src={payload.logo_url} alt="" style={{ width: "98%", height: "98%", objectFit: "contain", display: "block" }} />
-                </div>
-              )}
+              <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={28} fontSize={8} />
               <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{payload.business_name}</span>
             </div>
 

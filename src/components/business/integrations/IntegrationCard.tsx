@@ -12,7 +12,7 @@ function primaryCtaLabel(state: IntegrationWithState["state"]): string {
     case "available":
       return "Connect";
     case "upgrade_required":
-      return "Upgrade plan";
+      return "Upgrade your plan";
     case "enterprise":
       return "Request access";
     case "coming_soon":

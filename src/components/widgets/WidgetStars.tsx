@@ -4,15 +4,12 @@
  * Pure inline styles - no Tailwind, no lucide, safe for iframe embedding.
  */
 
-import { TELLACITY_STAR_EMPTY_BORDER, TELLACITY_STAR_TIER_COLORS } from "@/lib/tellacityStarColors";
+import {
+  TELLACITY_STAR_EMPTY_BORDER,
+  TELLACITY_STAR_TIER_COLORS,
+  tellacityActiveStarColorForRating,
+} from "@/lib/tellacityStarColors";
 
-const FILL_COLORS: Record<number, string> = {
-  1: TELLACITY_STAR_TIER_COLORS[0],
-  2: TELLACITY_STAR_TIER_COLORS[1],
-  3: TELLACITY_STAR_TIER_COLORS[2],
-  4: TELLACITY_STAR_TIER_COLORS[3],
-  5: TELLACITY_STAR_TIER_COLORS[4],
-};
 const EMPTY_COLOR = TELLACITY_STAR_EMPTY_BORDER;
 
 function StarSVG({ size, color }: { size: number; color: string }) {
@@ -40,7 +37,8 @@ export default function WidgetStars({
   size?: number;
 }) {
   const filled = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
-  const filledColor = FILL_COLORS[filled] ?? FILL_COLORS[5];
+  const filledColor =
+    filled > 0 ? tellacityActiveStarColorForRating(filled) : TELLACITY_STAR_TIER_COLORS[4];
   const boxSize = size + 6;
 
   return (

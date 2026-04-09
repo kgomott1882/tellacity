@@ -12,7 +12,13 @@ import {
 } from "@/lib/admin";
 
 export type AdminReviewModerationResult =
-  | { ok: true; reviewId: string; nextVisibility?: "visible" | "hidden"; nextFlagged?: boolean }
+  | {
+      ok: true;
+      reviewId: string;
+      nextVisibility?: "visible" | "hidden";
+      nextFlagged?: boolean;
+      deleted?: true;
+    }
   | { ok: false; error: string };
 
 export async function adminUpdateReviewVisibilityAction(
@@ -165,11 +171,13 @@ export async function adminDeleteBusinessAction(businessId: string) {
   redirect("/admin/businesses");
 }
 
-export async function adminDeleteReviewAction(reviewId: string) {
+export async function adminDeleteReviewAction(
+  reviewId: string
+): Promise<AdminReviewModerationResult> {
   const supabase = await guard();
   const { error } = await deleteAdminReview(supabase, reviewId);
-  if (error) redirect(`/admin/reviews?e=${encodeURIComponent(error)}`);
+  if (error) return { ok: false, error };
   revalidatePath("/admin/reviews");
-  redirect("/admin/reviews");
+  return { ok: true, reviewId, deleted: true };
 }
 

@@ -1,25 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import { dashboardApiPost } from "@/lib/dashboardApiFetch";
+import {
+  canAccessEmailWidget,
+  canUseCustomEmail,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+  type PlanKey,
+} from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 type TemplateChoice = "standard" | "custom" | "widget";
-
-function isPlanAtLeastGrow(plan: string | null | undefined): boolean {
-  if (!plan) return false;
-  const p = plan.toLowerCase();
-  return p === "grow" || p === "premium" || p === "elite";
-}
-
-function isPremiumOrElite(plan: string | null | undefined): boolean {
-  if (!plan) return false;
-  const p = plan.toLowerCase();
-  return p === "premium" || p === "elite";
-}
 
 export default function InvitationMethodsPage() {
   const router = useRouter();
@@ -32,17 +28,58 @@ export default function InvitationMethodsPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [monthlyUsage, setMonthlyUsage] = useState(0);
+  const [monthlyLimit, setMonthlyLimit] = useState(0);
+  const [inviteLimitModalOpen, setInviteLimitModalOpen] = useState(false);
 
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
-  const canChooseCustom = isPlanAtLeastGrow(normalizedPlan);
-  const canChooseWidget = isPremiumOrElite(normalizedPlan);
+  const canChooseCustom = canUseCustomEmail(normalizedPlan);
+  const canChooseWidget = canAccessEmailWidget(normalizedPlan, "premium_layout");
+
+  const isInviteLimitReached = monthlyLimit > 0 && monthlyUsage >= monthlyLimit;
+
+  const openInviteLimitModal = () => {
+    logDashboardActivityClient({
+      businessId,
+      action: "invite_limit_hit",
+    });
+    setInviteLimitModalOpen(true);
+  };
+
+  const fetchUsage = useCallback(async () => {
+    if (!businessId) {
+      setMonthlyUsage(0);
+      setMonthlyLimit(0);
+      return;
+    }
+    try {
+      const data = await dashboardApiPost<{
+        monthlyCount: number;
+        limit: number;
+      }>("/api/review-invites/usage", { businessId });
+      setMonthlyUsage(data.monthlyCount);
+      setMonthlyLimit(data.limit);
+    } catch {
+      setMonthlyUsage(0);
+      setMonthlyLimit(0);
+    }
+  }, [businessId]);
+
+  useEffect(() => {
+    void fetchUsage();
+  }, [fetchUsage]);
+
+  useEffect(() => {
+    if (!canChooseCustom && templateChoice === "custom") {
+      setTemplateChoice("standard");
+    }
+  }, [canChooseCustom, templateChoice]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!businessId || !recipientEmail.trim()) return;
     setError(null);
     setSuccess(false);
-    setLoading(true);
 
     const effectiveTemplate: TemplateChoice =
       templateChoice === "widget" && canChooseWidget
@@ -50,6 +87,13 @@ export default function InvitationMethodsPage() {
         : templateChoice === "custom" && canChooseCustom
         ? "custom"
         : "standard";
+
+    if (effectiveTemplate !== "widget" && isInviteLimitReached) {
+      openInviteLimitModal();
+      return;
+    }
+
+    setLoading(true);
 
     try {
       if (effectiveTemplate === "widget") {
@@ -84,7 +128,8 @@ export default function InvitationMethodsPage() {
             res.status === 403 &&
             errMsg.toLowerCase().includes("monthly invite limit")
           ) {
-            router.replace("/business/dashboard/billing?reason=limit");
+            void fetchUsage();
+            openInviteLimitModal();
             return;
           }
           setError(errMsg || "Failed to send invite.");
@@ -149,7 +194,9 @@ export default function InvitationMethodsPage() {
               />
               <span className="text-sm font-medium text-gray-900">Custom</span>
               {!canChooseCustom && (
-                <span className="text-xs text-gray-500">(Grow plan and above)</span>
+                <span className="text-xs text-amber-800">
+                  🔒 Custom emails available on Grow and above
+                </span>
               )}
             </label>
             <label
@@ -169,9 +216,6 @@ export default function InvitationMethodsPage() {
                 className="h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541] disabled:cursor-not-allowed"
               />
               <span className="text-sm font-medium text-gray-900">Email Widget</span>
-              {!canChooseWidget && (
-                <span className="text-xs text-gray-500">(Premium and above)</span>
-              )}
             </label>
           </div>
           {templateChoice === "widget" && canChooseWidget && (
@@ -214,6 +258,52 @@ export default function InvitationMethodsPage() {
           </p>
         ) : null}
       </div>
+
+      {inviteLimitModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setInviteLimitModalOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-methods-limit-title"
+          >
+            <h2
+              id="invite-methods-limit-title"
+              className="text-lg font-semibold text-[#0E0E0E]"
+            >
+              You&apos;ve reached your limit
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Upgrade your plan to continue sending review invitations and keep growing your feedback.
+              New review requests will stop until you upgrade.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setInviteLimitModalOpen(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteLimitModalOpen(false);
+                  router.push("/business/dashboard/billing?reason=limit");
+                }}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(normalizedPlan)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

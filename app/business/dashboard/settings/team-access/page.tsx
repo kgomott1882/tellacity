@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
+import { useBusinessContext } from "../../_context/BusinessContext";
+import { getTeamLimit, normalizePlanCodeToKey, nextTierUpgradeCtaLabel } from "@/lib/plans";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -174,6 +177,11 @@ function IconButton({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamAccessPage() {
+  const router = useRouter();
+  const { selectedBusiness } = useBusinessContext();
+  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const teamSeatLimit = getTeamLimit(planKey);
+
   const [loading, setLoading] = useState(true);
   const [teamData, setTeamData] = useState<{
     members: Member[];
@@ -186,6 +194,7 @@ export default function TeamAccessPage() {
   const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [teamLimitModalOpen, setTeamLimitModalOpen] = useState(false);
 
   const [roleChanges, setRoleChanges] = useState<Record<string, string>>({});
   const [savingRole, setSavingRole] = useState<Record<string, boolean>>({});
@@ -224,6 +233,16 @@ export default function TeamAccessPage() {
     void loadTeam();
   }, [loadTeam]);
 
+  const seatsUsed = useMemo(() => {
+    if (!teamData) return 0;
+    return teamData.members.length + teamData.pending.length;
+  }, [teamData]);
+
+  const finiteSeatLimit = Number.isFinite(teamSeatLimit) ? teamSeatLimit : null;
+
+  const teamLimitReached =
+    Number.isFinite(teamSeatLimit) && seatsUsed >= teamSeatLimit;
+
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === "visible") void loadTeam();
@@ -235,6 +254,10 @@ export default function TeamAccessPage() {
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteMsg(null);
+    if (teamLimitReached) {
+      setTeamLimitModalOpen(true);
+      return;
+    }
     setInviting(true);
     const { ok, data } = await apiFetch("/api/business/team-access/invite", {
       method: "POST",
@@ -347,6 +370,8 @@ export default function TeamAccessPage() {
     }
   };
 
+  if (!selectedBusiness?.id) return null;
+
   return (
     <div className="max-w-3xl space-y-6">
       {loading && !teamData && <PageLoadingOverlay />}
@@ -361,6 +386,56 @@ export default function TeamAccessPage() {
 
       {/* ── Invite a teammate ── */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 rounded-lg border border-gray-100 bg-gray-50/90 px-4 py-3">
+          <p className="text-sm font-semibold text-[#0E0E0E]">
+            Team members:{" "}
+            {finiteSeatLimit != null ? (
+              <>
+                {seatsUsed} / {finiteSeatLimit}
+              </>
+            ) : (
+              <>
+                {seatsUsed} / Unlimited
+              </>
+            )}
+          </p>
+          {finiteSeatLimit != null ? (
+            <>
+              <div
+                className="mt-2 flex items-center gap-3"
+                role="img"
+                aria-label={`Team seats used: ${seatsUsed} of ${finiteSeatLimit}`}
+              >
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      teamLimitReached ? "bg-amber-500" : "bg-[#2fb2a8]"
+                    }`}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        finiteSeatLimit > 0 ? (seatsUsed / finiteSeatLimit) * 100 : 0
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <span className="shrink-0 text-xs font-medium tabular-nums text-gray-600">
+                  {seatsUsed} / {finiteSeatLimit} users
+                </span>
+              </div>
+              {!teamLimitReached ? (
+                <p className="mt-2 text-xs text-gray-600">
+                  You can add up to {finiteSeatLimit} team members on your current plan.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-gray-600">
+              Your current plan includes unlimited team members.
+            </p>
+          )}
+        </div>
+
         <SectionHeading
           title="Invite a teammate"
           sub="Send an email invitation to add someone to your team."
@@ -370,6 +445,12 @@ export default function TeamAccessPage() {
             <Alert type={inviteMsg.type} text={inviteMsg.text} />
           </div>
         )}
+        {teamLimitReached && finiteSeatLimit != null ? (
+          <p className="mb-4 text-sm text-amber-800" role="status">
+            You&apos;ve reached your team limit ({seatsUsed}/{finiteSeatLimit}). Upgrade to
+            collaborate with more team members.
+          </p>
+        ) : null}
         <form onSubmit={handleSendInvite} className="flex flex-wrap items-end gap-3">
           <div className="min-w-48 flex-1">
             <label className="block text-sm font-medium text-[#0E0E0E]">Email</label>
@@ -396,7 +477,7 @@ export default function TeamAccessPage() {
           <button
             type="submit"
             disabled={inviting}
-            className="rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91] disabled:opacity-50"
+            className="rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {inviting ? "Sending..." : "Send invite"}
           </button>
@@ -606,6 +687,50 @@ export default function TeamAccessPage() {
           </div>
         </div>
       )}
+
+      {teamLimitModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setTeamLimitModalOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-limit-title"
+          >
+            <h2 id="team-limit-title" className="text-lg font-semibold text-[#0E0E0E]">
+              You&apos;ve reached your limit
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              You&apos;ve reached your team limit (
+              {finiteSeatLimit != null ? `${seatsUsed}/${finiteSeatLimit}` : seatsUsed}). Upgrade to
+              collaborate with more team members.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setTeamLimitModalOpen(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamLimitModalOpen(false);
+                  router.push("/business/dashboard/billing?reason=team");
+                }}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(planKey)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

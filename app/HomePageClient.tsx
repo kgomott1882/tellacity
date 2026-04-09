@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
@@ -24,6 +24,13 @@ import {
   readHomeFeedHighlight,
 } from "@/lib/homeFeedHighlight";
 import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
+import { cn } from "@/lib/utils";
+import {
+  HOME_MARQUEE_CATEGORY_ITEMS,
+  LOOKING_FOR_CATEGORIES,
+  buildMarqueeCategoryCards,
+  type HomeMarqueeCategoryCard,
+} from "@/lib/homeMarqueeCategories";
 
 type HomeReview = {
   review_id: string;
@@ -115,37 +122,6 @@ type CategoryCard = {
   slug: string;
 };
 
-const LOOKING_FOR_CATEGORIES = [
-  { label: "Banking", slug: "banking" },
-  { label: "Travel Agencies", slug: "travel-agencies" },
-  { label: "Cars & Trucks", slug: "cars-and-trucks" },
-  { label: "Furniture Stores", slug: "furniture-stores" },
-  { label: "Jewelry & Watches", slug: "jewelry-and-watches" },
-  { label: "Clothing & Underwear", slug: "clothing-and-underwear" },
-  { label: "Appliances & Electronics", slug: "appliances-and-electronics" },
-  { label: "Fitness & Gyms", slug: "fitness-and-gyms" },
-];
-
-// 16 additional categories (from design) wired to existing slugs used elsewhere in the app
-const ADDITIONAL_MARQUEE_CATEGORIES: { label: string; slug: string }[] = [
-  { label: "Pet Store", slug: "retail" },
-  { label: "Energy Supplier", slug: "insurance" },
-  { label: "Real Estate Agents", slug: "banking-and-money" },
-  { label: "Insurance Agency", slug: "insurance" },
-  { label: "Bedroom Furniture Store", slug: "furniture-stores" },
-  { label: "Activewear Store", slug: "clothing-and-underwear" },
-  { label: "Women's Clothing Store", slug: "clothing-and-underwear" },
-  { label: "Men's Clothing Store", slug: "clothing-and-underwear" },
-  { label: "Shopping Store", slug: "retail" },
-  { label: "Bicycle Store", slug: "retail" },
-  { label: "Shoe Store", slug: "clothing-and-underwear" },
-  { label: "Mortgage Broker", slug: "banking-and-money" },
-  { label: "Appliance Store", slug: "appliances-and-electronics" },
-  { label: "Cosmetics Store", slug: "jewelry-and-watches" },
-  { label: "Electronics Store", slug: "appliances-and-electronics" },
-  { label: "Garden Center", slug: "retail" },
-  { label: "Travel Agency", slug: "travel-agencies" },
-];
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
   { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
@@ -194,19 +170,6 @@ function mapRpcRowToBestIn(row: Record<string, unknown>): BestInBusiness {
   };
 }
 
-// 24 items for the rotating marquee: 8 existing + 16 additional (all use existing slugs)
-const ROTATING_MARQUEE_CATEGORIES: CategoryCard[] = (() => {
-  const base = [
-    ...LOOKING_FOR_CATEGORIES,
-    ...ADDITIONAL_MARQUEE_CATEGORIES.slice(0, 16),
-  ];
-  return base.map((c, i) => ({
-    id: `marquee-${c.slug}-${i}-${c.label.replace(/\s+/g, "-")}`,
-    name: c.label,
-    slug: c.slug,
-  }));
-})();
-
 export type BestInBusiness = {
   id: string;
   name: string;
@@ -228,6 +191,8 @@ type HomePageClientProps = {
     string,
     { country: string; error: string | null; count: number }
   >;
+  /** Server-validated marquee tiles; falls back to static list if empty. */
+  marqueeCategories?: HomeMarqueeCategoryCard[];
 };
 
 export default function HomePageClient({
@@ -236,6 +201,7 @@ export default function HomePageClient({
   bestInByCategory = {},
   bestInCategoryLabels = {},
   rpcDebug = {},
+  marqueeCategories: marqueeCategoriesProp,
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -283,6 +249,21 @@ export default function HomePageClient({
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
     COUNTRIES[0];
 
+  const marqueeItems = useMemo(() => {
+    if (marqueeCategoriesProp && marqueeCategoriesProp.length > 0) {
+      return marqueeCategoriesProp;
+    }
+    return buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
+  }, [marqueeCategoriesProp]);
+
+  const categoryBrowseHref = useCallback(
+    (slug: string) => {
+      const s = (slug ?? "").trim().toLowerCase();
+      return `/categories/${s}?country=${encodeURIComponent(activeCountryCode)}`;
+    },
+    [activeCountryCode],
+  );
+
   const reviews = useMemo(
     () =>
       sortHomeFeedRowsByDateDesc(
@@ -323,7 +304,6 @@ export default function HomePageClient({
     }, 180000);
     return () => window.clearInterval(id);
   }, [rotatingCategorySlugs]);
-
 
   const handleCountryChange = (code: CountryCode) => {
     setSelectedCountry(code);
@@ -1378,19 +1358,23 @@ export default function HomePageClient({
       {/* Find businesses by category – 24 items, right-to-left marquee + arrow buttons */}
       <section className="bg-white overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 max-w-2xl">
               <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
-<span className="relative inline-block">
                 <span className="relative inline-block">
-                  <span className="relative z-10">Find</span>
-                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                  <span className="relative inline-block">
+                    <span className="relative z-10">Find</span>
+                    <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                  </span>
+                  {" "}businesses by category
                 </span>
-                {" "}businesses by category
-              </span>
               </h2>
+              <p className="mt-2 max-w-xl text-sm text-gray-600">
+                Browse {activeCountry.name} businesses by category. Tap to explore or use More for
+                all.
+              </p>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => scrollCategories("left")}
@@ -1421,43 +1405,46 @@ export default function HomePageClient({
           </div>
           <div
             ref={categoryScrollRef}
-            className="mt-6 overflow-x-auto overflow-y-visible pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="relative mt-6 overflow-x-auto overflow-y-visible pb-3 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <motion.div
-              className="flex gap-6 py-2"
-              style={{ width: "max-content" }}
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{
-                duration: 45,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            >
-              {[0, 1].map((copy) => (
-                <div key={copy} className="flex shrink-0 gap-6">
-                  {ROTATING_MARQUEE_CATEGORIES.map((category, index) => (
-                    isValidSlug((category.slug ?? "").trim().toLowerCase()) ? (
-                    <motion.div
-                      key={`${copy}-${category.id}`}
-                      className="shrink-0"
-                    >
-                      <Link
-                        href={`/categories/${(category.slug ?? "").trim().toLowerCase()}`}
-                        className="group flex flex-col items-center gap-2 text-center transition-colors duration-200 hover:text-[#1FAF9E]"
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 transition-colors duration-200 group-hover:text-[#1FAF9E] sm:h-12 sm:w-12">
-                          {getCategoryIcon(category.name)}
-                        </span>
-                        <span className="leading-tight text-xs font-medium text-[#0E0E0E] sm:text-sm whitespace-nowrap">
-                          {category.name}
-                        </span>
-                      </Link>
-                    </motion.div>
-                    ) : null
-                  ))}
-                </div>
-              ))}
-            </motion.div>
+            {/* Soft live pulse behind the row (no layout shift) */}
+            <div
+              className="pointer-events-none absolute inset-x-0 top-1/2 h-24 -translate-y-1/2 rounded-[2rem] bg-gradient-to-r from-[#1FAF9E]/[0.07] via-[#2fb2a8]/[0.12] to-[#1FAF9E]/[0.07] opacity-80 blur-2xl animate-category-strip-glow"
+              aria-hidden
+            />
+            <div className="relative flex w-max flex-nowrap gap-3 py-2 sm:gap-4 md:gap-5">
+              {marqueeItems.map((category) =>
+                isValidSlug((category.slug ?? "").trim().toLowerCase()) ? (
+                  <Link
+                    key={category.id}
+                    href={categoryBrowseHref(category.slug)}
+                    className={cn(
+                      "group relative flex min-w-[5.25rem] shrink-0 flex-col items-center gap-2 rounded-2xl px-3 py-3 text-center sm:min-w-[5.75rem] sm:px-3.5 sm:py-3.5",
+                      "touch-manipulation",
+                      "border border-transparent bg-white/40 backdrop-blur-[2px]",
+                      "transition-all duration-300 ease-out",
+                      "hover:-translate-y-1.5 hover:scale-[1.07] hover:border-[#1FAF9E]/25",
+                      "hover:bg-gradient-to-b hover:from-white hover:to-emerald-50/95",
+                      "hover:shadow-[0_14px_36px_-8px_rgba(31,175,158,0.55),0_0_0_1px_rgba(31,175,158,0.12)]",
+                      "hover:ring-2 hover:ring-[#1FAF9E]/30",
+                      "active:scale-[0.98] active:translate-y-0",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E] focus-visible:ring-offset-2",
+                    )}
+                  >
+                    <span
+                      className="pointer-events-none absolute -inset-1 rounded-2xl bg-[#1FAF9E]/0 opacity-0 blur-md transition-all duration-300 group-hover:bg-[#1FAF9E]/20 group-hover:opacity-100"
+                      aria-hidden
+                    />
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#124541]/80 transition-all duration-300 group-hover:scale-110 group-hover:text-[#1FAF9E] group-hover:drop-shadow-[0_0_10px_rgba(31,175,158,0.45)] sm:h-12 sm:w-12">
+                      {getCategoryIcon(category.name)}
+                    </span>
+                    <span className="relative max-w-[7.5rem] whitespace-normal text-[11px] font-medium leading-snug text-[#0E0E0E]/90 transition-colors duration-300 group-hover:font-semibold group-hover:text-[#124541] sm:max-w-[8.5rem] sm:text-xs">
+                      {category.name}
+                    </span>
+                  </Link>
+                ) : null,
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -1533,7 +1520,7 @@ export default function HomePageClient({
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Real customer reviews in {activeCountry.name}, moderated for authenticity—newest
+              Real customer reviews in {activeCountry.name}, moderated for authenticity, newest
               first. The same country applies to categories and rankings on this page.
             </p>
           </div>

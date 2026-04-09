@@ -8,6 +8,11 @@ import type { BestInBusiness } from "./HomePageClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import { normalizeCountryCode } from "@/lib/country";
+import {
+  HOME_MARQUEE_CATEGORY_ITEMS,
+  buildMarqueeCategoryCards,
+  enrichMarqueeItemsWithDbNames,
+} from "@/lib/homeMarqueeCategories";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",
@@ -36,6 +41,7 @@ export default async function HomePage(props: PageProps) {
     string,
     { country: string; error: string | null; count: number }
   > = {};
+  let marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
 
   try {
     const searchParams = await props.searchParams;
@@ -49,6 +55,28 @@ export default async function HomePage(props: PageProps) {
     if (!supabase) {
       console.error("Homepage fetch failed: Supabase client is null");
     } else {
+      try {
+        const { data: catRows } = await supabase
+          .from("categories")
+          .select("slug,name");
+        const slugSet = new Set(
+          (catRows ?? [])
+            .map((r) => (r.slug ?? "").trim().toLowerCase())
+            .filter(Boolean)
+        );
+        if (slugSet.size > 0) {
+          const filtered = HOME_MARQUEE_CATEGORY_ITEMS.filter((i) =>
+            slugSet.has(i.slug.trim().toLowerCase())
+          );
+          const source =
+            filtered.length >= 8 ? filtered : HOME_MARQUEE_CATEGORY_ITEMS;
+          const enriched = enrichMarqueeItemsWithDbNames(source, catRows);
+          marqueeCategories = buildMarqueeCategoryCards(enriched);
+        }
+      } catch (marqueeErr) {
+        console.error("Homepage marquee categories:", marqueeErr);
+      }
+
       console.log("HOMEPAGE COUNTRY PARAM:", country);
 
       const results = await Promise.all(
@@ -109,6 +137,7 @@ export default async function HomePage(props: PageProps) {
     country = "US";
     bestInByCategory = {};
     rpcDebug = {};
+    marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   }
 
   const safeBestInByCategory: Record<string, BestInBusiness[]> = {};
@@ -137,6 +166,7 @@ export default async function HomePage(props: PageProps) {
         bestInByCategory={safeBestInByCategory}
         bestInCategoryLabels={safeLabels}
         rpcDebug={safeRpcDebug}
+        marqueeCategories={marqueeCategories}
       />
     );
   } catch (renderError) {

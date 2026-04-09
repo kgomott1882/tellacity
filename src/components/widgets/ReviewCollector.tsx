@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import WidgetBrandLogoSlot from "./WidgetBrandLogoSlot";
 import {
   TELLACITY_BRAND_ICON_SRC,
   getPublicAppOrigin,
@@ -38,7 +39,13 @@ function TellacityStarIcon() {
   );
 }
 
-export default function ReviewCollector({ payload }: { payload: WidgetPayload }) {
+export default function ReviewCollector({
+  payload,
+  dashboardDemo,
+}: {
+  payload: WidgetPayload;
+  dashboardDemo?: boolean;
+}) {
   const writeUrl = getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug);
 
   return (
@@ -57,15 +64,7 @@ export default function ReviewCollector({ payload }: { payload: WidgetPayload })
     }}>
       {/* Left: branding */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {payload.logo_url && (
-          <div style={{ width: 36, height: 36, borderRadius: 6, background: "#f9fafb", border: "1px solid #e5e7eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2 }}>
-            <img
-              src={payload.logo_url}
-              alt={payload.business_name}
-              style={{ width: "98%", height: "98%", objectFit: "contain", display: "block" }}
-            />
-          </div>
-        )}
+        <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={36} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
             {payload.business_name}

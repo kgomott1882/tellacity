@@ -6,7 +6,13 @@ import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import {
+  canAccessAnalytics,
+  canUseCustomEmail,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+  type PlanKey,
+} from "@/lib/plans";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 
@@ -33,12 +39,6 @@ type TemplateRow = {
   remove_tellacity_branding?: boolean | null;
   reply_to_email?: string | null;
 };
-
-function isPlanAtLeastGrow(plan: string | null | undefined): boolean {
-  if (!plan) return false;
-  const p = plan.toLowerCase();
-  return p === "grow" || p === "premium" || p === "elite";
-}
 
 export default function EmailTemplatesPage() {
   const router = useRouter();
@@ -144,13 +144,10 @@ export default function EmailTemplatesPage() {
   const standardSubject = standardRow?.subject ?? DEFAULT_STANDARD_SUBJECT;
   const standardBody = standardRow?.body ?? DEFAULT_STANDARD_BODY;
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
-  const canEditCustom = isPlanAtLeastGrow(normalizedPlan);
+  const canEditCustom = canUseCustomEmail(normalizedPlan);
 
   const saveCustomTemplate = async () => {
     if (!businessId || !canEditCustom) return;
-    if (normalizedPlan === "free") {
-      return;
-    }
     setSavingCustom(true);
     setMessage(null);
     console.log("Saving template start");
@@ -163,7 +160,7 @@ export default function EmailTemplatesPage() {
 
       let payload: any = basePayload;
 
-      if (normalizedPlan === "premium" || normalizedPlan === "elite") {
+      if (canAccessAnalytics(normalizedPlan)) {
         payload = {
           ...payload,
           signature_enabled: signatureState.signature_enabled,
@@ -236,6 +233,26 @@ export default function EmailTemplatesPage() {
 
       <PlanStatusBanner plan={normalizedPlan} />
 
+      {!canEditCustom ? (
+        <div
+          className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm"
+          role="status"
+        >
+          <p className="text-sm font-semibold text-amber-900">🔒 Custom templates locked</p>
+          <p className="mt-1 text-sm text-amber-800">
+            Grow and up unlock custom templates so every invite matches your brand and feels
+            personal.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/business/dashboard/billing")}
+            className="mt-3 rounded-lg bg-[#124541] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35]"
+          >
+            {nextTierUpgradeCtaLabel(normalizedPlan)}
+          </button>
+        </div>
+      ) : null}
+
       {error && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3" role="alert">
           <p className="text-sm font-medium text-red-800">Failed to load email templates.</p>
@@ -282,20 +299,21 @@ export default function EmailTemplatesPage() {
         <p className="mt-1 text-sm text-gray-500">Customise the subject and body for your review invitation emails.</p>
 
         {!canEditCustom ? (
-          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm font-medium text-amber-900">
-              Upgrade to access custom email template.
-            </p>
-            <p className="mt-1 text-sm text-amber-800">
-              Custom templates are available from the Grow plan and above.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push("/business/dashboard/billing")}
-              className="mt-4 rounded-lg bg-[#124541] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0f3a35]"
-            >
-              Upgrade from Grow Plan
-            </button>
+          <div className="relative mt-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50/80 p-8">
+            <div className="pointer-events-none select-none blur-sm opacity-60" aria-hidden>
+              <div className="h-3 w-1/3 rounded bg-gray-200" />
+              <div className="mt-4 h-24 rounded-lg bg-gray-100" />
+            </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 px-4 text-center backdrop-blur-sm">
+              <p className="text-sm font-medium text-gray-800">Editing disabled for this plan</p>
+              <button
+                type="button"
+                onClick={() => router.push("/business/dashboard/billing")}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(normalizedPlan)}
+              </button>
+            </div>
           </div>
         ) : (
           <>

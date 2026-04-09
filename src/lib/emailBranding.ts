@@ -60,6 +60,12 @@ export const TELLACITY_BRAND_ICON_PATH = "/brand/appicon.png";
 /** Same file; alias for review-strip-specific call sites. */
 export const TELLACITY_APP_ICON_PATH = TELLACITY_BRAND_ICON_PATH;
 
+/** Dashboard / navbar wordmark (`/public/brand/Tellacity -Business Logo.png`). */
+export const TELLACITY_BUSINESS_WORDMARK_PATH = "/brand/Tellacity%20-Business%20Logo.png";
+
+/** Primary Tellacity mark for email trust-badge layout (`/public/brand/TELLACITY LOGO 1A.png`). */
+export const TELLACITY_TRUST_BADGE_LOGO_PATH = "/brand/TELLACITY%20LOGO%201A.png";
+
 /** Use in client components so cache invalidates after icon updates. */
 export const TELLACITY_BRAND_ICON_SRC = `${TELLACITY_BRAND_ICON_PATH}?${TELLACITY_BRAND_ICON_CACHE}`;
 
@@ -89,4 +95,22 @@ export function getTellacityAppIconUrl(baseUrl: string | undefined | null): stri
       ? baseUrl.replace(/\/$/, "")
       : PUBLIC_APP_ORIGIN_FALLBACK;
   return brandIconUrlWithCache(root);
+}
+
+/** Absolute URL for the Tellacity Business wordmark in HTML emails. */
+export function getTellacityBusinessWordmarkUrl(baseUrl: string | undefined | null): string {
+  const root =
+    baseUrl && baseUrl.trim().length > 0
+      ? baseUrl.replace(/\/$/, "")
+      : PUBLIC_APP_ORIGIN_FALLBACK;
+  return `${root}${TELLACITY_BUSINESS_WORDMARK_PATH}`;
+}
+
+/** Absolute URL for trust-badge email widget logo (TELLACITY LOGO 1A). */
+export function getTellacityTrustBadgeLogoUrl(baseUrl: string | undefined | null): string {
+  const root =
+    baseUrl && baseUrl.trim().length > 0
+      ? baseUrl.replace(/\/$/, "")
+      : PUBLIC_APP_ORIGIN_FALLBACK;
+  return `${root}${TELLACITY_TRUST_BADGE_LOGO_PATH}`;
 }

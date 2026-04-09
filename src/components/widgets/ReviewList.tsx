@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import WidgetBrandLogoSlot from "./WidgetBrandLogoSlot";
 import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
 
 function formatDate(iso: string) {
@@ -15,7 +16,13 @@ function clampBody(text: string | null, max = 140) {
   return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
 }
 
-export default function ReviewList({ payload }: { payload: WidgetPayload }) {
+export default function ReviewList({
+  payload,
+  dashboardDemo,
+}: {
+  payload: WidgetPayload;
+  dashboardDemo?: boolean;
+}) {
   const reviews = (payload.reviews ?? []).slice(0, 5);
   const profileUrl = `https://tellacity.com/b/${payload.slug}`;
 
@@ -31,11 +38,7 @@ export default function ReviewList({ payload }: { payload: WidgetPayload }) {
     }}>
       {/* Header */}
       <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 10 }}>
-        {payload.logo_url && (
-          <div style={{ width: 34, height: 34, borderRadius: 6, background: "#f9fafb", border: "1px solid #e5e7eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2 }}>
-            <img src={payload.logo_url} alt="" style={{ width: "98%", height: "98%", objectFit: "contain", display: "block" }} />
-          </div>
-        )}
+        <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={34} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{payload.business_name}</div>
           <div style={{ fontSize: 11, color: "#6b7280" }}>

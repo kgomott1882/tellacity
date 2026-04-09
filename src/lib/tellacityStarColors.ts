@@ -11,3 +11,12 @@ export const TELLACITY_STAR_TIER_COLORS: readonly [string, string, string, strin
 ];
 
 export const TELLACITY_STAR_EMPTY_BORDER = "#E4E7EC";
+
+/**
+ * Color for every filled star cell at a given rounded rating (matches WidgetStars).
+ * e.g. 4 → all active cells lime (#84CC16); 2 → both active cells orange (#F79009).
+ */
+export function tellacityActiveStarColorForRating(rating: number): string {
+  const r = Math.min(5, Math.max(1, Math.round(Number(rating) || 1)));
+  return TELLACITY_STAR_TIER_COLORS[r - 1];
+}

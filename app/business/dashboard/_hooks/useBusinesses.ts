@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { getUserBusinesses, type UserBusinessRow } from "@/lib/getUserBusinesses";
-import { normalizePlanCodeToKey } from "@/lib/plans";
+import { getActivePlanKeysByBusinessIds, type PlanKey } from "@/lib/plans";
 import type { DashboardBusiness } from "../_context/BusinessContext";
 
 const SESSION_FRESH_MAX_MS = 4000;
@@ -37,14 +37,14 @@ function cleanDomain(url: string) {
 
 function mergePlans(
   base: Awaited<ReturnType<typeof getUserBusinesses>>,
-  planByBiz: Map<string, string>
+  planByBiz: Map<string, PlanKey>
 ): DashboardBusiness[] {
   return base.map((b) => ({
     id: b.id,
     name: b.name,
     slug: b.slug ?? null,
     website: b.website ?? null,
-    plan: normalizePlanCodeToKey(planByBiz.get(b.id) ?? null),
+    plan: planByBiz.get(b.id) ?? "free",
   }));
 }
 
@@ -107,28 +107,14 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
         const ids = base.map((b) => b.id);
 
         try {
-          const subsRows = await withTimeout(
-            Promise.resolve(
-              supabase
-                .from("subscriptions")
-                .select("business_id, plan_code")
-                .in("business_id", ids)
-                .eq("status", "active")
-                .then((r) => r.data ?? []),
-            ),
+          const planByBiz = await withTimeout(
+            getActivePlanKeysByBusinessIds(ids, supabase),
             SUBSCRIPTIONS_FETCH_MAX_MS,
-            [],
+            new Map<string, PlanKey>(),
           );
 
           if (!mounted) return;
 
-          const planByBiz = new Map<string, string>();
-          for (const row of subsRows) {
-            const bid = row.business_id as string | undefined;
-            if (bid && !planByBiz.has(bid)) {
-              planByBiz.set(bid, String(row.plan_code ?? ""));
-            }
-          }
           setData(mergePlans(base, planByBiz));
         } catch {
           /* keep plan=null from mergedNoPlans */

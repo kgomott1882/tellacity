@@ -22,4 +22,6 @@ export type WidgetType =
   | "list"
   | "collector"
   | "review_us"
-  | "score_strip";
+  | "score_strip"
+  | "showcase"
+  | "tellacity_trust";

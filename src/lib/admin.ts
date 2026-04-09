@@ -7,7 +7,6 @@ export type AdminOverviewStats = {
   new_users_today?: number | null;
   reviews_today?: number | null;
   pending_businesses?: number | null;
-  unverified_reviews?: number | null;
   business_users?: number | null;
   consumer_users?: number | null;
 } & Record<string, unknown>;

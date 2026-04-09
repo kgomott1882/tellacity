@@ -6,6 +6,8 @@ import ReviewList from "@/components/widgets/ReviewList";
 import ReviewCollector from "@/components/widgets/ReviewCollector";
 import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
 import TellacityScoreStrip from "@/components/widgets/TellacityScoreStrip";
+import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
+import TellacityTrustBadgeEmbed from "@/components/widgets/TellacityTrustBadgeEmbed";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,8 @@ const VALID_TYPES: WidgetType[] = [
   "collector",
   "review_us",
   "score_strip",
+  "showcase",
+  "tellacity_trust",
 ];
 
 function getSupabase() {
@@ -30,7 +34,12 @@ function getSupabase() {
 export default async function WidgetEmbedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ business?: string; type?: string; limit?: string }>;
+  searchParams: Promise<{
+    business?: string;
+    type?: string;
+    limit?: string;
+    dashboard_demo?: string;
+  }>;
 }) {
   const params = await searchParams;
   const slug = params.business?.trim();
@@ -39,6 +48,8 @@ export default async function WidgetEmbedPage({
     ? (rawType as WidgetType)
     : "badge";
   const limit = Math.min(Math.max((parseInt(params.limit ?? "5", 10)) || 5, 1), 20);
+  const dashboardDemo =
+    params.dashboard_demo === "1" || params.dashboard_demo === "true";
 
   if (!slug) {
     return <Fallback message="Missing business slug." />;
@@ -55,6 +66,7 @@ export default async function WidgetEmbedPage({
   }
 
   const payload = data as WidgetPayload;
+  const writeReviewHref = getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug);
 
   return (
     <>
@@ -63,9 +75,13 @@ export default async function WidgetEmbedPage({
         body { padding: 20px 24px; background: transparent; }
       `}</style>
 
-      {type === "carousel" && <ReviewCarousel payload={payload} />}
-      {type === "list" && <ReviewList payload={payload} />}
-      {type === "collector" && <ReviewCollector payload={payload} />}
+      {type === "carousel" && (
+        <ReviewCarousel payload={payload} dashboardDemo={dashboardDemo} />
+      )}
+      {type === "list" && <ReviewList payload={payload} dashboardDemo={dashboardDemo} />}
+      {type === "collector" && (
+        <ReviewCollector payload={payload} dashboardDemo={dashboardDemo} />
+      )}
       {type === "review_us" && (
         <div
           style={{
@@ -81,8 +97,12 @@ export default async function WidgetEmbedPage({
           />
         </div>
       )}
-      {type === "badge" && <TrustBadge payload={payload} />}
+      {type === "badge" && <TrustBadge payload={payload} dashboardDemo={dashboardDemo} />}
       {type === "score_strip" && <TellacityScoreStrip payload={payload} />}
+      {type === "showcase" && <ReviewShowcaseEmbed payload={payload} />}
+      {type === "tellacity_trust" && (
+        <TellacityTrustBadgeEmbed payload={payload} reviewHref={writeReviewHref} />
+      )}
 
       <script
         dangerouslySetInnerHTML={{

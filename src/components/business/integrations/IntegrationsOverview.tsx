@@ -88,8 +88,8 @@ export default function IntegrationsOverview({
         />
 
         <IntegrationSection
-          title="Upgrade to unlock"
-          description="Upgrade your Tellacity plan to unlock these integrations."
+          title="More connectors on higher plans"
+          description="Unlock these integrations to sync reviews with the tools your team already uses."
           integrations={locked}
           businessId={businessId}
           emptyLabel="All currently available integrations are already included in your plan."

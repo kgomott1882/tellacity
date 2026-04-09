@@ -1,8 +1,16 @@
 import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
+import WidgetBrandLogoSlot from "./WidgetBrandLogoSlot";
 import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
 
-export default function TrustBadge({ payload }: { payload: WidgetPayload }) {
+export default function TrustBadge({
+  payload,
+  dashboardDemo,
+}: {
+  payload: WidgetPayload;
+  /** Dashboard iframe: hide business logo entirely. */
+  dashboardDemo?: boolean;
+}) {
   const url = `https://tellacity.com/b/${payload.slug}`;
   const avg = payload.avg_rating != null ? (Number(payload.avg_rating) || 0).toFixed(1) : "-";
 
@@ -26,15 +34,7 @@ export default function TrustBadge({ payload }: { payload: WidgetPayload }) {
         maxWidth: 340,
       }}
     >
-      {payload.logo_url && (
-        <div style={{ width: 44, height: 44, borderRadius: 8, background: "#f9fafb", border: "1px solid #e5e7eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2 }}>
-          <img
-            src={payload.logo_url}
-            alt={payload.business_name}
-            style={{ width: "98%", height: "98%", objectFit: "contain", display: "block" }}
-          />
-        </div>
-      )}
+      <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={44} fontSize={10} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {payload.business_name}

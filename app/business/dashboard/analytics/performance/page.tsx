@@ -2,7 +2,18 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
+import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
+import {
+  incrementUpgradeClickCount,
+  upgradeModalTitleForClickCount,
+} from "@/lib/upgradeClickStorage";
+import {
+  canAccessAnalytics,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+} from "@/lib/plans";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import {
   useDashboardPerformanceData,
@@ -565,9 +576,7 @@ function ReviewCard({ review }: { review: RecentReview }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function PerformancePage() {
-  const { selectedBusiness } = useBusinessContext();
-  const businessId = selectedBusiness?.id ?? null;
+function PerformanceAnalyticsContent({ businessId }: { businessId: string }) {
   const {
     data,
     error,
@@ -578,8 +587,6 @@ export default function PerformancePage() {
     realTotalInvites,
     realInvites30,
   } = useDashboardPerformanceData(businessId);
-
-  if (!businessId) return null;
 
   const d = data;
 
@@ -894,4 +901,100 @@ export default function PerformancePage() {
       </>
     </div>
   );
+}
+
+export default function PerformancePage() {
+  const router = useRouter();
+  const { selectedBusiness } = useBusinessContext();
+  const businessId = selectedBusiness?.id ?? null;
+  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const [analyticsUpgradeOpen, setAnalyticsUpgradeOpen] = useState(false);
+  const [analyticsUpgradeTitle, setAnalyticsUpgradeTitle] = useState("Unlock this feature");
+
+  const openAnalyticsUpgradeModal = () => {
+    if (!businessId) return;
+    const n = incrementUpgradeClickCount("analytics");
+    setAnalyticsUpgradeTitle(upgradeModalTitleForClickCount(n));
+    logDashboardActivityClient({
+      businessId,
+      action: "feature_locked_clicked",
+      metadata: { feature: "analytics" },
+    });
+    setAnalyticsUpgradeOpen(true);
+  };
+
+  if (!businessId) return null;
+
+  if (!canAccessAnalytics(planKey)) {
+    return (
+      <>
+        <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
+          <div className="flex min-h-[min(520px,calc(100vh-12rem))] flex-col items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800/80 px-8 py-14 text-center">
+            <h2 className="text-xl font-semibold text-neutral-100">
+              🔒 Understand what&apos;s working
+            </h2>
+            <p className="mt-3 max-w-md text-sm text-neutral-400">
+              See which invitations convert, track performance trends, and optimize your review
+              strategy. Without insights, you may miss opportunities to improve.
+            </p>
+            <button
+              type="button"
+              onClick={openAnalyticsUpgradeModal}
+              className="mt-8 inline-flex items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8]"
+            >
+              {nextTierUpgradeCtaLabel(planKey)}
+            </button>
+          </div>
+        </div>
+
+        {analyticsUpgradeOpen ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setAnalyticsUpgradeOpen(false)}
+              aria-hidden
+            />
+            <div
+              className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="analytics-upgrade-feature-title"
+            >
+              <h2
+                id="analytics-upgrade-feature-title"
+                className="text-lg font-semibold text-[#0E0E0E]"
+              >
+                {analyticsUpgradeTitle}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Move up a tier to unlock performance insights and get more value from your reviews.
+                Without insights, you may miss opportunities to improve.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsUpgradeOpen(false)}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnalyticsUpgradeOpen(false);
+                    router.push("/business/dashboard/billing?reason=analytics");
+                  }}
+                  className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+                >
+                  {nextTierUpgradeCtaLabel(planKey)}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  return <PerformanceAnalyticsContent businessId={businessId} />;
 }

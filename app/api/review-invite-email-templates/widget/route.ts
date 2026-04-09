@@ -7,12 +7,13 @@ import {
   canAccessBusiness,
   resolveDashboardDb,
 } from "@/lib/supabase/businessDashboardServer";
-import { normalizePlanCodeToKey } from "@/lib/plans";
+import { getActivePlanKeyForBusinessResult } from "@/lib/plans";
+import { getPublishedVisibleReviewAggregates } from "@/lib/reviewAggregatesForBusiness";
 
 const DEFAULT_WIDGET_SUBJECT = "Share your experience with us";
 const DEFAULT_WIDGET_INTRO = "We\u2019d love to hear about your experience. It only takes a minute.";
 
-/** Postgres 23514 + layout_style_check = DB never migrated for `review_card`. */
+/** Postgres 23514 + layout_style_check = DB missing a layout value (e.g. review_hunter). */
 function layoutStyleConstraintSaveError(err: { message?: string; code?: string } | null) {
   const msg = err?.message ?? "";
   if (
@@ -22,7 +23,7 @@ function layoutStyleConstraintSaveError(err: { message?: string; code?: string }
     return NextResponse.json(
       {
         error:
-          "This layout needs an updated database rule for layout_style. In Supabase → SQL Editor, run: drop/add review_invite_email_templates_layout_style_check to include all allowed values (see supabase/migrations/20260613120000_review_invite_email_templates_layout_rating_ladder.sql).",
+          "Database check constraint on layout_style is out of date (e.g. missing review_hunter). In Supabase → SQL Editor, run supabase/migrations/20260613130100_review_invite_email_templates_layout_style_include_review_hunter.sql (restores standard, review_hunter, elite_branded, review_card, rating_ladder, tellacity_branded).",
         code: "layout_style_schema",
       },
       { status: 503 },
@@ -94,10 +95,16 @@ export async function GET(req: Request) {
         { status: 500 },
       );
     }
+    const { reviewCount, averageRating } = await getPublishedVisibleReviewAggregates(
+      admin,
+      businessId,
+    );
 
     return NextResponse.json({
       template: tmpl,
       logo_url: (biz as { logo_url?: string | null } | null)?.logo_url ?? null,
+      review_count: reviewCount,
+      average_rating: averageRating,
     });
   } catch (e) {
     console.error("[widget template GET]", e);
@@ -105,15 +112,31 @@ export async function GET(req: Request) {
   }
 }
 
+const VALID_LAYOUT_STYLES = new Set([
+  "standard",
+  "review_hunter",
+  "elite_branded",
+  "review_card",
+  "rating_ladder",
+  "tellacity_branded",
+]);
+
 /**
- * POST — set widget layout_style (standard | elite_branded | review_card | rating_ladder).
- * review_card & rating_ladder: Premium or Elite. elite_branded: Elite only.
+ * POST — update widget template.
+ * - Pass `layoutStyle` to set layout (plan rules apply as before).
+ * - Pass `subject` and/or `introMessage` to update copy without changing layout.
+ * - Send `layoutStyle` and/or at least one of `subject`, `introMessage`.
  */
 export async function POST(req: Request) {
   const ctx = await resolveDashboardDb(req);
   if (!ctx.ok) return ctx.response;
 
-  let payload: { businessId?: string; layoutStyle?: string };
+  let payload: {
+    businessId?: string;
+    layoutStyle?: string;
+    subject?: string | null;
+    introMessage?: string | null;
+  };
   try {
     payload = (await req.json()) as typeof payload;
   } catch {
@@ -122,18 +145,22 @@ export async function POST(req: Request) {
 
   const businessId =
     typeof payload.businessId === "string" ? payload.businessId.trim() : "";
-  const layoutStyle =
+  const layoutStyleRaw =
     typeof payload.layoutStyle === "string" ? payload.layoutStyle.trim() : "";
+  const hasLayoutUpdate = layoutStyleRaw !== "";
+  const hasSubjectUpdate = payload.subject !== undefined;
+  const hasIntroUpdate = payload.introMessage !== undefined;
 
   if (!isUuid(businessId)) {
     return NextResponse.json({ error: "Invalid business id." }, { status: 400 });
   }
-  if (
-    layoutStyle !== "standard" &&
-    layoutStyle !== "elite_branded" &&
-    layoutStyle !== "review_card" &&
-    layoutStyle !== "rating_ladder"
-  ) {
+  if (!hasLayoutUpdate && !hasSubjectUpdate && !hasIntroUpdate) {
+    return NextResponse.json(
+      { error: "Provide layoutStyle and/or subject and/or introMessage." },
+      { status: 400 },
+    );
+  }
+  if (hasLayoutUpdate && !VALID_LAYOUT_STYLES.has(layoutStyleRaw)) {
     return NextResponse.json({ error: "Invalid layout style." }, { status: 400 });
   }
 
@@ -150,7 +177,7 @@ export async function POST(req: Request) {
 
     const { data: existing, error: existingErr } = await supabase
       .from("review_invite_email_templates")
-      .select("subject, intro_message, body")
+      .select("subject, intro_message, body, layout_style")
       .eq("business_id", businessId)
       .eq("template_key", "widget")
       .maybeSingle();
@@ -160,31 +187,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: existingErr.message }, { status: 500 });
     }
 
-    const subject = existing?.subject || DEFAULT_WIDGET_SUBJECT;
-    const intro_message = existing?.intro_message || DEFAULT_WIDGET_INTRO;
+    const subject =
+      hasSubjectUpdate
+        ? String(payload.subject ?? "").trim() || DEFAULT_WIDGET_SUBJECT
+        : (existing?.subject?.trim() || DEFAULT_WIDGET_SUBJECT);
+    const intro_message =
+      hasIntroUpdate
+        ? String(payload.introMessage ?? "").trim() || DEFAULT_WIDGET_INTRO
+        : (existing?.intro_message?.trim() || DEFAULT_WIDGET_INTRO);
     const body = existing?.body || "";
 
-    const { data: sub, error: subErr } = await supabase
-      .from("subscriptions")
-      .select("plan_code")
-      .eq("business_id", businessId)
-      .in("status", ["active", "trialing"])
-      .maybeSingle();
-
-    if (subErr) {
-      console.error("WIDGET SAVE ERROR:", subErr);
-      return NextResponse.json({ error: subErr.message }, { status: 500 });
+    const planResult = await getActivePlanKeyForBusinessResult(
+      businessId,
+      supabase,
+    );
+    if (!planResult.ok) {
+      console.error("WIDGET SAVE ERROR:", planResult.error);
+      return NextResponse.json({ error: planResult.error }, { status: 500 });
     }
-
-    const normalizedPlan = normalizePlanCodeToKey(sub?.plan_code);
+    const normalizedPlan = planResult.plan;
 
     let effectiveLayout: string;
-    if (normalizedPlan === "elite") {
-      effectiveLayout = layoutStyle;
-    } else if (normalizedPlan === "premium") {
-      effectiveLayout =
-        layoutStyle === "elite_branded" ? "standard" : layoutStyle;
+    if (hasLayoutUpdate) {
+      const layoutStyle = layoutStyleRaw;
+      if (normalizedPlan === "elite") {
+        effectiveLayout = layoutStyle;
+      } else if (normalizedPlan === "premium") {
+        effectiveLayout =
+          layoutStyle === "elite_branded" ? "standard" : layoutStyle;
+      } else if (normalizedPlan === "grow") {
+        if (
+          layoutStyle === "standard" ||
+          layoutStyle === "review_card" ||
+          layoutStyle === "rating_ladder"
+        ) {
+          effectiveLayout = layoutStyle;
+        } else {
+          effectiveLayout = "standard";
+        }
+      } else {
+        effectiveLayout = "standard";
+      }
     } else {
+      const raw = existing?.layout_style;
+      effectiveLayout =
+        raw && VALID_LAYOUT_STYLES.has(raw) ? raw : "standard";
+    }
+
+    if (effectiveLayout === "review_card" || effectiveLayout === "tellacity_branded") {
       effectiveLayout = "standard";
     }
 

@@ -5,7 +5,7 @@ import type { IntegrationState } from "@/lib/integrationsCatalog";
 const LABELS: Record<IntegrationState, string> = {
   connected: "Connected",
   available: "Available",
-  upgrade_required: "Upgrade required",
+  upgrade_required: "Unlock with upgrade",
   enterprise: "Enterprise",
   coming_soon: "Coming soon",
 };

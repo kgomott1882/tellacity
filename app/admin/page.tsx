@@ -96,9 +96,14 @@ export default async function AdminOverviewPage(props: {
   }
   const hasNewerPage = activityPage > 1;
 
-  const [{ data: businessOwners }, { data: businessMembers }] = await Promise.all([
+  const [
+    { data: businessOwners },
+    { data: businessMembers },
+    authUsersPage,
+  ] = await Promise.all([
     adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
     adminSupabase.from("business_members").select("user_id").not("user_id", "is", null),
+    adminSupabase.auth.admin.listUsers({ page: 1, perPage: 1 }),
   ]);
 
   const businessUserIds = new Set<string>();
@@ -114,6 +119,15 @@ export default async function AdminOverviewPage(props: {
 
   const s = statsRes.data;
 
+  /** Matches Auth dashboard user count (GoTrue `listUsers` pagination total). Falls back to RPC. */
+  let totalUsersFromAuth = num(s?.total_users);
+  if (!authUsersPage.error && authUsersPage.data) {
+    const t = authUsersPage.data.total;
+    if (typeof t === "number" && !Number.isNaN(t)) {
+      totalUsersFromAuth = t;
+    }
+  }
+
   return (
     <div className="space-y-8">
       {statsRes.error ? (
@@ -124,13 +138,12 @@ export default async function AdminOverviewPage(props: {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminStatCard title="Total users" value={num(s?.total_users)} />
+        <AdminStatCard title="Total users" value={totalUsersFromAuth} />
         <AdminStatCard title="Total businesses" value={num(s?.total_businesses)} />
         <AdminStatCard title="Total reviews" value={num(s?.total_reviews)} />
         <AdminStatCard title="New users today" value={num(s?.new_users_today)} />
         <AdminStatCard title="Reviews today" value={num(s?.reviews_today)} />
         <AdminStatCard title="Pending businesses" value={num(s?.pending_businesses)} />
-        <AdminStatCard title="Unverified reviews" value={num(s?.unverified_reviews)} />
         <AdminStatCard title="Business users" value={businessUsersCount} />
         <AdminStatCard title="Consumer users" value={num(s?.consumer_users)} />
       </div>

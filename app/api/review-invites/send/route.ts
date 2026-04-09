@@ -8,6 +8,7 @@ import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import {
+  canAccessAnalytics,
   getActivePlanKeyForBusiness,
   getMonthlyInviteLimitForBusiness,
 } from "@/lib/plans";
@@ -191,7 +192,7 @@ export async function POST(req: Request) {
             .replace(/"/g, "&quot;");
 
     let signatureBlock = "";
-    if (effectivePlan === "premium" || effectivePlan === "elite") {
+    if (canAccessAnalytics(effectivePlan)) {
       signatureBlock = `
   <div style="margin-top:32px; border-top:1px solid #eee; padding-top:16px;">
     ${t?.signature_logo_url ? `<div style="margin-bottom:12px;"><img src="${esc(t.signature_logo_url as string)}" alt="" style="max-height:60px;" /></div>` : ""}

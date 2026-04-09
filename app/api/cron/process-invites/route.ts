@@ -22,7 +22,7 @@ import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
-import { getActivePlanKeyForBusiness } from "@/lib/plans";
+import { canAccessAnalytics, getActivePlanKeyForBusiness } from "@/lib/plans";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -82,8 +82,11 @@ function esc(s: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
-function buildSignatureBlock(template: TemplateRow | null, isPremiumOrElite: boolean): string {
-  if (!isPremiumOrElite || !template) return "";
+function buildSignatureBlock(
+  template: TemplateRow | null,
+  includePremiumSignature: boolean,
+): string {
+  if (!includePremiumSignature || !template) return "";
   const t = template as Record<string, unknown>;
   return `
 <div style="margin-top:32px; border-top:1px solid #eee; padding-top:16px;">
@@ -115,14 +118,6 @@ async function getEmailTemplate(
     .eq("template_key", "standard")
     .maybeSingle();
   return (data as TemplateRow | null) ?? null;
-}
-
-async function isPremiumOrElite(
-  supabase: ReturnType<typeof makeSupabase>,
-  businessId: string
-): Promise<boolean> {
-  const plan = await getActivePlanKeyForBusiness(businessId, supabase);
-  return plan === "premium" || plan === "elite";
 }
 
 async function hasReviewForInvite(
@@ -202,13 +197,16 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [template, premium] = await Promise.all([
+      const [template, planKey] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
-        isPremiumOrElite(supabase, invite.business_id),
+        getActivePlanKeyForBusiness(invite.business_id, supabase),
       ]);
       const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
-      const signatureBlock = buildSignatureBlock(template, premium);
+      const signatureBlock = buildSignatureBlock(
+        template,
+        canAccessAnalytics(planKey),
+      );
 
       const { subject, html } = renderInviteEmail({
         businessName,
@@ -314,13 +312,16 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [template, premium] = await Promise.all([
+      const [template, planKey] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
-        isPremiumOrElite(supabase, invite.business_id),
+        getActivePlanKeyForBusiness(invite.business_id, supabase),
       ]);
       const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
-      const signatureBlock = buildSignatureBlock(template, premium);
+      const signatureBlock = buildSignatureBlock(
+        template,
+        canAccessAnalytics(planKey),
+      );
 
       const { subject, html } = renderInviteEmail({
         businessName,

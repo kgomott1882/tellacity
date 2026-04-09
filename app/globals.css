@@ -80,6 +80,27 @@
   .animate-signup-shake {
     animation: signup-shake 0.45s ease;
   }
+
+  @keyframes category-strip-glow {
+    0%,
+    100% {
+      opacity: 0.52;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+
+  .animate-category-strip-glow {
+    animation: category-strip-glow 8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-category-strip-glow {
+      animation: none;
+      opacity: 0.72;
+    }
+  }
 }
 
 /* =========================
@@ -235,3 +256,4 @@
     display: none !important;
   }
 }
+

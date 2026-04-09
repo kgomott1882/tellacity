@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useBusinessContext } from "../../_context/BusinessContext";
+import {
+  canAccessNotifications,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+} from "@/lib/plans";
 
 type Prefs = {
   newsletter_enabled: boolean;
@@ -28,6 +34,7 @@ export default function NotificationsPage() {
   const [notifyOnlyLowReviews, setNotifyOnlyLowReviews] = useState(false);
 
   const businessId = selectedBusiness.id;
+  const planKey = normalizePlanCodeToKey(selectedBusiness.plan);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +126,23 @@ export default function NotificationsPage() {
       <span className="text-sm leading-snug text-gray-800">{label}</span>
     </label>
   );
+
+  if (!canAccessNotifications(planKey)) {
+    return (
+      <div className="max-w-xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-[#0E0E0E]">🔒 Notifications</h1>
+        <p className="mt-3 text-sm text-gray-600">
+          Stay on top of new reviews and activity. Enable notifications with a Grow plan.
+        </p>
+        <Link
+          href="/business/dashboard/billing"
+          className="mt-8 inline-flex rounded-xl bg-[#124541] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a36]"
+        >
+          {nextTierUpgradeCtaLabel(planKey)}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl">

@@ -5,7 +5,13 @@ import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import { PLAN_INVITE_LIMITS, type PlanKey } from "@/lib/plans";
+import {
+  normalizePlanCodeToKey,
+  pickPlanResolutionSubscriptionRow,
+  PLAN_INVITE_LIMITS,
+  SUBSCRIPTION_STATUSES_FOR_PLAN,
+  type PlanKey,
+} from "@/lib/plans";
 import BusinessControlsForms from "./BusinessControlsForms";
 
 export const dynamic = "force-dynamic";
@@ -244,46 +250,58 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
       `)
       .eq("id", params.businessId)
       .single();
-    const { data: activeSubscriptionRows, error: activeSubscriptionError } = await supabase
-      .from("subscriptions")
-      .select("plan_code, bonus_invites, bonus_expires_at, status, updated_at")
-      .eq("business_id", params.businessId)
-      .eq("status", "active")
-      .order("updated_at", { ascending: false })
-      .limit(1);
+    const { data: pendingSubscriptionRows, error: pendingSubscriptionError } =
+      await supabase
+        .from("subscriptions")
+        .select("plan_code, bonus_invites, bonus_expires_at, status, updated_at")
+        .eq("business_id", params.businessId)
+        .in("status", [...SUBSCRIPTION_STATUSES_FOR_PLAN]);
     const { data: latestSubscriptionRows, error: latestSubscriptionError } = await supabase
       .from("subscriptions")
       .select("plan_code, bonus_invites, bonus_expires_at, status, updated_at")
       .eq("business_id", params.businessId)
       .order("updated_at", { ascending: false })
       .limit(1);
-    const { count: usedInvites } = await supabase
+    // Same as POST /api/review-invites/usage → monthlyCount (business dashboard "Invitations sent this month").
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+    const monthStartIso = startOfMonth.toISOString();
+    const { count: monthlyUsedInvites } = await supabase
       .from("review_invites")
       .select("*", { count: "exact", head: true })
-      .eq("business_id", params.businessId);
+      .eq("business_id", params.businessId)
+      .gte("created_at", monthStartIso)
+      .or("source.is.null,source.neq.email_widget");
     const { data: bonusInvites, error: bonusError } = await supabase.rpc("get_bonus_invites", {
       p_business_id: businessId,
     });
 
     if (businessError) {
       pageError = businessError.message;
-    } else if (activeSubscriptionError && latestSubscriptionError) {
-      pageError = activeSubscriptionError.message || latestSubscriptionError.message;
+    } else if (pendingSubscriptionError && latestSubscriptionError) {
+      pageError =
+        pendingSubscriptionError.message || latestSubscriptionError.message;
     } else {
       businessData = business as {
         id?: string;
         name?: string | null;
       };
-      const selectedSubRow = (activeSubscriptionRows?.[0] ?? latestSubscriptionRows?.[0]) as
-        | {
-            plan_code?: string | null;
-            bonus_invites?: number | null;
-            bonus_expires_at?: string | null;
-          }
-        | undefined;
+      type SubRow = {
+        plan_code?: string | null;
+        bonus_invites?: number | null;
+        bonus_expires_at?: string | null;
+        status?: string | null;
+        updated_at?: string | null;
+      };
+      const picked = pickPlanResolutionSubscriptionRow(
+        (pendingSubscriptionRows ?? []) as SubRow[],
+      );
+      const selectedSubRow = (picked ??
+        latestSubscriptionRows?.[0]) as SubRow | undefined;
       subscription = selectedSubRow ?? null;
 
-      const plan = (subscription?.plan_code ?? "free") as PlanKey;
+      const plan = normalizePlanCodeToKey(subscription?.plan_code ?? null);
       activeBonus = asNonNegativeInt(parseRpcNumber(bonusInvites));
       baseLimit = PLAN_INVITE_LIMITS[plan] ?? 0;
       finalLimit = baseLimit + activeBonus;
@@ -351,7 +369,10 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div className="p-4 border rounded">
                   <div className="text-sm text-gray-500">Used Invites</div>
-                  <div className="font-semibold">{used}</div>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Month to date (UTC), same query as business Get reviews → Overview.
+                  </p>
+                  <div className="mt-1 font-semibold">{used}</div>
                 </div>
 
                 <div className="p-4 border rounded">

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import {
+  adminDeleteReviewAction,
   adminUpdateReviewFlagAction,
   adminUpdateReviewVisibilityAction,
 } from "../../../app/admin/actions";
@@ -201,6 +203,31 @@ export default function AdminReviewsClient({
     }
   };
 
+  const handleDelete = async (review: AdminReviewTableRow) => {
+    if (
+      !confirm(
+        "Permanently delete this review? Replies and votes tied to it will be removed. This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    const key = `${review.id}:delete`;
+    setPendingActionKey(key);
+    try {
+      const result = await adminDeleteReviewAction(review.id);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      if (result.deleted) {
+        setReviews((prev) => prev.filter((r) => r.id !== result.reviewId));
+      }
+      await router.refresh();
+    } finally {
+      setPendingActionKey(null);
+    }
+  };
+
   const filterLinkClass = (key: AdminReviewListFilter) =>
     `rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
       listFilter === key
@@ -262,7 +289,8 @@ export default function AdminReviewsClient({
                   {reviews.map((review, i) => {
                     const visPending = pendingActionKey === `${review.id}:visibility`;
                     const flagPending = pendingActionKey === `${review.id}:flag`;
-                    const rowBusy = visPending || flagPending;
+                    const delPending = pendingActionKey === `${review.id}:delete`;
+                    const rowBusy = visPending || flagPending || delPending;
                     return (
                       <tr key={review.id || `r-${i}`} className="bg-white align-top">
                         <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
@@ -325,6 +353,20 @@ export default function AdminReviewsClient({
                               }
                             >
                               {flagPending ? "…" : review.is_flagged ? "Unflag" : "Flag"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowBusy}
+                              title="Delete review permanently"
+                              aria-label="Delete review"
+                              onClick={() => void handleDelete(review)}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {delPending ? (
+                                <span className="text-xs font-semibold">…</span>
+                              ) : (
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              )}
                             </button>
                           </div>
                         </td>
