@@ -1,9 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { parseAccountKind } from "@/lib/accountKind";
 
 /**
  * Whether the account should use the business dashboard (vs consumer `/dashboard`).
- * Aligns with how we load businesses: `business_profiles` shell, `business_owners`, or `owner_id`,
- * plus signup `user_metadata.role === "business"`.
+ * `user_metadata.account_kind` wins when set (same rules as post-login redirect).
  */
 export async function userShouldUseBusinessDashboard(
   supabase: SupabaseClient,
@@ -11,6 +11,14 @@ export async function userShouldUseBusinessDashboard(
   email: string | null | undefined,
   userMetadata?: Record<string, unknown> | null
 ): Promise<boolean> {
+  const kind = parseAccountKind(userMetadata ?? null);
+  if (kind === "consumer") {
+    return false;
+  }
+  if (kind === "business") {
+    return true;
+  }
+
   if (String(userMetadata?.role ?? "").toLowerCase() === "business") {
     return true;
   }

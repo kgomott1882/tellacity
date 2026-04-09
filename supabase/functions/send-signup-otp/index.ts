@@ -80,7 +80,13 @@ Deno.serve(async (req) => {
     if (matchingUser && !matchingUser.email_confirmed_at) {
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         matchingUser.id,
-        { password }
+        {
+          password,
+          user_metadata: {
+            ...((matchingUser.user_metadata ?? {}) as Record<string, unknown>),
+            account_kind: "consumer",
+          },
+        }
       );
 
       if (updateError) {
@@ -96,6 +102,7 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: false,
+        user_metadata: { account_kind: "consumer" },
       });
 
       if (createError) {

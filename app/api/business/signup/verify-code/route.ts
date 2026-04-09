@@ -194,6 +194,7 @@ export async function POST(req: Request) {
       user_metadata: {
         full_name: fullName,
         role: "business",
+        account_kind: "business",
         display_name: fullName,
         signup_first_name: payload.firstName.trim(),
         signup_last_name: payload.lastName.trim(),

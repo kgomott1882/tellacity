@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
     const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") ?? "Tellacity <no-reply@tellacity.com>";
-    const siteUrl = Deno.env.get("SITE_URL") ?? "http://localhost:3000";
-    const origin = req.headers.get("origin") ?? siteUrl;
+    const siteUrl = (Deno.env.get("SITE_URL") ?? "http://localhost:3000").trim();
+    const origin = (req.headers.get("origin") ?? siteUrl).trim();
     const safePath =
       typeof redirectPath === "string" && redirectPath.startsWith("/")
         ? redirectPath

@@ -1,15 +1,17 @@
+import { parseAccountKind } from "@/lib/accountKind";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getUserBusinesses } from "@/lib/getUserBusinesses";
 
 export type PostLoginContext = "default" | "business";
 
 /**
- * Resolves the in-app path after authentication using DB state only.
+ * Resolves the in-app path after authentication.
  *
- * - Owned businesses (`getUserBusinesses` → `business_owners.owner_user_id`) → `/business/dashboard`.
- * - No ownership but a `business_profiles` row for this user → `/business/dashboard` (shell shows empty/recovery; not consumer dashboard).
- * - Explicit `context: "business"` (e.g. /business/login) → `/business/dashboard` even if profile row is missing yet.
- * - Otherwise → consumer `/dashboard`.
+ * 1. Admin → `/admin`.
+ * 2. `user_metadata.account_kind` (set at signup) is authoritative when present:
+ *    - `consumer` → `/dashboard`
+ *    - `business` → `/business/dashboard`
+ * 3. Legacy users without `account_kind`: same routing as before (ownership, business_profiles, role, login surface).
  */
 export async function getPostLoginPath(
   userId: string,
@@ -27,8 +29,25 @@ export async function getPostLoginPath(
     return "/admin";
   }
 
+  const { data: authData } = await supabase.auth.getUser();
+  const sessionUser =
+    authData?.user?.id === userId ? authData.user : null;
+  const md = sessionUser?.user_metadata ?? {};
+  const accountKind = parseAccountKind(md);
+
+  if (accountKind === "consumer") {
+    return "/dashboard";
+  }
+  if (accountKind === "business") {
+    return "/business/dashboard";
+  }
+
   const ownedBusinesses = await getUserBusinesses(userId);
   if (ownedBusinesses.length > 0) {
+    return "/business/dashboard";
+  }
+
+  if (String(md.role ?? "").toLowerCase() === "business") {
     return "/business/dashboard";
   }
 

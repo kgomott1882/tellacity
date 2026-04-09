@@ -106,7 +106,10 @@ function AcceptInviteInner() {
           email,
           password,
           options: {
-            data: { display_name: name.trim() },
+            data: {
+              display_name: name.trim(),
+              account_kind: "business",
+            },
             emailRedirectTo: undefined,
           },
         });

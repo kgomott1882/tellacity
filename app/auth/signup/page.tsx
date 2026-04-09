@@ -100,7 +100,10 @@ export default function SignupPage() {
           refresh_token: payload.session.refresh_token,
         });
         const { error: profileError } = await supabaseBrowser().auth.updateUser({
-          data: { display_name: displayName.trim() },
+          data: {
+            display_name: displayName.trim(),
+            account_kind: "consumer",
+          },
         });
         if (profileError) {
           setError(profileError.message);

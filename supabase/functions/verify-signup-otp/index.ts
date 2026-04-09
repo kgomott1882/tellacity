@@ -73,7 +73,13 @@ Deno.serve(async (req) => {
 
     const { error: confirmError } = await supabase.auth.admin.updateUserById(
       matchingUser.id,
-      { email_confirm: true }
+      {
+        email_confirm: true,
+        user_metadata: {
+          ...((matchingUser.user_metadata ?? {}) as Record<string, unknown>),
+          account_kind: "consumer",
+        },
+      }
     );
 
     if (confirmError) {

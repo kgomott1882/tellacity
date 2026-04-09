@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import RecoverWithCodeForm from "@/components/auth/RecoverWithCodeForm";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
+import { clearPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -86,10 +88,9 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const { data: updateData, error: updateError } =
-      await supabaseBrowser().auth.updateUser({
-        password,
-      });
+    const { error: updateError } = await supabaseBrowser().auth.updateUser({
+      password,
+    });
     setLoading(false);
     if (updateError) {
       setError(updateError.message);
@@ -99,6 +100,7 @@ export default function ResetPasswordPage() {
     // send them back to the login screen so they authenticate
     // explicitly with the new credentials.
     const supabase = supabaseBrowser();
+    clearPendingRecoveryEmail();
     await supabase.auth.signOut();
     router.push("/auth/login?reset=success");
   };
@@ -117,22 +119,17 @@ export default function ResetPasswordPage() {
           ) : !ready ? (
             <>
               <p className="mt-2 text-sm text-gray-600">
-                This reset link is invalid or has expired. Please request a new
-                one.
+                If you followed a link from your email and saw an error, the link may already have been
+                used (for example by a mail security scanner). Use the 6-digit code from the email, or
+                request a new reset.
               </p>
-              <Link
-                href="/auth/forgot-password"
-                className="mt-4 inline-flex text-sm font-semibold text-[#1FAF9E]"
-              >
-                Request a new reset link
-              </Link>
-              <span className="mx-2 text-gray-400">|</span>
-              <Link
-                href="/auth/login"
-                className="mt-4 inline-flex text-sm font-semibold text-[#1FAF9E]"
-              >
-                Back to sign in
-              </Link>
+              <RecoverWithCodeForm
+                onVerified={() => setReady(true)}
+                forgotPasswordHref="/auth/forgot-password"
+                loginHref="/auth/login"
+                inputFocusClass="focus:border-black focus:ring-black/15"
+                submitButtonClass="bg-black hover:bg-neutral-800"
+              />
             </>
           ) : (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>

@@ -6,7 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureValidSession } from "@/lib/ensureValidSession";
-import { getBaseUrl } from "@/lib/getBaseUrl";
+import { authRedirectTo, getBaseUrl } from "@/lib/getBaseUrl";
+import { setPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { isAbortError } from "@/lib/authErrors";
 import {
@@ -1018,7 +1019,8 @@ export default function Navbar() {
                         setIsResettingPassword(true);
                         const { error } =
                           await supabaseBrowser().auth.resetPasswordForEmail(
-                            trimmedEmail
+                            trimmedEmail,
+                            { redirectTo: authRedirectTo("/auth/reset-password") }
                           );
                         setIsResettingPassword(false);
                         if (error) {
@@ -1027,6 +1029,7 @@ export default function Navbar() {
                             message: error.message,
                           });
                         } else {
+                          setPendingRecoveryEmail(trimmedEmail);
                           setLoginStatus({
                             type: "success",
                             message: "Password reset email sent.",

@@ -118,7 +118,7 @@ export default function BusinessLoginPage() {
         return;
       }
 
-      await handleRedirect(userId, { context: "business" });
+      await handleRedirect(userId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

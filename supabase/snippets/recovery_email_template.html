@@ -1,0 +1,15 @@
+<!--
+  Paste into Supabase Dashboard → Authentication → Email templates → Reset password.
+
+  Showing {{ .Token }} stops "link prefetch" (Microsoft Safe Links, etc.) from burning the one-time
+  verify URL. Users enter the code on /auth/reset-password or /business/reset-password.
+
+  Keep {{ .RedirectTo }} as the page URL (must stay in your Redirect URLs allow list).
+-->
+<h2>Reset your Tellacity password</h2>
+<p>Your one-time code is:</p>
+<p style="font-size:28px;letter-spacing:0.25em;font-weight:700;margin:16px 0">{{ .Token }}</p>
+<p>Open this page and enter your email plus the code above:</p>
+<p><a href="{{ .RedirectTo }}">{{ .RedirectTo }}</a></p>
+<p style="color:#666;font-size:14px;margin-top:24px">If you prefer a link, you can use this once (some email scanners may open it before you do):</p>
+<p><a href="{{ .ConfirmationURL }}">Reset password (single-use link)</a></p>

@@ -18,6 +18,7 @@ import {
 import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
+import { getPostLoginPath } from "@/lib/postLoginRedirect";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 import BusinessOnboardingModal from "./BusinessOnboardingModal";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
@@ -196,6 +197,20 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       router.replace("/business/login");
     }
   }, [authLoading, user, router, pathname]);
+
+  // Consumer accounts (account_kind) must not stay on business URLs — same rule as post-login redirect.
+  useEffect(() => {
+    if (authLoading || !user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const path = await getPostLoginPath(user.id);
+      if (cancelled || path !== "/dashboard") return;
+      window.location.href = `${window.location.origin}/dashboard`;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id]);
 
   // Auto-detect active section from pathname
   useEffect(() => {

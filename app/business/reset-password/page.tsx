@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import RecoverWithCodeForm from "@/components/auth/RecoverWithCodeForm";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
+import { clearPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
+import { parseAccountKind } from "@/lib/accountKind";
 
 export default function BusinessResetPasswordPage() {
   const router = useRouter();
@@ -12,6 +15,7 @@ export default function BusinessResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,13 +48,17 @@ export default function BusinessResetPasswordPage() {
         sessionData = result.data;
       } catch (e) {
         if (isAbortError(e)) {
-          if (isMounted) setReady(false);
+          if (isMounted) {
+            setReady(false);
+            setChecking(false);
+          }
           return;
         }
         throw e;
       }
       if (isMounted) {
         setReady(Boolean(sessionData?.session));
+        setChecking(false);
       }
     };
     checkSession();
@@ -58,6 +66,7 @@ export default function BusinessResetPasswordPage() {
       supabaseBrowser().auth.onAuthStateChange((_event, session) => {
         if (isMounted) {
           setReady(Boolean(session));
+          setChecking(false);
         }
       });
     return () => {
@@ -87,26 +96,29 @@ export default function BusinessResetPasswordPage() {
       return;
     }
 
-    // Decide where to send the user after resetting the password.
-    // If they have a business profile, send them to the business login.
-    // Otherwise, treat this as a consumer reset and send them to consumer login.
+    clearPendingRecoveryEmail();
+
     let redirectPath = "/auth/login?reset=success";
     try {
       const { data } = await supabaseBrowser().auth.getUser();
       const user = data.user;
       if (user) {
-        const supabase = supabaseBrowser();
-        const { data: businessProfile } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (businessProfile) {
+        if (parseAccountKind(user.user_metadata) === "business") {
           redirectPath = "/business/login?reset=success";
+        } else {
+          const supabase = supabaseBrowser();
+          const { data: businessProfile } = await supabase
+            .from("business_profiles")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (businessProfile) {
+            redirectPath = "/business/login?reset=success";
+          }
         }
       }
     } catch {
-      // If anything goes wrong, fall back to the consumer login redirect.
+      // fall back to consumer login
     }
 
     const supabase = supabaseBrowser();
@@ -121,11 +133,20 @@ export default function BusinessResetPasswordPage() {
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">
             Set a new password
           </h1>
-          {!ready ? (
-            <p className="mt-2 text-sm text-gray-600">
-              This reset link is invalid or has expired. Please request a new
-              one from the login page.
-            </p>
+          {checking ? (
+            <p className="mt-2 text-sm text-gray-600">Checking your reset link…</p>
+          ) : !ready ? (
+            <>
+              <p className="mt-2 text-sm text-gray-600">
+                If the link in your email failed, it may have been opened already by your mail provider.
+                Use the 6-digit code from the same email, or request a new reset.
+              </p>
+              <RecoverWithCodeForm
+                onVerified={() => setReady(true)}
+                forgotPasswordHref="/business/forgot-password"
+                loginHref="/business/login"
+              />
+            </>
           ) : (
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <div>

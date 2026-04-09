@@ -105,6 +105,13 @@ export async function POST(req: Request) {
       .update({ used_at: new Date().toISOString() })
       .eq("id", otpRow.id);
 
+    const { error: kindErr } = await supabase.auth.admin.updateUserById(user.id, {
+      user_metadata: { account_kind: "business" },
+    });
+    if (kindErr) {
+      console.warn("[verify-and-accept] account_kind:", kindErr.message);
+    }
+
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     console.error("[verify-and-accept] unhandled:", e);

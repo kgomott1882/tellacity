@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
-import { getBaseUrl } from "@/lib/getBaseUrl";
+import { authRedirectTo } from "@/lib/getBaseUrl";
+import { setPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 
 const COUNTRY_OPTIONS = [
@@ -101,11 +102,17 @@ export default function AccountPage() {
   const handleChangePassword = () => {
     supabaseBrowser()
       .auth.resetPasswordForEmail(email, {
-        redirectTo: `${getBaseUrl()}/auth/reset-password`,
+        redirectTo: authRedirectTo("/auth/reset-password"),
       })
       .then(({ error }) => {
         if (error) setMessage({ type: "error", text: error.message });
-        else setMessage({ type: "success", text: "Check your email for a password reset link." });
+        else {
+          setPendingRecoveryEmail(email.trim());
+          setMessage({
+            type: "success",
+            text: "Check your email for a reset link or 6-digit code, then open the reset password page.",
+          });
+        }
       });
   };
 
