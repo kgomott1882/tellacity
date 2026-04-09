@@ -27,7 +27,7 @@ function reviewId(row: AdminReviewRow): string {
 
 function bodyPreview(row: AdminReviewRow): string {
   const raw = row.body_preview ?? row.body;
-  if (!raw) return "—";
+  if (!raw) return "-";
   const s = String(raw).replace(/\s+/g, " ").trim();
   return s.length > 120 ? `${s.slice(0, 117)}…` : s;
 }
@@ -294,29 +294,29 @@ export default function AdminReviewsClient({
                     return (
                       <tr key={review.id || `r-${i}`} className="bg-white align-top">
                         <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
-                          {review.business_name?.trim() || "—"}
+                          {review.business_name?.trim() || "-"}
                         </td>
                         <td
                           className="max-w-[220px] truncate px-3 py-2 text-neutral-700"
                           title={review.reviewer_email ?? ""}
                         >
-                          {review.reviewer_email?.trim() || "—"}
+                          {review.reviewer_email?.trim() || "-"}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {review.rating != null ? String(review.rating) : "—"}
+                          {review.rating != null ? String(review.rating) : "-"}
                         </td>
                         <td
                           className="max-w-[160px] truncate px-3 py-2 text-neutral-700"
                           title={review.title ?? ""}
                         >
-                          {review.title?.trim() || "—"}
+                          {review.title?.trim() || "-"}
                         </td>
                         <td className="max-w-[240px] px-3 py-2 text-neutral-600">{bodyPreview(review)}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {review.verification_status?.trim() || "—"}
+                          {review.verification_status?.trim() || "-"}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {review.status?.trim() || "—"}
+                          {review.status?.trim() || "-"}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{review.visibility}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
@@ -326,7 +326,7 @@ export default function AdminReviewsClient({
                           {review.created_at &&
                           !Number.isNaN(new Date(review.created_at).getTime())
                             ? formatDate(review.created_at)
-                            : "—"}
+                            : "-"}
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex max-w-[280px] flex-wrap gap-1">

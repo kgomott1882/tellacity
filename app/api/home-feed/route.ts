@@ -8,7 +8,7 @@ import { normalizeCountryCode } from "@/lib/country";
 const HOME_FEED_FETCH_LIMIT = 96;
 
 /**
- * Public homepage recent reviews — `home_feed_v1` filtered by business country (same idea as Best-in RPC).
+ * Public homepage recent reviews , `home_feed_v1` filtered by business country (same idea as Best-in RPC).
  */
 export async function GET(req: Request) {
   try {

@@ -56,7 +56,7 @@ export const NAV_ITEMS = [
     path: null,
     items: [
       { label: "Website widgets", path: "/business/dashboard/share/widgets" },
-      { label: "Email widgets",   path: "/business/dashboard/share/email" },
+      { label: "Email widgets", path: "/business/dashboard/share/email" },
     ],
   },
   {
@@ -101,9 +101,9 @@ export const NAV_ITEMS = [
     path: null,
     items: [
       { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
-      { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
-      { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
-      { label: "Account",          path: "/business/dashboard/settings/account" },
+      { label: "Team Access", path: "/business/dashboard/settings/team-access" },
+      { label: "Notifications", path: "/business/dashboard/settings/notifications" },
+      { label: "Account", path: "/business/dashboard/settings/account" },
     ],
   },
   {

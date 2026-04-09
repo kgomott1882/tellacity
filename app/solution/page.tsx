@@ -145,7 +145,7 @@ export default function SolutionPage() {
               Turn Customer Feedback Into Business Growth.
             </h1>
             <p className="max-w-xl text-sm md:text-base text-gray-600">
-              Collect, manage, and showcase verified reviews to build trust that drives conversions—across
+              Collect, manage, and showcase verified reviews to build trust that drives conversions across
               every touchpoint in the customer journey.
             </p>
 
@@ -290,7 +290,7 @@ export default function SolutionPage() {
                   icon: Sparkles,
                   title: "Small & Growing Businesses",
                   copy:
-                    "Get started quickly, build early credibility, and compete with larger brands on trust — not just ad spend.",
+                    "Get started quickly, build early credibility, and compete with larger brands on trust, not just ad spend.",
                 },
                 {
                   icon: ShieldCheck,
@@ -402,7 +402,7 @@ export default function SolutionPage() {
               Trust that shows up in the numbers.
             </h2>
             <p className="mt-3 text-sm text-gray-300 max-w-xl">
-              Teams use Tellacity to improve how customers experience their brand—and it&apos;s reflected across key
+              Teams use Tellacity to improve how customers experience their brand, and it&apos;s reflected across key
               metrics.
             </p>
           </div>

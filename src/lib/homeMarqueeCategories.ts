@@ -1,4 +1,4 @@
-/** Homepage “Find businesses by category” marquee — `slug` must match `public.categories.slug`. */
+/** Homepage “Find businesses by category” marquee , `slug` must match `public.categories.slug`. */
 
 export type MarqueeCategorySource = { label: string; slug: string };
 

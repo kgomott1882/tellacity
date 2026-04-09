@@ -43,7 +43,7 @@ type InviteRow = {
 /**
  * Invite guest flow:
  * - Default (`intent` omitted or `publish`): validate invite → insert published `reviews` row → mark invite used.
- * - `intent: 'draft'`: legacy OTP path — insert `review_drafts` only.
+ * - `intent: 'draft'`: legacy OTP path , insert `review_drafts` only.
  */
 export async function POST(req: Request) {
   try {

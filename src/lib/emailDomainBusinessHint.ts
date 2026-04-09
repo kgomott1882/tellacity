@@ -1,5 +1,5 @@
 /**
- * Common consumer / free email hosts — no business name hint from these domains.
+ * Common consumer / free email hosts , no business name hint from these domains.
  */
 const GENERIC_EMAIL_HOSTS = new Set([
   "gmail.com",

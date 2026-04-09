@@ -97,7 +97,7 @@ export async function resolveDashboardDb(req: Request): Promise<DashboardDbConte
 }
 
 /**
- * Cookie session (createServerClient + anon key) or Bearer JWT; anon key only — no service role.
+ * Cookie session (createServerClient + anon key) or Bearer JWT; anon key only , no service role.
  * Logs the resolved user for API debugging.
  */
 export async function requireUserSession(req: Request): Promise<

@@ -23,7 +23,7 @@ export const COUNTRY_MAP: Record<string, string> = {
 
 export function adminCountryDisplay(code: string | null | undefined): string {
   const raw = String(code ?? "").trim();
-  if (!raw) return "—";
+  if (!raw) return "-";
   const upper = raw.toUpperCase();
   return COUNTRY_MAP[upper] ?? raw;
 }

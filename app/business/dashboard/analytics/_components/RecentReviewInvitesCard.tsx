@@ -153,7 +153,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
               className="invite-row flex flex-col gap-1 rounded-lg border border-neutral-700/80 bg-neutral-900/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <p className="min-w-0 truncate text-sm font-medium text-neutral-100">
-                {invite.recipient_email ?? "—"}
+                {invite.recipient_email ?? "-"}
               </p>
               <p className="shrink-0 text-sm text-neutral-300">{invite.statusLabel}</p>
               <p className="shrink-0 text-xs text-neutral-500 sm:text-sm">
@@ -163,7 +163,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
                       month: "short",
                       year: "numeric",
                     })
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           ))}

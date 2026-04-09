@@ -2,7 +2,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 /**
  * Light session touch only. Do NOT sign out when `business_owners` is empty or RLS
- * blocks that table — new signups and owner_id-only accounts are valid.
+ * blocks that table , new signups and owner_id-only accounts are valid.
  */
 export async function ensureValidSession() {
   const supabase = supabaseBrowser();

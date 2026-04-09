@@ -727,20 +727,12 @@ export default function Navbar() {
                   )}
                 </div>
               ) : (
-                <>
-                  <Link
-                    href={consumerLoginHref}
-                    className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    className="hidden rounded-full border border-white/30 px-5 py-2 text-sm text-white hover:border-[#1FAF9E] hover:text-[#1FAF9E] md:inline-flex"
-                  >
-                    Get Started
-                  </Link>
-                </>
+                <Link
+                  href={consumerLoginHref}
+                  className="hidden text-sm text-white/80 hover:text-white md:inline-flex"
+                >
+                  Reviewer Log In
+                </Link>
               )}
               <button
                 type="button"
@@ -846,6 +838,7 @@ export default function Navbar() {
                 <Link
                   href="/for-business"
                   onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full rounded-full bg-[#1FAF9E] px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-[#169786]"
                 >
                   For Business
                 </Link>
@@ -853,21 +846,12 @@ export default function Navbar() {
                 <div className="my-6 border-t border-white/10" />
 
                 {userInitials && !isAuthFlow ? null : (
-                  <>
-                    <Link
-                      href={consumerLoginHref}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      href="/auth/signup"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="rounded-lg bg-[#1FAF9E] px-4 py-3 text-center font-medium text-black"
-                    >
-                      Get Started
-                    </Link>
-                  </>
+                  <Link
+                    href={consumerLoginHref}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Reviewer Log In
+                  </Link>
                 )}
               </nav>
             </div>

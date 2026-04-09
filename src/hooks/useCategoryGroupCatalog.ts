@@ -19,7 +19,7 @@ export function filterCategoriesByPrimaryGroup(
 
 /**
  * Loads category_groups + categories via GET /api/business/category-catalog
- * (server reads with service role — same dataset as suggest-business, reliable for logged-in users).
+ * (server reads with service role , same dataset as suggest-business, reliable for logged-in users).
  */
 export function useCategoryGroupCatalog(enabled: boolean) {
   const [groups, setGroups] = useState<CategoryGroupOption[]>([]);

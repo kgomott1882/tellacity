@@ -528,8 +528,8 @@ export default function EmailWidgetsPage() {
       const failed = (data.failed as number) ?? 0;
       let message =
         sent === 1
-          ? "Sent — 1 email delivered successfully."
-          : `Sent — ${sent} emails delivered successfully.`;
+          ? "Sent: 1 email delivered successfully."
+          : `Sent: ${sent} emails delivered successfully.`;
       if (failed > 0) {
         message += ` ${failed} could not be sent; check those addresses.`;
       }
@@ -631,7 +631,7 @@ export default function EmailWidgetsPage() {
 
         <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
 
-              {/* Premium Widget Layout — standard email (selectable layout) */}
+              {/* Premium Widget Layout: standard email (selectable layout) */}
               <div className="relative w-[280px] shrink-0">
                 <div className={!canStandardLayout ? "opacity-50" : ""}>
                   <button
@@ -681,7 +681,7 @@ export default function EmailWidgetsPage() {
                 ) : null}
               </div>
 
-              {/* Review Hunter — same as Premium, logo footer instead of text branding */}
+              {/* Review Hunter: same as Premium, logo footer instead of text branding */}
               <div className="relative w-[280px] shrink-0">
                 <div className={!canReviewHunterLayout ? "opacity-50" : ""}>
                   <button
@@ -733,7 +733,7 @@ export default function EmailWidgetsPage() {
                 ) : null}
               </div>
 
-              {/* Rating ladder — Premium & Elite */}
+              {/* Rating ladder: Premium & Elite */}
               <div className="relative w-[280px] shrink-0">
                 <div className={!canRatingLadderLayout ? "opacity-50" : ""}>
                   <button
@@ -983,7 +983,7 @@ export default function EmailWidgetsPage() {
                 {hasSignature && (
                   <div className="mt-3 border-t border-gray-100 pt-3 text-[11px] text-gray-500">
                     <span className="font-medium text-gray-700">{template?.signature_name}</span>
-                    {" — signature included"}
+                    {" · Signature included"}
                   </div>
                 )}
               </div>
@@ -1021,7 +1021,7 @@ export default function EmailWidgetsPage() {
             </div>
           )}
 
-          {/* Toolbar — Send primary; Save message lives in the dark header above */}
+          {/* Toolbar: Send primary; Save message lives in the dark header above */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50/60 px-3 py-3 sm:px-4">
             <button
               type="submit"

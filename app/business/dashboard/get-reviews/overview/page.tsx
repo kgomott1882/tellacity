@@ -504,7 +504,7 @@ export default function GetReviewsOverviewPage() {
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" role="status">
                 <p className="text-xs font-medium text-amber-800">
                   You&apos;re close to your limit. New review requests will stop when you hit your
-                  cap—upgrade before then to avoid interruptions in your review flow.
+                  cap. Upgrade before then to avoid interruptions in your review flow.
                 </p>
                 <button
                   type="button"
@@ -598,7 +598,7 @@ export default function GetReviewsOverviewPage() {
         </div>
         {monthlyUsage > 0 ? (
           <p className="mt-4 text-xs text-gray-500" role="status">
-            You&apos;re actively collecting reviews — keep the momentum going.
+            You&apos;re actively collecting reviews. Keep the momentum going.
           </p>
         ) : null}
       </div>
@@ -698,60 +698,130 @@ export default function GetReviewsOverviewPage() {
             Collect reviews offline
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Use a direct link or printable QR code to collect reviews in-store or at events.
+            Use your public review link anywhere, or print a QR code for counters, tables, packaging,
+            and events. Grow unlocks high-resolution download and full offline collection.
           </p>
-          <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start">
-            {/* QR code — Grow+ via canUseCustomEmail; Free sees locked preview */}
-            <div className="relative flex-shrink-0 inline-flex flex-col">
+          <div
+            className={`relative mt-6 min-h-[min(340px,50vh)] overflow-hidden rounded-xl border border-gray-100 bg-gray-50/40 ${
+              !canQrReviews ? "md:min-h-[280px]" : ""
+            }`}
+          >
+            <div className="flex flex-col gap-6 p-4 sm:p-5 md:flex-row md:items-start">
               <div
-                className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm inline-flex flex-col items-center gap-3 ${
-                  !canQrReviews ? "opacity-50 blur-sm" : ""
+                className={`flex-shrink-0 inline-flex flex-col ${
+                  !canQrReviews ? "pointer-events-none select-none" : ""
                 }`}
               >
-                <QRCode id="review-qr-overview" value={reviewUrl} size={220} />
-                <span className="text-xs text-gray-400">Scan to leave a review</span>
+                <div className="inline-flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <QRCode id="review-qr-overview" value={reviewUrl} size={220} />
+                  <span className="text-xs text-gray-500">Scan to leave a review</span>
+                </div>
               </div>
-              {!canQrReviews ? (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/75 px-4 text-center backdrop-blur-md">
-                  <h3 className="text-sm font-semibold text-gray-900">Unlock QR code reviews</h3>
-                  <p className="max-w-[220px] text-xs text-gray-600">
-                    Collect reviews in-store using QR codes with a Grow plan.
+              <div className="flex flex-1 flex-col gap-4">
+                <div className={!canQrReviews ? "select-text" : ""}>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Review link
                   </p>
-                  <button
-                    type="button"
-                    onClick={openQrUpgradeModal}
-                    className="rounded-lg bg-[#124541] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35]"
-                  >
-                    {nextTierUpgradeCtaLabel(normalizedPlan)}
-                  </button>
+                  <div className="flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
+                    <span className="flex-1 truncate text-sm text-gray-800">{reviewUrl}</span>
+                  </div>
                 </div>
-              ) : null}
-            </div>
-            {/* URL + download */}
-            <div className="flex flex-col gap-4 flex-1">
-              <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">Review link</p>
-                <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                  <span className="flex-1 truncate text-sm text-gray-700">{reviewUrl}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canQrReviews) downloadQR();
+                    else openQrUpgradeModal();
+                  }}
+                  className={`inline-flex items-center gap-2 self-start rounded-lg px-4 py-2.5 text-sm font-medium text-white transition ${
+                    !canQrReviews
+                      ? "bg-[#124541] shadow-md hover:bg-[#0f3a35]"
+                      : "bg-[#124541] hover:bg-[#0f3a35]"
+                  }`}
+                >
+                  <Download size={15} />
+                  Download QR as PNG
+                </button>
+                <p
+                  className={`text-sm leading-relaxed text-gray-600 ${
+                    !canQrReviews ? "pointer-events-none select-none" : ""
+                  }`}
+                >
+                  <span className="font-medium text-gray-800">Where teams use this:</span> front desk
+                  displays, table tents, delivery inserts, thank-you cards, trade booths, and receipt
+                  footers, anywhere a quick scan is easier than typing a URL.
+                </p>
               </div>
-              <button
-                type="button"
-                disabled={!canQrReviews}
-                onClick={downloadQR}
-                className={`inline-flex items-center gap-2 self-start rounded-lg px-4 py-2.5 text-sm font-medium text-white transition ${
-                  !canQrReviews
-                    ? "cursor-not-allowed bg-gray-400 opacity-50"
-                    : "bg-[#124541] hover:bg-[#0f3a35]"
-                }`}
-              >
-                <Download size={15} />
-                Download QR as PNG
-              </button>
-              <p className="text-sm text-gray-400">
-                Ideal for storefronts, packaging, receipts, or printed marketing material.
-              </p>
             </div>
+
+            {!canQrReviews ? (
+              <>
+                <div
+                  className="absolute inset-4 z-20 rounded-xl bg-neutral-950/35 backdrop-blur-[2px] sm:inset-5 md:inset-6"
+                  aria-hidden
+                />
+                <div className="pointer-events-none absolute inset-4 z-30 flex items-center justify-center p-2 sm:inset-5 sm:p-3 md:inset-6 md:p-4">
+                  <div
+                    className="pointer-events-auto max-h-[min(92vh,calc(100%-1.5rem))] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-neutral-900/85 px-7 py-7 text-left shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] ring-1 ring-black/20 backdrop-blur-md sm:px-8 sm:py-8"
+                    role="region"
+                    aria-label="Offline QR review collection requires an upgrade"
+                  >
+                    <p className="text-center text-2xl" aria-hidden>
+                      🔒
+                    </p>
+                    <h3 className="mt-1 text-center text-lg font-semibold text-neutral-100">
+                      Turn foot traffic into verified reviews
+                    </h3>
+                    <p className="mt-2 text-center text-sm text-neutral-400">
+                      Your real review link is already in the QR behind this card. Upgrade to download,
+                      print, and deploy it everywhere customers see you.
+                    </p>
+                    <ul className="mt-5 space-y-2.5 border-t border-white/10 pt-5 text-sm text-neutral-200">
+                      <li className="flex gap-2">
+                        <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                          ✓
+                        </span>
+                        <span>
+                          <strong className="text-neutral-100">Print-ready PNG:</strong> one click to
+                          drop the QR into posters, stickers, menus, and packaging artwork.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                          ✓
+                        </span>
+                        <span>
+                          <strong className="text-neutral-100">Same trusted link:</strong> every scan
+                          opens your public Tellacity write-review flow; no extra setup per location.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                          ✓
+                        </span>
+                        <span>
+                          <strong className="text-neutral-100">Works offline-first:</strong> perfect
+                          for retail, hospitality, events, and field teams where email isn&apos;t the
+                          moment.
+                        </span>
+                      </li>
+                    </ul>
+                    <div className="mt-6 flex flex-col items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={openQrUpgradeModal}
+                        className="inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
+                      >
+                        {nextTierUpgradeCtaLabel(normalizedPlan)}
+                      </button>
+                      <p className="text-center text-xs text-neutral-500">
+                        After upgrading, use <strong className="text-neutral-400">Download QR as PNG</strong>{" "}
+                        on the right. It activates instantly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -801,7 +871,9 @@ export default function GetReviewsOverviewPage() {
               {qrUpgradeModalTitle}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Collect reviews in-store using QR codes with a Grow plan.
+              Grow unlocks print-ready QR downloads and lets you capture verified reviews at the
+              counter, on packaging, and at events. It is the same public link you already see on this
+              page, packaged for offline use.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button

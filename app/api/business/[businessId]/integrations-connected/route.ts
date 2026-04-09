@@ -5,7 +5,7 @@ import { getServerEnv } from "@/lib/serverEnv";
 
 /**
  * Connected integration slugs for the dashboard.
- * Uses shopify_integrations (and future tables) — not business_integrations_v1, which often
+ * Uses shopify_integrations (and future tables) , not business_integrations_v1, which often
  * lacks GRANTs for authenticated in Supabase and caused "permission denied for view".
  */
 async function connectedProviderSlugsForBusiness(
@@ -33,6 +33,18 @@ async function connectedProviderSlugsForBusiness(
   }
   if (data?.length) {
     providers.push("shopify");
+  }
+
+  const { data: wooRows, error: wooErr } = await db
+    .from("woocommerce_integrations")
+    .select("id")
+    .eq("business_id", businessId)
+    .limit(1);
+
+  if (wooErr) {
+    console.warn("[integrations-connected] woocommerce_integrations:", wooErr.message);
+  } else if (wooRows?.length) {
+    providers.push("woocommerce");
   }
 
   return { providers, error: null };

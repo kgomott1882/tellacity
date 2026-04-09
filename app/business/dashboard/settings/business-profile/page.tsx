@@ -37,7 +37,7 @@ const COUNTRY_TO_CODE: Record<string, string> = {
   "Zimbabwe":"ZW","Botswana":"BW","Namibia":"NA",
 };
 
-/** Do not map "Other" or unknown labels to ZA — preserves DB ISO code (e.g. US) when the dropdown shows Other. */
+/** Do not map "Other" or unknown labels to ZA , preserves DB ISO code (e.g. US) when the dropdown shows Other. */
 function resolvePersistedCountryCode(
   selectedCountryLabel: string,
   loadedIsoFromDb: string,
@@ -68,12 +68,12 @@ export default function BusinessProfilePage() {
   const businessId = selectedBusiness?.id ?? null;
   const publicProfileHref = selectedBusiness?.slug ? `/b/${selectedBusiness.slug}` : null;
 
-  const [loading,       setLoading]       = useState(!!businessId);
-  const [saving,        setSaving]        = useState(false);
-  const [message,       setMessage]       = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [refreshKey,    setRefreshKey]    = useState(0);
-  const [logoUrl,       setLogoUrl]       = useState<string | null>(null);
-  const [logoPreview,   setLogoPreview]   = useState<string | null>(null);
+  const [loading, setLoading]       = useState(!!businessId);
+  const [saving, setSaving]        = useState(false);
+  const [message, setMessage]       = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [refreshKey, setRefreshKey]    = useState(0);
+  const [logoUrl, setLogoUrl]       = useState<string | null>(null);
+  const [logoPreview, setLogoPreview]   = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadedCountryCodeRef = useRef<string>("");
@@ -85,7 +85,7 @@ export default function BusinessProfilePage() {
     email: "", phone: "",
   });
 
-  // ── Fetch (server session + RLS via route — avoids client getSession / empty rows on refresh) ──
+  // ── Fetch (server session + RLS via route , avoids client getSession / empty rows on refresh) ──
 
   useEffect(() => {
     if (!businessId) {

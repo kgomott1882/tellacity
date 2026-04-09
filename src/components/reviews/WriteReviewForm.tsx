@@ -83,7 +83,7 @@ type PendingReviewDraft = {
   receipt_url?: string | null;
 };
 
-/** Google OAuth review payload: review content only — no guest/manual identity. */
+/** Google OAuth review payload: review content only , no guest/manual identity. */
 type GooglePendingReviewPayload = {
   business_id: string;
   /** For UI restore after redirect */
@@ -173,7 +173,7 @@ function clearGoogleReviewStorage() {
   }
 }
 
-/** Clears guest/email persisted state before Google OAuth — keeps flows isolated. */
+/** Clears guest/email persisted state before Google OAuth , keeps flows isolated. */
 function clearGuestPersistedStateForGoogle() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(GUEST_EMAIL_KEY);
@@ -411,7 +411,7 @@ export default function WriteReviewForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editReviewId]);
 
-  // Load auth state (Google identity from session metadata only — not guest localStorage)
+  // Load auth state (Google identity from session metadata only , not guest localStorage)
   useEffect(() => {
     if (isSuccessReviewPage) {
       setAuthChecked(true);
@@ -483,7 +483,7 @@ export default function WriteReviewForm({
     };
   }, [isSuccessReviewPage]);
 
-  // Restore guest info from localStorage (email flow only — never Google)
+  // Restore guest info from localStorage (email flow only , never Google)
   useEffect(() => {
     if (isSuccessReviewPage) return;
     if (userId) {
@@ -606,7 +606,7 @@ export default function WriteReviewForm({
     };
   }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId, businessSlug]);
 
-  // Restore draft: Google payload (content only) OR guest email pending — mutually isolated
+  // Restore draft: Google payload (content only) OR guest email pending , mutually isolated
   useEffect(() => {
     if (isSuccessReviewPage) {
       setHasRestoredDraft(true);
@@ -1400,7 +1400,7 @@ export default function WriteReviewForm({
       const hasInviteIdentity = Boolean(inviteIdTrimmed || inviteTokenTrimmed);
 
       // Email invite: always use the edge function (service role) so validation matches the
-      // invite recipient and published state — even when the reviewer is logged in. The
+      // invite recipient and published state , even when the reviewer is logged in. The
       // logged-in direct insert path skipped invite logic and could false-positive duplicates.
       if (hasInviteIdentity && reviewerEmailNorm) {
         const guestNameForInvite =
@@ -1809,7 +1809,7 @@ export default function WriteReviewForm({
       await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          // Plain /auth/callback only — same as login; ?next= often breaks Supabase redirect allowlists.
+          // Plain /auth/callback only , same as login; ?next= often breaks Supabase redirect allowlists.
           // Post-login path uses WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY + /auth/callback handler.
           redirectTo: `${baseUrl}/auth/callback`,
         },

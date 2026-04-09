@@ -1,6 +1,6 @@
 /**
  * Shared helpers for team-access API routes.
- * Bearer (in-memory session) or cookie session — same pattern as other dashboard APIs.
+ * Bearer (in-memory session) or cookie session , same pattern as other dashboard APIs.
  */
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";

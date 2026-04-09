@@ -29,7 +29,7 @@ type RecentReviewCardProps = {
   bgColor?: string;
   /** Homepage: roomier title/body spacing and gentler line clamps. */
   variant?: "default" | "landing";
-  /** Pulse highlight (e.g. after publishing — homepage). */
+  /** Pulse highlight (e.g. after publishing , homepage). */
   highlight?: boolean;
 };
 
@@ -236,7 +236,7 @@ export default function RecentReviewCard({
           </div>
         )}
 
-        {/* Landing: max 5 lines with … (do not use flex-1 here — it breaks line-clamp/ellipsis) */}
+        {/* Landing: max 5 lines with … (do not use flex-1 here , it breaks line-clamp/ellipsis) */}
         <p
           className={cn(
             "text-sm leading-relaxed text-slate-600 break-words [overflow-wrap:anywhere]",

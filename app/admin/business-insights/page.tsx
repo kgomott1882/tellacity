@@ -18,7 +18,7 @@ type PageProps = {
 };
 
 type InsightRow = {
-  /** View uses business_id in SQL; some clients expose id — we normalize to `id`. */
+  /** View uses business_id in SQL; some clients expose id , we normalize to `id`. */
   id: string;
   name: string | null;
   plan: string | null;
@@ -57,7 +57,7 @@ function normalizePage(raw: string | undefined): number {
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
@@ -95,7 +95,7 @@ function matchesActivityFilter(
 }
 
 function conversionRate(reviews: number, invites: number): string {
-  if (invites <= 0) return "—";
+  if (invites <= 0) return "-";
   return `${((reviews / invites) * 100).toFixed(1)}%`;
 }
 
@@ -257,11 +257,11 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
 
                   return (
                     <tr key={row.id} className="bg-white align-top">
-                      <td className="max-w-[200px] truncate px-3 py-2 font-medium text-neutral-900" title={row.name ?? "—"}>
-                        {row.name?.trim() || "—"}
+                      <td className="max-w-[200px] truncate px-3 py-2 font-medium text-neutral-900" title={row.name ?? "-"}>
+                        {row.name?.trim() || "-"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                        {row.plan?.trim() || "—"}
+                        {row.plan?.trim() || "-"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{invites}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{reviews}</td>

@@ -7,7 +7,7 @@ import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 
 /**
  * Returns whether an active listing can still be claimed (no owner / not linked).
- * Does not check email domain — POST /api/business/claim-request does that.
+ * Does not check email domain , POST /api/business/claim-request does that.
  */
 export async function GET(req: Request) {
   try {

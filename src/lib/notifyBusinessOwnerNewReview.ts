@@ -18,7 +18,7 @@ function bodySnippet120(body: string | null | undefined): string {
 
 /**
  * Sends a transactional email to the claimed business owner when a new review is published.
- * Never throws — failures are logged only.
+ * Never throws , failures are logged only.
  */
 export async function notifyBusinessOwnerOfNewReview({
   businessId,

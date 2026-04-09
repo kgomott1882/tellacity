@@ -14,6 +14,8 @@ type Props = {
   category: IntegrationCategory;
   state: IntegrationState;
   plan: PlanId;
+  /** When set and state is `available`, primary CTA navigates here (e.g. Shopify / WooCommerce connect flow). */
+  connectHref?: string | null;
 };
 
 function primaryCtaLabel(state: IntegrationState): string {
@@ -38,9 +40,24 @@ export default function IntegrationDetailView({
   category,
   state,
   plan,
+  connectHref,
 }: Props) {
   const ctaLabel = primaryCtaLabel(state);
   const disabled = state === "coming_soon";
+  const connectLink =
+    Boolean(connectHref) && state === "available" && !disabled ? connectHref! : null;
+
+  const ctaClassName = `inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition ${
+    disabled
+      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+      : state === "upgrade_required"
+        ? "bg-[#0E0E0E] text-white hover:bg-black"
+        : state === "enterprise"
+          ? "bg-[#1F2937] text-white hover:bg-black"
+          : state === "connected"
+            ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
+            : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
+  }`;
 
   return (
     <div className="flex-1 rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -69,23 +86,15 @@ export default function IntegrationDetailView({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={disabled}
-            className={`inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition ${
-              disabled
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                : state === "upgrade_required"
-                ? "bg-[#0E0E0E] text-white hover:bg-black"
-                : state === "enterprise"
-                ? "bg-[#1F2937] text-white hover:bg-black"
-                : state === "connected"
-                ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
-                : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
-            }`}
-          >
-            {ctaLabel}
-          </button>
+          {connectLink ? (
+            <Link href={connectLink} className={ctaClassName}>
+              {ctaLabel}
+            </Link>
+          ) : (
+            <button type="button" disabled={disabled} className={ctaClassName}>
+              {ctaLabel}
+            </button>
+          )}
           {state === "upgrade_required" && (
             <Link
               href="/for-business"
@@ -129,7 +138,11 @@ export default function IntegrationDetailView({
           </h2>
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-gray-700">
             <li>Choose the business you want to connect inside the Tellacity dashboard.</li>
-            <li>Authenticate with your {integration.name} account using a secure OAuth flow.</li>
+            <li>
+              {integration.slug === "woocommerce"
+                ? "Add REST API keys from WooCommerce (Advanced → REST API) and connect your store securely over HTTPS."
+                : `Authenticate with your ${integration.name} account using a secure OAuth flow.`}
+            </li>
             <li>Pick which events should trigger review invitations or data sync.</li>
             <li>Test the connection, then turn it on for live traffic.</li>
           </ol>

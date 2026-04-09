@@ -20,6 +20,14 @@ const DEFAULT_STANDARD_SUBJECT = "You're invited to leave a review";
 const DEFAULT_STANDARD_BODY =
   "You've been invited to leave a review.\n\nClick the link in this email to leave your review. If the button doesn't work, copy and paste the link into your browser.";
 
+/**
+ * Polished demo only: always shown when custom email is locked so the paywall
+ * never surfaces half-finished drafts from the database.
+ */
+const LOCKED_CUSTOM_PREVIEW_SUBJECT = "How was your experience with us?";
+const LOCKED_CUSTOM_PREVIEW_BODY =
+  "Hi there,\n\nWe hope your recent visit lived up to what we promised. Honest feedback helps us improve and helps other customers choose with confidence.\n\nWhen you have a moment, use the secure review link in this email. It only takes a minute.\n\nWith thanks,\nYour team at [Your business]\n\nA personalised review button is added automatically below this message.";
+
 type TemplateType = "standard" | "custom" | "widget";
 type TemplateRow = {
   id: string;
@@ -233,26 +241,6 @@ export default function EmailTemplatesPage() {
 
       <PlanStatusBanner plan={normalizedPlan} />
 
-      {!canEditCustom ? (
-        <div
-          className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm"
-          role="status"
-        >
-          <p className="text-sm font-semibold text-amber-900">🔒 Custom templates locked</p>
-          <p className="mt-1 text-sm text-amber-800">
-            Grow and up unlock custom templates so every invite matches your brand and feels
-            personal.
-          </p>
-          <button
-            type="button"
-            onClick={() => router.push("/business/dashboard/billing")}
-            className="mt-3 rounded-lg bg-[#124541] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35]"
-          >
-            {nextTierUpgradeCtaLabel(normalizedPlan)}
-          </button>
-        </div>
-      ) : null}
-
       {error && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3" role="alert">
           <p className="text-sm font-medium text-red-800">Failed to load email templates.</p>
@@ -296,23 +284,114 @@ export default function EmailTemplatesPage() {
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">2</span>
           Custom template
         </h2>
-        <p className="mt-1 text-sm text-gray-500">Customise the subject and body for your review invitation emails.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Customise the subject and body for your review invitation emails. Higher tiers add branded
+          signatures and advanced sending options.
+        </p>
 
         {!canEditCustom ? (
-          <div className="relative mt-6 overflow-hidden rounded-xl border border-gray-200 bg-gray-50/80 p-8">
-            <div className="pointer-events-none select-none blur-sm opacity-60" aria-hidden>
-              <div className="h-3 w-1/3 rounded bg-gray-200" />
-              <div className="mt-4 h-24 rounded-lg bg-gray-100" />
+          <div className="relative mt-6 min-h-[min(520px,70vh)] overflow-hidden rounded-xl border border-gray-200 bg-gray-50/50">
+            <div className="pointer-events-none select-none p-4 sm:p-5">
+              <div className="mt-0">
+                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Subject
+                </span>
+                <div className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-900 shadow-sm">
+                  {LOCKED_CUSTOM_PREVIEW_SUBJECT}
+                </div>
+              </div>
+              <div className="mt-4">
+                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Body
+                </span>
+                <div className="mt-1 min-h-[9rem] w-full whitespace-pre-wrap rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-800 shadow-sm">
+                  {LOCKED_CUSTOM_PREVIEW_BODY}
+                </div>
+              </div>
+              <div className="mt-4 rounded-lg border border-dashed border-[#2fb2a8]/40 bg-white px-4 py-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#124541]">
+                  Company signature
+                </p>
+                <p className="mt-0.5 text-[11px] text-gray-500">
+                  Example: unlock on Premium with logo, name, role, and contact lines
+                </p>
+                <div className="mt-3 flex gap-3 border-t border-gray-100 pt-3">
+                  <div
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 text-[10px] font-medium text-gray-400"
+                    aria-hidden
+                  >
+                    Logo
+                  </div>
+                  <div className="min-w-0 text-xs leading-snug text-gray-700">
+                    <p className="text-sm font-semibold text-gray-900">Jordan Lee</p>
+                    <p className="text-gray-600">Head of Customer Experience</p>
+                    <p className="mt-1 font-medium text-[#124541]">www.yourcompany.com</p>
+                    <p className="text-gray-500">+1 (555) 010-0142</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 px-4 text-center backdrop-blur-sm">
-              <p className="text-sm font-medium text-gray-800">Editing disabled for this plan</p>
-              <button
-                type="button"
-                onClick={() => router.push("/business/dashboard/billing")}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-medium text-white hover:bg-[#0f3a35]"
+            <div
+              className="absolute inset-0 z-20 rounded-xl bg-neutral-950/40 backdrop-blur-[2px]"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-4 sm:p-6">
+              <div
+                className="pointer-events-auto w-full max-w-md rounded-2xl border border-white/15 bg-neutral-900/80 px-7 py-8 text-left shadow-2xl backdrop-blur-md sm:px-8 sm:py-9"
+                role="region"
+                aria-label="Custom email template requires an upgrade"
               >
-                {nextTierUpgradeCtaLabel(normalizedPlan)}
-              </button>
+                <p className="text-center text-2xl" aria-hidden>
+                  🔒
+                </p>
+                <h3 className="mt-1 text-center text-lg font-semibold text-neutral-100">
+                  Email invites that feel unmistakably yours
+                </h3>
+                <p className="mt-2 text-center text-sm text-neutral-400">
+                  Everything in the preview behind this card is included when you unlock the right
+                  plan.
+                </p>
+                <ul className="mt-5 space-y-2.5 border-t border-white/10 pt-5 text-sm text-neutral-200">
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                      ✓
+                    </span>
+                    <span>
+                      <strong className="text-neutral-100">Grow:</strong> your own subject and full
+                      message. Save, edit, and send on-brand review invites anytime.
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                      ✓
+                    </span>
+                    <span>
+                      <strong className="text-neutral-100">Premium:</strong> branded{" "}
+                      <strong className="text-neutral-100">company signature</strong> with logo, name,
+                      title, phone, and website on every invite.
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 shrink-0 text-[#1FAF9E]" aria-hidden>
+                      ✓
+                    </span>
+                    <span>
+                      <strong className="text-neutral-100">Elite:</strong> custom reply-to address,
+                      signature call-to-action links, address line, and optional removal of Tellacity
+                      branding in the footer.
+                    </span>
+                  </li>
+                </ul>
+                <div className="mt-6 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/business/dashboard/billing")}
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
+                  >
+                    {nextTierUpgradeCtaLabel(normalizedPlan)}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ) : (

@@ -146,7 +146,7 @@ export default async function AdminReviewsPage(props: PageProps) {
       trimStr(r.guest_email) ||
       embedEmail ||
       trimStr(profileEmail) ||
-      "—";
+      "-";
 
     const verified_at = r.verified_at as string | null | undefined;
 

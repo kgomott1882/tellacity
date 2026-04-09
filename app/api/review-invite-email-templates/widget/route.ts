@@ -42,7 +42,7 @@ const WIDGET_SELECT =
   "subject, intro_message, layout_style, signature_enabled, signature_name";
 
 /**
- * GET — load widget email template + logo for the current business (session + team access).
+ * GET: load widget email template + logo for the current business (session + team access).
  * Uses service role after access check so RLS mismatches never block the dashboard.
  */
 export async function GET(req: Request) {
@@ -122,7 +122,7 @@ const VALID_LAYOUT_STYLES = new Set([
 ]);
 
 /**
- * POST — update widget template.
+ * POST: update widget template.
  * - Pass `layoutStyle` to set layout (plan rules apply as before).
  * - Pass `subject` and/or `introMessage` to update copy without changing layout.
  * - Send `layoutStyle` and/or at least one of `subject`, `introMessage`.

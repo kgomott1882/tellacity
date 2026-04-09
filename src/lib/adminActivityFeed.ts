@@ -31,7 +31,7 @@ const LOW = new Set(["dashboard_login"]);
 
 export function activityActionLabel(actionType: string | null | undefined): string {
   const key = String(actionType ?? "").trim();
-  if (!key) return "—";
+  if (!key) return "-";
   return ACTIVITY_ACTION_LABELS[key] ?? key.replace(/_/g, " ");
 }
 

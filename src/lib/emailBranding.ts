@@ -3,7 +3,7 @@ export const PUBLIC_APP_ORIGIN_FALLBACK = "https://tellacity.com";
 
 /**
  * Canonical site origin for links in transactional email (invite links, widget CTAs).
- * Always absolute — never rely on empty env in production/cron.
+ * Always absolute , never rely on empty env in production/cron.
  */
 export function getPublicAppOrigin(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -13,7 +13,7 @@ export function getPublicAppOrigin(): string {
 
 /**
  * Absolute URL to leave a review for a business (slug = businesses.slug).
- * Canonical path is `/write-review/[slug]` — not `/b/[slug]/write-review` (legacy; redirects).
+ * Canonical path is `/write-review/[slug]` , not `/b/[slug]/write-review` (legacy; redirects).
  */
 export function getPublicWriteReviewUrl(
   origin: string,
@@ -52,7 +52,7 @@ export function getInviteFinalizeUrl(
 const TELLACITY_BRAND_ICON_CACHE = "v=4";
 
 /**
- * Tellacity mark in `/public/brand/appicon.png` — website widgets, review strip, “Verified by” rows.
+ * Tellacity mark in `/public/brand/appicon.png` , website widgets, review strip, “Verified by” rows.
  * (Path only; use `TELLACITY_BRAND_ICON_SRC` for `<img src>` / `next/image`.)
  */
 export const TELLACITY_BRAND_ICON_PATH = "/brand/appicon.png";

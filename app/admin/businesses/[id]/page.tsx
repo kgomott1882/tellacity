@@ -52,7 +52,7 @@ type AdminBusinessDetailRow = {
 };
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
@@ -69,7 +69,7 @@ function formatSource(raw: string | null | undefined): string {
   const t = String(raw ?? "").trim().toLowerCase();
   if (t === "user_suggested") return "User suggested";
   if (t === "seeded") return "Seeded";
-  if (!t) return "—";
+  if (!t) return "-";
   return String(raw).trim();
 }
 
@@ -79,7 +79,7 @@ function formatCategory(name: string, slug: string): string {
   if (n && s && n !== s) return `${n} (${s})`;
   if (n) return n;
   if (s) return s;
-  return "—";
+  return "-";
 }
 
 function StatusPill({ label, value }: { label: string; value: string }) {
@@ -96,7 +96,7 @@ function StatusPill({ label, value }: { label: string; value: string }) {
     else if (v === "under_review") cls += " border-sky-200 bg-sky-50 text-sky-900";
     else cls += " border-neutral-200 bg-neutral-100 text-neutral-700";
   }
-  return <span className={cls}>{value.trim() || "—"}</span>;
+  return <span className={cls}>{value.trim() || "-"}</span>;
 }
 
 function DetailActionBtn({
@@ -233,7 +233,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                 <Field label="Business ID">
                   <span className="font-mono text-xs">{business?.id ?? ""}</span>
                 </Field>
-                <Field label="Name">{business?.name?.trim() || "—"}</Field>
+                <Field label="Name">{business?.name?.trim() || "-"}</Field>
                 <Field label="Website">
                   {(() => {
                     const href = websiteHref(business?.website);
@@ -248,7 +248,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                         {w || href}
                       </a>
                     ) : (
-                      "—"
+                      "-"
                     );
                   })()}
                 </Field>
@@ -261,7 +261,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                       {business?.email?.trim() ?? ""}
                     </a>
                   ) : (
-                    "—"
+                    "-"
                   )}
                 </Field>
                 <Field label="Phone">
@@ -273,7 +273,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                       {business?.phone?.trim() ?? ""}
                     </a>
                   ) : (
-                    "—"
+                    "-"
                   )}
                 </Field>
               </dl>
@@ -303,12 +303,12 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               </h3>
               <dl className="grid gap-6 sm:grid-cols-2">
                 <Field label="Status">
-                  <StatusPill label="Status" value={business?.status ?? "—"} />
+                  <StatusPill label="Status" value={business?.status ?? "-"} />
                 </Field>
                 <Field label="Submission Status">
                   <StatusPill
                     label="Submission"
-                    value={business?.submission_status ?? "—"}
+                    value={business?.submission_status ?? "-"}
                   />
                 </Field>
               </dl>
@@ -323,9 +323,9 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
 
                 {business?.owner_id ? (
                   <>
-                    <div className="font-medium">{ownerName || "—"}</div>
+                    <div className="font-medium">{ownerName || "-"}</div>
                     <div className="text-sm text-gray-500">
-                      {business?.profiles?.email ?? "—"}
+                      {business?.profiles?.email ?? "-"}
                     </div>
                   </>
                 ) : (

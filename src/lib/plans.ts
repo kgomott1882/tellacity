@@ -273,7 +273,7 @@ export async function getMonthlyInviteLimitForBusiness(
 }
 
 export function canAccessAnalytics(plan: PlanKey) {
-  return plan === "premium" || plan === "elite";
+  return plan === "grow" || plan === "premium" || plan === "elite";
 }
 
 export function canUseCustomEmail(plan: PlanKey) {

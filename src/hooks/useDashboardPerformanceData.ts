@@ -44,7 +44,7 @@ function parseTrend(raw: unknown): TrendPayload {
 
 /**
  * Client-side trust index (0–100): rating quality + log volume + review-count momentum.
- * Does not use RPC `trust_score` — single source of truth for the Performance dashboard.
+ * Does not use RPC `trust_score` , single source of truth for the Performance dashboard.
  */
 export function computeTrustScore(averageRating: number, totalReviews: number): number {
   const avg = Math.max(0, Math.min(5, averageRating));
@@ -62,7 +62,7 @@ export function computeTrustScore(averageRating: number, totalReviews: number): 
   return Math.min(100, Math.round(trustScoreRaw));
 }
 
-/** Percentages (0–100) from rating distribution — not RPC `sentiment` counts. */
+/** Percentages (0–100) from rating distribution , not RPC `sentiment` counts. */
 export type SentimentPercent = { positive: number; neutral: number; negative: number };
 
 function bucketCount(raw: unknown): number {
@@ -116,7 +116,7 @@ export function computeSentimentFromDistribution(
 
 /**
  * Compares review counts: last 30 days vs the prior 30 days (days 31–60 ago).
- * Uses `created_at` from the performance API review list — not RPC `review_velocity_percent`.
+ * Uses `created_at` from the performance API review list , not RPC `review_velocity_percent`.
  */
 export function computeReviewVelocityPercent(reviewRows: { created_at: string }[]): number {
   const now = new Date();
@@ -236,7 +236,7 @@ type PerformanceApiJson = {
 /**
  * Loads Performance dashboard data via a Next.js Route Handler (cookies first).
  * Review KPIs (totals, average, distribution, trust, sentiment) come only from
- * `get_business_review_insights` via `json.insights` — not derived from `recentReviews.length`.
+ * `get_business_review_insights` via `json.insights` , not derived from `recentReviews.length`.
  */
 export function useDashboardPerformanceData(businessId: string | null) {
   const [data, setData] = useState<DashboardPerformanceInsights | null>(null);

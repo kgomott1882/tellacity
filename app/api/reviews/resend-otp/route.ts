@@ -26,7 +26,7 @@ function resendFromHeader(): string {
 
 /**
  * POST /api/reviews/resend-otp
- * { draft_id } — new 6-digit code + email for an existing draft.
+ * { draft_id } , new 6-digit code + email for an existing draft.
  */
 export async function POST(req: Request) {
   try {

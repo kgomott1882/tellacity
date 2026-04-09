@@ -42,11 +42,11 @@ function trustReputation(score: number): {
   dot: string;
   text: string;
 } {
-  if (score >= 90) return { label: "Elite Reputation",   border: "border-l-[#2fb2a8]",  dot: "bg-[#2fb2a8]",  text: "text-[#2fb2a8]"  };
-  if (score >= 75) return { label: "Strong Reputation",  border: "border-l-emerald-400", dot: "bg-emerald-400", text: "text-emerald-400" };
-  if (score >= 55) return { label: "Building Momentum",  border: "border-l-amber-400",   dot: "bg-amber-400",   text: "text-amber-400"   };
-  if (score >= 30) return { label: "Early Stage",        border: "border-l-blue-400",    dot: "bg-blue-400",    text: "text-blue-400"    };
-  return                   { label: "Needs Attention",   border: "border-l-red-400",     dot: "bg-red-400",     text: "text-red-400"     };
+  if (score >= 90) return { label: "Elite Reputation", border: "border-l-[#2fb2a8]", dot: "bg-[#2fb2a8]", text: "text-[#2fb2a8]"  };
+  if (score >= 75) return { label: "Strong Reputation", border: "border-l-emerald-400", dot: "bg-emerald-400", text: "text-emerald-400" };
+  if (score >= 55) return { label: "Building Momentum", border: "border-l-amber-400", dot: "bg-amber-400", text: "text-amber-400"   };
+  if (score >= 30) return { label: "Early Stage", border: "border-l-blue-400", dot: "bg-blue-400", text: "text-blue-400"    };
+  return                   { label: "Needs Attention", border: "border-l-red-400", dot: "bg-red-400", text: "text-red-400"     };
 }
 
 /**
@@ -178,7 +178,7 @@ function ReviewActivityLineChart({ daily, totalReviews }: { daily: DailyReview[]
   const lineRef = useRef<SVGPathElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; count: number } | null>(null);
   const [lineLen, setLineLen] = useState(0);
-  const [drawn,   setDrawn]   = useState(false);
+  const [drawn, setDrawn]   = useState(false);
 
   // ── Build UTC-safe lookup from backend rows ──────────────────────────────
   // DailyReview rows have review_date: "YYYY-MM-DD" - slice to 10 chars, no Date parsing.
@@ -780,7 +780,7 @@ function PerformanceAnalyticsContent({ businessId }: { businessId: string }) {
               </div>
             </div>
 
-            {/* Review Sentiment — percentages from rating distribution (hook) */}
+            {/* Review Sentiment , percentages from rating distribution (hook) */}
             <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-5">
               <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">Review Sentiment</h3>
               {totalReviews === 0 ? (
@@ -925,76 +925,96 @@ export default function PerformancePage() {
 
   if (!businessId) return null;
 
-  if (!canAccessAnalytics(planKey)) {
-    return (
-      <>
-        <div className="w-full min-h-[calc(100vh-80px)] bg-neutral-900 p-6 space-y-6 rounded-xl">
-          <div className="flex min-h-[min(520px,calc(100vh-12rem))] flex-col items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800/80 px-8 py-14 text-center">
-            <h2 className="text-xl font-semibold text-neutral-100">
-              🔒 Understand what&apos;s working
-            </h2>
-            <p className="mt-3 max-w-md text-sm text-neutral-400">
-              See which invitations convert, track performance trends, and optimize your review
-              strategy. Without insights, you may miss opportunities to improve.
-            </p>
-            <button
-              type="button"
-              onClick={openAnalyticsUpgradeModal}
-              className="mt-8 inline-flex items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8]"
-            >
-              {nextTierUpgradeCtaLabel(planKey)}
-            </button>
-          </div>
+  const analyticsLocked = !canAccessAnalytics(planKey);
+
+  return (
+    <>
+      <div className="relative w-full min-h-[calc(100vh-80px)]">
+        <div className={analyticsLocked ? "pointer-events-none select-none" : undefined}>
+          <PerformanceAnalyticsContent businessId={businessId} />
         </div>
 
-        {analyticsUpgradeOpen ? (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {analyticsLocked ? (
+          <>
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setAnalyticsUpgradeOpen(false)}
+              className="absolute inset-0 z-20 rounded-xl bg-neutral-950/45 backdrop-blur-[2px]"
               aria-hidden
             />
-            <div
-              className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="analytics-upgrade-feature-title"
-            >
-              <h2
-                id="analytics-upgrade-feature-title"
-                className="text-lg font-semibold text-[#0E0E0E]"
+            <div className="absolute inset-0 z-30 flex items-start justify-center p-6 pt-[min(12vh,6rem)] pointer-events-none sm:items-center sm:pt-6">
+              <div
+                className="pointer-events-auto w-full max-w-md rounded-2xl border border-white/15 bg-neutral-900/70 px-8 py-10 text-center shadow-2xl backdrop-blur-md"
+                role="region"
+                aria-label="Performance analytics requires an upgrade"
               >
-                {analyticsUpgradeTitle}
-              </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Move up a tier to unlock performance insights and get more value from your reviews.
-                Without insights, you may miss opportunities to improve.
-              </p>
-              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <p className="text-2xl" aria-hidden>
+                  🔒
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-neutral-100">
+                  Understand what&apos;s working
+                </h2>
+                <p className="mt-3 text-sm text-neutral-300">
+                  See which invitations convert, track performance trends, and optimize your review
+                  strategy. Upgrade to interact with analytics. The preview behind this card shows
+                  what you&apos;ll unlock.
+                </p>
                 <button
                   type="button"
-                  onClick={() => setAnalyticsUpgradeOpen(false)}
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAnalyticsUpgradeOpen(false);
-                    router.push("/business/dashboard/billing?reason=analytics");
-                  }}
-                  className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+                  onClick={openAnalyticsUpgradeModal}
+                  className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
                 >
                   {nextTierUpgradeCtaLabel(planKey)}
                 </button>
               </div>
             </div>
-          </div>
+          </>
         ) : null}
-      </>
-    );
-  }
+      </div>
 
-  return <PerformanceAnalyticsContent businessId={businessId} />;
+      {analyticsUpgradeOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setAnalyticsUpgradeOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="analytics-upgrade-feature-title"
+          >
+            <h2
+              id="analytics-upgrade-feature-title"
+              className="text-lg font-semibold text-[#0E0E0E]"
+            >
+              {analyticsUpgradeTitle}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Move up a tier to unlock performance insights and get more value from your reviews.
+              Without insights, you may miss opportunities to improve.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setAnalyticsUpgradeOpen(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalyticsUpgradeOpen(false);
+                  router.push("/business/dashboard/billing?reason=analytics");
+                }}
+                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                {nextTierUpgradeCtaLabel(planKey)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }

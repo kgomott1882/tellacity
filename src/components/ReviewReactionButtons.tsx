@@ -107,7 +107,7 @@ export default function ReviewReactionButtons({
     const pending = window.localStorage.getItem(PENDING_HELPFUL_VOTE_KEY);
     if (pending !== reviewId) return;
 
-    // Claim immediately before any await — otherwise INITIAL_SESSION + effect + Strict Mode
+    // Claim immediately before any await , otherwise INITIAL_SESSION + effect + Strict Mode
     // can both see the same pending id and POST vote_auth twice (2nd → already_liked).
     window.localStorage.removeItem(PENDING_HELPFUL_VOTE_KEY);
 

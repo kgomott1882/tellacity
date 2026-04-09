@@ -130,7 +130,7 @@ async function processOne(adminSupabase, business) {
   const id = String(business.id ?? "");
   const logoUrl = String(business.logo_url ?? "").trim();
 
-  // CASE A — migrate existing Logo.dev URL
+  // CASE A , migrate existing Logo.dev URL
   if (logoUrl && logoUrl.includes("img.logo.dev")) {
     const migrateDomain = cleanDomainFromLogoDevUrl(logoUrl);
     if (!migrateDomain) {
@@ -138,7 +138,7 @@ async function processOne(adminSupabase, business) {
       return;
     }
 
-    /* TEMP disabled: Logo.dev primary fetch (rate limits) — restore when re-enabling
+    /* TEMP disabled: Logo.dev primary fetch (rate limits) , restore when re-enabling
     const logoRes = await fetch(logoUrl, { method: "GET" });
     if (logoRes.status === 429) {
       console.warn("RATE LIMITED:", logoUrl);
@@ -165,7 +165,7 @@ async function processOne(adminSupabase, business) {
     return;
   }
 
-  // CASE B — backfill (no logo yet)
+  // CASE B , backfill (no logo yet)
   if (!logoUrl) {
     const raw = business.website || "";
 
@@ -235,7 +235,7 @@ async function processOne(adminSupabase, business) {
 
     console.log("CLEAN DOMAIN:", cleanDomain);
 
-    /* TEMP disabled: Logo.dev backfill (rate limits) — restore when re-enabling
+    /* TEMP disabled: Logo.dev backfill (rate limits) , restore when re-enabling
     const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
     if (!token) {
       console.error("❌ Missing NEXT_PUBLIC_LOGO_DEV_TOKEN");
@@ -289,7 +289,7 @@ async function processOne(adminSupabase, business) {
     return;
   }
 
-  // CASE C — already has non–Logo.dev URL
+  // CASE C , already has non–Logo.dev URL
 }
 
 async function main() {
@@ -305,7 +305,7 @@ async function main() {
 
   if (!process.env.LOGO_DEV_TOKEN && !process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN) {
     console.warn(
-      "[process:logos] Logo.dev token not set — primary Logo.dev path is disabled; using Google/site favicon fallbacks only."
+      "[process:logos] Logo.dev token not set , primary Logo.dev path is disabled; using Google/site favicon fallbacks only."
     );
   }
 

@@ -64,7 +64,7 @@ function stripTrailingGeoPhrases(tokens) {
   return t
 }
 
-/** Same rules as src/lib/businessSlug.ts — name only, no city/country/id in the base slug. */
+/** Same rules as src/lib/businessSlug.ts , name only, no city/country/id in the base slug. */
 function businessNameToSlug(name) {
   const raw = typeof name === 'string' ? name.trim() : ''
   if (!raw) return ''

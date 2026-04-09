@@ -54,12 +54,24 @@ export default function IntegrationCard({ integration, businessId }: Props) {
     (integration.state as string) === "available" &&
     businessId;
 
+  const isWooAvailable =
+    integration.slug === "woocommerce" &&
+    (integration.state as string) === "available" &&
+    businessId;
+
   const primaryCta =
     (integration.state as string) === "connected" ? (
       <span className="text-green-600 font-medium">Connected ✓</span>
     ) : isShopifyAvailable ? (
       <Link
         href={`/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`}
+        className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
+      >
+        Connect
+      </Link>
+    ) : isWooAvailable ? (
+      <Link
+        href={`/business/dashboard/integrations/connect-woocommerce?business_id=${encodeURIComponent(businessId)}`}
         className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
       >
         Connect

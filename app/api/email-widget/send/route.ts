@@ -112,7 +112,7 @@ function buildSignatureBlock(t: Record<string, unknown>): string {
 }
 
 /**
- * Email clients (e.g. Gmail) strip inline SVG — Unicode stars on Tellacity tier-colored squares (matches WidgetStars at rating 5).
+ * Email clients (e.g. Gmail) strip inline SVG , Unicode stars on Tellacity tier-colored squares (matches WidgetStars at rating 5).
  */
 function buildEmailStarsRowHtml(opts?: { marginBottom?: string }): string {
   const mb = opts?.marginBottom ?? "16px";
@@ -229,7 +229,7 @@ ${rowHtml.join("")}
 </html>`;
 }
 
-/** Table-based footer: text only (no icon — email-safe). */
+/** Table-based footer: text only (no icon , email-safe). */
 function buildBrandingLine(): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:14px;"><tr><td align="center" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666666;">
 <span style="white-space:nowrap;">Verified reviews powered by <strong style="color:#000000;">Tellacity</strong></span>
@@ -374,7 +374,7 @@ function buildEliteBrandedHtml(opts: {
  * POST /api/email-widget/send
  *
  * Per recipient: creates `review_invites` (source = email_widget, excluded from monthly quota),
- * sends HTML with `/review/invite?token=…` links — same finalization UI as standard invites.
+ * sends HTML with `/review/invite?token=…` links , same finalization UI as standard invites.
  *
  * Body:
  *   businessId   string

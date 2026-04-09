@@ -108,7 +108,7 @@ export default function TellacityScoreStrip({ payload }: { payload: WidgetPayloa
   const raw = Number(payload.avg_rating);
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;
   const displayScore =
-    payload.avg_rating != null && Number.isFinite(raw) ? rating.toFixed(1) : "—";
+    payload.avg_rating != null && Number.isFinite(raw) ? rating.toFixed(1) : "-";
   const count = Math.max(0, Math.floor(Number(payload.review_count) || 0));
 
   const roundedTier = Math.max(0, Math.min(5, Math.round(rating)));

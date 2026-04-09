@@ -46,7 +46,7 @@ export async function logBusinessActivity({
   }
 }
 
-/** After a published row exists in `reviews` — never throws. */
+/** After a published row exists in `reviews` , never throws. */
 export async function logReviewReceivedActivity(input: {
   businessId: string;
   userId?: string | null;

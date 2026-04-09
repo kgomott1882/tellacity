@@ -11,6 +11,7 @@ import {
 } from "@/lib/integrationsCatalog";
 import { normalizePlanCodeToKey } from "@/lib/plans";
 import { useBusinessContext } from "../../../_context/BusinessContext";
+import { useConnectedIntegrationSlugs } from "../../../_hooks/useConnectedIntegrationSlugs";
 
 export default function IntegrationConnectorDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -18,12 +19,12 @@ export default function IntegrationConnectorDetailPage() {
   const { selectedBusiness } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
 
+  const businessId = selectedBusiness.id;
   const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
 
   const integration = getIntegrationBySlug(slug);
 
-  // In a future phase this will be populated from Supabase connection records.
-  const connectedSlugs: string[] = [];
+  const connectedSlugs = useConnectedIntegrationSlugs(businessId);
 
   if (!integration) {
     return (
@@ -49,12 +50,22 @@ export default function IntegrationConnectorDetailPage() {
 
   const state = deriveIntegrationState(integration, plan, connectedSlugs);
 
+  const connectHref =
+    state === "available"
+      ? integration.slug === "shopify"
+        ? `/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`
+        : integration.slug === "woocommerce"
+          ? `/business/dashboard/integrations/connect-woocommerce?business_id=${encodeURIComponent(businessId)}`
+          : null
+      : null;
+
   return (
     <IntegrationDetailView
       integration={integration}
       category={category}
       state={state}
       plan={plan}
+      connectHref={connectHref}
     />
   );
 }

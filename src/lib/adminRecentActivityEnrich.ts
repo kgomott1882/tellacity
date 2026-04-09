@@ -5,9 +5,11 @@ function isBlankEmail(e: string | null | undefined): boolean {
   return e == null || String(e).trim() === "";
 }
 
+const EMPTY_NAME_MARKERS = new Set(["", "-", "\u2014"]);
+
 function isBlankBusinessName(s: string | null | undefined): boolean {
   const t = s == null ? "" : String(s).trim();
-  return t === "" || t === "—";
+  return EMPTY_NAME_MARKERS.has(t);
 }
 
 /** Placeholder person labels we try to replace with real signup / profile data. */
@@ -20,11 +22,11 @@ function isBusinessRow(r: AdminRecentActivityItem): boolean {
   return r.item_type === "business" || r.title === "Business created";
 }
 
-/** Business-created rows: empty, em dash, or generic label — replace with real owner when possible. */
+/** Business-created rows: empty, placeholder dash, or generic label: replace with real owner when possible. */
 function needsBusinessOwnerPerson(r: AdminRecentActivityItem): boolean {
   if (!isBusinessRow(r)) return false;
   const t = (r.person_name ?? r.name ?? "").trim();
-  return t === "" || t === "—" || t === "Business Owner";
+  return EMPTY_NAME_MARKERS.has(t) || t === "Business Owner";
 }
 
 function isUserRow(r: AdminRecentActivityItem): boolean {

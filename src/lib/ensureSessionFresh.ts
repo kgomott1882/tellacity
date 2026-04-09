@@ -4,7 +4,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 /**
  * Proactively refreshes the Supabase session when the access token is expired or near expiry.
- * Stale JWTs cause RLS to return empty rows and API routes to 401 — symptoms match "blank until relogin".
+ * Stale JWTs cause RLS to return empty rows and API routes to 401 , symptoms match "blank until relogin".
  */
 export async function ensureSessionFresh(): Promise<void> {
   if (typeof window === "undefined") return;

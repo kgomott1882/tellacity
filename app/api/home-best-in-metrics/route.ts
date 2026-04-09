@@ -19,7 +19,7 @@ async function loadAggregatesChunk(
   const local: Record<string, { review_count: number; trust_score: number }> =
     {};
 
-  // DB RPC exists in Postgres; generated Supabase types may omit args — keep runtime payload.
+  // DB RPC exists in Postgres; generated Supabase types may omit args , keep runtime payload.
   const { data, error } = await supabase.rpc("get_public_review_aggregates", {
     p_business_ids: chunk,
   } as never);
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
   }
 }
 
-/** @deprecated Prefer POST — long id lists exceed query string limits. */
+/** @deprecated Prefer POST: long id lists exceed query string limits. */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);

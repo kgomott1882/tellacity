@@ -20,7 +20,7 @@ export default function TellacityTrustBadgeEmbed({
   const statsLabel =
     avgRounded != null && reviewCount > 0
       ? `${avgRounded} Stars | ${reviewCount.toLocaleString("en-GB")} reviews`
-      : "No published reviews yet — your live average and count will show here.";
+      : "No published reviews yet , your live average and count will show here.";
 
   return (
     <div className="mx-auto w-full max-w-sm rounded-lg border border-gray-200 bg-white px-4 py-4 text-center shadow-sm">

@@ -23,7 +23,7 @@ type PageProps = {
 type ActivityLogRow = Record<string, unknown>;
 
 function formatTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
@@ -59,13 +59,13 @@ function normalizePage(raw: string | undefined): number {
 function metadataPreview(row: ActivityLogRow): string {
   const raw =
     row.metadata ?? row.meta ?? row.payload ?? row.details ?? row.context ?? row.extra;
-  if (raw == null || raw === "") return "—";
+  if (raw == null || raw === "") return "-";
   try {
     const s = typeof raw === "string" ? raw : JSON.stringify(raw);
     const t = s.replace(/\s+/g, " ").trim();
     return t.length > 120 ? `${t.slice(0, 117)}…` : t;
   } catch {
-    return "—";
+    return "-";
   }
 }
 
@@ -202,14 +202,14 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
     }
     if (bizRows && bizRows.length > 0) {
       nameByBusinessId = new Map(
-        bizRows.map((b) => [String(b.id), (b.name as string | null)?.trim() || "—"])
+        bizRows.map((b) => [String(b.id), (b.name as string | null)?.trim() || "-"])
       );
     }
   }
 
   const listError = logsError?.message ?? filterError?.message ?? null;
   const emptyMessage =
-    "No activity yet — events will appear once businesses start using the dashboard.";
+    "No activity yet , events will appear once businesses start using the dashboard.";
 
   return (
     <div className="space-y-4">
@@ -280,7 +280,7 @@ export default async function AdminBusinessActivityPage(props: PageProps) {
               <tbody className="divide-y divide-neutral-100">
                 {pageLogs.map((row, idx) => {
                   const bid = businessIdFromLog(row);
-                  const name = bid ? (nameByBusinessId.get(bid) ?? "—") : "—";
+                  const name = bid ? (nameByBusinessId.get(bid) ?? "-") : "-";
                   const actionRaw =
                     typeof row.action_type === "string"
                       ? row.action_type

@@ -157,7 +157,7 @@
   }
 }
 
-/* Landing hero — twinkling stars (scale-only on .hero-star; translate lives on .hero-star-anchor) */
+/* Landing hero , twinkling stars (scale-only on .hero-star; translate lives on .hero-star-anchor) */
 @keyframes heroStarTwinkle {
   0% {
     opacity: 0.42;
@@ -186,7 +186,7 @@
   }
 }
 
-/* Hero stars — fewer + calmer glow on small viewports (see HeroStarField max-md:hidden) */
+/* Hero stars , fewer + calmer glow on small viewports (see HeroStarField max-md:hidden) */
 @keyframes heroStarTwinkleMobile {
   0% {
     opacity: 0.28;
@@ -225,7 +225,7 @@
   }
 }
 
-/* One-shot shooting star (HeroStarField — client-triggered; duration set inline) */
+/* One-shot shooting star (HeroStarField , client-triggered; duration set inline) */
 @keyframes heroShootingStarFly {
   0% {
     opacity: 0;

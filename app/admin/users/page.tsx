@@ -26,15 +26,15 @@ function userId(row: AdminUserRow): string {
 function displayName(row: AdminUserRow): string {
   const n = row.display_name ?? row.full_name ?? row.name;
   if (n && String(n).trim()) return String(n);
-  return "—";
+  return "-";
 }
 
 function email(row: AdminUserRow): string {
-  return row.email?.trim() || "—";
+  return row.email?.trim() || "-";
 }
 
 function role(row: AdminUserRow): string {
-  return row.role?.trim() || "—";
+  return row.role?.trim() || "-";
 }
 
 function isAdmin(row: AdminUserRow): boolean {
@@ -46,7 +46,7 @@ function suspended(row: AdminUserRow): boolean {
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString();
@@ -174,7 +174,7 @@ export default async function AdminUsersPage(props: PageProps) {
                         />
                         <ActionBtn
                           label="Admin"
-                          formAction={adminSetUserAdminAction.bind(null, id, r === "—" ? "consumer" : r)}
+                          formAction={adminSetUserAdminAction.bind(null, id, r === "-" ? "consumer" : r)}
                         />
                         {suspended(row) ? (
                           <ActionBtn

@@ -756,7 +756,7 @@ export default function BusinessOnboardingModal({
             </p>
             {claimSearchInitialQuery.trim() ? (
               <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/90 px-3 py-2 text-sm text-emerald-900">
-                We pre-filled the search from your email domain — edit it if needed, then use{" "}
+                We pre-filled the search from your email domain , edit it if needed, then use{" "}
                 <span className="font-semibold">FIND A BUSINESS</span> or pick a result below.
               </p>
             ) : null}

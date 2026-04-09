@@ -59,7 +59,7 @@ export default function BusinessLoginPage() {
 
       const userId = signInData.user.id;
 
-      // Business profile may exist under a different auth user id — migrate to this session.
+      // Business profile may exist under a different auth user id , migrate to this session.
       const supabase = supabaseBrowser();
       let { data: existingProfile } = await supabase
         .from("business_profiles")

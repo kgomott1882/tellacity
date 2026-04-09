@@ -56,7 +56,7 @@ type InviteBlockProps = {
 
 /**
  * Core invite strip: headline (standard / Review Hunter), or body-only for Elite (intro lives above in compose).
- * Stars use Tellacity `WidgetStars` styling via `TellacityStarStrip` — same as live compose preview.
+ * Stars use Tellacity `WidgetStars` styling via `TellacityStarStrip` , same as live compose preview.
  */
 export function EmailWidgetInviteBlock({
   variant,
@@ -98,7 +98,7 @@ export function EmailWidgetInviteBlock({
   );
 }
 
-/** Rating ladder: same structure as compose preview — 5 rows, Tellacity stars per row. */
+/** Rating ladder: same structure as compose preview , 5 rows, Tellacity stars per row. */
 export function EmailWidgetRatingLadderPreview({
   density = "comfortable",
 }: {

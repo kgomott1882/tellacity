@@ -12,7 +12,7 @@ function resendFromHeader(): string {
 
 /**
  * After domain OTP verification successfully claims or activates a listing: email the owner and notify sales.
- * Does not throw — claim already succeeded in the DB.
+ * Does not throw , claim already succeeded in the DB.
  */
 export async function sendBusinessClaimSuccessEmails(input: {
   toEmail: string;
@@ -96,9 +96,9 @@ export async function sendBusinessClaimSuccessEmails(input: {
   const internalText = [
     "Business claimed on Tellacity (domain verification completed).",
     "",
-    `Business name: ${input.businessName.trim() || "—"}`,
+    `Business name: ${input.businessName.trim() || "-"}`,
     `Owner email: ${input.toEmail.trim().toLowerCase()}`,
-    `Contact name: ${input.fullName.trim() || "—"}`,
+    `Contact name: ${input.fullName.trim() || "-"}`,
     country ? `Country: ${country}` : null,
     `Time (UTC): ${new Date().toISOString()}`,
     "",

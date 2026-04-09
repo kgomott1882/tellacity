@@ -75,8 +75,8 @@ export default async function AdminCustomerBusinessesPage() {
       created_at: b.created_at,
       review_count: b.review_count,
       plan_code: planCode,
-      owner_email: profile?.email ?? "—",
-      owner_name: profile?.display_name?.trim() || profile?.email || "—",
+      owner_email: profile?.email ?? "-",
+      owner_name: profile?.display_name?.trim() || profile?.email || "-",
     };
   });
 
@@ -116,8 +116,8 @@ export default async function AdminCustomerBusinessesPage() {
                   return (
                     <tr key={c.id} className="bg-white align-top">
                       <td className="px-3 py-2">
-                        <div className="font-medium">{c.name || "—"}</div>
-                        <div className="text-sm text-gray-500">{c.website || "—"}</div>
+                        <div className="font-medium">{c.name || "-"}</div>
+                        <div className="text-sm text-gray-500">{c.website || "-"}</div>
                       </td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{c.owner_name}</div>
@@ -131,11 +131,11 @@ export default async function AdminCustomerBusinessesPage() {
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
-                          {c.status || "—"}
+                          {c.status || "-"}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : "-"}
                       </td>
                       <td className="px-3 py-2">
                         <Link

@@ -43,16 +43,16 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
   "get-reviews": {
     title: "INVITATIONS",
     items: [
-      { label: "Overview",         path: "/business/dashboard/get-reviews/overview" },
-      { label: "Send invitation",  path: "/business/dashboard/get-reviews/invitation-methods" },
-      { label: "Email templates",  path: "/business/dashboard/get-reviews/email-templates" },
+      { label: "Overview", path: "/business/dashboard/get-reviews/overview" },
+      { label: "Send invitation", path: "/business/dashboard/get-reviews/invitation-methods" },
+      { label: "Email templates", path: "/business/dashboard/get-reviews/email-templates" },
     ],
   },
   widgets: {
     title: "WIDGETS",
     items: [
       { label: "Website widgets", path: "/business/dashboard/share/widgets" },
-      { label: "Email widgets",   path: "/business/dashboard/share/email" },
+      { label: "Email widgets", path: "/business/dashboard/share/email" },
     ],
   },
   share: {
@@ -94,9 +94,9 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
     title: "SETTINGS",
     items: [
       { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
-      { label: "Team Access",      path: "/business/dashboard/settings/team-access" },
-      { label: "Notifications",    path: "/business/dashboard/settings/notifications" },
-      { label: "Account",          path: "/business/dashboard/settings/account" },
+      { label: "Team Access", path: "/business/dashboard/settings/team-access" },
+      { label: "Notifications", path: "/business/dashboard/settings/notifications" },
+      { label: "Account", path: "/business/dashboard/settings/account" },
     ],
   },
 };
@@ -370,7 +370,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                     <div className="mb-6 flex justify-center">
                       <Image
                         src="/brand/Congrats.png"
-                        alt="Welcome — your Tellacity Business journey starts here"
+                        alt="Welcome , your Tellacity Business journey starts here"
                         width={320}
                         height={240}
                         className="h-auto w-full max-w-[280px] object-contain"

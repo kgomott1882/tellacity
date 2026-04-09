@@ -11,7 +11,7 @@ import {
   type CSSProperties,
 } from "react";
 
-/** Deterministic pseudo-random in [0, 1) — stable across SSR + browser. */
+/** Deterministic pseudo-random in [0, 1) , stable across SSR + browser. */
 function seeded(n: number) {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453123;
   return x - Math.floor(x);
@@ -30,7 +30,7 @@ const MOBILE_STAR_VISIBLE = 26;
 const ORANGE_STAR_COUNT = 5 + Math.floor(seeded(777) * 3);
 
 const LOAD_DELAY_MS = 2000;
-/** Shooting star animation length (ms) — slower so the streak reads clearly; matches inline CSS animation. */
+/** Shooting star animation length (ms) , slower so the streak reads clearly; matches inline CSS animation. */
 const SHOT_DURATION_MS = 4200;
 
 export type HeroStarFieldHandle = {

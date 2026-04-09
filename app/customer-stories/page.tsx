@@ -182,7 +182,7 @@ export default function CustomerStoriesPage() {
               1. Automate Review Invitations
             </p>
             <p>
-              Trigger review requests after key events like purchases, sign-ups, or completed projects—without manual
+              Trigger review requests after key events like purchases, sign-ups, or completed projects, without manual
               follow-ups.
             </p>
           </div>
@@ -212,7 +212,7 @@ export default function CustomerStoriesPage() {
             “Tellacity didn’t just help us collect reviews. It helped us operationalise trust.”
           </p>
           <p className="mt-4 text-sm text-gray-600">
-            — Head of CX, Brightline Retail
+            Head of CX, Brightline Retail
           </p>
         </div>
       </section>

@@ -16,7 +16,7 @@ function businessId(row: AdminBusinessRow): string {
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleDateString();
@@ -34,12 +34,12 @@ function truncateBusinessId(id: string): string {
 }
 
 function sourceLabel(source: unknown): string {
-  if (typeof source !== "string") return "—";
+  if (typeof source !== "string") return "-";
   const normalized = source.trim().toLowerCase();
   if (normalized === "seeded") return "Seeded";
   if (normalized === "user_suggested") return "Suggested";
   if (normalized === "owner_signup") return "Owner Signup";
-  return "—";
+  return "-";
 }
 
 function parseRpcCount(data: unknown): number {
@@ -68,7 +68,7 @@ function StatusPill({ status }: { status: string }) {
   } else {
     cls += " border-neutral-200 bg-neutral-100 text-neutral-700";
   }
-  return <span className={cls}>{status.trim() || "—"}</span>;
+  return <span className={cls}>{status.trim() || "-"}</span>;
 }
 
 type CategoryOption = { slug: string; name: string };
@@ -437,10 +437,10 @@ export default function AdminBusinessesTable() {
                     const countryCode =
                       row.country_code?.trim() || row.country?.trim() || "";
                     const category =
-                      row.category?.trim() || row.category_slug?.trim() || "—";
+                      row.category?.trim() || row.category_slug?.trim() || "-";
                     const websiteRaw = row.website?.trim() || "";
                     const href = websiteHref(row.website);
-                    const statusLabel = row.status?.trim() || "—";
+                    const statusLabel = row.status?.trim() || "-";
                     const normalizedRowStatus =
                       row.status?.trim().toLowerCase() ?? "";
                     const isSuspended = normalizedRowStatus === "suspended";
@@ -458,7 +458,7 @@ export default function AdminBusinessesTable() {
                             href={`/admin/businesses/${id}`}
                             className="text-black hover:underline"
                           >
-                            {row.name?.trim() || "—"}
+                            {row.name?.trim() || "-"}
                           </Link>
                         </td>
                         <td
@@ -475,21 +475,21 @@ export default function AdminBusinessesTable() {
                               {websiteRaw || href}
                             </a>
                           ) : (
-                            "—"
+                            "-"
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                           {adminCountryDisplay(countryCode)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {statusLabel === "—" ? (
-                            "—"
+                          {statusLabel === "-" ? (
+                            "-"
                           ) : (
                             <StatusPill status={statusLabel} />
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {row.submission_status?.trim() || "—"}
+                          {row.submission_status?.trim() || "-"}
                         </td>
                         <td
                           className="max-w-[120px] truncate px-3 py-2 text-neutral-700"

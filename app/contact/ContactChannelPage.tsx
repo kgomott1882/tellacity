@@ -47,7 +47,7 @@ const faqAboutReviews: FaqItem[] = [
     id: "rev-remove",
     question: "Can businesses remove reviews?",
     answer:
-      "Legitimate reviews stay visible. We remove content only when it breaks our guidelines—after moderation.",
+      "Legitimate reviews stay visible. We remove content only when it breaks our guidelines after moderation.",
   },
   {
     id: "rev-verify",
@@ -74,7 +74,7 @@ const faqGeneralSupport: FaqItem[] = [
     id: "gen-support",
     question: "How do I contact support?",
     answer:
-      "Use this form for the fastest response, or email support@tellacity.com—we usually reply within one business day.",
+      "Use this form for the fastest response, or email support@tellacity.com. We usually reply within one business day.",
   },
 ];
 

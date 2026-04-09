@@ -22,7 +22,7 @@ function num(v: unknown): number {
 }
 
 function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
@@ -33,20 +33,20 @@ function activityTypeLabel(itemType: string | null | undefined): string {
   if (t === "review") return "Review submitted";
   if (t === "user") return "User signed up";
   if (t === "business") return "Business created";
-  return t ? t : "—";
+  return t ? t : "-";
 }
 
 function activityPersonCell(row: AdminRecentActivityItem): string {
   const raw = (row.person_name ?? row.name ?? "").trim();
   if (raw) return raw;
   if (row.item_type === "review") return "Guest";
-  return "—";
+  return "-";
 }
 
 function activityBusinessCell(row: AdminRecentActivityItem): string {
   const sub = row.subtitle != null ? String(row.subtitle).trim() : "";
-  if (sub && sub !== "—") return sub;
-  return "—";
+  if (sub && sub !== "-") return sub;
+  return "-";
 }
 
 function parseActivityPage(raw: string | undefined): number {
@@ -187,7 +187,7 @@ export default async function AdminOverviewPage(props: {
                       <span className="font-medium">
                         {row.email != null && String(row.email).trim() !== ""
                           ? String(row.email).trim()
-                          : "—"}
+                          : "-"}
                       </span>
                     </td>
                   </tr>

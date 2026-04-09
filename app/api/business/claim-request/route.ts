@@ -8,7 +8,7 @@ import { sessionEmailDomainMatchesBusinessWebsite } from "@/lib/businessDomainVe
 
 /**
  * Validates that the signed-in user may start domain OTP for claiming an existing listing.
- * Does not create business_owners — call POST /api/business/verify-domain (no code) to send OTP.
+ * Does not create business_owners , call POST /api/business/verify-domain (no code) to send OTP.
  * Email vs website domain is compared with normalizeWebsiteDomain rules via sessionEmailDomainMatchesBusinessWebsite.
  */
 export async function POST(req: Request) {

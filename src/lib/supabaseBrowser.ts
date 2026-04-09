@@ -40,7 +40,7 @@ export function supabaseBrowser(): SupabaseClient {
 }
 
 /**
- * Same singleton instance as `supabaseBrowser()` — use `import { supabase } from "@/lib/supabaseBrowser"`.
+ * Same singleton instance as `supabaseBrowser()` , use `import { supabase } from "@/lib/supabaseBrowser"`.
  * Delegates every property access to the shared browser client (anon key + persisted session / cookies).
  * Client components only.
  */

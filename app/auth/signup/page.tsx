@@ -170,7 +170,7 @@ export default function SignupPage() {
           {step === "form" ? (
             <>
               <h1 className="text-2xl font-semibold text-[#0E0E0E]">
-                Create your account
+                Create your REVIEWER account
               </h1>
               <p className="mt-2 text-sm text-gray-600">
                 Sign up with your email to access your dashboard.

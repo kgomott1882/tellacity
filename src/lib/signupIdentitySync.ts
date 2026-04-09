@@ -65,7 +65,7 @@ export function formatSignupProfileErrorForClient(err: PostgrestError | null): s
   return "Could not save your profile. Please try again.";
 }
 
-/** Consumer `profiles` row only — signup does not touch business_profiles or businesses. */
+/** Consumer `profiles` row only , signup does not touch business_profiles or businesses. */
 export type SignupProfileSyncPayload = {
   userId: string;
   emailNorm: string;

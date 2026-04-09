@@ -30,7 +30,7 @@ export default function NotificationsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
-  /** `notify_only_low_reviews` — UI only; API not wired yet */
+  /** `notify_only_low_reviews` , UI only; API not wired yet */
   const [notifyOnlyLowReviews, setNotifyOnlyLowReviews] = useState(false);
 
   const businessId = selectedBusiness.id;

@@ -84,7 +84,7 @@ type RelatedBusiness = {
   logoUrl: string | null;
 };
 
-/** Top slice from get_top_businesses_for_category_global — same source as category page. */
+/** Top slice from get_top_businesses_for_category_global , same source as category page. */
 type TopRatedInCategory = {
   id: string;
   name: string;
@@ -1598,7 +1598,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
               {trustScoreStep === 0 && (
                 <p>
                   Time span · Newer, recent reviews hold more weight in the
-                  TrustScore than older ones — they're a good indication of
+                  TrustScore than older ones , they're a good indication of
                   current customer satisfaction.
                 </p>
               )}

@@ -155,7 +155,7 @@ export type PricingPageContentProps = {
   variant?: "public" | "dashboard";
   dashboardBusinessId?: string;
   dashboardUserEmail?: string;
-  /** Current workspace plan — used to show “Recommended for you” on the next tier only. */
+  /** Current workspace plan , used to show “Recommended for you” on the next tier only. */
   dashboardCurrentPlanKey?: PlanKey;
   /** Stronger Premium card emphasis (e.g. billing deep-link with upgrade reason). */
   emphasizePremiumAnchor?: boolean;
@@ -551,7 +551,7 @@ export function PricingPageContent({
                     type="button"
                     onClick={() =>
                       alert(
-                        "You’re already signed in. The Free plan doesn’t require payment — use Plans & billing to manage your subscription."
+                        "You’re already signed in. The Free plan doesn’t require payment. Use Plans & billing to manage your subscription."
                       )
                     }
                     className={pricingButtonClass}

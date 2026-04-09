@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Copy, Check } from "lucide-react";
 import Image from "next/image";
 import QRCode from "react-qr-code";
@@ -10,6 +11,11 @@ import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import WidgetStars from "@/components/widgets/WidgetStars";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import { getPublicWriteReviewUrl } from "@/lib/emailBranding";
+import {
+  canUseCustomEmail,
+  normalizePlanCodeToKey,
+  nextTierUpgradeCtaLabel,
+} from "@/lib/plans";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -103,6 +109,8 @@ export default function SocialSharePage() {
   const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const slug = selectedBusiness?.slug ?? "";
+  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const canUseQrClearly = canUseCustomEmail(planKey);
 
   const profileUrl = slug ? `${BASE_URL}/b/${slug}` : "";
   const reviewUrl = slug ? getPublicWriteReviewUrl(BASE_URL, slug) : "";
@@ -226,10 +234,34 @@ export default function SocialSharePage() {
               <CopyButton text={reviewUrl} />
             </div>
 
-            {/* QR code */}
-            <div className="mt-4 inline-flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <QRCode value={reviewUrl} size={120} />
-              <span className="text-xs text-gray-400">Scan to leave a review</span>
+            {/* QR code: same gate as Get reviews overview (Grow+ for clear / printable use) */}
+            <div className="relative mt-4 inline-flex min-w-[152px] flex-col items-stretch rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div
+                className={`mx-auto flex flex-col items-center gap-2 ${
+                  !canUseQrClearly
+                    ? "pointer-events-none select-none blur-md opacity-50"
+                    : ""
+                }`}
+              >
+                <QRCode value={reviewUrl} size={120} />
+                <span className="text-xs text-gray-400">Scan to leave a review</span>
+              </div>
+              {!canUseQrClearly ? (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/65 px-3 text-center backdrop-blur-[2px]">
+                  <div className="max-w-[9.5rem]">
+                    <p className="text-xs font-semibold text-gray-900">QR preview</p>
+                    <p className="mt-1 text-[11px] leading-snug text-gray-600">
+                      Grow unlocks a sharp code for print, tables, and receipts.
+                    </p>
+                    <Link
+                      href="/business/dashboard/billing"
+                      className="mt-2 inline-block text-xs font-semibold text-[#124541] underline decoration-[#124541]/40 underline-offset-2 hover:text-[#0f3a35]"
+                    >
+                      {nextTierUpgradeCtaLabel(planKey)}
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

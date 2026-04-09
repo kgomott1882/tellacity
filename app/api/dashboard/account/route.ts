@@ -8,7 +8,7 @@ function splitDisplayName(displayName: string): { first: string; last: string } 
   return { first: parts[0]!, last: parts.slice(1).join(" ") };
 }
 
-/** Account form data from server session (cookies / Bearer) — avoids client getSession() races. */
+/** Account form data from server session (cookies / Bearer) , avoids client getSession() races. */
 export async function GET(req: Request) {
   try {
     const ctx = await resolveDashboardDb(req);

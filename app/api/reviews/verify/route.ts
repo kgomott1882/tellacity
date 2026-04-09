@@ -74,7 +74,7 @@ function codesMatch(stored: unknown, input: string): boolean {
 
 /**
  * POST /api/reviews/verify
- * { draft_id, code } — validate OTP, insert published review (service role), cleanup draft + OTP.
+ * { draft_id, code } , validate OTP, insert published review (service role), cleanup draft + OTP.
  */
 export async function POST(req: Request) {
   try {
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     if (isGoogleUser) {
       return NextResponse.json({
         success: true,
-        message: "Google user — no verification needed",
+        message: "Google user , no verification needed",
       });
     }
 

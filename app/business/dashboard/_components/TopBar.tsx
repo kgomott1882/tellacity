@@ -84,7 +84,7 @@ function initialsFromRow(row: {
 }
 
 type TopBarProps = {
-  /** From `useBusinessAuth` — always set when the dashboard shell renders the bar. */
+  /** From `useBusinessAuth` , always set when the dashboard shell renders the bar. */
   sessionUserId?: string | null;
   sessionEmail?: string | null;
 };
@@ -196,7 +196,7 @@ export default function TopBar({
             // fall through to getUser
           }
         }
-        // Do not return — try getUser below
+        // Do not return , try getUser below
       }
 
       if (session?.user) {
@@ -420,7 +420,7 @@ export default function TopBar({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-sm text-gray-900 truncate">{displayName}</div>
-                    <div className="text-xs text-gray-500 truncate">{emailLine || "—"}</div>
+                    <div className="text-xs text-gray-500 truncate">{emailLine || "-"}</div>
                   </div>
                 </div>
               </div>
