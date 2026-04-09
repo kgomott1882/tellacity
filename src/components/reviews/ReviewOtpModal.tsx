@@ -161,6 +161,9 @@ export default function ReviewOtpModal({
               <span className="font-medium text-gray-700">{verificationEmail}</span>.
               Enter the code below to publish your review.
             </p>
+            <p className="mt-2 text-xs text-gray-500">
+              {"Didn't receive the email? Check your spam or junk folder."}
+            </p>
           </div>
           <button
             type="button"
@@ -218,7 +221,7 @@ export default function ReviewOtpModal({
               {resending ? "Sending…" : "Resend code"}
             </Button>
             <p className="text-center text-xs text-gray-500">
-              Check spam or promotions. You can resend a new code above.
+              You can resend a new code above if needed.
             </p>
           </div>
         </form>

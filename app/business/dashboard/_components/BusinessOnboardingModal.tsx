@@ -708,6 +708,9 @@ export default function BusinessOnboardingModal({
           <form onSubmit={handleVerifyCreateOtp} className="pt-2">
             <h2 className="text-xl font-semibold text-gray-900">Verify your email</h2>
             <p className="mt-2 text-sm text-gray-600">{info}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {"Didn't receive the email? Check your spam or junk folder."}
+            </p>
             <input
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -829,6 +832,9 @@ export default function BusinessOnboardingModal({
           <form onSubmit={handleVerifyClaimOtp} className="pt-2">
             <h2 className="text-xl font-semibold text-gray-900">Verify your email</h2>
             <p className="mt-2 text-sm text-gray-600">{info}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {"Didn't receive the email? Check your spam or junk folder."}
+            </p>
             <input
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}

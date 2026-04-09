@@ -428,6 +428,11 @@ export default function ReviewReactionButtons({
                   ? "Enter your details. We’ll email you a short code to confirm."
                   : `We sent a 6-digit code to ${guestEmail.trim() || "your email"}.`}
               </p>
+              {guestStep !== "form" ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {"Didn't receive the email? Check your spam or junk folder."}
+                </p>
+              ) : null}
 
               {guestStep === "form" ? (
                 <div className="mt-4 space-y-3">

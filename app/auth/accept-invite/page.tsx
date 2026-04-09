@@ -349,6 +349,9 @@ function AcceptInviteInner() {
                 <strong className="text-white">{inviteInfo.email}</strong>. Enter it below to join{" "}
                 <strong className="text-white">{inviteInfo.businessName}</strong>.
               </p>
+              <p className="mt-3 text-sm text-neutral-500">
+                {"Didn't receive the email? Check your spam or junk folder."}
+              </p>
 
               <form className="mt-8 space-y-4" onSubmit={handleVerifyOtp}>
                 <div>

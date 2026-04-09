@@ -2313,6 +2313,9 @@ export default function WriteReviewForm({
                     . Enter this code in the verification window to publish your
                     review.
                   </p>
+                  <p className="mt-2 text-emerald-900/90">
+                    {"Didn't receive the email? Check your spam or junk folder."}
+                  </p>
                 </div>
               )}
 
@@ -2329,6 +2332,9 @@ export default function WriteReviewForm({
                   <p className="mt-1 text-sm text-emerald-700">
                     We sent a verification code to your email. Enter the code to
                     publish your review.
+                  </p>
+                  <p className="mt-2 text-xs text-emerald-800">
+                    {"Didn't receive the email? Check your spam or junk folder."}
                   </p>
                   <div className="mt-3 flex flex-col gap-2">
                     <button

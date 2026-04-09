@@ -243,6 +243,9 @@ function CreateBusinessForm() {
             <p className="mt-2 text-center text-sm text-gray-600">
               Enter the 6-digit code we sent to your work email.
             </p>
+            <p className="mt-3 text-center text-xs text-gray-500">
+              {"Didn't receive the email? Check your spam or junk folder."}
+            </p>
             <form onSubmit={handleVerifyDomainOtp} className="mt-6 space-y-4">
               <input
                 placeholder="000000"

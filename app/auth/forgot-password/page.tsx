@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -18,13 +19,13 @@ export default function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    const { error: invokeError } = await supabaseBrowser().functions.invoke(
-      "send-password-reset",
-      { body: { email, redirectPath: "/auth/reset-password" } }
+    const { error: resetError } = await supabaseBrowser().auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo: `${getBaseUrl()}/auth/reset-password` }
     );
     setLoading(false);
-    if (invokeError) {
-      setError(invokeError.message);
+    if (resetError) {
+      setError(resetError.message);
       return;
     }
     setSent(true);
@@ -41,6 +42,9 @@ export default function ForgotPasswordPage() {
               </h1>
               <p className="mt-2 text-sm text-gray-600">
                 We sent a password reset link to <strong>{email}</strong>.
+              </p>
+              <p className="mt-3 text-sm text-gray-600">
+                {"Didn't receive the email? Check your spam or junk folder."}
               </p>
               <Link
                 href="/auth/login"

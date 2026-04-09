@@ -461,6 +461,9 @@ export default function SuggestBusinessPage() {
               We sent a 6-digit code to <strong>{suggesterEmail.trim()}</strong>. Enter it below to publish your
               listing.
             </p>
+            <p className="mt-3 text-sm text-gray-600">
+              {"Didn't receive the email? Check your spam or junk folder."}
+            </p>
             <div>
               <label htmlFor="otp" className={labelClass}>
                 Verification code <span className="text-red-500">*</span>

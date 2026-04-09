@@ -171,6 +171,9 @@ export default function BusinessSignupOtpModal({
           Enter the 6-digit code we sent to{" "}
           <span className="font-medium text-[#0E0E0E]">{email}</span>
         </p>
+        <p className="mt-3 text-center text-xs text-gray-500">
+          {"Didn't receive the email? Check your spam or junk folder."}
+        </p>
 
         <form onSubmit={handleVerify} className="mt-6 space-y-4">
           <div>

@@ -325,6 +325,9 @@ export default function SignupPage() {
               <p className="mt-2 text-sm text-gray-600">
                 We’ve sent a 4-digit code to <strong>{email}</strong>.
               </p>
+              <p className="mt-3 text-sm text-gray-600">
+                {"Didn't receive the email? Check your spam or junk folder."}
+              </p>
               <div className="mt-6 space-y-4">
                 <div>
                   <label className="text-sm font-medium text-[#0E0E0E]">
