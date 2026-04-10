@@ -11,7 +11,7 @@ import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 
-const RECENT_ACTIVITY_PAGE_SIZE = 15;
+const RECENT_ACTIVITY_PAGE_SIZE = 25;
 
 export const dynamic = "force-dynamic";
 
@@ -147,6 +147,20 @@ export default async function AdminOverviewPage(props: {
         <AdminStatCard title="Business users" value={businessUsersCount} />
         <AdminStatCard title="Consumer users" value={num(s?.consumer_users)} />
       </div>
+
+      <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
+        <strong>New users today</strong> and <strong>Reviews today</strong> count rows whose{" "}
+        <code className="rounded bg-neutral-100 px-1">created_at</code> falls on the{" "}
+        <strong>current UTC calendar date</strong> (not local midnight). Stats refresh each time you load this page.
+        <span className="mt-1 block">
+          <strong>Recent activity</strong> lists the newest events first. Large batches of businesses with the same
+          timestamp can fill the first page; use <strong>Next</strong> to see older reviews and signups, or open{" "}
+          <Link href="/admin/business-activity" className="font-medium text-[#1FAF9E] hover:underline">
+            Activity Feed
+          </Link>{" "}
+          for more.
+        </span>
+      </p>
 
       <AdminTableShell title="Recent Activity">
         {activity.length === 0 ? (

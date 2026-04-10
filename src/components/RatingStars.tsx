@@ -25,7 +25,10 @@ export default function RatingStars({
     5: "#12B76A",
   };
   const filledColor = fillColors[filledCount] ?? "#12B76A";
-  const emptyColor = "#E4E7EC";
+  /** Empty / zero-rating stars: visible gray (transparent + #E4E7EC was nearly invisible on white). */
+  const emptyStarBg = "#F2F4F7";
+  const emptyStarBorder = "#D0D5DD";
+  const emptyStarGlyph = "#98A2B3";
 
   return (
     <div className="flex items-center gap-1">
@@ -63,12 +66,12 @@ export default function RatingStars({
               style={{
                 width: boxSize,
                 height: boxSize,
-                backgroundColor: isFilled ? filledColor : "transparent",
-                border: `1px solid ${isFilled ? filledColor : emptyColor}`,
-                color: isFilled ? "#FFFFFF" : emptyColor,
+                backgroundColor: isFilled ? filledColor : emptyStarBg,
+                border: `1px solid ${isFilled ? filledColor : emptyStarBorder}`,
+                color: isFilled ? "#FFFFFF" : emptyStarGlyph,
               }}
             >
-              <Star size={size} className={isFilled ? "fill-current" : ""} />
+              <Star size={size} className="fill-current" aria-hidden />
             </span>
           </span>
         );

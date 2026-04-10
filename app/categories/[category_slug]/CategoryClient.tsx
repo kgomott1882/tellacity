@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -51,11 +52,105 @@ type CountryOption = {
 };
 
 const PAGE_SIZE = 10;
+/** How many candidates to pull for “Top rated” before live review aggregation + top 8. */
+const TOP_RATED_CANDIDATE_LIMIT = 40;
+const TOP_RATED_DISPLAY_COUNT = 8;
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
   return /^[a-z0-9-]+$/.test(clean);
+}
+
+/** Mutates rows in place: trust_score + review_count from published visible reviews (same as main list). */
+async function fetchAndApplyLiveReviewMetrics(
+  supabase: SupabaseClient,
+  rows: BusinessRow[]
+): Promise<void> {
+  const ids = rows.map((row) => row.id).filter(Boolean);
+  if (ids.length === 0) return;
+
+  try {
+    const { data: reviews, error: reviewError } = await supabase
+      .from("reviews")
+      .select("business_id, rating")
+      .in("business_id", ids)
+      .eq("status", "published")
+      .or(REVIEWS_PUBLIC_VISIBILITY_OR);
+
+    if (reviewError || !reviews) return;
+
+    const agg: Record<string, { count: number; sum: number }> = {};
+    for (const row of reviews as { business_id?: string; rating?: number }[]) {
+      const id = String(row.business_id);
+      const rating = Number(row.rating ?? 0);
+      if (!agg[id]) agg[id] = { count: 0, sum: 0 };
+      if (rating > 0) {
+        agg[id].count += 1;
+        agg[id].sum += rating;
+      }
+    }
+
+    rows.sort((a, b) => {
+      const aAgg = agg[a.id] ?? { count: 0, sum: 0 };
+      const bAgg = agg[b.id] ?? { count: 0, sum: 0 };
+      const aRating =
+        aAgg.count > 0 ? aAgg.sum / aAgg.count : (Number(a.trust_score ?? 0)) || 0;
+      const bRating =
+        bAgg.count > 0 ? bAgg.sum / bAgg.count : (Number(b.trust_score ?? 0)) || 0;
+      const aCount =
+        aAgg.count > 0 ? aAgg.count : (Number(a.review_count ?? 0)) || 0;
+      const bCount =
+        bAgg.count > 0 ? bAgg.count : (Number(b.review_count ?? 0)) || 0;
+
+      if (bRating !== aRating) return bRating - aRating;
+      if (bCount !== aCount) return bCount - aCount;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    rows.forEach((row) => {
+      const m = agg[row.id];
+      if (m && m.count > 0) {
+        row.trust_score = m.sum / m.count;
+        row.review_count = m.count;
+      } else {
+        row.trust_score = 0;
+        row.review_count = 0;
+      }
+    });
+  } catch {
+    // keep RPC metrics
+  }
+}
+
+type TopRatedDisplayItem = {
+  id: string;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  trustScore: number;
+  reviewCount: number;
+};
+
+function mapRowToTopRatedItem(
+  business: BusinessRow,
+  index: number
+): TopRatedDisplayItem | null {
+  const safeSlug = (business.slug ?? "").trim().toLowerCase();
+  if (!isValidSlug(safeSlug)) return null;
+  const logoUrl = categoryListLogoUrl(business);
+  const trustScore =
+    typeof business.trust_score === "number" ? business.trust_score : 0;
+  const reviewCount =
+    typeof business.review_count === "number" ? business.review_count : 0;
+  return {
+    id: business.id ?? `top-${index}-${safeSlug}`,
+    slug: safeSlug,
+    name: (business.name ?? "").trim() || "Business",
+    logoUrl,
+    trustScore,
+    reviewCount,
+  };
 }
 
 const COUNTRIES: CountryOption[] = [
@@ -146,59 +241,72 @@ export default function CategoryClient({
   const RECENT_PAGE_SIZE = 3;
 
   const businessesList = rows ?? [];
-  const topRatedBusinesses = useMemo(() => {
-    const seed = (businesses ?? []) as Array<{
-      id?: string;
-      slug?: string;
-      name?: string;
-      website?: string | null;
-      logo_url?: string | null;
-      resolved_logo_url?: string | null;
-      trust_score?: number | null;
-      review_count?: number | null;
-    }>;
-    return seed
-      .map((business, index) => {
-        const safeSlug = (business.slug ?? "").trim().toLowerCase();
-        if (!isValidSlug(safeSlug)) return null;
-        const logoUrl = categoryListLogoUrl({
-          website: business.website ?? null,
-          logo_url: business.logo_url ?? null,
-          resolved_logo_url:
-            (business as { resolved_logo_url?: string | null }).resolved_logo_url ??
-            null,
-        });
-        return {
-          id: business.id ?? `top-${index}-${safeSlug}`,
-          slug: safeSlug,
-          name: (business.name ?? "").trim() || "Business",
-          logoUrl,
-          trustScore:
-            typeof business.trust_score === "number" ? business.trust_score : 0,
-          reviewCount:
-            typeof business.review_count === "number" ? business.review_count : 0,
-        };
-      })
-      .filter(
-        (
-          business
-        ): business is {
-          id: string;
-          slug: string;
-          name: string;
-          logoUrl: string | null;
-          trustScore: number;
-          reviewCount: number;
-        } =>
-          Boolean(business)
-      )
-      .sort((a, b) => {
-        if (b.trustScore !== a.trustScore) return b.trustScore - a.trustScore;
-        if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
-        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      })
-      .slice(0, 8);
-  }, [businesses]);
+
+  const [topRatedItems, setTopRatedItems] = useState<TopRatedDisplayItem[]>([]);
+  const [topRatedLoading, setTopRatedLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTopRated = async () => {
+      if (!categorySlug) {
+        setTopRatedItems([]);
+        setTopRatedLoading(false);
+        return;
+      }
+
+      setTopRatedLoading(true);
+      const supabase = supabaseBrowser();
+      const countryCode = derivedCountry ?? "US";
+      const min = typeof minRating === "number" ? minRating : 0;
+
+      const { data, error } = await supabase.rpc(
+        "get_top_businesses_for_category_global",
+        {
+          p_category_slug: categorySlug,
+          p_country_code: countryCode,
+          p_min_rating: min,
+          p_limit: TOP_RATED_CANDIDATE_LIMIT,
+          p_offset: 0,
+        }
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        setTopRatedItems([]);
+        setTopRatedLoading(false);
+        return;
+      }
+
+      const list = ((data ?? []) as BusinessRow[]).map((r) => ({ ...r }));
+      await fetchAndApplyLiveReviewMetrics(supabase, list);
+
+      list.sort((a, b) => {
+        const ar = Number(a.trust_score ?? 0);
+        const br = Number(b.trust_score ?? 0);
+        const ac = Number(a.review_count ?? 0);
+        const bc = Number(b.review_count ?? 0);
+        if (br !== ar) return br - ar;
+        if (bc !== ac) return bc - ac;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+
+      const items = list
+        .slice(0, TOP_RATED_DISPLAY_COUNT)
+        .map((r, i) => mapRowToTopRatedItem(r, i))
+        .filter((x): x is TopRatedDisplayItem => Boolean(x));
+
+      setTopRatedItems(items);
+      setTopRatedLoading(false);
+    };
+
+    void loadTopRated();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categorySlug, derivedCountry, minRating]);
 
   // Keep selectedCountry in sync with URL and global country
   useEffect(() => {
@@ -378,65 +486,7 @@ export default function CategoryClient({
       const hasNext = list.length > PAGE_SIZE;
       const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
 
-      // Recompute live metrics from published reviews so that
-      // ratings and ordering always reflect the latest data.
-      try {
-        const ids = sliced.map((row) => row.id).filter(Boolean);
-        if (ids.length > 0) {
-          const { data: reviews, error: reviewError } = await supabase
-            .from("reviews")
-            .select("business_id, rating")
-            .in("business_id", ids)
-            .eq("status", "published")
-            .or(REVIEWS_PUBLIC_VISIBILITY_OR);
-
-          if (!reviewError && reviews) {
-            const agg: Record<string, { count: number; sum: number }> = {};
-            for (const row of reviews as any[]) {
-              const id = String(row.business_id);
-              const rating = Number(row.rating ?? 0);
-              if (!agg[id]) agg[id] = { count: 0, sum: 0 };
-              if (rating > 0) {
-                agg[id].count += 1;
-                agg[id].sum += rating;
-              }
-            }
-
-            // Sort by live rating desc, then review count desc, then name.
-            sliced.sort((a, b) => {
-              const aAgg = agg[a.id] ?? { count: 0, sum: 0 };
-              const bAgg = agg[b.id] ?? { count: 0, sum: 0 };
-              const aRating =
-                aAgg.count > 0 ? aAgg.sum / aAgg.count : (Number(a.trust_score ?? 0)) || 0;
-              const bRating =
-                bAgg.count > 0 ? bAgg.sum / bAgg.count : (Number(b.trust_score ?? 0)) || 0;
-              const aCount =
-                aAgg.count > 0 ? aAgg.count : (Number(a.review_count ?? 0)) || 0;
-              const bCount =
-                bAgg.count > 0 ? bAgg.count : (Number(b.review_count ?? 0)) || 0;
-
-              if (bRating !== aRating) return bRating - aRating;
-              if (bCount !== aCount) return bCount - aCount;
-              return (a.name || "").localeCompare(b.name || "");
-            });
-
-            // Override stale metrics so UI never shows ratings
-            // that don't match published reviews.
-            sliced.forEach((row) => {
-              const m = agg[row.id];
-              if (m && m.count > 0) {
-                row.trust_score = m.sum / m.count;
-                row.review_count = m.count;
-              } else {
-                row.trust_score = 0;
-                row.review_count = 0 as any;
-              }
-            });
-          }
-        }
-      } catch {
-        // If live recompute fails, fall back to RPC ordering/metrics.
-      }
+      await fetchAndApplyLiveReviewMetrics(supabase, sliced);
 
       setRows(sliced);
       setComputedCount(totalCount);
@@ -518,7 +568,7 @@ export default function CategoryClient({
       />
       <main className="bg-white">
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          {topRatedBusinesses.length > 0 && (
+          {(topRatedLoading || topRatedItems.length > 0) && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
               <p className="mt-2 text-sm text-gray-600 max-w-2xl">
@@ -527,47 +577,51 @@ export default function CategoryClient({
               <p className="mt-2 text-sm text-gray-600 max-w-2xl">
                 Top-rated {categoryName} companies in {countryName} based on real customer reviews, trust scores, and verified feedback from customers.
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {topRatedBusinesses.map((business) => (
-                  <Link
-                    key={business.id}
-                    href={`/b/${business.slug}`}
-                    className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
-                      {business.logoUrl ? (
-                        <img
-                          src={business.logoUrl}
-                          alt={`${sanitizeText(business.name)} logo`}
-                          className="h-full w-full object-contain"
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate">{sanitizeText(business.name)}</div>
-                      <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                        <RatingStars
-                          rating={business.trustScore}
-                          reviewCount={business.reviewCount}
-                          size={11}
-                        />
-                        <span className="font-medium text-[#0E0E0E]">
-                          {business.trustScore.toFixed(1)}
-                        </span>
-                        <span>
-                          • {business.reviewCount.toLocaleString("en-US")} reviews
-                        </span>
+              {topRatedLoading ? (
+                <p className="mt-4 text-sm text-gray-500">Loading ratings…</p>
+              ) : (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  {topRatedItems.map((business) => (
+                    <Link
+                      key={business.id}
+                      href={`/b/${business.slug}`}
+                      className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                        {business.logoUrl ? (
+                          <img
+                            src={business.logoUrl}
+                            alt={`${sanitizeText(business.name)} logo`}
+                            className="h-full w-full object-contain"
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : null}
                       </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                      <div className="min-w-0">
+                        <div className="truncate">{sanitizeText(business.name)}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                          <RatingStars
+                            rating={business.trustScore}
+                            reviewCount={business.reviewCount}
+                            size={11}
+                          />
+                          <span className="font-medium text-[#0E0E0E]">
+                            {business.trustScore.toFixed(1)}
+                          </span>
+                          <span>
+                            • {business.reviewCount.toLocaleString("en-US")} reviews
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
