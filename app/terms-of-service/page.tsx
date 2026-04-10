@@ -132,7 +132,20 @@ export default function TermsOfServicePage() {
               </li>
               <li>Spam: Repeated, irrelevant, or promotional content.</li>
               <li>Abusive Content: Hate speech, threats, harassment, or obscenity.</li>
+              <li>
+                Promotional Content Disguised as Reviews: Reviews that are primarily
+                written to promote a business, product, or service rather than share a
+                genuine customer experience. This includes press releases,
+                advertisements, or marketing-style content. Such content will be
+                removed.
+              </li>
             </ul>
+            <p className="mt-4 font-semibold text-[#0E0E0E]">Content Quality</p>
+            <p className="mt-2">
+              Reviews must reflect a genuine customer experience. Content that appears
+              automated, overly generic, excessively long without substance, or structured
+              like an article, press release, or advertisement may be removed.
+            </p>
             <p className="mt-3">
               We reserve the right to remove any content that we determine, in our sole
               discretion, violates these Terms or our Content Guidelines.
@@ -310,12 +323,9 @@ export default function TermsOfServicePage() {
               15. Governing Law and Jurisdiction
             </h2>
             <p className="mt-3">
-              These Terms shall be governed and construed in accordance with the laws of
-              South Africa, without regard to its conflict of law provisions. Our failure
-              to enforce any right or provision of these Terms will not be considered a
-              waiver of those rights. If any provision of these Terms is held to be
-              invalid or unenforceable by a court, the remaining provisions of these
-              Terms will remain in effect.
+              These Terms are governed by applicable laws in the jurisdictions where
+              Tellacity operates. Users may also have rights under their local consumer
+              protection and data protection laws.
             </p>
           </div>
 

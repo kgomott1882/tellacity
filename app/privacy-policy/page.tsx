@@ -471,9 +471,9 @@ export default function PrivacyPolicyPage() {
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E]">16. Governing Law</h2>
             <p className="mt-3">
-              This Privacy Policy is governed by and construed in accordance
-              with the laws of South Africa, without regard to its conflict of
-              law provisions.
+              This Privacy Policy is governed by applicable data protection laws
+              based on the jurisdictions in which Tellacity operates and serves
+              users.
             </p>
           </div>
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeLogoUrl } from "@/lib/logo";
+import { similarBusinessLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
 import { getStoredCountry, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
@@ -24,8 +24,25 @@ type BusinessRow = {
   address: string | null;
   city: string | null;
   display_location: string | null;
-  logo_url: string | null;
+  /** Present on some queries; category RPC uses resolved_logo_url only. */
+  logo_url?: string | null;
+  /** RPC get_top_businesses_for_category_global returns logo as this column. */
+  resolved_logo_url?: string | null;
 };
+
+/** Match business profile / search: use stored logo + website → logo.dev fallback. */
+function categoryListLogoUrl(
+  row: Pick<BusinessRow, "website"> & {
+    logo_url?: string | null;
+    resolved_logo_url?: string | null;
+  }
+): string | null {
+  return similarBusinessLogoUrl({
+    resolved_logo_url: row.resolved_logo_url ?? null,
+    logo_url: row.logo_url ?? null,
+    website: row.website,
+  });
+}
 
 type CountryOption = {
   code: string;
@@ -136,6 +153,7 @@ export default function CategoryClient({
       name?: string;
       website?: string | null;
       logo_url?: string | null;
+      resolved_logo_url?: string | null;
       trust_score?: number | null;
       review_count?: number | null;
     }>;
@@ -143,7 +161,13 @@ export default function CategoryClient({
       .map((business, index) => {
         const safeSlug = (business.slug ?? "").trim().toLowerCase();
         if (!isValidSlug(safeSlug)) return null;
-        const logoUrl = normalizeLogoUrl(business.logo_url ?? null);
+        const logoUrl = categoryListLogoUrl({
+          website: business.website ?? null,
+          logo_url: business.logo_url ?? null,
+          resolved_logo_url:
+            (business as { resolved_logo_url?: string | null }).resolved_logo_url ??
+            null,
+        });
         return {
           id: business.id ?? `top-${index}-${safeSlug}`,
           slug: safeSlug,
@@ -517,7 +541,8 @@ export default function CategoryClient({
                           alt={`${sanitizeText(business.name)} logo`}
                           className="h-full w-full object-contain"
                           referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
                           }}
@@ -758,7 +783,7 @@ export default function CategoryClient({
                   formatBusinessAddress(business.address, business.city, business.country_code) ||
                   business.display_location;
 
-                const logoUrl = normalizeLogoUrl(business.logo_url);
+                const logoUrl = categoryListLogoUrl(business);
 
                 return (
                   <Link key={business.id} href={`/b/${safeSlug}`} className="block w-full">
@@ -771,7 +796,8 @@ export default function CategoryClient({
                               alt={`${sanitizeText(business.name)} logo`}
                               className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
+                              loading="lazy"
+                              decoding="async"
                               onError={(e) => {
                                 e.currentTarget.style.display = "none";
                               }}
@@ -906,7 +932,7 @@ export default function CategoryClient({
                     typeof company.trust_score === "number" && company.trust_score > 0
                       ? company.trust_score
                       : 0;
-                  const logoUrl = normalizeLogoUrl(company.logo_url);
+                  const logoUrl = categoryListLogoUrl(company);
 
                   return (
                     <Link
@@ -922,7 +948,8 @@ export default function CategoryClient({
                               alt={`${sanitizeText(company.name)} logo`}
                               className="h-full w-full object-contain"
                               referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
+                              loading="lazy"
+                              decoding="async"
                               onError={(e) => {
                                 e.currentTarget.style.display = "none";
                               }}

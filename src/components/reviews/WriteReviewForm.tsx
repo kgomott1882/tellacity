@@ -58,6 +58,22 @@ function referenceFieldLabel(
   return labels[type] ?? "Reference number";
 }
 
+const PROMOTIONAL_REVIEW_PHRASES = [
+  "we are proud to announce",
+  "our company",
+  "leading provider",
+  "visit our website",
+] as const;
+
+const PROMOTIONAL_REVIEW_LENGTH_THRESHOLD = 1350;
+
+function reviewTextLooksPromotional(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length > PROMOTIONAL_REVIEW_LENGTH_THRESHOLD) return true;
+  const lower = trimmed.toLowerCase();
+  return PROMOTIONAL_REVIEW_PHRASES.some((phrase) => lower.includes(phrase));
+}
+
 type Business = {
   id: string;
   name: string;
@@ -252,6 +268,9 @@ export default function WriteReviewForm({
   const [guestEmail, setGuestEmail] = useState("");
 
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [promotionalToneWarning, setPromotionalToneWarning] = useState<
+    string | null
+  >(null);
 
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -314,6 +333,10 @@ export default function WriteReviewForm({
     if (!submitError) return;
     setSubmitError(null);
   }, [rating, body, title, dateOfExperience]);
+
+  useEffect(() => {
+    setPromotionalToneWarning(null);
+  }, [body]);
 
   const businessId = business?.id;
 
@@ -1063,6 +1086,14 @@ export default function WriteReviewForm({
     if (Number.isNaN(experienceDate.getTime()) || experienceDate > today) {
       setSubmitError("Date of experience cannot be in the future.");
       return;
+    }
+
+    if (reviewTextLooksPromotional(body)) {
+      setPromotionalToneWarning(
+        "This review appears promotional. Please focus on your personal experience.",
+      );
+    } else {
+      setPromotionalToneWarning(null);
     }
 
     const isGoogleUser = authMode === "google";
@@ -1996,6 +2027,29 @@ export default function WriteReviewForm({
                   placeholder="Tell us what happened, what worked well, and what could be better."
                   className="mt-2 min-h-[140px] w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                 />
+                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                  Your review must reflect a genuine personal experience.
+                  <br />
+                  <br />
+                  Do not use this space for:
+                  <br />
+                  • Advertising or promoting a business
+                  <br />
+                  • Press releases or announcements
+                  <br />
+                  • Copy-pasted marketing content
+                  <br />
+                  <br />
+                  Reviews that violate these guidelines may be removed.
+                </p>
+                {promotionalToneWarning ? (
+                  <p
+                    className="mt-2 text-[11px] leading-relaxed text-amber-800"
+                    role="status"
+                  >
+                    {promotionalToneWarning}
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -2244,8 +2298,8 @@ export default function WriteReviewForm({
                   disabled={isSubmitting}
                 />
                 <span>
-                  I&apos;m happy to receive email updates, including Tellacity
-                  recommendations, tips, and news.
+                  I agree to receive occasional updates and insights from
+                  Tellacity (optional)
                 </span>
               </label>
 

@@ -2,7 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+type AdminActionPreset =
+  | ""
+  | "activate"
+  | "suspended"
+  | "under_review"
+  | "approved";
+
+const ADMIN_ACTION_PRESET_VALUES: Record<
+  Exclude<AdminActionPreset, "">,
+  { status: string; submission: string }
+> = {
+  activate: { status: "active", submission: "approved" },
+  suspended: { status: "suspended", submission: "suspended" },
+  under_review: { status: "under_review", submission: "under_review" },
+  approved: { status: "active", submission: "approved" },
+};
+
+const BULK_ACTION_LABEL: Record<keyof typeof ADMIN_ACTION_PRESET_VALUES, string> =
+  {
+    activate: "Activate",
+    suspended: "Suspended",
+    under_review: "Under review",
+    approved: "Approved",
+  };
 
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
@@ -93,6 +118,11 @@ export default function AdminBusinessesTable() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [listRefreshToken, setListRefreshToken] = useState(0);
 
+  const [adminActionPreset, setAdminActionPreset] = useState<AdminActionPreset>("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const headerSelectRef = useRef<HTMLInputElement>(null);
+
   const handleStatusUpdate = useCallback(
     async (
       businessId: string,
@@ -136,6 +166,45 @@ export default function AdminBusinessesTable() {
       }
     },
     [router]
+  );
+
+  const runBulkPreset = useCallback(
+    async (preset: keyof typeof ADMIN_ACTION_PRESET_VALUES) => {
+      const ids = [...selectedIds];
+      if (ids.length === 0) return;
+      const { status, submission } = ADMIN_ACTION_PRESET_VALUES[preset];
+      const confirmed = window.confirm(
+        `Apply “${BULK_ACTION_LABEL[preset]}” to ${ids.length} business(es)?`
+      );
+      if (!confirmed) return;
+
+      setBulkUpdating(true);
+      let failed = 0;
+      try {
+        for (const businessId of ids) {
+          const res = await fetch("/api/admin/update-business-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              businessId,
+              newStatus: status,
+              newSubmissionStatus: submission,
+            }),
+          });
+          if (!res.ok) failed += 1;
+        }
+        if (failed > 0) {
+          window.alert(`${failed} update(s) failed. Others may have succeeded.`);
+        }
+        setSelectedIds(new Set());
+        setListRefreshToken((t) => t + 1);
+        router.refresh();
+      } finally {
+        setBulkUpdating(false);
+      }
+    },
+    [router, selectedIds]
   );
 
   const handleDelete = useCallback(
@@ -208,6 +277,52 @@ export default function AdminBusinessesTable() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [
+    debouncedSearch,
+    statusFilter,
+    submissionFilter,
+    countryFilter,
+    categoryFilter,
+  ]);
+
+  const visibleIds = useMemo(
+    () => rows.map((r) => businessId(r)).filter((id) => id.length > 0),
+    [rows]
+  );
+  const selectedOnPage = visibleIds.filter((id) => selectedIds.has(id)).length;
+  const allOnPageSelected =
+    visibleIds.length > 0 && selectedOnPage === visibleIds.length;
+  const someOnPageSelected =
+    selectedOnPage > 0 && selectedOnPage < visibleIds.length;
+
+  useEffect(() => {
+    const el = headerSelectRef.current;
+    if (el) el.indeterminate = someOnPageSelected;
+  }, [someOnPageSelected]);
+
+  const toggleSelectRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectPage = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const all = allOnPageSelected;
+      for (const id of visibleIds) {
+        if (all) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+  }, [allOnPageSelected, visibleIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -285,13 +400,31 @@ export default function AdminBusinessesTable() {
   const canNext = page * limit < totalCount;
 
   const handleStatusChange = (v: string) => {
+    setAdminActionPreset("");
     setStatusFilter(v);
     setPage(1);
   };
 
   const handleSubmissionChange = (v: string) => {
+    setAdminActionPreset("");
     setSubmissionFilter(v);
     setPage(1);
+  };
+
+  const handleAdminActionPresetChange = (v: string) => {
+    if (v === "") {
+      setAdminActionPreset("");
+      setStatusFilter("");
+      setSubmissionFilter("");
+      setPage(1);
+      return;
+    }
+    const preset = v as keyof typeof ADMIN_ACTION_PRESET_VALUES;
+    setAdminActionPreset(v as AdminActionPreset);
+    setPage(1);
+    const pair = ADMIN_ACTION_PRESET_VALUES[preset];
+    setStatusFilter(pair.status);
+    setSubmissionFilter(pair.submission);
   };
 
   const handleCountryChange = (v: string) => {
@@ -324,10 +457,27 @@ export default function AdminBusinessesTable() {
               onChange={(e) => setSearchInput(e.target.value)}
               className="min-w-[180px] rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800 placeholder:text-neutral-400"
             />
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+                Admin action (filter)
+              </label>
+              <select
+                value={adminActionPreset}
+                onChange={(e) => handleAdminActionPresetChange(e.target.value)}
+                className="min-w-[200px] rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+              >
+                <option value="">All actions</option>
+                <option value="activate">Activate</option>
+                <option value="suspended">Suspended</option>
+                <option value="under_review">Under review</option>
+                <option value="approved">Approved</option>
+              </select>
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => handleStatusChange(e.target.value)}
               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+              title="Status column filter"
             >
               <option value="">All statuses</option>
               <option value="active">Active</option>
@@ -338,10 +488,14 @@ export default function AdminBusinessesTable() {
               value={submissionFilter}
               onChange={(e) => handleSubmissionChange(e.target.value)}
               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+              title="Submission column filter"
             >
               <option value="">All submissions</option>
-              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="submitted">Submitted</option>
               <option value="under_review">Under review</option>
+              <option value="approved">Approved</option>
+              <option value="suspended">Suspended</option>
             </select>
             <div className="flex items-center gap-1.5">
               <label
@@ -389,6 +543,7 @@ export default function AdminBusinessesTable() {
               onChange={(e) => handleLimitChange(Number(e.target.value))}
               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
             >
+              <option value="10">10 per page</option>
               <option value="50">50 per page</option>
               <option value="100">100 per page</option>
               <option value="1000">1000 per page</option>
@@ -397,6 +552,57 @@ export default function AdminBusinessesTable() {
         }
       >
         <div className="w-full">
+          {selectedIds.size > 0 ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#1FAF9E]/25 bg-[#1FAF9E]/8 px-3 py-2.5 text-xs">
+              <span className="font-semibold text-neutral-800">
+                {selectedIds.size} selected
+              </span>
+              <span className="text-neutral-500">Bulk:</span>
+              {bulkUpdating ? (
+                <span className="text-neutral-600">Applying updates…</span>
+              ) : null}
+              <button
+                type="button"
+                disabled={bulkUpdating}
+                onClick={() => void runBulkPreset("activate")}
+                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Activate
+              </button>
+              <button
+                type="button"
+                disabled={bulkUpdating}
+                onClick={() => void runBulkPreset("suspended")}
+                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Suspended
+              </button>
+              <button
+                type="button"
+                disabled={bulkUpdating}
+                onClick={() => void runBulkPreset("under_review")}
+                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Under review
+              </button>
+              <button
+                type="button"
+                disabled={bulkUpdating}
+                onClick={() => void runBulkPreset("approved")}
+                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                Approved
+              </button>
+              <button
+                type="button"
+                disabled={bulkUpdating}
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-1 rounded-md px-2 py-1 font-medium text-neutral-600 hover:text-neutral-900"
+              >
+                Clear
+              </button>
+            </div>
+          ) : null}
           {!loading && rows.length === 0 && !listError ? (
             <div className="p-4">
               <AdminEmptyState message="No businesses match your filters." />
@@ -405,6 +611,17 @@ export default function AdminBusinessesTable() {
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
                 <tr>
+                  <th className="w-10 px-2 py-2 font-medium">
+                    <input
+                      ref={headerSelectRef}
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-neutral-300 text-[#1FAF9E] focus:ring-[#1FAF9E]"
+                      checked={allOnPageSelected && visibleIds.length > 0}
+                      disabled={loading || bulkUpdating || visibleIds.length === 0}
+                      onChange={toggleSelectPage}
+                      aria-label="Select all businesses on this page"
+                    />
+                  </th>
                   <th className="px-3 py-2 font-medium">Business ID</th>
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Website</th>
@@ -420,13 +637,13 @@ export default function AdminBusinessesTable() {
               <tbody className="divide-y divide-neutral-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Unable to load businesses.
                     </td>
                   </tr>
@@ -447,6 +664,16 @@ export default function AdminBusinessesTable() {
 
                     return (
                       <tr key={id || `b-${i}`} className="bg-white align-top">
+                        <td className="px-2 py-2 align-middle">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-neutral-300 text-[#1FAF9E] focus:ring-[#1FAF9E]"
+                            checked={selectedIds.has(id)}
+                            disabled={loading || bulkUpdating}
+                            onChange={() => toggleSelectRow(id)}
+                            aria-label={`Select ${row.name?.trim() || id}`}
+                          />
+                        </td>
                         <td
                           className="max-w-[100px] truncate px-3 py-2 font-mono text-xs text-neutral-700"
                           title={id}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeLogoUrl } from "@/lib/logo";
+import { similarBusinessLogoUrl } from "@/lib/logo";
 
 type CategoryBusiness = {
   id: string;
@@ -20,6 +20,7 @@ type CategoryBusiness = {
   address?: string | null;
   review_count?: number | null;
   logo_url?: string | null;
+  resolved_logo_url?: string | null;
 };
 
 export default function CategoryDetailPage() {
@@ -218,6 +219,12 @@ export default function CategoryDetailPage() {
             const location =
               b.display_location || b.location || b.address || countryName;
 
+            const listLogoUrl = similarBusinessLogoUrl({
+              logo_url: b.logo_url ?? null,
+              resolved_logo_url: b.resolved_logo_url ?? null,
+              website: b.website,
+            });
+
             return (
               <Link
                 key={b.id}
@@ -226,11 +233,14 @@ export default function CategoryDetailPage() {
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="h-10 w-10 shrink-0">
-                    {normalizeLogoUrl(b.logo_url) ? (
+                    {listLogoUrl ? (
                       <img
-                        src={normalizeLogoUrl(b.logo_url) ?? undefined}
+                        src={listLogoUrl}
                         alt={b.name}
                         className="h-10 w-10 rounded-md object-contain"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#FCF7F6] text-sm font-semibold text-[#0E0E0E]">
