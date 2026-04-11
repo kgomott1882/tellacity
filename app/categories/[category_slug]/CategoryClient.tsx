@@ -67,11 +67,81 @@ const PAGE_SIZE = 10;
 /** How many candidates to pull for “Top rated” before live review aggregation + top 8. */
 const TOP_RATED_CANDIDATE_LIMIT = 40;
 const TOP_RATED_DISPLAY_COUNT = 8;
+const FALLBACK_COUNTRY_ALIASES: Record<string, string[]> = {
+  US: ["US", "USA"],
+  GB: ["GB", "UK", "GBR"],
+  ZA: ["ZA", "ZAF"],
+  AU: ["AU", "AUS"],
+  CA: ["CA", "CAN"],
+  NZ: ["NZ", "NZL"],
+  IE: ["IE", "IRL"],
+};
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
   return /^[a-z0-9-]+$/.test(clean);
+}
+
+function countryAliases(code: string): string[] {
+  const normalized = normalizeCountryCode(code).toUpperCase();
+  return FALLBACK_COUNTRY_ALIASES[normalized] ?? [normalized];
+}
+
+async function fetchCategoryRowsWithFallback(
+  supabase: SupabaseClient,
+  categorySlug: string,
+  countryCode: string,
+  minRating: number | null,
+  limit: number,
+  offset: number
+): Promise<{ rows: BusinessRow[]; error: string | null }> {
+  const rpc = await supabase.rpc("get_top_businesses_for_category_global", {
+    p_category_slug: categorySlug,
+    p_country_code: countryCode,
+    p_min_rating: minRating,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (!rpc.error) {
+    return { rows: (rpc.data ?? []) as BusinessRow[], error: null };
+  }
+
+  const categories =
+    categorySlug === "banking"
+      ? ["banking", "banking-and-money"]
+      : [categorySlug];
+  const countries = countryAliases(countryCode);
+
+  const direct = await supabase
+    .from("businesses")
+    .select(
+      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status"
+    )
+    .in("category_slug", categories)
+    .in("country_code", countries)
+    .eq("status", "active")
+    .order("trust_score", { ascending: false })
+    .order("review_count", { ascending: false })
+    .order("name", { ascending: true })
+    .range(offset, Math.max(offset + limit - 1, offset));
+
+  if (direct.error) {
+    return {
+      rows: [],
+      error: rpc.error.message ?? direct.error.message ?? "Failed to load businesses.",
+    };
+  }
+
+  let rows = (direct.data ?? []) as BusinessRow[];
+  if (typeof minRating === "number") {
+    rows = rows.filter((r) => (Number(r.trust_score ?? 0) || 0) >= minRating);
+  }
+  return {
+    rows,
+    error: rpc.error.message ?? null,
+  };
 }
 
 /**
@@ -344,26 +414,24 @@ export default function CategoryClient({
       const countryCode = derivedCountry ?? "US";
       const min = typeof minRating === "number" ? minRating : 0;
 
-      const { data, error } = await supabase.rpc(
-        "get_top_businesses_for_category_global",
-        {
-          p_category_slug: categorySlug,
-          p_country_code: countryCode,
-          p_min_rating: min,
-          p_limit: TOP_RATED_CANDIDATE_LIMIT,
-          p_offset: 0,
-        }
+      const topRatedResult = await fetchCategoryRowsWithFallback(
+        supabase,
+        categorySlug,
+        countryCode,
+        min,
+        TOP_RATED_CANDIDATE_LIMIT,
+        0
       );
 
       if (cancelled) return;
 
-      if (error) {
+      if (topRatedResult.error && topRatedResult.rows.length === 0) {
         setTopRatedItems([]);
         setTopRatedLoading(false);
         return;
       }
 
-      const list = ((data ?? []) as BusinessRow[]).map((r) => ({ ...r }));
+      const list = topRatedResult.rows.map((r) => ({ ...r }));
       await fetchAndApplyLiveReviewMetrics(supabase, list);
 
       list.sort((a, b) => {
@@ -377,6 +445,7 @@ export default function CategoryClient({
       });
 
       const items = list
+        .filter((r) => (Number(r.review_count ?? 0) || 0) > 0)
         .slice(0, TOP_RATED_DISPLAY_COUNT)
         .map((r, i) => mapRowToTopRatedItem(r, i))
         .filter((x): x is TopRatedDisplayItem => Boolean(x));
@@ -534,48 +603,37 @@ export default function CategoryClient({
       const min = typeof minRating === "number" ? minRating : 0;
 
       const supabase = supabaseBrowser();
-      const [businessesResult, countResult] = await Promise.all([
-        supabase.rpc("get_top_businesses_for_category_global", {
-          p_category_slug: categorySlug,
-          p_country_code: countryCode,
-          p_min_rating: min,
-          p_limit: PAGE_SIZE + 1, // fetch one extra to detect next page
-          p_offset: offset,
-        }),
-        supabase.rpc("get_category_business_count", {
-          p_category_slug: categorySlug,
-          p_country_code: countryCode,
-          p_min_rating: min,
-        }),
-      ]);
-
-      const { data, error } = businessesResult;
+      const result = await fetchCategoryRowsWithFallback(
+        supabase,
+        categorySlug,
+        countryCode,
+        min,
+        PAGE_SIZE + 1,
+        offset
+      );
 
       if (!isMounted) return;
 
-      if (error) {
+      if (result.error && result.rows.length === 0) {
         setRows([]);
-        setComputedCount(0);
+        setComputedCount(offset);
         setComputedHasNext(false);
-        setFetchError(error.message ?? "Failed to load businesses.");
+        setFetchError(result.error ?? "Failed to load businesses.");
         setLoading(false);
         return;
       }
 
-      const totalCount =
-        typeof countResult.data === "number"
-          ? countResult.data
-          : (Number(countResult.data ?? 0)) || 0;
-
-      const list = (data ?? []) as BusinessRow[];
+      const list = result.rows;
       const hasNext = list.length > PAGE_SIZE;
       const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
 
       await fetchAndApplyLiveReviewMetrics(supabase, sliced);
 
       setRows(sliced);
-      setComputedCount(totalCount);
+      // Avoid timeout-prone count RPC; show a stable lower-bound estimate.
+      setComputedCount(offset + sliced.length + (hasNext ? 1 : 0));
       setComputedHasNext(hasNext);
+      setFetchError(null);
       setLoading(false);
     };
 

@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { setStoredCountry } from "@/lib/countryStore";
+import { setStoredCountry } from "@/lib/country";
 
 export default function CountrySync() {
   const searchParams = useSearchParams();

@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { normalizeCountryCode } from "@/lib/country";
@@ -7,8 +5,12 @@ import { normalizeCountryCode } from "@/lib/country";
 /** Enough rows for the homepage Recent reviews carousel (up to 64 shown per country). */
 const HOME_FEED_FETCH_LIMIT = 96;
 
+const CACHE_HEADER =
+  "public, s-maxage=20, stale-while-revalidate=120, max-age=0";
+
 /**
- * Public homepage recent reviews , `home_feed_v1` filtered by business country (same idea as Best-in RPC).
+ * Public homepage recent reviews: prefer RPC `get_home_feed_for_country` (indexed),
+ * fall back to `home_feed_v1` if the RPC is not deployed yet.
  */
 export async function GET(req: Request) {
   try {
@@ -16,39 +18,61 @@ export async function GET(req: Request) {
     const country = normalizeCountryCode(url.searchParams.get("country"));
 
     const supabase = createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("home_feed_v1")
-      .select("*")
-      .ilike("country_code", country)
-      .order("created_at", { ascending: false })
-      .limit(HOME_FEED_FETCH_LIMIT);
 
-    if (error) {
-      console.error("home-feed API:", error.message);
-      return NextResponse.json(
-        { error: error.message, data: [] as unknown[] },
-        {
-          status: 500,
-          headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-            Pragma: "no-cache",
-          },
-        },
-      );
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "get_home_feed_for_country",
+      {
+        p_country_code: country,
+        p_limit: HOME_FEED_FETCH_LIMIT,
+      } as never
+    );
+
+    let rows: Record<string, unknown>[] = [];
+
+    if (!rpcError && Array.isArray(rpcData)) {
+      rows = (rpcData as Record<string, unknown>[]).map((row) => ({
+        ...row,
+        resolved_logo_url:
+          typeof row.logo_url === "string" && row.logo_url.trim() !== ""
+            ? row.logo_url
+            : row.resolved_logo_url ?? null,
+      }));
+    } else {
+      if (rpcError) {
+        console.warn("home-feed RPC (using view fallback):", rpcError.message);
+      }
+      const { data, error } = await supabase
+        .from("home_feed_v1")
+        .select("*")
+        .ilike("country_code", country)
+        .order("created_at", { ascending: false })
+        .limit(HOME_FEED_FETCH_LIMIT);
+
+      if (error) {
+        console.error("home-feed API:", error.message);
+        return NextResponse.json(
+          { error: error.message, data: [] as unknown[] },
+          {
+            status: 500,
+            headers: {
+              "Cache-Control": "no-store",
+            },
+          }
+        );
+      }
+
+      rows = (data ?? []) as Record<string, unknown>[];
     }
 
-    const rows = [...(data ?? [])].sort((a, b) => {
-      const ra = a as Record<string, unknown>;
-      const rb = b as Record<string, unknown>;
-      const ta = new Date(String(ra.created_at ?? 0)).getTime();
-      const tb = new Date(String(rb.created_at ?? 0)).getTime();
+    const sorted = [...rows].sort((a, b) => {
+      const ta = new Date(String(a.created_at ?? 0)).getTime();
+      const tb = new Date(String(b.created_at ?? 0)).getTime();
       return tb - ta;
     });
 
-    return NextResponse.json(rows, {
+    return NextResponse.json(sorted, {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        Pragma: "no-cache",
+        "Cache-Control": CACHE_HEADER,
       },
     });
   } catch (e) {
@@ -58,10 +82,9 @@ export async function GET(req: Request) {
       {
         status: 500,
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-          Pragma: "no-cache",
+          "Cache-Control": "no-store",
         },
-      },
+      }
     );
   }
 }

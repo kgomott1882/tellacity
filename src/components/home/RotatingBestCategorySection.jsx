@@ -19,6 +19,8 @@ export default function RotatingBestCategorySection({
   onPrevious,
   onNext,
   countryCode,
+  /** True while `/api/home-best-in` is loading for the selected country. */
+  isLoading = false,
 }) {
   const hasBusinesses = Array.isArray(businesses) && businesses.length > 0;
   const cardsScrollRef = useRef(null);
@@ -72,7 +74,10 @@ export default function RotatingBestCategorySection({
           </div>
         </div>
 
-        {!hasBusinesses && (
+        {!hasBusinesses && isLoading && (
+          <p className="mt-6 text-sm text-gray-500">Loading ranked businesses…</p>
+        )}
+        {!hasBusinesses && !isLoading && (
           <p className="mt-6 text-sm text-gray-500">
             No businesses found yet.
           </p>
@@ -98,7 +103,8 @@ export default function RotatingBestCategorySection({
                   : typeof business.trust_score === "number"
                   ? business.trust_score || 0
                   : 0;
-                const rawLogo = business.logo_url || null;
+                const rawLogo =
+                  business.logo_url || business.resolved_logo_url || null;
                 const logoUrl = normalizeLogoUrl(rawLogo);
 
                 return (
@@ -178,7 +184,8 @@ export default function RotatingBestCategorySection({
                   ? business.trust_score || 0
                   : 0;
 
-                const rawLogo = business.logo_url || null;
+                const rawLogo =
+                  business.logo_url || business.resolved_logo_url || null;
                 const logoUrl = normalizeLogoUrl(rawLogo);
 
                 return (

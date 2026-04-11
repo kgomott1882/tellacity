@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
 import HeroStarField, {
@@ -13,9 +12,7 @@ import BusinessSearchInput from "@/components/search/BusinessSearchInput";
 import { motion } from "framer-motion";
 import { FadeUp } from "@/components/ui/MotionWrapper";
 import {
-  DEFAULT_COUNTRY,
-  getStoredCountry,
-  setStoredCountry,
+  normalizeCountryCode as normalizeCountryCodeLib,
 } from "@/lib/country";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { getAllBlogPosts } from "../data/blogPosts";
@@ -23,14 +20,13 @@ import {
   clearHomeFeedHighlight,
   readHomeFeedHighlight,
 } from "@/lib/homeFeedHighlight";
-import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
 import { cn } from "@/lib/utils";
 import {
   HOME_MARQUEE_CATEGORY_ITEMS,
-  LOOKING_FOR_CATEGORIES,
   buildMarqueeCategoryCards,
   type HomeMarqueeCategoryCard,
 } from "@/lib/homeMarqueeCategories";
+import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
 
 type HomeReview = {
   review_id: string;
@@ -116,12 +112,6 @@ function feedRowCountryMatches(
 const cleanDomain = (value: string | null | undefined) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
 
-type CategoryCard = {
-  id: string;
-  name: string;
-  slug: string;
-};
-
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
   { code: "ZA", name: "South Africa", flagUrl: `${FLAG_BASE}/ZA.svg` },
@@ -135,39 +125,35 @@ const COUNTRIES = [
 
 type CountryCode = (typeof COUNTRIES)[number]["code"];
 
-const normalizeCountryCode = (code: string | null | undefined): CountryCode => {
-  const upper = (code ?? "US").toUpperCase();
-  if (upper === "UK") return "GB";
-  const found = COUNTRIES.find((country) => country.code === upper);
-  return (found?.code ?? "US") as CountryCode;
-};
-
-function isValidSlug(slug: string) {
-  if (!slug || typeof slug !== "string") return false;
-  const clean = slug.trim().toLowerCase();
-  return /^[a-z0-9-]+$/.test(clean);
+/** Same allow-list as `@/lib/country`; keeps flags + RPC country aligned. */
+function normalizeHomeCountry(code: string | null | undefined): CountryCode {
+  return normalizeCountryCodeLib(code) as CountryCode;
 }
 
-/** Map RPC row from get_top_businesses_for_category_global to card props (logo + scores). */
-function mapRpcRowToBestIn(row: Record<string, unknown>): BestInBusiness {
-  const logo =
-    (typeof row.logo_url === "string" && row.logo_url.trim() !== "" && row.logo_url) ||
-    (typeof row.resolved_logo_url === "string" &&
-      row.resolved_logo_url.trim() !== "" &&
-      row.resolved_logo_url) ||
-    null;
-  return {
-    id: String(row.id ?? ""),
-    name: String(row.name ?? ""),
-    slug: String(row.slug ?? ""),
-    website: typeof row.website === "string" ? row.website : null,
-    website_display:
-      typeof row.website_display === "string" ? row.website_display : null,
-    trust_score: row.trust_score != null ? Number(row.trust_score) : 0,
-    review_count: row.review_count != null ? Number(row.review_count) : 0,
-    logo_url: logo,
-    resolved_logo_url: logo,
-  };
+/**
+ * On `/`, prefer the real address bar during SPA transitions — `useSearchParams()`
+ * can briefly omit the query while `window.location` is already updated.
+ */
+function useHomeSearchParams() {
+  const pathname = usePathname();
+  const nextSp = useSearchParams();
+  const nextSpString = nextSp.toString();
+  return useMemo(() => {
+    if (typeof window !== "undefined" && pathname === "/") {
+      return new URLSearchParams(window.location.search);
+    }
+    return new URLSearchParams(nextSpString);
+  }, [pathname, nextSpString]);
+}
+
+function isSafeCategorySlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const s = slug.trim();
+  if (s.length < 1 || s.length > 120) return false;
+  if (s.includes("/") || s.includes("?") || s.includes("#") || s.includes("..")) {
+    return false;
+  }
+  return true;
 }
 
 export type BestInBusiness = {
@@ -187,10 +173,6 @@ type HomePageClientProps = {
   rotatingCategorySlugs: string[];
   bestInByCategory: Record<string, BestInBusiness[]>;
   bestInCategoryLabels: Record<string, string>;
-  rpcDebug?: Record<
-    string,
-    { country: string; error: string | null; count: number }
-  >;
   /** Server-validated marquee tiles; falls back to static list if empty. */
   marqueeCategories?: HomeMarqueeCategoryCard[];
 };
@@ -200,24 +182,16 @@ export default function HomePageClient({
   rotatingCategorySlugs = [],
   bestInByCategory = {},
   bestInCategoryLabels = {},
-  rpcDebug = {},
   marqueeCategories: marqueeCategoriesProp,
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const homeParams = useHomeSearchParams();
+  const homeParamsKey = homeParams.toString();
 
   const [homeFeedRawRows, setHomeFeedRawRows] = useState<
     Record<string, unknown>[]
   >([]);
-  const [categoryCards, setCategoryCards] = useState<CategoryCard[]>([]);
-  const [visibleCategories, setVisibleCategories] = useState<CategoryCard[]>(() =>
-    LOOKING_FOR_CATEGORIES.map(({ label, slug }) => ({
-      id: `static-${slug}`,
-      name: label,
-      slug,
-    }))
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
@@ -225,9 +199,6 @@ export default function HomePageClient({
     string | null
   >(null);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(
-    initialSelectedCountry ?? null
-  );
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -235,16 +206,18 @@ export default function HomePageClient({
   const homeHighlightClearTimerRef = useRef<number | null>(null);
   const heroStarFieldRef = useRef<HeroStarFieldHandle | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
-  const [bestInMetrics, setBestInMetrics] = useState<
-    Record<string, { review_count: number; trust_score: number }>
-  >({});
+  const [bestInLoading, setBestInLoading] = useState(false);
+  const bestInCountryPrevRef = useRef<string | null>(null);
+  const bestInFetchIdRef = useRef(0);
   const [clientBestInByCategory, setClientBestInByCategory] =
     useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
 
-  /** URL wins so `?country=ZA` matches Best-in RPC and home-feed (same as server `p_country_code`). */
-  const activeCountryCode = normalizeCountryCode(
-    searchParams.get("country") ?? selectedCountry ?? initialSelectedCountry
-  );
+  const { countryCode, setCountryAndSync } = useUnifiedCountry({
+    initialCountry: initialSelectedCountry,
+    ensureQueryParam: true,
+    preferWindowSearchOnRoot: true,
+  });
+  const activeCountryCode = normalizeHomeCountry(countryCode);
   const activeCountry =
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
     COUNTRIES[0];
@@ -306,11 +279,7 @@ export default function HomePageClient({
   }, [rotatingCategorySlugs]);
 
   const handleCountryChange = (code: CountryCode) => {
-    setSelectedCountry(code);
-    setStoredCountry(code);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("country", code);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    setCountryAndSync(code);
     setIsCountryMenuOpen(false);
   };
 
@@ -454,23 +423,15 @@ export default function HomePageClient({
       ? rotatingCategorySlugs[bestInIndex % rotatingCategorySlugs.length]
       : "banking";
 
-  // Always rank "Best in" businesses by latest metrics so higher-rated
-  // businesses automatically surface into the top positions.
+  /** Same ordering rules as before, using scores from `get_top_businesses_for_category_global` only. */
   const rankedBestInBusinesses: BestInBusiness[] = useMemo(() => {
     const list = (clientBestInByCategory ?? {})[activeBestInSlug] ?? [];
     if (!Array.isArray(list) || list.length === 0) return [];
 
     const withScores = list.map((biz) => {
-      const idKey = normalizeBusinessIdKey(biz.id);
-      const metrics = bestInMetrics[idKey];
-      const reviewCount = metrics
-        ? Number(metrics.review_count ?? 0) || 0
-        : Number(biz.review_count ?? 0) || 0;
-      const rating = metrics
-        ? Number(metrics.trust_score ?? 0) || 0
-        : typeof biz.trust_score === "number"
-          ? biz.trust_score || 0
-          : 0;
+      const reviewCount = Number(biz.review_count ?? 0) || 0;
+      const rating =
+        typeof biz.trust_score === "number" ? biz.trust_score || 0 : 0;
       return { biz, reviewCount, rating };
     });
 
@@ -483,56 +444,22 @@ export default function HomePageClient({
       return (a.biz.name || "").localeCompare(b.biz.name || "");
     });
 
-    // Keep a maximum of 8 cards even if the backend returns more.
     return withScores.slice(0, 8).map((item) => item.biz);
-  }, [activeBestInSlug, clientBestInByCategory, bestInMetrics]);
+  }, [activeBestInSlug, clientBestInByCategory]);
 
   const activeBestInLabel =
     (bestInCategoryLabels ?? {})[activeBestInSlug] ??
     (activeBestInSlug ?? "").replace(/-/g, " ");
 
-  useEffect(() => {
-    const fromUrl = searchParams.get("country");
-    if (fromUrl) {
-      const normalized = normalizeCountryCode(fromUrl);
-      setSelectedCountry(normalized);
-      setStoredCountry(normalized);
-    } else {
-      const stored = getStoredCountry();
-      if (stored) setSelectedCountry(normalizeCountryCode(stored));
-    }
-  }, [searchParams]);
-
-  // First visit: if URL and storage are both empty, set default once.
-  useEffect(() => {
-    if (pathname !== "/") return;
-    const fromUrl = searchParams.get("country");
-    const stored = getStoredCountry();
-    if (!fromUrl && !stored) {
-      setStoredCountry(DEFAULT_COUNTRY);
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("country", DEFAULT_COUNTRY);
-      router.replace(`/?${params.toString()}`, { scroll: false });
-      return;
-    }
-    if (fromUrl) return;
-    if (stored) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("country", normalizeCountryCode(stored));
-      router.replace(`/?${params.toString()}`, { scroll: false });
-    }
-  }, [pathname, searchParams, router]);
-
   // Recent reviews: always hit `/api/home-feed` with `cache: "no-store"` (avoids client Supabase / stale state after navigation).
-  const homeSearchKey = searchParams.toString();
   useEffect(() => {
     if (pathname !== "/") return;
 
     let isMounted = true;
     let fetchGeneration = 0;
+    const spFeed = new URLSearchParams(homeParamsKey);
     const refreshBust =
-      searchParams.get("refresh") === "true" ||
-      searchParams.get("refresh") === "1";
+      spFeed.get("refresh") === "true" || spFeed.get("refresh") === "1";
 
     const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
@@ -551,6 +478,7 @@ export default function HomePageClient({
         }
         const res = await fetch(`/api/home-feed?${q.toString()}`, {
           cache: "no-store",
+          signal: AbortSignal.timeout(28_000),
         });
         const raw: unknown = await res.json();
 
@@ -582,7 +510,7 @@ export default function HomePageClient({
         setHomeFeedRawRows(sortHomeFeedRowsByDateDesc(rows));
 
         if (refreshBust && isMounted && myGen === fetchGeneration) {
-          const p = new URLSearchParams(searchParams.toString());
+          const p = new URLSearchParams(homeParamsKey);
           p.delete("refresh");
           const qs = p.toString();
           router.replace(qs ? `/?${qs}` : "/", { scroll: false });
@@ -617,7 +545,7 @@ export default function HomePageClient({
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [pathname, homeSearchKey, router, activeCountryCode]);
+  }, [pathname, homeParamsKey, router, activeCountryCode]);
 
   useEffect(() => {
     if (pathname !== "/" || reviews.length === 0) {
@@ -665,152 +593,62 @@ export default function HomePageClient({
     };
   }, []);
 
-  // Keep a local copy of Best-in data and fill gaps with a direct businesses fallback
-  // when the RPC returns no rows for a given category/country.
-  useEffect(() => {
-    setClientBestInByCategory(bestInByCategory);
-
-    const fetchFallbackForEmptyCategories = async () => {
-      const country = activeCountryCode;
-      const emptySlugs = Object.entries(bestInByCategory ?? {})
-        .filter(
-          ([, list]) => !Array.isArray(list) || (list as BestInBusiness[]).length === 0,
-        )
-        .map(([slug]) => slug);
-
-      if (emptySlugs.length === 0) {
-        return;
-      }
-
-      const supabase = supabaseBrowser();
-
-      await Promise.all(
-        emptySlugs.map(async (slug) => {
-          const { data, error } = await supabase
-            .from("businesses")
-            .select(
-              "id, name, slug, website, website_display, logo_url, resolved_logo_url, trust_score, review_count, country_code, category_slug, status",
-            )
-            .eq("status", "active")
-            .eq("category_slug", slug)
-            .eq("country_code", country)
-            .order("trust_score", { ascending: false })
-            .order("review_count", { ascending: false })
-            .limit(8);
-
-          if (!error && data && data.length > 0) {
-            setClientBestInByCategory((prev) => ({
-              ...prev,
-              [slug]: data as BestInBusiness[],
-            }));
-          }
-        }),
-      );
-    };
-
-    fetchFallbackForEmptyCategories();
-  }, [bestInByCategory, activeCountryCode]);
-
-  // Re-fetch "Best in" per country + overlay live aggregates (matches Recent reviews / home_feed metrics).
+  // Best-in: same pattern as Recent reviews — always `/api/home-best-in?country=…` (no browser Supabase).
   useEffect(() => {
     if (pathname !== "/") return;
     if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;
 
+    const ac = activeCountryCode;
+    const prev = bestInCountryPrevRef.current;
+    bestInCountryPrevRef.current = ac;
+    const countryChanged = prev !== null && prev !== ac;
+
+    const fetchId = ++bestInFetchIdRef.current;
     let cancelled = false;
 
-    const refresh = async () => {
-      const supabase = supabaseBrowser();
-      const next: Record<string, BestInBusiness[]> = {};
+    if (countryChanged) {
+      setClientBestInByCategory({});
+    }
+    setBestInLoading(true);
 
-      await Promise.all(
-        rotatingCategorySlugs.map(async (slug) => {
-          const { data, error } = await supabase.rpc(
-            "get_top_businesses_for_category_global",
-            {
-              p_category_slug: slug,
-              p_country_code: activeCountryCode,
-              p_min_rating: null,
-              p_limit: 24,
-              p_offset: 0,
-            }
-          );
-          if (cancelled) return;
-          if (error) {
-            console.warn("Best-in RPC:", slug, error.message);
-            next[slug] = [];
-            return;
-          }
-          const rows = Array.isArray(data) ? data : [];
-          next[slug] = rows.map((row) =>
-            mapRpcRowToBestIn(row as Record<string, unknown>)
-          );
-        })
-      );
-
-      if (cancelled) return;
-      setClientBestInByCategory(next);
-
-      const allIds = [
-        ...new Set(
-          Object.values(next)
-            .flat()
-            .map((b) => b.id)
-            .filter(Boolean)
-        ),
-      ];
-      if (allIds.length === 0) {
-        setBestInMetrics({});
-        return;
-      }
-
+    void (async () => {
       try {
-        const res = await fetch("/api/home-best-in-metrics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: allIds }),
+        const q = new URLSearchParams();
+        q.set("country", ac);
+        const res = await fetch(`/api/home-best-in?${q.toString()}`, {
           cache: "no-store",
+          signal: AbortSignal.timeout(28_000),
         });
-        if (!res.ok || cancelled) return;
-        const map = (await res.json()) as unknown;
+        const raw = (await res.json()) as unknown;
+        if (cancelled || fetchId !== bestInFetchIdRef.current) return;
+
         if (
-          cancelled ||
-          !map ||
-          typeof map !== "object" ||
-          ("error" in (map as object) &&
-            typeof (map as { error?: string }).error === "string")
+          !res.ok ||
+          !raw ||
+          typeof raw !== "object" ||
+          !("byCategory" in (raw as object))
         ) {
           return;
         }
-        const apiMap = map as Record<
-          string,
-          { review_count: number; trust_score: number }
-        >;
-        const merged: Record<
-          string,
-          { review_count: number; trust_score: number }
-        > = { ...apiMap };
-        for (const biz of Object.values(next).flat()) {
-          const k = normalizeBusinessIdKey(biz.id);
-          const rcRpc = Number(biz.review_count ?? 0) || 0;
-          const tsRpc = Number(biz.trust_score ?? 0) || 0;
-          const cur = merged[k];
-          const rcApi = cur ? Number(cur.review_count ?? 0) || 0 : 0;
-          const tsApi = cur ? Number(cur.trust_score ?? 0) || 0 : 0;
-          if (!cur) {
-            merged[k] = { review_count: rcRpc, trust_score: tsRpc };
-          } else if (rcApi >= rcRpc) {
-            merged[k] = { review_count: rcApi, trust_score: tsApi };
-          } else {
-            merged[k] = { review_count: rcRpc, trust_score: tsRpc };
-          }
-        }
-        setBestInMetrics(merged);
-      } catch {
-        if (!cancelled) setBestInMetrics({});
-      }
-    };
 
-    void refresh();
+        const pack = raw as { byCategory?: Record<string, unknown> };
+        const incoming = pack.byCategory ?? {};
+        const next: Record<string, BestInBusiness[]> = {};
+        for (const slug of rotatingCategorySlugs) {
+          const rows = incoming[slug];
+          next[slug] = Array.isArray(rows)
+            ? (rows as BestInBusiness[])
+            : [];
+        }
+        setClientBestInByCategory(next);
+      } catch {
+        /* keep existing cards; countryChanged may have cleared until next success */
+      } finally {
+        if (!cancelled && fetchId === bestInFetchIdRef.current) {
+          setBestInLoading(false);
+        }
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -825,87 +663,11 @@ export default function HomePageClient({
 
   useEffect(() => {
     setReviewPage(0);
-  }, [selectedCountry]);
+  }, [activeCountryCode]);
 
   useEffect(() => {
     reviewsScrollRef.current?.scrollTo({ left: 0 });
   }, [activeCountryCode]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const staticFallback: CategoryCard[] = LOOKING_FOR_CATEGORIES.map(
-      ({ label, slug }) => ({ id: `static-${slug}`, name: label, slug })
-    );
-
-    const fetchCategories = async () => {
-      try {
-        const supabase = supabaseBrowser();
-        const { data, error } = await supabase
-          .from("categories")
-          .select("id, name, slug")
-          .order("name", { ascending: true });
-
-        if (!isMounted) return;
-
-        if (error) {
-          setCategoryCards(staticFallback);
-          setVisibleCategories(staticFallback);
-          return;
-        }
-
-        const items =
-          (data as CategoryCard[] | null | undefined)?.filter(
-            (item) => item.slug && item.name
-          ) ?? [];
-
-        // temporarily disable country filtering
-        const countryFilter = null;
-        if (countryFilter) {
-          const supabase = supabaseBrowser();
-          const { data: countryBusinesses } = await supabase
-            .from("businesses")
-            .select("category_slug")
-            .eq("country_code", countryFilter)
-            .not("category_slug", "is", null);
-
-          if (!isMounted) return;
-
-          const allowed = new Set(
-            (countryBusinesses ?? [])
-              .map((row) => row.category_slug)
-              .filter(Boolean)
-          );
-          const filtered = items.filter((item) => allowed.has(item.slug));
-          items.splice(0, items.length, ...filtered);
-        }
-
-        const bySlug = new Map(items.map((item) => [item.slug, item]));
-        const ordered: CategoryCard[] = LOOKING_FOR_CATEGORIES.map(
-          ({ label, slug }) => {
-            const matched = bySlug.get(slug);
-            if (matched) {
-              return { ...matched, name: label };
-            }
-            return { id: `static-${slug}`, name: label, slug };
-          }
-        );
-
-        setCategoryCards(ordered);
-        setVisibleCategories(ordered);
-      } catch {
-        if (isMounted) {
-          setCategoryCards(staticFallback);
-          setVisibleCategories(staticFallback);
-        }
-      }
-    };
-
-    fetchCategories();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedCountry]);
 
   const scrollCategories = (direction: "left" | "right") => {
     const el = categoryScrollRef.current;
@@ -1336,8 +1098,8 @@ export default function HomePageClient({
         categorySlug={activeBestInSlug}
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
-        metricsByBusinessId={bestInMetrics}
         countryCode={activeCountryCode}
+        isLoading={bestInLoading && rankedBestInBusinesses.length === 0}
         onPrevious={() =>
           setBestInIndex((prev) =>
             rotatingCategorySlugs?.length
@@ -1414,7 +1176,7 @@ export default function HomePageClient({
             />
             <div className="relative flex w-max flex-nowrap gap-3 py-2 sm:gap-4 md:gap-5">
               {marqueeItems.map((category) =>
-                isValidSlug((category.slug ?? "").trim().toLowerCase()) ? (
+                isSafeCategorySlug((category.slug ?? "").trim()) ? (
                   <Link
                     key={category.id}
                     href={categoryBrowseHref(category.slug)}

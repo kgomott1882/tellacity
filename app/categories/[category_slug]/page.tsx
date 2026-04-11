@@ -120,36 +120,9 @@ export default async function Page(props: PageProps) {
       ? "Ireland"
       : countryCode;
 
-  const { data: businessesData } = await supabase.rpc(
-    "get_top_businesses_for_category_global",
-    {
-      p_category_slug: safeCategorySlug,
-      p_country_code: countryCode,
-      p_min_rating: null,
-      p_limit: 10,
-      p_offset: 0,
-    }
-  );
-
-  const businesses = Array.isArray(businessesData)
-    ? businessesData
-    : [];
-
-  const { data: countData } = await supabase.rpc(
-        "get_category_business_count",
-        {
-      p_category_slug: safeCategorySlug,
-      p_country_code: countryCode,
-      p_min_rating: null,
-    }
-  );
-
-  const companyCount =
-    typeof countData === "number"
-      ? countData
-      : (Number(countData ?? 0)) || 0;
-
-  const hasNextPage = companyCount > 10;
+  const businesses: unknown[] = [];
+  const companyCount = 0;
+  const hasNextPage = false;
 
   return (
     <>

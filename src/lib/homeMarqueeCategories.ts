@@ -85,3 +85,17 @@ export function enrichMarqueeItemsWithDbNames(
     return dbName ? { label: dbName, slug } : { ...item, slug };
   });
 }
+
+/** “What are you looking for?” strip: DB ids + curated labels (same order as LOOKING_FOR_CATEGORIES). */
+export function orderedHomeLookingCategoryCards(
+  rows: { id: string; name: string; slug: string }[]
+): HomeMarqueeCategoryCard[] {
+  const bySlug = new Map(rows.map((r) => [r.slug.trim().toLowerCase(), r] as const));
+  return LOOKING_FOR_CATEGORIES.map(({ label, slug }) => {
+    const matched = bySlug.get(slug.trim().toLowerCase());
+    if (matched) {
+      return { id: matched.id, name: label, slug: matched.slug };
+    }
+    return { id: `static-${slug}`, name: label, slug };
+  });
+}

@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
 import {
-  COUNTRY_CHANGE_EVENT,
-  DEFAULT_COUNTRY,
-  getStoredCountry,
   normalizeCountryCode,
-  setStoredCountry,
 } from "@/lib/country";
+import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -23,11 +19,10 @@ const COUNTRIES = [
 ];
 
 export default function Footer() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState("US");
+  const { countryCode, setCountryAndSync } = useUnifiedCountry({
+    initialCountry: "US",
+  });
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
@@ -35,31 +30,6 @@ export default function Footer() {
   const categoriesHref = `/categories?country=${countryCode}`;
   const companiesHref = `/companies/${companiesCountrySegment}?country=${countryCode}`;
   const compareBaseQuery = `?country=${countryCode}`;
-
-  // Sync country from URL (single source of truth), then local fallback.
-  useEffect(() => {
-    const fromUrl = searchParams.get("country");
-    if (fromUrl) {
-      setCountryCode(normalizeCountryCode(fromUrl));
-      return;
-    }
-    const stored = getStoredCountry();
-    setCountryCode(stored ?? DEFAULT_COUNTRY);
-  }, [searchParams]);
-
-  useEffect(() => {
-    const syncCountryFromStorage = () => {
-      const fromUrl = searchParams.get("country");
-      if (fromUrl) return;
-      setCountryCode(getStoredCountry() ?? DEFAULT_COUNTRY);
-    };
-    window.addEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
-    window.addEventListener("storage", syncCountryFromStorage);
-    return () => {
-      window.removeEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
-      window.removeEventListener("storage", syncCountryFromStorage);
-    };
-  }, [searchParams]);
 
   const openCountryMenu = () => {
     if (closeTimeoutRef.current) {
@@ -81,11 +51,7 @@ export default function Footer() {
 
   const handleCountrySelect = (code: string) => {
     const normalized = normalizeCountryCode(code);
-    setCountryCode(normalized);
-    setStoredCountry(normalized);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("country", normalized);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setCountryAndSync(normalized);
     setIsCountryOpen(false);
   };
 

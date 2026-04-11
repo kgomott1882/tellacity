@@ -46,7 +46,7 @@ async function loadAggregatesChunk(
 
   const { data: rows, error: err2 } = await supabase
     .from("business_review_metrics_v")
-    .select("business_id, review_count, average_rating")
+    .select("business_id, review_count, trust_score")
     .in("business_id", chunk);
 
   if (err2) {
@@ -55,12 +55,12 @@ async function loadAggregatesChunk(
   }
 
   for (const row of rows ?? []) {
-    const r = row as AggregateRow;
+    const r = row as AggregateRow & { trust_score?: number | null };
     if (!r.business_id) continue;
     const key = normalizeBusinessIdKey(r.business_id);
     local[key] = {
       review_count: Number(r.review_count ?? 0) || 0,
-      trust_score: Number(r.average_rating ?? 0) || 0,
+      trust_score: Number(r.trust_score ?? 0) || 0,
     };
   }
   return local;

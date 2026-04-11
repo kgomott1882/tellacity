@@ -11,14 +11,11 @@ import { setPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { isAbortError } from "@/lib/authErrors";
 import {
-  COUNTRY_CHANGE_EVENT,
-  DEFAULT_COUNTRY,
-  getStoredCountry,
   normalizeCountryCode,
-  setStoredCountry,
 } from "@/lib/country";
 import { HELPFUL_SIGNOUT_EVENT } from "@/lib/helpfulSignoutEvent";
 import { resolveNavbarDashboardPath } from "@/lib/userBusinessDashboardEligibility";
+import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -70,7 +67,9 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const [countryCode, setCountryCode] = useState<string>(DEFAULT_COUNTRY);
+  const { countryCode, setCountryAndSync } = useUnifiedCountry({
+    initialCountry: "US",
+  });
 
   const activeCountry =
     COUNTRIES.find((item) => item.code === countryCode) ?? COUNTRIES[0];
@@ -94,40 +93,6 @@ export default function Navbar() {
   useEffect(() => {
     ensureValidSession();
   }, []);
-
-  // Prefer URL country; fall back to persisted selection when URL has none.
-  useEffect(() => {
-    const queryCountry = searchParams.get("country");
-    if (queryCountry) {
-      const normalized = normalizeCountryCode(queryCountry);
-      setCountryCode(normalized);
-      setStoredCountry(normalized);
-      return;
-    }
-
-    const stored = getStoredCountry();
-    if (stored) {
-      setCountryCode(normalizeCountryCode(stored));
-      return;
-    }
-
-    setCountryCode(DEFAULT_COUNTRY);
-  }, [searchParams]);
-
-  useEffect(() => {
-    const syncCountryFromStorage = () => {
-      const queryCountry = searchParams.get("country");
-      if (queryCountry) return;
-      const stored = getStoredCountry();
-      setCountryCode(stored ?? DEFAULT_COUNTRY);
-    };
-    window.addEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
-    window.addEventListener("storage", syncCountryFromStorage);
-    return () => {
-      window.removeEventListener(COUNTRY_CHANGE_EVENT, syncCountryFromStorage);
-      window.removeEventListener("storage", syncCountryFromStorage);
-    };
-  }, [searchParams]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -346,11 +311,7 @@ export default function Navbar() {
 
   const handleCountryChange = (code: string) => {
     const normalized = normalizeCountryCode(code);
-    setCountryCode(normalized);
-    setStoredCountry(normalized);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("country", normalized);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    setCountryAndSync(normalized);
   };
 
   if (isBusinessNav) {

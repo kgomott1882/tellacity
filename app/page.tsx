@@ -2,17 +2,20 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-import Link from "next/link";
+import { Suspense } from "react";
 import HomePageClient from "./HomePageClient";
 import type { BestInBusiness } from "./HomePageClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { comparisonLinks } from "@/lib/comparisonLinks";
 import { normalizeCountryCode } from "@/lib/country";
 import {
   HOME_MARQUEE_CATEGORY_ITEMS,
   buildMarqueeCategoryCards,
   enrichMarqueeItemsWithDbNames,
 } from "@/lib/homeMarqueeCategories";
+import {
+  HOME_ROTATING_BEST_IN_SLUGS,
+  loadHomeBestInByCategory,
+} from "@/lib/homeBestInBundle";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",
@@ -21,27 +24,68 @@ const CATEGORY_LABELS: Record<string, string> = {
   telecom: "Telecommunications",
 };
 
-const ROTATING_BEST_IN_SLUGS = [
-  "banking",
-  "insurance",
-  "restaurants-and-bars",
-  "internet-and-software",
-  "banking-and-money",
-  "cars-and-trucks",
-];
-
 type PageProps = {
   searchParams: Promise<{ country?: string }>;
 };
 
+type HomeCategoryRow = { id: string; name: string; slug: string };
+
+function HomePageShellFallback() {
+  return (
+    <main className="bg-white">
+      <section
+        className="relative min-h-[440px] bg-[#0E0E0E] bg-cover bg-center bg-no-repeat sm:min-h-[520px]"
+        style={{
+          backgroundImage:
+            "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
+        }}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-10 sm:py-12">
+        <div className="h-8 w-56 animate-pulse rounded-md bg-gray-200" />
+        <p className="mt-4 h-4 w-72 max-w-full animate-pulse rounded bg-gray-100" />
+        <div className="mt-8 flex gap-3 overflow-hidden">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="h-24 w-24 shrink-0 rounded-2xl border border-gray-100 bg-gray-50 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+      <section className="mx-auto max-w-7xl px-6 py-10">
+        <div className="h-8 w-64 animate-pulse rounded-md bg-gray-200" />
+        <p className="mt-4 h-4 w-96 max-w-full animate-pulse rounded bg-gray-100" />
+        <div className="mt-6 flex gap-3">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div
+              key={i}
+              className="h-28 w-24 shrink-0 rounded-2xl bg-gray-50 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function buildHomeCategoryRows(
+  catRows: { id?: unknown; slug?: unknown; name?: unknown }[] | null | undefined
+): HomeCategoryRow[] {
+  const out: HomeCategoryRow[] = [];
+  for (const r of catRows ?? []) {
+    const id = typeof r.id === "string" ? r.id.trim() : "";
+    const slug = typeof r.slug === "string" ? r.slug.trim() : "";
+    const name = typeof r.name === "string" ? r.name.trim() : "";
+    if (id && slug && name) out.push({ id, slug, name });
+  }
+  return out;
+}
+
 export default async function HomePage(props: PageProps) {
   let country = "US";
   let bestInByCategory: Record<string, unknown[]> = {};
-  let rpcDebug: Record<
-    string,
-    { country: string; error: string | null; count: number }
-  > = {};
   let marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
+  let categoryRowsForHome: HomeCategoryRow[] = [];
 
   try {
     const searchParams = await props.searchParams;
@@ -58,7 +102,9 @@ export default async function HomePage(props: PageProps) {
       try {
         const { data: catRows } = await supabase
           .from("categories")
-          .select("slug,name");
+          .select("id, slug, name")
+          .order("name", { ascending: true });
+        categoryRowsForHome = buildHomeCategoryRows(catRows);
         const slugSet = new Set(
           (catRows ?? [])
             .map((r) => (r.slug ?? "").trim().toLowerCase())
@@ -77,58 +123,15 @@ export default async function HomePage(props: PageProps) {
         console.error("Homepage marquee categories:", marqueeErr);
       }
 
-      console.log("HOMEPAGE COUNTRY PARAM:", country);
-
-      const results = await Promise.all(
-        (Array.isArray(ROTATING_BEST_IN_SLUGS) ? ROTATING_BEST_IN_SLUGS : []).map(
-          async (slug) => {
-            try {
-              const { data, error } = await supabase.rpc(
-                "get_top_businesses_for_category_global",
-                {
-                  p_category_slug: slug,
-                  p_country_code: country,
-                  p_min_rating: null,
-                  p_limit: 24,
-                  p_offset: 0,
-                }
-              );
-
-              console.log("BEST-IN RPC", {
-                slug,
-                country,
-                error: error?.message ?? null,
-                count: Array.isArray(data) ? data.length : 0,
-              });
-
-              return {
-                slug,
-                data: (Array.isArray(data) ? data : []) as unknown[],
-                error: error?.message ?? null,
-                count: Array.isArray(data) ? data.length : 0,
-              };
-            } catch (rpcError) {
-              console.error("Homepage fetch failed:", rpcError);
-              return {
-                slug,
-                data: [] as unknown[],
-                error:
-                  rpcError instanceof Error ? rpcError.message : String(rpcError),
-                count: 0,
-              };
-            }
-          }
-        )
+      const { byCategory, rpcErrors } = await loadHomeBestInByCategory(
+        supabase,
+        country
       );
-
-      for (const item of Array.isArray(results) ? results : []) {
-        const slug = item?.slug;
-        const data = item?.data;
-        const err = item?.error ?? null;
-        const count = typeof item?.count === "number" ? item.count : 0;
-        if (slug != null && typeof slug === "string") {
-          bestInByCategory[slug] = Array.isArray(data) ? data : [];
-          rpcDebug[slug] = { country, error: err, count };
+      bestInByCategory = byCategory as unknown as Record<string, unknown[]>;
+      for (const slug of HOME_ROTATING_BEST_IN_SLUGS) {
+        const err = rpcErrors[slug];
+        if (err) {
+          console.warn(`[homepage] best-in RPC ${slug}:`, err);
         }
       }
     }
@@ -136,7 +139,6 @@ export default async function HomePage(props: PageProps) {
     console.error("Homepage fetch failed:", error);
     country = "US";
     bestInByCategory = {};
-    rpcDebug = {};
     marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   }
 
@@ -150,24 +152,19 @@ export default async function HomePage(props: PageProps) {
   });
 
   const safeLabels: Record<string, string> = CATEGORY_LABELS ?? {};
-  const safeRpcDebug: Record<
-    string,
-    { country: string; error: string | null; count: number }
-  > = rpcDebug ?? {};
-  const safeRotatingSlugs = Array.isArray(ROTATING_BEST_IN_SLUGS)
-    ? ROTATING_BEST_IN_SLUGS
-    : [];
+  const safeRotatingSlugs = [...HOME_ROTATING_BEST_IN_SLUGS];
 
   try {
     return (
-      <HomePageClient
-        initialSelectedCountry={country ?? "US"}
-        rotatingCategorySlugs={safeRotatingSlugs}
-        bestInByCategory={safeBestInByCategory}
-        bestInCategoryLabels={safeLabels}
-        rpcDebug={safeRpcDebug}
-        marqueeCategories={marqueeCategories}
-      />
+      <Suspense fallback={<HomePageShellFallback />}>
+        <HomePageClient
+          initialSelectedCountry={country ?? "US"}
+          rotatingCategorySlugs={safeRotatingSlugs}
+          bestInByCategory={safeBestInByCategory}
+          bestInCategoryLabels={safeLabels}
+          marqueeCategories={marqueeCategories}
+        />
+      </Suspense>
     );
   } catch (renderError) {
     console.error("Homepage render failed:", renderError);
