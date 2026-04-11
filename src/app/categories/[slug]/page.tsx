@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { normalizeCountryCode } from "@/lib/country";
 import { similarBusinessLogoUrl } from "@/lib/logo";
+import {
+  REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR,
+} from "@/lib/reviewVisibility";
 
 type CategoryBusiness = {
   id: string;
@@ -33,7 +37,7 @@ export default function CategoryDetailPage() {
       : null;
 
   const searchParams = useSearchParams();
-  const country = searchParams.get("country") ?? "US";
+  const country = normalizeCountryCode(searchParams.get("country"));
 
   const [businesses, setBusinesses] = useState<CategoryBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,46 +72,65 @@ export default function CategoryDetailPage() {
         try {
           const ids = list.map((row) => row.id).filter(Boolean);
           const supabase = supabaseBrowser();
-          const { data: reviews, error: reviewError } = await supabase
-            .from("reviews")
-            .select("business_id, rating")
-            .in("business_id", ids)
-            .eq("status", "published");
+          const agg: Record<string, { count: number; sum: number }> = {};
 
-          if (!reviewError && reviews) {
-            const agg: Record<string, { count: number; sum: number }> = {};
-            for (const row of reviews as any[]) {
-              const id = String(row.business_id);
-              const rating = Number(row.rating ?? 0);
-              if (!agg[id]) agg[id] = { count: 0, sum: 0 };
-              if (rating > 0) {
-                agg[id].count += 1;
-                agg[id].sum += rating;
+          const { data: aggRpc, error: aggErr } = await supabase.rpc(
+            "get_public_review_aggregates",
+            { p_business_ids: ids }
+          );
+
+          if (!aggErr && Array.isArray(aggRpc)) {
+            for (const row of aggRpc as {
+              business_id?: string;
+              review_count?: number | null;
+              average_rating?: number | null;
+            }[]) {
+              const id = String(row.business_id ?? "");
+              if (!id) continue;
+              const count = Number(row.review_count ?? 0) || 0;
+              const avg = Number(row.average_rating ?? 0) || 0;
+              if (count > 0) {
+                agg[id] = { count, sum: avg * count };
               }
             }
+          } else {
+            const { data: reviews, error: reviewError } = await supabase
+              .from("reviews")
+              .select("business_id, rating")
+              .in("business_id", ids)
+              .or(REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR);
 
-            list.forEach((row) => {
-              const m = agg[row.id];
-              if (m && m.count > 0) {
-                const avg = m.sum / m.count;
-                row.trust_score = avg;
-                row.review_count = m.count;
-              } else {
-                row.trust_score = 0;
-                row.review_count = 0;
+            if (!reviewError && reviews) {
+              for (const row of reviews as { business_id?: string; rating?: number }[]) {
+                const id = String(row.business_id);
+                const rating = Number(row.rating ?? 0);
+                if (!agg[id]) agg[id] = { count: 0, sum: 0 };
+                if (rating > 0) {
+                  agg[id].count += 1;
+                  agg[id].sum += rating;
+                }
               }
-            });
-
-            list.sort((a, b) => {
-              const aRating = (Number(a.trust_score ?? 0)) || 0;
-              const bRating = (Number(b.trust_score ?? 0)) || 0;
-              const aCount = (Number(a.review_count ?? 0)) || 0;
-              const bCount = (Number(b.review_count ?? 0)) || 0;
-              if (bRating !== aRating) return bRating - aRating;
-              if (bCount !== aCount) return bCount - aCount;
-              return (a.name || "").localeCompare(b.name || "");
-            });
+            }
           }
+
+          list.forEach((row) => {
+            const m = agg[row.id];
+            if (m && m.count > 0) {
+              const avg = m.sum / m.count;
+              row.trust_score = avg;
+              row.review_count = m.count;
+            }
+          });
+
+          list.sort((a, b) => {
+            const aRating = Number(a.trust_score ?? 0) || 0;
+            const bRating = Number(b.trust_score ?? 0) || 0;
+            const aCount = Number(a.review_count ?? 0) || 0;
+            const bCount = Number(b.review_count ?? 0) || 0;
+            if (bRating !== aRating) return bRating - aRating;
+            if (bCount !== aCount) return bCount - aCount;
+            return (a.name || "").localeCompare(b.name || "");
+          });
         } catch {
           // ignore recompute errors, fall back to RPC data
         }

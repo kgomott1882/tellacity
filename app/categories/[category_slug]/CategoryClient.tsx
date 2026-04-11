@@ -8,9 +8,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
-import { getStoredCountry, setStoredCountry } from "@/lib/country";
+import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
-import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
+import {
+  REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR,
+} from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
 
 type BusinessRow = {
@@ -29,7 +31,17 @@ type BusinessRow = {
   logo_url?: string | null;
   /** RPC get_top_businesses_for_category_global returns logo as this column. */
   resolved_logo_url?: string | null;
+  average_rating?: number | null;
+  avg_rating?: number | null;
 };
+
+function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
+  const trust =
+    (Number(row.trust_score ?? 0) || 0) ||
+    (Number(row.average_rating ?? 0) || 0) ||
+    (Number(row.avg_rating ?? 0) || 0);
+  return { trust, count: Number(row.review_count ?? 0) || 0 };
+}
 
 /** Match business profile / search: use stored logo + website → logo.dev fallback. */
 function categoryListLogoUrl(
@@ -62,7 +74,11 @@ function isValidSlug(slug: string) {
   return /^[a-z0-9-]+$/.test(clean);
 }
 
-/** Mutates rows in place: trust_score + review_count from published visible reviews (same as main list). */
+/**
+ * Merges visible published reviews into rows when the browser can read them.
+ * If the direct `reviews` query returns nothing (RLS, filters), keeps RPC
+ * `get_top_businesses_for_category_global` metrics — never overwrites with zeros.
+ */
 async function fetchAndApplyLiveReviewMetrics(
   supabase: SupabaseClient,
   rows: BusinessRow[]
@@ -70,52 +86,84 @@ async function fetchAndApplyLiveReviewMetrics(
   const ids = rows.map((row) => row.id).filter(Boolean);
   if (ids.length === 0) return;
 
+  const rpcSnapshot = new Map<string, { trust: number; count: number }>();
+  for (const row of rows) {
+    if (!row.id) continue;
+    rpcSnapshot.set(row.id, snapshotRpcRating(row));
+  }
+
+  const agg: Record<string, { count: number; sum: number }> = {};
+
   try {
-    const { data: reviews, error: reviewError } = await supabase
-      .from("reviews")
-      .select("business_id, rating")
-      .in("business_id", ids)
-      .eq("status", "published")
-      .or(REVIEWS_PUBLIC_VISIBILITY_OR);
+    const { data: aggRpc, error: aggErr } = await supabase.rpc(
+      "get_public_review_aggregates",
+      { p_business_ids: ids }
+    );
 
-    if (reviewError || !reviews) return;
+    if (!aggErr && Array.isArray(aggRpc)) {
+      for (const row of aggRpc as {
+        business_id?: string;
+        review_count?: number | null;
+        average_rating?: number | null;
+      }[]) {
+        const id = String(row.business_id ?? "");
+        if (!id) continue;
+        const count = Number(row.review_count ?? 0) || 0;
+        const avg = Number(row.average_rating ?? 0) || 0;
+        if (count > 0) {
+          agg[id] = { count, sum: avg * count };
+        }
+      }
+    } else {
+      const { data: reviews, error: reviewError } = await supabase
+        .from("reviews")
+        .select("business_id, rating")
+        .in("business_id", ids)
+        .or(REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR);
 
-    const agg: Record<string, { count: number; sum: number }> = {};
-    for (const row of reviews as { business_id?: string; rating?: number }[]) {
-      const id = String(row.business_id);
-      const rating = Number(row.rating ?? 0);
-      if (!agg[id]) agg[id] = { count: 0, sum: 0 };
-      if (rating > 0) {
-        agg[id].count += 1;
-        agg[id].sum += rating;
+      if (reviewError || !reviews) return;
+
+      for (const row of reviews as { business_id?: string; rating?: number }[]) {
+        const id = String(row.business_id);
+        const rating = Number(row.rating ?? 0);
+        if (!agg[id]) agg[id] = { count: 0, sum: 0 };
+        if (rating > 0) {
+          agg[id].count += 1;
+          agg[id].sum += rating;
+        }
       }
     }
 
-    rows.sort((a, b) => {
-      const aAgg = agg[a.id] ?? { count: 0, sum: 0 };
-      const bAgg = agg[b.id] ?? { count: 0, sum: 0 };
-      const aRating =
-        aAgg.count > 0 ? aAgg.sum / aAgg.count : (Number(a.trust_score ?? 0)) || 0;
-      const bRating =
-        bAgg.count > 0 ? bAgg.sum / bAgg.count : (Number(b.trust_score ?? 0)) || 0;
-      const aCount =
-        aAgg.count > 0 ? aAgg.count : (Number(a.review_count ?? 0)) || 0;
-      const bCount =
-        bAgg.count > 0 ? bAgg.count : (Number(b.review_count ?? 0)) || 0;
+    const mergedRating = (id: string) => {
+      const m = agg[id];
+      if (m && m.count > 0) return m.sum / m.count;
+      return rpcSnapshot.get(id)?.trust ?? 0;
+    };
+    const mergedCount = (id: string) => {
+      const m = agg[id];
+      if (m && m.count > 0) return m.count;
+      return rpcSnapshot.get(id)?.count ?? 0;
+    };
 
+    rows.sort((a, b) => {
+      const aRating = mergedRating(a.id);
+      const bRating = mergedRating(b.id);
+      const aCt = mergedCount(a.id);
+      const bCt = mergedCount(b.id);
       if (bRating !== aRating) return bRating - aRating;
-      if (bCount !== aCount) return bCount - aCount;
+      if (bCt !== aCt) return bCt - aCt;
       return (a.name || "").localeCompare(b.name || "");
     });
 
     rows.forEach((row) => {
       const m = agg[row.id];
+      const snap = rpcSnapshot.get(row.id);
       if (m && m.count > 0) {
         row.trust_score = m.sum / m.count;
         row.review_count = m.count;
-      } else {
-        row.trust_score = 0;
-        row.review_count = 0;
+      } else if (snap) {
+        row.trust_score = snap.trust;
+        row.review_count = snap.count;
       }
     });
   } catch {
@@ -221,7 +269,9 @@ export default function CategoryClient({
   const [groupName, setGroupName] = useState("");
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; slug: string }[]>([]);
 
-  const currentSort = searchParams.get("sort") ?? "relevant";
+  const sortParam = searchParams.get("sort");
+  const currentSort: "rating" | "reviews" | "recent" =
+    sortParam === "reviews" ? "reviews" : sortParam === "recent" ? "recent" : "rating";
   const [sortOpen, setSortOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
@@ -229,8 +279,9 @@ export default function CategoryClient({
 
   const queryCountry = searchParams.get("country");
   // URL + server-provided country only during render to avoid hydration mismatch.
-  const derivedCountry =
-    queryCountry ?? initialCountryCode ?? "US";
+  const derivedCountry = normalizeCountryCode(
+    queryCountry ?? initialCountryCode ?? undefined
+  );
 
   const [selectedCountry, setSelectedCountry] = useState<string | null>(
     derivedCountry
@@ -241,6 +292,39 @@ export default function CategoryClient({
   const RECENT_PAGE_SIZE = 3;
 
   const businessesList = rows ?? [];
+
+  const sortedBusinessesList = useMemo(() => {
+    const list = [...businessesList];
+    if (currentSort === "reviews") {
+      list.sort((a, b) => {
+        const ac = Number(a.review_count ?? 0) || 0;
+        const bc = Number(b.review_count ?? 0) || 0;
+        if (bc !== ac) return bc - ac;
+        const ar = Number(a.trust_score ?? 0) || 0;
+        const br = Number(b.trust_score ?? 0) || 0;
+        if (br !== ar) return br - ar;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    } else if (currentSort === "recent") {
+      list.sort((a, b) => {
+        const ac = Number(a.review_count ?? 0) || 0;
+        const bc = Number(b.review_count ?? 0) || 0;
+        if (bc !== ac) return bc - ac;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    } else {
+      list.sort((a, b) => {
+        const ar = Number(a.trust_score ?? 0) || 0;
+        const br = Number(b.trust_score ?? 0) || 0;
+        if (br !== ar) return br - ar;
+        const ac = Number(a.review_count ?? 0) || 0;
+        const bc = Number(b.review_count ?? 0) || 0;
+        if (bc !== ac) return bc - ac;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    }
+    return list;
+  }, [businessesList, currentSort]);
 
   const [topRatedItems, setTopRatedItems] = useState<TopRatedDisplayItem[]>([]);
   const [topRatedLoading, setTopRatedLoading] = useState(true);
@@ -334,11 +418,12 @@ export default function CategoryClient({
   const [recentPage, setRecentPage] = useState(0);
   const recentCompanies = useMemo(() => {
     const start = recentPage * RECENT_PAGE_SIZE;
-    return businessesList.slice(start, start + RECENT_PAGE_SIZE);
-  }, [businessesList, recentPage]);
+    return sortedBusinessesList.slice(start, start + RECENT_PAGE_SIZE);
+  }, [sortedBusinessesList, recentPage]);
 
   const recentHasPrev = recentPage > 0;
-  const recentHasNext = (recentPage + 1) * RECENT_PAGE_SIZE < businessesList.length;
+  const recentHasNext =
+    (recentPage + 1) * RECENT_PAGE_SIZE < sortedBusinessesList.length;
 
   const title = useMemo(() => {
     if (categoryName) return categoryName;
@@ -545,11 +630,11 @@ export default function CategoryClient({
     "@type": "CollectionPage",
     name: `${title} Reviews & Ratings`,
     ...(siteUrl && categorySlug ? { url: `${siteUrl}/categories/${categorySlug}` } : {}),
-    ...(businessesList.length > 0
+    ...(sortedBusinessesList.length > 0
       ? {
           mainEntity: {
             "@type": "ItemList",
-            itemListElement: businessesList.slice(0, 10).map((business, index) => ({
+            itemListElement: sortedBusinessesList.slice(0, 10).map((business, index) => ({
               "@type": "ListItem",
               position: index + 1,
               name: business.name,
@@ -717,7 +802,7 @@ export default function CategoryClient({
 
           <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
             <span>
-              Companies ({computedCount > 0 ? computedCount.toLocaleString("en-US") : businessesList.length.toLocaleString("en-US")})
+              Companies ({computedCount > 0 ? computedCount.toLocaleString("en-US") : sortedBusinessesList.length.toLocaleString("en-US")})
             </span>
 
             <div className="relative">
@@ -730,11 +815,11 @@ export default function CategoryClient({
               >
                 Sort by:{" "}
                 <span className="font-medium text-gray-800">
-                  {currentSort === "relevant"
-                    ? "Most relevant"
+                  {currentSort === "rating"
+                    ? "Leaderboard (highest rated)"
                     : currentSort === "reviews"
                     ? "Highest number of reviews"
-                    : "Most recent reviews"}
+                    : "Most reviews (activity)"}
                 </span>
                 <span className="text-gray-400">▼</span>
               </button>
@@ -745,7 +830,7 @@ export default function CategoryClient({
                     className="flex w-full items-start gap-3 rounded-md p-2 text-left hover:bg-gray-50"
                     onClick={() => {
                       const params = new URLSearchParams(searchParams.toString());
-                      params.set("sort", "relevant");
+                      params.delete("sort");
                       router.push(`?${params.toString()}`, { scroll: false });
                       setSortOpen(false);
                     }}
@@ -753,13 +838,13 @@ export default function CategoryClient({
                   >
                     <span
                       className={`mt-0.5 h-4 w-4 rounded-full border ${
-                        currentSort === "relevant" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
+                        currentSort === "rating" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
                       }`}
                     />
                     <span>
-                      <span className="block font-medium text-gray-900">Most relevant</span>
+                      <span className="block font-medium text-gray-900">Leaderboard (highest rated)</span>
                       <span className="block text-xs text-gray-500">
-                        Sorting by relevance shows all companies that are best in a category, ordered by TrustScore and review count.
+                        Star average first, then review count — same ordering as the category directory in Supabase.
                       </span>
                     </span>
                   </button>
@@ -797,7 +882,7 @@ export default function CategoryClient({
                         currentSort === "recent" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
                       }`}
                     />
-                    <span className="font-medium text-gray-900">Most recent reviews</span>
+                    <span className="font-medium text-gray-900">Most reviews (activity)</span>
                   </button>
                 </div>
               )}
@@ -812,7 +897,7 @@ export default function CategoryClient({
             Best {categoryName} companies in {countryName}
           </h2>
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
-            {businessesList.length === 0 && !loading && (
+            {sortedBusinessesList.length === 0 && !loading && (
               <div className="px-4 py-6 text-sm text-gray-500">
                 <p>No businesses listed in this category yet.</p>
                 <Link
@@ -824,15 +909,12 @@ export default function CategoryClient({
               </div>
             )}
 
-            {businessesList.length > 0 &&
-              businessesList.map((business) => {
+            {sortedBusinessesList.length > 0 &&
+              sortedBusinessesList.map((business) => {
                 const safeSlug = (business.slug ?? "").trim().toLowerCase();
                 if (!isValidSlug(safeSlug)) return null;
                 const reviewCount = (Number(business.review_count ?? 0)) || 0;
-                const ratingValue =
-                  typeof business.trust_score === "number" && business.trust_score > 0
-                    ? business.trust_score
-                    : 0;
+                const ratingValue = snapshotRpcRating(business).trust;
                 const locationText =
                   formatBusinessAddress(business.address, business.city, business.country_code) ||
                   business.display_location;
@@ -907,7 +989,7 @@ export default function CategoryClient({
               })}
           </div>
 
-          {businessesList.length > 0 && (
+          {sortedBusinessesList.length > 0 && (
             <div className="mt-6 flex items-center justify-center text-sm text-gray-600">
               <div className="inline-flex overflow-hidden rounded-md border border-gray-300">
                 <button
@@ -982,10 +1064,7 @@ export default function CategoryClient({
                   const safeSlug = (company.slug ?? "").trim().toLowerCase();
                   if (!isValidSlug(safeSlug)) return null;
                   const reviewCount = (Number(company.review_count ?? 0)) || 0;
-                  const ratingValue =
-                    typeof company.trust_score === "number" && company.trust_score > 0
-                      ? company.trust_score
-                      : 0;
+                  const ratingValue = snapshotRpcRating(company).trust;
                   const logoUrl = categoryListLogoUrl(company);
 
                   return (

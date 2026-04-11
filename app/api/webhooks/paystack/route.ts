@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  syncBusinessPlanColumn,
+  upsertActiveSubscriptionForBusiness,
+} from "@/lib/subscriptionWrite";
 
 export async function POST(req: Request) {
   try {
@@ -35,21 +39,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid metadata" }, { status: 400 });
     }
 
-    // 🔹 Update subscription
-    const { error } = await supabase
-      .from("subscriptions")
-      .update({
-        plan_code: planCode,
-        status: "active",
-        provider: "paystack",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("business_id", businessId);
+    const bid = String(businessId);
+    const pcode = String(planCode);
 
-    if (error) {
-      console.error("Subscription update error:", error);
+    const paystackSubKey =
+      typeof reference === "string" && reference.trim() !== ""
+        ? reference.trim()
+        : undefined;
+
+    const sub = await upsertActiveSubscriptionForBusiness(supabase, {
+      businessId: bid,
+      planCode: pcode,
+      provider: "paystack",
+      providerSubId: paystackSubKey,
+    });
+    if (!sub.ok) {
+      console.error("Subscription upsert error:", sub.error);
       return NextResponse.json({ error: "DB update failed" }, { status: 500 });
     }
+
+    await syncBusinessPlanColumn(supabase, bid, pcode);
 
     return NextResponse.json({ success: true });
   } catch (err) {

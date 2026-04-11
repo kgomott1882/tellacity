@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import UpgradeButton from "@/components/billing/UpgradeButton";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import {
@@ -186,7 +185,6 @@ function EmailLayoutLockOverlay({
 export default function EmailWidgetsPage() {
   const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
-  const { user } = useBusinessAuth();
   if (!selectedBusiness?.id) return null;
   const businessId = selectedBusiness.id;
 
@@ -590,12 +588,7 @@ export default function EmailWidgetsPage() {
             Upgrade to use this layout, or pick a layout your plan supports below. Sending uses the same access as saving.
           </p>
           <div className="mt-4">
-            <UpgradeButton
-              businessId={business.id}
-              planCode="premium"
-              amount={5000}
-              email={user?.email ?? ""}
-            />
+            <UpgradeButton businessId={business.id} plan="premium" cycle="monthly" />
           </div>
         </div>
       )}

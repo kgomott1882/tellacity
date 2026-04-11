@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
+import { normalizeCountryCode } from "@/lib/country";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
@@ -463,8 +464,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     let isMounted = true;
     setTopRatedInCategoryLoading(true);
 
-    const country =
-      (business.countryCode || "US").trim().toUpperCase() || "US";
+    const country = normalizeCountryCode(business.countryCode);
 
     const run = async () => {
       const { data, error } = await supabaseBrowser().rpc(

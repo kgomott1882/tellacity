@@ -6,10 +6,6 @@ import { useRouter } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import {
-  incrementUpgradeClickCount,
-  upgradeModalTitleForClickCount,
-} from "@/lib/upgradeClickStorage";
-import {
   canAccessAnalytics,
   normalizePlanCodeToKey,
   nextTierUpgradeCtaLabel,
@@ -908,19 +904,14 @@ export default function PerformancePage() {
   const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
-  const [analyticsUpgradeOpen, setAnalyticsUpgradeOpen] = useState(false);
-  const [analyticsUpgradeTitle, setAnalyticsUpgradeTitle] = useState("Unlock this feature");
-
-  const openAnalyticsUpgradeModal = () => {
+  const goToBillingForUpgrade = () => {
     if (!businessId) return;
-    const n = incrementUpgradeClickCount("analytics");
-    setAnalyticsUpgradeTitle(upgradeModalTitleForClickCount(n));
     logDashboardActivityClient({
       businessId,
       action: "feature_locked_clicked",
-      metadata: { feature: "analytics" },
+      metadata: { feature: "analytics", destination: "billing" },
     });
-    setAnalyticsUpgradeOpen(true);
+    router.push("/business/dashboard/billing?reason=analytics");
   };
 
   if (!businessId) return null;
@@ -959,7 +950,7 @@ export default function PerformancePage() {
                 </p>
                 <button
                   type="button"
-                  onClick={openAnalyticsUpgradeModal}
+                  onClick={goToBillingForUpgrade}
                   className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
                 >
                   {nextTierUpgradeCtaLabel(planKey)}
@@ -970,51 +961,6 @@ export default function PerformancePage() {
         ) : null}
       </div>
 
-      {analyticsUpgradeOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setAnalyticsUpgradeOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="analytics-upgrade-feature-title"
-          >
-            <h2
-              id="analytics-upgrade-feature-title"
-              className="text-lg font-semibold text-[#0E0E0E]"
-            >
-              {analyticsUpgradeTitle}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Move up a tier to unlock performance insights and get more value from your reviews.
-              Without insights, you may miss opportunities to improve.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setAnalyticsUpgradeOpen(false)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnalyticsUpgradeOpen(false);
-                  router.push("/business/dashboard/billing?reason=analytics");
-                }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
-              >
-                {nextTierUpgradeCtaLabel(planKey)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

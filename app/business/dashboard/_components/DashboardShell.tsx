@@ -280,6 +280,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   }, [pathname, selectedBusiness?.id, user?.id]);
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
+  const normalizedPath = (pathname ?? "").replace(/\/$/, "") || "";
+  const isBillingCheckoutPage = normalizedPath === "/business/dashboard/billing/checkout";
   const emailStr = user?.email?.trim() ?? "";
   const needsOnboarding = !selectedBusiness;
 
@@ -294,6 +296,29 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   }
 
   const secondarySidebarData = activeSection ? NAV_SECTIONS[activeSection] : null;
+
+  /** Pay step: no dashboard chrome so the checkout card is the only focus. */
+  if (isBillingCheckoutPage) {
+    if (authLoading || !user) {
+      return <PageLoadingOverlay />;
+    }
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F8F4F0]">
+        <BusinessOnboardingModal
+          open={onboardingOpen}
+          onClose={() => setOnboardingOpen(false)}
+          userEmail={emailStr}
+          onCompleted={async () => {
+            await ensureSessionFresh();
+            bumpNavRefresh();
+          }}
+        />
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   const closeDrawer = () => {
     setMobileDrawerOpen(false);

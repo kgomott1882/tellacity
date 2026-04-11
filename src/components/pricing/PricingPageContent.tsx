@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";
-import PaystackPlanButton from "@/components/billing/PaystackPlanButton";
 import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
+import {
+  PAID_PLAN_USD,
+  getAnnualTotalDueUsd,
+  isPaidPlanForConfirm,
+} from "@/lib/billingPlanConfirm";
 
 type Plan = {
   name: string;
@@ -155,12 +160,16 @@ export type PricingPageContentProps = {
   variant?: "public" | "dashboard";
   dashboardBusinessId?: string;
   dashboardUserEmail?: string;
-  /** Current workspace plan , used to show “Recommended for you” on the next tier only. */
+  /** Current workspace plan (your-plan card + upgrade CTA copy on dashboard). */
   dashboardCurrentPlanKey?: PlanKey;
   /** Stronger Premium card emphasis (e.g. billing deep-link with upgrade reason). */
   emphasizePremiumAnchor?: boolean;
   /** Use a div root when embedding inside the dashboard (avoids nested main landmark). */
   embedInDashboard?: boolean;
+  /** When returning from plan confirm, match monthly vs annual before checkout. */
+  dashboardInitialBillingMode?: "monthly" | "annual";
+  /** Billing dashboard only: hide the marketing hero (headline + animated plans preview). */
+  dashboardHideMarketingHero?: boolean;
 };
 
 function recommendedPlanNameForDashboard(plan: PlanKey | undefined): string | null {
@@ -171,21 +180,12 @@ function recommendedPlanNameForDashboard(plan: PlanKey | undefined): string | nu
   return null;
 }
 
-/** ZAR amounts in kobo for Paystack; premium test amount matches Plans & billing. */
-function dashboardPlanKobo(
-  planKey: "grow" | "premium" | "elite",
-  billingMode: "monthly" | "annual"
-): number {
-  const monthly: Record<"grow" | "premium" | "elite", number> = {
-    grow: 69000,
-    premium: 5000,
-    elite: 499000,
-  };
-  const m = monthly[planKey];
-  if (billingMode === "annual") {
-    return Math.round(m * 12 * 0.8);
+function planNameToKey(name: string): PlanKey | null {
+  const k = name.toLowerCase();
+  if (k === "free" || k === "grow" || k === "premium" || k === "elite") {
+    return k;
   }
-  return m;
+  return null;
 }
 
 export function PricingPageContent({
@@ -195,8 +195,13 @@ export function PricingPageContent({
   dashboardCurrentPlanKey,
   emphasizePremiumAnchor = false,
   embedInDashboard = false,
+  dashboardInitialBillingMode,
+  dashboardHideMarketingHero = false,
 }: PricingPageContentProps = {}) {
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const router = useRouter();
+  const [billing, setBilling] = useState<"monthly" | "annual">(
+    () => dashboardInitialBillingMode ?? "monthly"
+  );
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isCustomPlanOpen, setIsCustomPlanOpen] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
@@ -217,25 +222,13 @@ export function PricingPageContent({
     Boolean(dashboardBusinessId?.trim()) &&
     Boolean(dashboardUserEmail?.trim());
 
+  const isDashboardCurrentFree =
+    variant === "dashboard" && dashboardCurrentPlanKey === "free";
+
   const recommendedPlanName =
     variant === "dashboard" && dashboardCurrentPlanKey
       ? recommendedPlanNameForDashboard(dashboardCurrentPlanKey)
       : null;
-
-  const prices = {
-    grow: {
-      monthly: 69,
-      annual: 55,
-    },
-    premium: {
-      monthly: 199,
-      annual: 159,
-    },
-    elite: {
-      monthly: 499,
-      annual: 399,
-    },
-  } as const;
 
   const sparkles = Array.from({ length: 20 }).map((_, index) => ({
     id: index,
@@ -244,10 +237,19 @@ export function PricingPageContent({
   }));
 
   const Root = embedInDashboard ? "div" : "main";
+  const rootSurfaceClass =
+    embedInDashboard && dashboardHideMarketingHero
+      ? "bg-transparent"
+      : "bg-[#F7F8FA]";
+
+  const freeComparisonColClass = isDashboardCurrentFree
+    ? "bg-gray-50 text-gray-500"
+    : "";
 
   return (
-    <Root className="bg-[#F7F8FA]">
-      {/* HERO */}
+    <Root className={rootSurfaceClass}>
+      {/* HERO (hidden on dashboard billing — cards + comparison only) */}
+      {!dashboardHideMarketingHero ? (
       <section className="mx-auto w-full max-w-6xl px-6 py-16 grid gap-10 md:grid-cols-2 items-center">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -372,39 +374,62 @@ export function PricingPageContent({
           </motion.div>
         </motion.div>
       </section>
+      ) : null}
 
       {/* PRICING CARDS */}
-      <section className="mx-auto w-full max-w-6xl px-6 pb-8">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <button
-            type="button"
-            onClick={() => setBilling("monthly")}
-            className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-              billing === "monthly"
-                ? "bg-black text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
+      <section
+        className={`mx-auto w-full max-w-6xl px-6 pb-8 ${
+          dashboardHideMarketingHero ? "pt-4 md:pt-6" : ""
+        }`}
+      >
+        <div className="mb-8 flex justify-center px-2">
+          <div
+            className="inline-flex h-11 w-full max-w-[min(100%,22rem)] items-stretch rounded-full bg-[#E9E1D6] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-stone-300/40"
+            role="group"
+            aria-label="Billing period"
           >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBilling("annual")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-              billing === "annual"
-                ? "bg-black text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            <span>Annual</span>
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-              Save 20%
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setBilling("monthly")}
+              className={`relative z-10 flex flex-1 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
+                billing === "monthly"
+                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
+                  : "text-neutral-600 hover:text-neutral-900"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBilling("annual")}
+              className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full px-1.5 text-xs font-semibold transition-all duration-200 ${
+                billing === "annual"
+                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
+                  : "text-neutral-600 hover:text-neutral-900"
+              }`}
+            >
+              <span>Annual</span>
+              <span
+                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                  billing === "annual"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-emerald-500/20 text-emerald-900"
+                }`}
+              >
+                Save 20%
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-4">
           {plans.map((plan, index) => {
+            const cardPlanKey = planNameToKey(plan.name);
+            const isWorkspaceOnThisPlan =
+              variant === "dashboard" &&
+              isDashboardCheckout &&
+              Boolean(dashboardCurrentPlanKey && cardPlanKey) &&
+              cardPlanKey === dashboardCurrentPlanKey;
             const isRecommendedForYou =
               Boolean(recommendedPlanName) && plan.name === recommendedPlanName;
             const premiumAnchorBoost =
@@ -413,55 +438,72 @@ export function PricingPageContent({
             return (
             <motion.div
               key={plan.name}
+              id={`plan-card-${plan.name.toLowerCase()}`}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.08 }}
               className="relative"
             >
-              {plan.highlight && (
+              {plan.highlight && !isWorkspaceOnThisPlan ? (
                 <motion.div
                   className="absolute -inset-1 rounded-3xl bg-[#1FAF9E]/10 blur-xl"
                   animate={{ opacity: [0.4, 0.8, 0.4] }}
                   transition={{ duration: 2.5, repeat: Infinity }}
                 />
-              )}
+              ) : null}
               <div
-                className={`relative flex h-full flex-col rounded-3xl border ${
-                  plan.highlight
+                className={`relative flex h-full flex-col rounded-3xl p-6 transition-all duration-300 ${
+                  isWorkspaceOnThisPlan
+                    ? "border border-neutral-950 bg-neutral-50/95 text-neutral-800 shadow-sm hover:translate-y-0"
+                    : plan.highlight
                     ? premiumAnchorBoost
-                      ? "border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/35 scale-[1.03]"
-                      : "border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
-                    : "border-neutral-200 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1"
-                } p-6 transition-all duration-300`}
+                      ? "border-[3px] border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30 scale-[1.03]"
+                      : "border-[3px] border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
+                    : "border border-neutral-950 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1"
+                }`}
               >
-                {plan.highlight && (
+                {isWorkspaceOnThisPlan ? (
+                  <div className="mb-3 rounded-lg border border-neutral-200/80 bg-neutral-100/80 px-3 py-2 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
+                      Your plan
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-neutral-800">
+                      {plan.name === "Free"
+                        ? "You are on the Free plan."
+                        : `This workspace is on ${plan.name}.`}
+                    </p>
+                  </div>
+                ) : null}
+                {plan.highlight && !isWorkspaceOnThisPlan ? (
                   <div className="absolute inset-x-0 -top-4 flex flex-col items-center gap-1.5">
                     <span className="rounded-full bg-gradient-to-r from-[#1FAF9E] to-[#0E3B36] px-4 py-1 text-[10px] font-semibold text-white shadow-sm">
                       Most Popular
                     </span>
-                    {isRecommendedForYou ? (
-                      <span className="rounded-full border border-amber-200/80 bg-amber-50 px-3 py-0.5 text-[10px] font-semibold text-amber-900 shadow-sm">
-                        Recommended for you
-                      </span>
-                    ) : null}
-                  </div>
-                )}
-                {!plan.highlight && isRecommendedForYou ? (
-                  <div className="absolute inset-x-0 -top-4 flex justify-center">
-                    <span className="rounded-full border border-amber-200/80 bg-amber-50 px-3 py-1 text-[10px] font-semibold text-amber-900 shadow-sm">
-                      Recommended for you
-                    </span>
                   </div>
                 ) : null}
-                <h3 className="mt-2 text-sm font-semibold text-[#0E0E0E]">
+                <h3
+                  className={`text-sm font-semibold ${
+                    isWorkspaceOnThisPlan ? "mt-2 text-neutral-800" : "mt-2 text-[#0E0E0E]"
+                  }`}
+                >
                   {plan.name}
                 </h3>
-                <p className="mt-2 text-xs text-gray-600">{plan.description}</p>
+                <p
+                  className={`mt-2 text-xs ${
+                    isWorkspaceOnThisPlan ? "text-neutral-600" : "text-gray-600"
+                  }`}
+                >
+                  {plan.description}
+                </p>
                 <div className="mt-5">
                   {plan.name === "Free" ? (
                     <div className="flex items-end gap-1">
-                      <span className="text-3xl font-semibold text-[#0E0E0E]">
+                      <span
+                        className={`text-3xl font-semibold ${
+                          isWorkspaceOnThisPlan ? "text-neutral-600" : "text-[#0E0E0E]"
+                        }`}
+                      >
                         {plan.price}
                       </span>
                     </div>
@@ -478,29 +520,41 @@ export function PricingPageContent({
                           $
                           {plan.name === "Grow"
                             ? billing === "monthly"
-                              ? prices.grow.monthly
-                              : prices.grow.annual
+                              ? PAID_PLAN_USD.grow.monthly
+                              : PAID_PLAN_USD.grow.annualPerMonth
                             : plan.name === "Premium"
                             ? billing === "monthly"
-                              ? prices.premium.monthly
-                              : prices.premium.annual
+                              ? PAID_PLAN_USD.premium.monthly
+                              : PAID_PLAN_USD.premium.annualPerMonth
                             : billing === "monthly"
-                            ? prices.elite.monthly
-                            : prices.elite.annual}
+                            ? PAID_PLAN_USD.elite.monthly
+                            : PAID_PLAN_USD.elite.annualPerMonth}
                         </span>
                         <span className="pb-1 text-sm font-normal text-gray-500">
                           /mo
                         </span>
                       </motion.div>
-                      {billing === "annual" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Billed annually
-                        </p>
-                      )}
+                      {billing === "annual" ? (
+                        <>
+                          <p className="mt-1 text-xs text-gray-500">Billed annually</p>
+                          {cardPlanKey && isPaidPlanForConfirm(cardPlanKey) ? (
+                            <p className="mt-2 text-xs font-semibold text-[#0E0E0E]">
+                              Pay $
+                              {getAnnualTotalDueUsd(cardPlanKey).toLocaleString("en-US")}{" "}
+                              today (12 months at ${PAID_PLAN_USD[cardPlanKey].annualPerMonth}
+                              /mo)
+                            </p>
+                          ) : null}
+                        </>
+                      ) : null}
                     </>
                   )}
                 </div>
-                <ul className="mt-5 space-y-3 text-xs text-gray-600">
+                <ul
+                  className={`mt-5 space-y-3 text-xs ${
+                    isWorkspaceOnThisPlan ? "text-neutral-600" : "text-gray-600"
+                  }`}
+                >
                   {plan.features.map((feature) => (
                     <motion.li
                       key={feature}
@@ -510,7 +564,13 @@ export function PricingPageContent({
                       transition={{ duration: 0.3 }}
                       className="flex items-start gap-2"
                     >
-                      <span className="mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#1FAF9E] text-[10px] font-semibold text-[#1FAF9E]">
+                      <span
+                        className={`mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold ${
+                          isWorkspaceOnThisPlan
+                            ? "border-neutral-300 text-neutral-500"
+                            : "border-[#1FAF9E] text-[#1FAF9E]"
+                        }`}
+                      >
                         ✓
                       </span>
                       <span>{feature}</span>
@@ -546,6 +606,15 @@ export function PricingPageContent({
                   >
                     Choose This Plan
                   </button>
+                ) : isDashboardCheckout && isWorkspaceOnThisPlan ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-current="true"
+                    className="mt-6 w-full cursor-default rounded-xl border-2 border-neutral-300 bg-white py-3 text-sm font-semibold text-neutral-600"
+                  >
+                    Current plan
+                  </button>
                 ) : isDashboardCheckout && plan.name === "Free" ? (
                   <button
                     type="button"
@@ -559,20 +628,23 @@ export function PricingPageContent({
                     Choose This Plan
                   </button>
                 ) : isDashboardCheckout ? (
-                  <PaystackPlanButton
-                    businessId={dashboardBusinessId!}
-                    planCode={plan.name.toLowerCase()}
-                    amount={dashboardPlanKobo(
-                      plan.name.toLowerCase() as "grow" | "premium" | "elite",
-                      billing
-                    )}
-                    email={dashboardUserEmail!}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const code = plan.name.toLowerCase() as
+                        | "grow"
+                        | "premium"
+                        | "elite";
+                      router.push(
+                        `/business/dashboard/billing/confirm?plan=${encodeURIComponent(code)}&cycle=${encodeURIComponent(billing)}`
+                      );
+                    }}
                     className={pricingButtonClass}
                   >
                     {isRecommendedForYou && dashboardCurrentPlanKey
                       ? nextTierUpgradeCtaLabel(dashboardCurrentPlanKey)
                       : "Choose This Plan"}
-                  </PaystackPlanButton>
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -587,11 +659,11 @@ export function PricingPageContent({
                     Choose This Plan
                   </button>
                 )}
-                {plan.name === "Premium" && (
+                {plan.name === "Premium" && !isWorkspaceOnThisPlan ? (
                   <p className="mt-2 text-xs text-gray-500 text-center opacity-70">
                     Most businesses choose this plan.
                   </p>
-                )}
+                ) : null}
               </div>
             </motion.div>
             );
@@ -619,83 +691,85 @@ export function PricingPageContent({
           </div>
         </div>
 
-        <div className="mt-8 max-w-6xl mx-auto rounded-2xl border border-gray-200 bg-white px-8 py-8 text-xs text-gray-600 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-[#0E0E0E]">
-                Integrations &amp; Add-Ons
-              </h3>
-              <p className="mt-1 text-xs text-gray-600">
-                Connect Tellacity with your existing tools. Enterprise systems available on request.
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-2 text-[11px] font-semibold text-gray-500">
-                Core Integrations
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  "Shopify",
-                  "WooCommerce",
-                  "WordPress",
-                  "Twilio",
-                  "Klaviyo",
-                  "Magento",
-                  "HubSpot",
-                  "Slack",
-                  "Zendesk",
-                  "Zapier",
-                ].map((name) => {
-                  const logoFile = integrationLogos[name];
-                  return (
-                    <span
-                      key={name}
-                      className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {logoFile && (
-                        <img
-                          src={`/brand/${logoFile}`}
-                          alt={`${name} logo`}
-                          className="mr-2 h-8 w-8 object-contain opacity-90"
-                        />
-                      )}
-                      <span>{name}</span>
-                    </span>
-                  );
-                })}
+        {variant !== "dashboard" ? (
+          <div className="mt-8 max-w-6xl mx-auto rounded-2xl border border-gray-200 bg-white px-8 py-8 text-xs text-gray-600 shadow-sm">
+            <div className="flex flex-col gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                  Integrations &amp; Add-Ons
+                </h3>
+                <p className="mt-1 text-xs text-gray-600">
+                  Connect Tellacity with your existing tools. Enterprise systems available on request.
+                </p>
               </div>
-            </div>
 
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <p className="mb-2 text-[11px] font-semibold text-gray-500">
-                Enterprise Add-Ons
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {["SAP", "Salesforce", "NetSuite", "Marketo"].map((name) => {
-                  const logoFile = integrationLogos[name];
-                  return (
-                    <span
-                      key={name}
-                      className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {logoFile && (
-                        <img
-                          src={`/brand/${logoFile}`}
-                          alt={`${name} logo`}
-                          className="mr-2 h-8 w-8 object-contain opacity-90"
-                        />
-                      )}
-                      <span>{name}</span>
-                    </span>
-                  );
-                })}
+              <div>
+                <p className="mb-2 text-[11px] font-semibold text-gray-500">
+                  Core Integrations
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    "Shopify",
+                    "WooCommerce",
+                    "WordPress",
+                    "Twilio",
+                    "Klaviyo",
+                    "Magento",
+                    "HubSpot",
+                    "Slack",
+                    "Zendesk",
+                    "Zapier",
+                  ].map((name) => {
+                    const logoFile = integrationLogos[name];
+                    return (
+                      <span
+                        key={name}
+                        className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {logoFile && (
+                          <img
+                            src={`/brand/${logoFile}`}
+                            alt={`${name} logo`}
+                            className="mr-2 h-8 w-8 object-contain opacity-90"
+                          />
+                        )}
+                        <span>{name}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-gray-200 pt-6">
+                <p className="mb-2 text-[11px] font-semibold text-gray-500">
+                  Enterprise Add-Ons
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {["SAP", "Salesforce", "NetSuite", "Marketo"].map((name) => {
+                    const logoFile = integrationLogos[name];
+                    return (
+                      <span
+                        key={name}
+                        className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {logoFile && (
+                          <img
+                            src={`/brand/${logoFile}`}
+                            alt={`${name} logo`}
+                            className="mr-2 h-8 w-8 object-contain opacity-90"
+                          />
+                        )}
+                        <span>{name}</span>
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
       {/* FEATURE COMPARISON */}
@@ -714,7 +788,7 @@ export function PricingPageContent({
               <thead className="bg-gray-50 text-[11px] font-semibold text-[#0E0E0E]">
                 <tr>
                   <th className="px-4 py-3">Feature</th>
-                  <th className="px-4 py-3">Free</th>
+                  <th className={`px-4 py-3 ${freeComparisonColClass}`}>Free</th>
                   <th className="px-4 py-3">Grow</th>
                   <th className="px-4 py-3">Premium</th>
                   <th className="px-4 py-3">Elite</th>
@@ -746,7 +820,7 @@ export function PricingPageContent({
                       <td className="px-4 py-3 font-medium text-[#0E0E0E] md:sticky md:left-0 bg-white">
                         {item.row[0]}
                       </td>
-                      <td className="px-4 py-3">{item.row[1]}</td>
+                      <td className={`px-4 py-3 ${freeComparisonColClass}`}>{item.row[1]}</td>
                       <td className="px-4 py-3">{item.row[2]}</td>
                       <td className="px-4 py-3">{item.row[3]}</td>
                       <td className="px-4 py-3">{item.row[4]}</td>
