@@ -5,9 +5,11 @@ import { TELLACITY_TRUST_BADGE_LOGO_PATH } from "@/lib/emailBranding";
 export default function TellacityTrustBadgeEmbed({
   payload,
   reviewHref,
+  showTellacityLogo = true,
 }: {
   payload: WidgetPayload;
   reviewHref: string;
+  showTellacityLogo?: boolean;
 }) {
   const reviewCount = Math.max(0, payload.review_count);
   const avg = payload.avg_rating;
@@ -23,32 +25,45 @@ export default function TellacityTrustBadgeEmbed({
       : "No published reviews yet , your live average and count will show here.";
 
   return (
-    <div className="mx-auto w-full max-w-sm rounded-lg border border-gray-200 bg-white px-4 py-4 text-center shadow-sm">
+    <div
+      style={{
+        margin: "0 auto",
+        width: "100%",
+        maxWidth: 420,
+        background: "transparent",
+        textAlign: "center",
+        color: "var(--tc-widget-text-color, #0E0E0E)",
+        fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
+      }}
+    >
       <a
         href={reviewHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-block text-inherit no-underline"
+        style={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
       >
-        <div className="flex justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={TELLACITY_TRUST_BADGE_LOGO_PATH}
-            alt="Tellacity"
-            className="h-6 max-w-[148px] object-contain"
-          />
-        </div>
-        <div className="mt-1.5 flex justify-center">
+        {showTellacityLogo ? (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={TELLACITY_TRUST_BADGE_LOGO_PATH}
+              alt="Tellacity"
+              style={{ height: 24, maxWidth: 148, objectFit: "contain" }}
+            />
+          </div>
+        ) : null}
+        <div style={{ marginTop: showTellacityLogo ? 6 : 0, display: "flex", justifyContent: "center" }}>
           <WidgetStars rating={starsRating} size={12} />
         </div>
       </a>
       <p
-        className={`mt-3 text-[11px] ${reviewCount > 0 ? "text-gray-600" : "text-gray-500"}`}
+        style={{
+          marginTop: 12,
+          fontSize: 11,
+          color: "var(--tc-widget-text-color, #0E0E0E)",
+        }}
       >
         {statsLabel}
-      </p>
-      <p className="mt-2 text-[10px] leading-snug text-gray-400">
-        Figures match your Tellacity public profile.
       </p>
     </div>
   );

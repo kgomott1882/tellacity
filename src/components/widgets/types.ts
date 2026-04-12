@@ -24,4 +24,8 @@ export type WidgetType =
   | "review_us"
   | "score_strip"
   | "showcase"
-  | "tellacity_trust";
+  | "tellacity_trust"
+  | "trust_strip"
+  | "trust_stacked"
+  | "trust_strip_icon"
+  | "trust_mini";

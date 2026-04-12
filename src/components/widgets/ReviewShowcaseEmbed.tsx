@@ -17,7 +17,13 @@ function snippetText(s: string | null | undefined, max: number) {
   return `${t.slice(0, max).trimEnd()}…`;
 }
 
-export default function ReviewShowcaseEmbed({ payload }: { payload: WidgetPayload }) {
+export default function ReviewShowcaseEmbed({
+  payload,
+  showTellacityLogo = true,
+}: {
+  payload: WidgetPayload;
+  showTellacityLogo?: boolean;
+}) {
   const featured = payload.reviews[0];
   const avgRounded =
     payload.review_count > 0 && Number.isFinite(payload.avg_rating)
@@ -30,30 +36,36 @@ export default function ReviewShowcaseEmbed({ payload }: { payload: WidgetPayloa
       : 5;
 
   return (
-    <div className="mx-auto w-full max-w-md">
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="h-1.5 bg-gray-100" />
+    <div
+      className="mx-auto w-full max-w-md"
+      style={{
+        color: "var(--tc-widget-text-color, #0E0E0E)",
+        fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
+      }}
+    >
+      <div className="overflow-hidden rounded-none border-0 bg-transparent shadow-none">
+        <div className="h-0" />
         <div className="px-3 py-3 text-left">
           {featured ? (
             <>
               <div className="flex items-start justify-between gap-2">
                 <WidgetStars rating={starsRating} size={11} />
-                <span className="shrink-0 text-[10px] text-gray-400">
+                <span className="shrink-0 text-[10px] text-black">
                   {formatDate(featured.created_at)}
                 </span>
               </div>
-              <p className="mt-1.5 text-[10px] text-gray-400">
+              <p className="mt-1.5 text-[10px] text-black">
                 by {featured.reviewer_name?.trim() || "Customer"}
               </p>
-              <p className="mt-1.5 text-sm font-bold text-gray-900">
+              <p className="mt-1.5 text-sm font-bold text-black">
                 {(featured.title ?? "").trim() || "Recent review"}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              <p className="mt-1 text-xs leading-relaxed text-black">
                 {snippetText(featured.body, 220)}
               </p>
             </>
           ) : (
-            <div className="py-2 text-center text-sm text-gray-600">
+            <div className="py-2 text-center text-sm text-black">
               <div className="flex justify-center">
                 <WidgetStars rating={starsRating} size={11} />
               </div>
@@ -64,18 +76,18 @@ export default function ReviewShowcaseEmbed({ payload }: { payload: WidgetPayloa
             </div>
           )}
         </div>
-        <div className="border-t border-gray-200 px-3 py-2 text-center text-[10px] text-gray-600">
+        <div className="border-t border-gray-200 px-3 py-2 text-center text-[10px] text-black">
           {avgRounded != null && payload.review_count > 0 ? (
             <>
               Rated <strong>{avgRounded}</strong> out of <strong>5</strong> |{" "}
               <strong>{payload.review_count.toLocaleString("en-GB")}</strong>{" "}
-              reviews on <strong className="text-[#0E0E0E]">Tellacity</strong>
+              reviews on <strong className="text-black">{showTellacityLogo ? "Tellacity" : "our platform"}</strong>
             </>
           ) : (
-            <>Reviews on <strong className="text-[#0E0E0E]">Tellacity</strong></>
+            <>Reviews {showTellacityLogo ? <strong className="text-black">on Tellacity</strong> : null}</>
           )}
         </div>
-        <div className="h-1.5 bg-gray-100" />
+        <div className="h-0" />
       </div>
     </div>
   );

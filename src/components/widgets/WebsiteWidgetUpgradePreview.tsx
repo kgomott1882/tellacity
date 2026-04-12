@@ -1,13 +1,4 @@
-import type { ReactNode } from "react";
-import type { WidgetPayload } from "./types";
-import TrustBadge from "./TrustBadge";
-import ReviewCarousel from "./ReviewCarousel";
-import ReviewList from "./ReviewList";
-import ReviewCollector from "./ReviewCollector";
-import TellacityReviewUsBadge from "./TellacityReviewUsBadge";
-import ReviewShowcaseEmbed from "./ReviewShowcaseEmbed";
-import TellacityTrustBadgeEmbed from "./TellacityTrustBadgeEmbed";
-import TellacityScoreStrip from "./TellacityScoreStrip";
+"use client";
 
 /** Matches `planWidget` on the website widgets dashboard grid. */
 export type WebsiteWidgetPlanKey =
@@ -18,133 +9,101 @@ export type WebsiteWidgetPlanKey =
   | "review_strip"
   | "review_showcase"
   | "tellacity_trust"
-  | "tellacity_score";
+  | "tellacity_score"
+  | "trust_strip"
+  | "trust_stacked"
+  | "trust_strip_icon"
+  | "trust_mini";
 
-const TITLES: Record<WebsiteWidgetPlanKey, string> = {
-  trust_badge: "Trust Badge",
-  review_carousel: "Review Carousel",
-  review_list: "Review List",
-  review_collector: "Review Collector",
-  review_strip: "Review Strip",
-  review_showcase: "Review showcase",
-  tellacity_trust: "Tellacity reviews",
-  tellacity_score: "Tellacity Score",
+const EMBED_TYPE_BY_WIDGET: Record<WebsiteWidgetPlanKey, string> = {
+  trust_badge: "badge",
+  review_carousel: "carousel",
+  review_list: "list",
+  review_collector: "collector",
+  review_strip: "review_us",
+  review_showcase: "showcase",
+  tellacity_trust: "tellacity_trust",
+  tellacity_score: "score_strip",
+  trust_strip: "trust_strip",
+  trust_stacked: "trust_stacked",
+  trust_strip_icon: "trust_strip_icon",
+  trust_mini: "trust_mini",
 };
 
-function buildMockPayload(businessName: string): WidgetPayload {
-  const name = businessName.trim() || "Your business";
-  const sampleBody =
-    "I worked with you in one of your Johannesburg City projects in Hillbrow and I was impressed by the quality and speed.";
-  return {
-    business_name: name,
-    slug: "preview",
-    logo_url: null,
-    avg_rating: 4.2,
-    review_count: 7,
-    reviews: [
-      {
-        id: "mock-1",
-        rating: 5,
-        title: "Recent review",
-        body: sampleBody,
-        reviewer_name: "Ronald Mkhubela",
-        created_at: "2026-04-01T12:00:00.000Z",
-      },
-      {
-        id: "mock-2",
-        rating: 4,
-        title: null,
-        body: "Professional, clear communication and great results.",
-        reviewer_name: "Sam K.",
-        created_at: "2026-03-20T12:00:00.000Z",
-      },
-    ],
-  };
-}
+const PREVIEW_HEIGHT_BY_WIDGET: Record<WebsiteWidgetPlanKey, number> = {
+  trust_badge: 120,
+  review_carousel: 300,
+  review_list: 420,
+  review_collector: 80,
+  review_strip: 88,
+  review_showcase: 400,
+  tellacity_trust: 200,
+  tellacity_score: 150,
+  trust_strip: 86,
+  trust_stacked: 220,
+  trust_strip_icon: 86,
+  trust_mini: 34,
+};
 
-/**
- * Upgrade modal preview: renders the **same** embed components as `/widgets/embed` with mock data,
- * so Tellacity stars, copy, and layout match production widgets.
- */
 export default function WebsiteWidgetUpgradePreview({
   widget,
-  businessName,
+  businessSlug,
 }: {
   widget: WebsiteWidgetPlanKey | null;
-  businessName: string;
+  businessSlug?: string | null;
 }) {
   const toneClass =
-    "rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-[12px] text-gray-700";
+    "rounded-lg border border-[#E9E1D2] bg-[#F9F6EF] px-3 py-3 text-[12px] text-[#1F2937]";
+  const normalizedSlug = (businessSlug ?? "").trim().toLowerCase();
+
+  const innerShell =
+    "pointer-events-none max-h-[min(55vh,340px)] overflow-auto rounded-md bg-transparent p-0";
 
   if (!widget) {
     return (
       <div className={toneClass}>
-        <p className="font-semibold text-gray-900">Widget preview</p>
-        <p className="mt-1 text-gray-600">
+        <p className="font-semibold text-[#111827]">Widget preview</p>
+        <p className="mt-1 text-[#374151]">
           Unlock additional widget styles and richer social proof blocks.
         </p>
       </div>
     );
   }
 
-  const mock = buildMockPayload(businessName);
-  const title = TITLES[widget];
-  const innerShell =
-    "pointer-events-none max-h-[min(55vh,340px)] overflow-auto rounded-md border border-gray-100 bg-white p-2 shadow-inner";
-
-  let body: ReactNode;
-  switch (widget) {
-    case "trust_badge":
-      body = (
-        <div className="flex justify-center py-1">
-          <TrustBadge payload={mock} />
-        </div>
-      );
-      break;
-    case "review_carousel":
-      body = <ReviewCarousel payload={mock} />;
-      break;
-    case "review_list":
-      body = <ReviewList payload={mock} />;
-      break;
-    case "review_collector":
-      body = (
-        <div className="flex justify-center py-1">
-          <ReviewCollector payload={mock} />
-        </div>
-      );
-      break;
-    case "review_strip":
-      body = (
-        <div className="flex justify-center py-2">
-          <TellacityReviewUsBadge href="https://tellacity.com/write-review/preview" size="md" />
-        </div>
-      );
-      break;
-    case "review_showcase":
-      body = <ReviewShowcaseEmbed payload={mock} />;
-      break;
-    case "tellacity_trust":
-      body = (
-        <TellacityTrustBadgeEmbed
-          payload={mock}
-          reviewHref="https://tellacity.com/write-review/preview"
-        />
-      );
-      break;
-    case "tellacity_score":
-      body = (
-        <div className="py-1">
-          <TellacityScoreStrip payload={mock} />
-        </div>
-      );
-      break;
+  if (!normalizedSlug) {
+    return (
+      <div className={toneClass}>
+        <p className="mt-1 text-[#374151]">
+          Select a business to load real widget preview data.
+        </p>
+      </div>
+    );
   }
+
+  const embedType = EMBED_TYPE_BY_WIDGET[widget];
+  const previewHeight = PREVIEW_HEIGHT_BY_WIDGET[widget];
+  const previewSrc = `/widgets/embed?business=${encodeURIComponent(
+    normalizedSlug
+  )}&type=${encodeURIComponent(embedType)}&dashboard_demo=1`;
 
   return (
     <div className={toneClass}>
-      <p className="font-semibold text-gray-900">{title}</p>
-      <div className="mt-2 select-none">{body ? <div className={innerShell}>{body}</div> : null}</div>
+      <div className="mt-2 select-none">
+        <div className={innerShell}>
+          <iframe
+            title={`${widget} upgrade preview`}
+            src={previewSrc}
+            className="w-full"
+            style={{
+              height: previewHeight,
+              border: 0,
+              display: "block",
+              overflow: "hidden",
+            }}
+            scrolling="no"
+          />
+        </div>
+      </div>
     </div>
   );
 }

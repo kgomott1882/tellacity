@@ -6,6 +6,7 @@ type Props = {
   /** When set, the whole badge is a single clickable target (e.g. write-review URL). */
   href?: string;
   size?: "sm" | "md";
+  showTellacityLogo?: boolean;
 };
 
 const SIZES = {
@@ -24,21 +25,28 @@ export default function TellacityReviewUsBadge({
   className = "",
   href,
   size = "md",
+  showTellacityLogo = true,
 }: Props) {
   const s = SIZES[size];
   const inner = (
     <span
-      className={`inline-flex items-center bg-transparent font-sans text-gray-900 ${s.pad} ${className}`}
+      className={`inline-flex items-center bg-transparent ${s.pad} ${className}`}
+      style={{
+        color: "var(--tc-widget-text-color, #111827)",
+        fontFamily: "var(--tc-widget-font-family, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif)",
+      }}
     >
       <span className="shrink-0 font-normal">Review us on</span>
-      <Image
-        src={TELLACITY_TRUST_BADGE_LOGO_PATH}
-        alt="Tellacity"
-        width={178}
-        height={28}
-        className={`w-auto shrink-0 object-contain object-left ${s.logoClass}`}
-        unoptimized
-      />
+      {showTellacityLogo ? (
+        <Image
+          src={TELLACITY_TRUST_BADGE_LOGO_PATH}
+          alt="Tellacity"
+          width={178}
+          height={28}
+          className={`w-auto shrink-0 object-contain object-left ${s.logoClass}`}
+          unoptimized
+        />
+      ) : null}
     </span>
   );
 

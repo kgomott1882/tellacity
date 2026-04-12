@@ -307,9 +307,18 @@ export function canAccessWebsiteWidget(
     | "review_strip"
     | "tellacity_score"
     | "review_showcase"
-    | "tellacity_trust",
+    | "tellacity_trust"
+    | "trust_strip"
+    | "trust_stacked"
+    | "trust_strip_icon"
+    | "trust_mini",
 ) {
-  if (widget === "tellacity_trust" || widget === "tellacity_score") {
+  if (
+    widget === "tellacity_trust" ||
+    widget === "tellacity_score" ||
+    widget === "trust_strip_icon" ||
+    widget === "trust_mini"
+  ) {
     return plan === "elite";
   }
   if (plan === "free") return widget === "review_collector";

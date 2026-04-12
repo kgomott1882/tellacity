@@ -11,6 +11,8 @@ export const TELLACITY_STAR_TIER_COLORS: readonly [string, string, string, strin
 ];
 
 export const TELLACITY_STAR_EMPTY_BORDER = "#E4E7EC";
+export const TELLACITY_STAR_EMPTY_FILL = "#EEF2F6";
+export const TELLACITY_STAR_EMPTY_ICON = "#98A2B3";
 
 /**
  * Color for every filled star cell at a given rounded rating (matches WidgetStars).

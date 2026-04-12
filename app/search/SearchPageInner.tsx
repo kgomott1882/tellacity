@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
+import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
 import { normalizeLogoUrl } from "@/lib/logo";
 
 type SearchResult = {
@@ -22,6 +23,7 @@ type SearchResult = {
   trustScore: number;
   reviewCount: number;
   location: string;
+  tags?: string[] | null;
 };
 
 const cleanDomain = (value: string | null | undefined) => {
@@ -82,7 +84,7 @@ export default function SearchPageInner() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city"
+          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city, tags"
         )
         .eq("status", "active")
         .or(
@@ -112,6 +114,7 @@ export default function SearchPageInner() {
             trustScore: Number(business.trust_score ?? 0),
             reviewCount: Number(business.review_count ?? 0),
             location: business.city ?? business.country_code ?? "",
+            tags: normalizeBusinessTags(business.tags),
           });
         }
         setResults(mapped);
@@ -201,6 +204,7 @@ export default function SearchPageInner() {
             results.map((business) => {
               const safeSlug = (business.slug ?? "").trim().toLowerCase();
               if (!isValidSlug(safeSlug)) return null;
+              const businessTags = normalizeBusinessTags(business.tags);
               return (
               <Link
                 key={business.id}
@@ -239,6 +243,18 @@ export default function SearchPageInner() {
                     )}
                   </div>
                   <div className="text-sm text-gray-500">{business.domain}</div>
+                  {businessTags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {businessTags.map((tag) => (
+                        <span
+                          key={`${business.id}-${tag}`}
+                          className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+                        >
+                          {formatBusinessTagLabel(tag)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div className="flex items-center gap-1 text-[#1FAF9E]">

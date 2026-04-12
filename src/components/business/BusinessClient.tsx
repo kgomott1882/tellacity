@@ -6,6 +6,7 @@ import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
+import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { normalizeCountryCode } from "@/lib/country";
 import { getActiveCountry } from "@/lib/getActiveCountry";
@@ -44,6 +45,7 @@ type Business = {
   categoryGroupSlug: string | null;
   categoryGroupName: string | null;
   categoryName: string | null;
+  tags: string[];
   status: string;
   email: string;
   phone: string;
@@ -214,6 +216,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         ? String(row.primary_group_name)
         : null,
       categoryName: row.category_name ? String(row.category_name) : null,
+      tags: normalizeBusinessTags(row.tags),
       status: String(row.status ?? "active"),
       email,
       phone,
@@ -335,6 +338,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         categoryGroupSlug: (row.primary_group_slug ?? null) as string | null,
         categoryGroupName: (row.primary_group_name ?? null) as string | null,
         categoryName: (row.category_name ?? null) as string | null,
+        tags: normalizeBusinessTags(row.tags),
         status: (row.status ?? "active") as string,
         email,
         phone,
@@ -497,7 +501,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
             slug,
             name: String(row.name ?? "").trim() || "Business",
             logoUrl: similarBusinessLogoUrl({
+              resolved_logo_url: row.resolved_logo_url as string | null,
               logo_url: row.logo_url as string | null,
+              website: (row.website_display as string | null) ?? (row.website as string | null),
             }),
             trustScore: Number(row.trust_score ?? 0),
             reviewCount: Number(row.review_count ?? 0),
@@ -811,6 +817,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     logo_url: null,
     website: business?.website,
   });
+  const businessTags = business?.tags ?? [];
+  const visibleBusinessTags = businessTags.slice(0, 3);
+  const hiddenBusinessTagsCount = Math.max(0, businessTags.length - visibleBusinessTags.length);
 
   if (notFound && !isLoadingBusiness) {
     return (
@@ -981,10 +990,30 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                       </span>
                     </div>
                   </div>
-                  {(categoryTrail?.categoryName || categoryTrail?.groupName) && (
-                    <p className="mt-2 text-sm text-[#2563EB]">
-                      {categoryTrail?.categoryName ?? categoryTrail?.groupName}
-                    </p>
+                  {((categoryTrail?.categoryName || categoryTrail?.groupName) ||
+                    (business?.tags?.length ?? 0) > 0) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-gray-600">
+                      {(categoryTrail?.categoryName || categoryTrail?.groupName) && (
+                        <span>{categoryTrail?.categoryName ?? categoryTrail?.groupName}</span>
+                      )}
+                      {(categoryTrail?.categoryName || categoryTrail?.groupName) &&
+                        (business?.tags?.length ?? 0) > 0 && (
+                          <span className="text-gray-400">•</span>
+                        )}
+                      {visibleBusinessTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                        >
+                          {formatBusinessTagLabel(tag)}
+                        </span>
+                      ))}
+                      {hiddenBusinessTagsCount > 0 && (
+                        <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                          +{hiddenBusinessTagsCount} more
+                        </span>
+                      )}
+                    </div>
                   )}
                 </>
               )}

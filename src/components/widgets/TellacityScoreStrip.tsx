@@ -1,6 +1,10 @@
 import type { WidgetPayload } from "./types";
 import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
-import { TELLACITY_STAR_EMPTY_BORDER, TELLACITY_STAR_TIER_COLORS } from "@/lib/tellacityStarColors";
+import {
+  TELLACITY_STAR_EMPTY_FILL,
+  TELLACITY_STAR_EMPTY_ICON,
+  TELLACITY_STAR_TIER_COLORS,
+} from "@/lib/tellacityStarColors";
 
 const FILL_COLORS: Record<number, string> = {
   1: TELLACITY_STAR_TIER_COLORS[0],
@@ -9,7 +13,9 @@ const FILL_COLORS: Record<number, string> = {
   4: TELLACITY_STAR_TIER_COLORS[3],
   5: TELLACITY_STAR_TIER_COLORS[4],
 };
-const EMPTY_COLOR = TELLACITY_STAR_EMPTY_BORDER;
+const EMPTY_FILL = TELLACITY_STAR_EMPTY_FILL;
+const EMPTY_ICON = TELLACITY_STAR_EMPTY_ICON;
+const EMPTY_BORDER_CSS_VAR = "var(--tc-widget-empty-star-border, #9CA3AF)";
 
 /** Same star glyph + stroke as WidgetStars (Tellacity widget stars). */
 function StarSVG({ size, color }: { size: number; color: string }) {
@@ -41,6 +47,10 @@ function ScoreStarBlock({
   const box = 22;
   const starSize = 14;
 
+  const activeColor = tierColor
+    ? `var(--tc-widget-active-star-color, ${tierColor})`
+    : "var(--tc-widget-active-star-color, #12B76A)";
+
   if (f <= 0 || !tierColor) {
     return (
       <span
@@ -51,12 +61,12 @@ function ScoreStarBlock({
           width: box,
           height: box,
           borderRadius: 3,
-          backgroundColor: "transparent",
-          border: `1px solid ${EMPTY_COLOR}`,
+          backgroundColor: EMPTY_FILL,
+          border: `1px solid ${EMPTY_BORDER_CSS_VAR}`,
           flexShrink: 0,
         }}
       >
-        <StarSVG size={starSize} color={EMPTY_COLOR} />
+        <StarSVG size={starSize} color={EMPTY_ICON} />
       </span>
     );
   }
@@ -69,9 +79,9 @@ function ScoreStarBlock({
         height: box,
         borderRadius: 3,
         overflow: "hidden",
-        border: `1px solid ${tierColor}`,
+        border: `1px solid ${activeColor}`,
         flexShrink: 0,
-        backgroundColor: EMPTY_COLOR,
+        backgroundColor: EMPTY_FILL,
       }}
     >
       <span
@@ -81,7 +91,7 @@ function ScoreStarBlock({
           top: 0,
           bottom: 0,
           width: `${f * 100}%`,
-          background: tierColor,
+          background: activeColor,
         }}
       />
       <span
@@ -103,7 +113,13 @@ function ScoreStarBlock({
 /**
  * Trustpilot-style score strip with Tellacity tier colors + WidgetStars-style glyphs.
  */
-export default function TellacityScoreStrip({ payload }: { payload: WidgetPayload }) {
+export default function TellacityScoreStrip({
+  payload,
+  showTellacityLogo = true,
+}: {
+  payload: WidgetPayload;
+  showTellacityLogo?: boolean;
+}) {
   const url = `https://tellacity.com/b/${payload.slug}`;
   const raw = Number(payload.avg_rating);
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;
@@ -126,8 +142,8 @@ export default function TellacityScoreStrip({ payload }: { payload: WidgetPayloa
         display: "inline-block",
         maxWidth: 320,
         textDecoration: "none",
-        color: "#111827",
-        fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        color: "var(--tc-widget-text-color, #111827)",
+        fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
       }}
     >
       <div
@@ -138,18 +154,27 @@ export default function TellacityScoreStrip({ payload }: { payload: WidgetPayloa
           padding: "4px 0",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <img
-            src={TELLACITY_BRAND_ICON_SRC}
-            alt=""
-            width={22}
-            height={22}
-            style={{ width: 22, height: 22, borderRadius: 4, objectFit: "contain", display: "block" }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "#0E0E0E" }}>
-            Tellacity
-          </span>
-        </div>
+        {showTellacityLogo ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <img
+              src={TELLACITY_BRAND_ICON_SRC}
+              alt=""
+              width={22}
+              height={22}
+              style={{ width: 22, height: 22, borderRadius: 4, objectFit: "contain", display: "block" }}
+            />
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                color: "var(--tc-widget-text-color, #0E0E0E)",
+              }}
+            >
+              Tellacity
+            </span>
+          </div>
+        ) : null}
 
         <div
           style={{ display: "flex", flexDirection: "row", gap: 3, alignItems: "center" }}
@@ -169,12 +194,12 @@ export default function TellacityScoreStrip({ payload }: { payload: WidgetPayloa
             margin: 0,
             fontSize: 13,
             lineHeight: 1.45,
-            color: "#111827",
+            color: "var(--tc-widget-text-color, #111827)",
           }}
         >
           <span style={{ fontWeight: 400 }}>Tellacity Score </span>
           <strong style={{ fontWeight: 700 }}>{displayScore}</strong>
-          <span style={{ fontWeight: 400, color: "#6b7280" }}> | </span>
+          <span style={{ fontWeight: 400, color: "var(--tc-widget-text-color, #0E0E0E)" }}> | </span>
           <strong style={{ fontWeight: 700 }}>{count}</strong>
           <span style={{ fontWeight: 400 }}> </span>
           <span style={{ fontWeight: 400, textDecoration: "underline", textUnderlineOffset: 2 }}>

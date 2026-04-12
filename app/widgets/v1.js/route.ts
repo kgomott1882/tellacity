@@ -14,7 +14,7 @@ const SCRIPT = `
   if (isNaN(limit) || limit < 1) limit = 1;
   if (limit > 20) limit = 20;
 
-  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200 };
+  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200, trust_strip: 86, trust_stacked: 220, trust_strip_icon: 86, trust_mini: 34 };
   var defaultHeight = heightDefaults[type] || 110;
   var height = parseInt(script.dataset.height || String(defaultHeight), 10);
   if (isNaN(height)) height = defaultHeight;

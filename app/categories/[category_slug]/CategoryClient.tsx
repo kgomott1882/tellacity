@@ -8,12 +8,14 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
+import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
 import {
   REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR,
 } from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
+import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
 
 type BusinessRow = {
   id: string;
@@ -33,6 +35,7 @@ type BusinessRow = {
   resolved_logo_url?: string | null;
   average_rating?: number | null;
   avg_rating?: number | null;
+  tags?: string[] | null;
 };
 
 function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
@@ -117,7 +120,7 @@ async function fetchCategoryRowsWithFallback(
   const direct = await supabase
     .from("businesses")
     .select(
-      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status"
+      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags"
     )
     .in("category_slug", categories)
     .in("country_code", countries)
@@ -142,6 +145,29 @@ async function fetchCategoryRowsWithFallback(
     rows,
     error: rpc.error.message ?? null,
   };
+}
+
+async function fetchCategoryCount(
+  supabase: SupabaseClient,
+  categorySlug: string,
+  countryCode: string
+): Promise<number | null> {
+  const categories =
+    categorySlug === "banking"
+      ? ["banking", "banking-and-money"]
+      : [categorySlug];
+  const countries = countryAliases(countryCode);
+
+  const query = supabase
+    .from("businesses")
+    .select("id", { count: "exact", head: true })
+    .in("category_slug", categories)
+    .in("country_code", countries)
+    .eq("status", "active");
+
+  const { count, error } = await query;
+  if (error) return null;
+  return count ?? 0;
 }
 
 /**
@@ -628,10 +654,18 @@ export default function CategoryClient({
       const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
 
       await fetchAndApplyLiveReviewMetrics(supabase, sliced);
+      const realCount = await fetchCategoryCount(
+        supabase,
+        categorySlug,
+        countryCode
+      );
 
       setRows(sliced);
-      // Avoid timeout-prone count RPC; show a stable lower-bound estimate.
-      setComputedCount(offset + sliced.length + (hasNext ? 1 : 0));
+      setComputedCount(
+        typeof realCount === "number"
+          ? realCount
+          : offset + sliced.length + (hasNext ? 1 : 0)
+      );
       setComputedHasNext(hasNext);
       setFetchError(null);
       setLoading(false);
@@ -954,6 +988,9 @@ export default function CategoryClient({
           <h2 className="text-lg font-semibold mt-6 mb-3">
             Best {categoryName} companies in {countryName}
           </h2>
+          <div className="mb-4">
+            <CategoryInfoTooltip categorySlug={categorySlug} />
+          </div>
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
             {sortedBusinessesList.length === 0 && !loading && (
               <div className="px-4 py-6 text-sm text-gray-500">
@@ -976,6 +1013,7 @@ export default function CategoryClient({
                 const locationText =
                   formatBusinessAddress(business.address, business.city, business.country_code) ||
                   business.display_location;
+                const businessTags = normalizeBusinessTags(business.tags);
 
                 const logoUrl = categoryListLogoUrl(business);
 
@@ -1028,6 +1066,24 @@ export default function CategoryClient({
                               • {reviewCount.toLocaleString("en-US")} reviews
                             </span>
                           </div>
+                          {businessTags.length > 0 && (
+                            <div className="hidden md:flex items-center gap-1.5 mt-1 flex-wrap text-[11px] text-gray-500">
+                              <span className="text-gray-400">•</span>
+                              {businessTags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={`${business.id}-${tag}`}
+                                  className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-500"
+                                >
+                                  {formatBusinessTagLabel(tag)}
+                                </span>
+                              ))}
+                              {businessTags.length > 2 && (
+                                <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-500">
+                                  +{businessTags.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {locationText && (
                             <div className="mt-1 text-xs text-gray-500 sm:hidden">
                               {sanitizeText(locationText)}

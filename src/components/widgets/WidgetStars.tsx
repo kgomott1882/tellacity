@@ -5,12 +5,15 @@
  */
 
 import {
-  TELLACITY_STAR_EMPTY_BORDER,
+  TELLACITY_STAR_EMPTY_FILL,
+  TELLACITY_STAR_EMPTY_ICON,
   TELLACITY_STAR_TIER_COLORS,
   tellacityActiveStarColorForRating,
 } from "@/lib/tellacityStarColors";
 
-const EMPTY_COLOR = TELLACITY_STAR_EMPTY_BORDER;
+const EMPTY_FILL = TELLACITY_STAR_EMPTY_FILL;
+const EMPTY_ICON = TELLACITY_STAR_EMPTY_ICON;
+const EMPTY_BORDER_CSS_VAR = "var(--tc-widget-empty-star-border, #9CA3AF)";
 
 function StarSVG({ size, color }: { size: number; color: string }) {
   return (
@@ -37,8 +40,9 @@ export default function WidgetStars({
   size?: number;
 }) {
   const filled = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
-  const filledColor =
+  const tierFilledColor =
     filled > 0 ? tellacityActiveStarColorForRating(filled) : TELLACITY_STAR_TIER_COLORS[4];
+  const filledColor = `var(--tc-widget-active-star-color, ${tierFilledColor})`;
   const boxSize = size + 6;
 
   return (
@@ -55,11 +59,11 @@ export default function WidgetStars({
               width: boxSize,
               height: boxSize,
               borderRadius: 3,
-              backgroundColor: isFilled ? filledColor : "transparent",
-              border: `1px solid ${isFilled ? filledColor : EMPTY_COLOR}`,
+              backgroundColor: isFilled ? filledColor : EMPTY_FILL,
+              border: `1px solid ${isFilled ? filledColor : EMPTY_BORDER_CSS_VAR}`,
             }}
           >
-            <StarSVG size={size} color={isFilled ? "#fff" : EMPTY_COLOR} />
+            <StarSVG size={size} color={isFilled ? "#fff" : EMPTY_ICON} />
           </span>
         );
       })}
