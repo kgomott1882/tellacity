@@ -1,9 +1,10 @@
-export const revalidate = 60;
+export const revalidate = 120;
 
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import CategoryClient from "./CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
+import { getCachedCategoryListingPage } from "@/lib/cachedCategoryListing";
 
 type PageProps = {
   params: Promise<{ category_slug: string }>;
@@ -120,9 +121,22 @@ export default async function Page(props: PageProps) {
       ? "Ireland"
       : countryCode;
 
-  const businesses: unknown[] = [];
-  const companyCount = 0;
-  const hasNextPage = false;
+  let businesses: unknown[] = [];
+  let companyCount = 0;
+  let hasNextPage = false;
+  try {
+    const pack = await getCachedCategoryListingPage(
+      safeCategorySlug,
+      countryCode,
+      pageNum - 1,
+      0,
+    );
+    businesses = pack.rows as unknown[];
+    companyCount = pack.totalCount;
+    hasNextPage = pack.hasNext;
+  } catch (e) {
+    console.error("[category page] prefetch:", e);
+  }
 
   return (
     <>

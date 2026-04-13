@@ -14,7 +14,7 @@ export async function GET(
     if (!ctx.ok) return ctx.response;
 
     const fullCols =
-      "id,name,website,website_display,description,address,city,country_code,phone,email,logo_url,reference_number_enabled,reference_number_type,reference_number_label_custom";
+      "id,name,website,website_display,description,address,city,country_code,phone,email,logo_url,tags,reference_number_enabled,reference_number_type,reference_number_label_custom";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let data: any = null;
@@ -32,7 +32,7 @@ export async function GET(
     if (colMissing) {
       const fallback = await ctx.db
         .from("businesses")
-        .select("id,name,website,description,address,city,country_code")
+        .select("id,name,website,description,address,city,country_code,tags")
         .eq("id", businessId)
         .single();
       data = fallback.data;

@@ -13,6 +13,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
 import { normalizeLogoUrl } from "@/lib/logo";
+import RatingStars from "@/components/RatingStars";
 
 type SearchResult = {
   id: string;
@@ -24,6 +25,7 @@ type SearchResult = {
   reviewCount: number;
   location: string;
   tags?: string[] | null;
+  categorySlug?: string | null;
 };
 
 const cleanDomain = (value: string | null | undefined) => {
@@ -84,7 +86,7 @@ export default function SearchPageInner() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city, tags"
+          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city, tags, category_slug"
         )
         .eq("status", "active")
         .or(
@@ -115,6 +117,7 @@ export default function SearchPageInner() {
             reviewCount: Number(business.review_count ?? 0),
             location: business.city ?? business.country_code ?? "",
             tags: normalizeBusinessTags(business.tags),
+            categorySlug: (business as { category_slug?: string | null }).category_slug ?? null,
           });
         }
         setResults(mapped);
@@ -205,13 +208,15 @@ export default function SearchPageInner() {
               const safeSlug = (business.slug ?? "").trim().toLowerCase();
               if (!isValidSlug(safeSlug)) return null;
               const businessTags = normalizeBusinessTags(business.tags);
+              const catSlug = business.categorySlug?.trim() || "";
               return (
               <Link
                 key={business.id}
                 href={`/b/${safeSlug}`}
-                className="flex flex-wrap items-center gap-4 px-4 py-5 transition-all hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className="flex flex-col gap-3 px-4 py-5 transition-all hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
               >
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#FCF7F6]">
                   {business.logoUrl ? (
                     <img
                       src={normalizeLogoUrl(business.logoUrl) ?? business.logoUrl}
@@ -228,10 +233,10 @@ export default function SearchPageInner() {
                       {(business.name?.trim()?.charAt(0) || "B").toUpperCase()}
                     </span>
                   )}
-                </div>
-                <div className="min-w-[220px] flex-1">
+                  </div>
+                  <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <div className="text-base font-semibold text-[#0E0E0E]">
+                    <div className="truncate text-base font-semibold text-[#0E0E0E]">
                       {business.name}
                     </div>
                     {business.reviewCount > 0 && (
@@ -242,39 +247,50 @@ export default function SearchPageInner() {
                       />
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">{business.domain}</div>
-                  {businessTags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {businessTags.map((tag) => (
+                  <div className="truncate text-sm text-gray-500">{business.domain}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                    <RatingStars
+                      rating={business.trustScore}
+                      reviewCount={business.reviewCount}
+                      size={12}
+                    />
+                    <span className="font-medium text-[#0E0E0E]">
+                      {business.trustScore.toFixed(1)}
+                    </span>
+                    <span className="text-gray-500">
+                      • {business.reviewCount.toLocaleString("en-US")} reviews
+                    </span>
+                  </div>
+                  {(catSlug || businessTags.length > 0) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-600">
+                      {catSlug && (
+                        <span className="font-medium text-gray-600">
+                          {formatBusinessTagLabel(catSlug)}
+                        </span>
+                      )}
+                      {catSlug && businessTags.length > 0 && (
+                        <span className="text-gray-400" aria-hidden>
+                          •
+                        </span>
+                      )}
+                      {businessTags.slice(0, 3).map((tag) => (
                         <span
                           key={`${business.id}-${tag}`}
-                          className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+                          className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-600"
                         >
                           {formatBusinessTagLabel(tag)}
                         </span>
                       ))}
+                      {businessTags.length > 3 && (
+                        <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-gray-600">
+                          +{businessTags.length - 3}
+                        </span>
+                      )}
                     </div>
                   )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-1 text-[#1FAF9E]">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <span
-                        key={`${business.id}-star-${index}`}
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-[#1FAF9E] text-xs text-white"
-                      >
-                        ★
-                      </span>
-                    ))}
                   </div>
-                  <span className="font-medium text-[#0E0E0E]">
-                    {business.trustScore.toFixed(1)}
-                  </span>
-                  <span className="text-gray-500">
-                    ({business.reviewCount})
-                  </span>
                 </div>
-                <div className="ml-auto text-sm text-gray-500">
+                <div className="shrink-0 text-sm text-gray-500 sm:max-w-[200px] sm:text-right">
                   {business.location}
                 </div>
               </Link>

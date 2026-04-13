@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import Link from "next/link";
 import { Search, X, ExternalLink } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { normalizeBusinessTags } from "@/lib/businessTags";
 
 type SubItem = { label: string; slug: string };
 type CategoryOption = {
@@ -24,7 +24,6 @@ function splitIntoColumns<T>(items: T[], numCols: number): T[][] {
 
 export default function CategoriesPage() {
   const { selectedBusiness } = useBusinessContext();
-  if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -43,10 +42,35 @@ export default function CategoriesPage() {
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [businessPrimarySlug, setBusinessPrimarySlug] = useState<string | null>(null);
   const [businessSecondarySlugs, setBusinessSecondarySlugs] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
   const hasResolvedLabelsRef = useRef(false);
+  const keywordInputRef = useRef<HTMLInputElement>(null);
 
   const businessId = selectedBusiness?.id ?? null;
   const maxSecondary = 5;
+
+  const MAX_TAGS = 10;
+  const MAX_LENGTH = 20;
+
+  function addTag(value: string) {
+    const cleaned = value.trim().toLowerCase();
+
+    if (!cleaned) return;
+    if (cleaned.length > MAX_LENGTH) return;
+
+    setTags((prev) => {
+      if (prev.includes(cleaned)) return prev;
+      if (prev.length >= MAX_TAGS) return prev;
+      return [...prev, cleaned];
+    });
+    setInputValue("");
+    keywordInputRef.current?.focus();
+  }
+
+  function removeTag(tag: string) {
+    setTags((prev) => prev.filter((t) => t !== tag));
+  }
 
   const mainCategoriesColumns = useMemo(
     () => splitIntoColumns(categoryGroups.map((g) => ({ label: g.name, slug: g.slug })), 4),
@@ -183,6 +207,8 @@ export default function CategoriesPage() {
       setLoading(false);
       setBusinessPrimarySlug(null);
       setBusinessSecondarySlugs([]);
+      setTags([]);
+      setInputValue("");
       return;
     }
     const loadBusinessCategories = async () => {
@@ -196,9 +222,12 @@ export default function CategoriesPage() {
           if (!mounted) return;
           setBusinessPrimarySlug(null);
           setBusinessSecondarySlugs([]);
+          setTags([]);
+          setInputValue("");
           return;
         }
-        let selectCols = "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id";
+        let selectCols =
+          "category_slug, secondary_category_slugs, primary_group_slug, primary_category_id, tags";
         let { data, error } = await supabase
           .from("businesses")
           .select(selectCols)
@@ -211,7 +240,7 @@ export default function CategoriesPage() {
           String((error as { code?: string }).code) === "42703");
 
         if (colMissing) {
-          selectCols = "category_slug, secondary_category_slugs";
+          selectCols = "category_slug, secondary_category_slugs, tags";
           const fallback = await supabase
             .from("businesses")
             .select(selectCols)
@@ -225,6 +254,7 @@ export default function CategoriesPage() {
         if (error) {
           const be = error as { message?: string; code?: string };
           console.warn("Could not load business categories:", be.message ?? be.code ?? error);
+          setTags([]);
           return;
         }
         if (data) {
@@ -233,9 +263,12 @@ export default function CategoriesPage() {
             secondary_category_slugs?: string[];
             primary_group_slug?: string | null;
             primary_category_id?: string | null;
+            tags?: unknown;
           };
           setBusinessPrimarySlug(row.category_slug || null);
           setBusinessSecondarySlugs((row.secondary_category_slugs ?? []) as string[]);
+          const existingTagsFromDB = normalizeBusinessTags(row.tags);
+          setTags(existingTagsFromDB || []);
         }
       } catch (error) {
         console.warn("Failed to load business category slugs:", error instanceof Error ? error.message : String(error));
@@ -340,32 +373,63 @@ export default function CategoriesPage() {
     setMessage(null);
     setSaving(true);
 
-    const primarySlug = primaryCategory?.slug ?? null;
-    const secondarySlugs = secondaryCategories.map((c) => c.slug);
+    try {
+      const primarySlug = primaryCategory?.slug ?? null;
+      const secondarySlugs = secondaryCategories.map((c) => c.slug);
 
-    const primaryOpt = primarySlug
-      ? allCategoriesForSearch.find((c) => c.slug === primarySlug)
-      : null;
-    const primaryGroupSlug = primaryOpt?.groupSlug ?? null;
-    const primaryCategoryId = primaryOpt?.categoryId ?? null;
+      const primaryOpt = primarySlug
+        ? allCategoriesForSearch.find((c) => c.slug === primarySlug)
+        : null;
+      const primaryGroupSlug = primaryOpt?.groupSlug ?? null;
+      const primaryCategoryId = primaryOpt?.categoryId ?? null;
 
-    const supabase = supabaseBrowser();
-    const { error } = await supabase
-      .from("businesses")
-      .update({
-        category_slug: primarySlug,
-        secondary_category_slugs: secondarySlugs,
-        primary_group_slug: primaryGroupSlug,
-        primary_category_id: primaryCategoryId,
-      })
-      .eq("id", businessId);
+      const supabase = supabaseBrowser();
+      const { error } = await supabase
+        .from("businesses")
+        .update({
+          category_slug: primarySlug,
+          secondary_category_slugs: secondarySlugs,
+          primary_group_slug: primaryGroupSlug,
+          primary_category_id: primaryCategoryId,
+        })
+        .eq("id", businessId);
 
-    setSaving(false);
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-      return;
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      const tagRes = await fetch("/api/business/update-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ businessId, tags }),
+      });
+      let tagData: { tags?: string[]; error?: string } = {};
+      try {
+        tagData = (await tagRes.json()) as typeof tagData;
+      } catch {
+        /* ignore */
+      }
+      if (!tagRes.ok) {
+        setMessage({
+          type: "error",
+          text:
+            tagData.error ??
+            "Categories saved, but keywords could not be saved. Try again.",
+        });
+        return;
+      }
+      if (Array.isArray(tagData.tags)) {
+        setTags(tagData.tags);
+      }
+      setMessage({
+        type: "success",
+        text: "Categories and keywords saved.",
+      });
+    } finally {
+      setSaving(false);
     }
-    setMessage({ type: "success", text: "Categories saved." });
   };
 
   const showSelectPrompt = !selectedBusiness;
@@ -523,27 +587,32 @@ export default function CategoriesPage() {
         <div className="max-w-2xl">
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">Categories</h1>
 
-          {message && (
-            <div
-              className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
-                message.type === "success"
-                  ? "border-green-200 bg-green-50 text-green-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
-
-          {categoriesError && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {categoriesError}
-            </div>
-          )}
-
           <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+            {(message || categoriesError) && (
+              <div className="space-y-3 border-b border-gray-100 px-6 py-4">
+                {message && (
+                  <div
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      message.type === "success"
+                        ? "border-green-200 bg-green-50 text-green-800"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                )}
+                {categoriesError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    {categoriesError}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="px-6 py-5">
-              <h2 className="text-base font-semibold text-[#0E0E0E]">Choose a category</h2>
+              <h2 className="text-base font-semibold text-[#0E0E0E]">
+                Choose a category - Compulsory
+              </h2>
               <p className="mt-2 text-sm text-gray-600">
                 {"Stand out on Tellacity and in search results by placing your company in the right category. You can add up to 6 categories (1 primary, 5 secondary)."}{" "}
                 <a
@@ -622,70 +691,141 @@ export default function CategoriesPage() {
                 )}
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 space-y-4">
-            {primaryCategory &&
-              (() => {
-                const primaryOpt = allCategoriesForSearch.find(
-                  (c) => c.slug === primaryCategory.slug
-                );
-                const groupLabel = primaryOpt?.groupSlug
-                  ? (categoryGroups.find((g) => g.slug === primaryOpt.groupSlug)?.name ??
-                    primaryOpt.groupSlug)
-                  : null;
-                return (
+            {(primaryCategory || secondaryCategories.length > 0) && (
+              <div className="space-y-3 border-t border-gray-200 px-6 py-4">
+                {primaryCategory &&
+                  (() => {
+                    const primaryOpt = allCategoriesForSearch.find(
+                      (c) => c.slug === primaryCategory.slug
+                    );
+                    const groupLabel = primaryOpt?.groupSlug
+                      ? (categoryGroups.find((g) => g.slug === primaryOpt.groupSlug)?.name ??
+                        primaryOpt.groupSlug)
+                      : null;
+                    return (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">Primary:</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#2fb2a8]/15 px-3 py-1.5 text-sm font-medium text-[#0E0E0E]">
+                          {primaryCategory.label}
+                          <button
+                            type="button"
+                            onClick={handleRemovePrimary}
+                            className="rounded p-0.5 hover:bg-[#2fb2a8]/20"
+                            aria-label="Remove primary category"
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                        {groupLabel && (
+                          <span className="text-xs text-gray-500">Group: {groupLabel}</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                {secondaryCategories.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500">Primary:</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#2fb2a8]/15 px-3 py-1.5 text-sm font-medium text-[#0E0E0E]">
-                      {primaryCategory.label}
-                      <button
-                        type="button"
-                        onClick={handleRemovePrimary}
-                        className="rounded p-0.5 hover:bg-[#2fb2a8]/20"
-                        aria-label="Remove primary category"
+                    <span className="text-xs font-medium text-gray-500">Secondary:</span>
+                    {secondaryCategories.map((cat) => (
+                      <span
+                        key={cat.slug}
+                        className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-800"
                       >
-                        <X size={14} />
-                      </button>
-                    </span>
-                    {groupLabel && (
-                      <span className="text-xs text-gray-500">Group: {groupLabel}</span>
-                    )}
+                        {cat.label}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSecondary(cat.slug)}
+                          className="rounded p-0.5 hover:bg-gray-200"
+                          aria-label={`Remove ${cat.label}`}
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
                   </div>
-                );
-              })()}
-
-            {secondaryCategories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Secondary:</span>
-                {secondaryCategories.map((cat) => (
-                  <span
-                    key={cat.slug}
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-800"
-                  >
-                    {cat.label}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSecondary(cat.slug)}
-                      className="rounded p-0.5 hover:bg-gray-200"
-                      aria-label={`Remove ${cat.label}`}
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                ))}
+                )}
               </div>
             )}
 
-            <form onSubmit={handleSave}>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91] disabled:opacity-50"
-              >
-                Save changes
-              </button>
-            </form>
+            {businessId && (
+              <div className="border-t border-gray-200 px-6 py-5">
+                <h3 className="mb-2 text-sm font-semibold text-[#0E0E0E]">
+                  Keywords / Category Tags - Optional
+                </h3>
+
+                <div className="flex gap-2">
+                  <input
+                    ref={keywordInputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTag(inputValue);
+                      }
+                    }}
+                    placeholder="Type a keyword"
+                    disabled={tags.length >= MAX_TAGS}
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-[#0E0E0E] focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => addTag(inputValue)}
+                    disabled={
+                      !inputValue.trim() ||
+                      tags.length >= MAX_TAGS ||
+                      inputValue.trim().length > MAX_LENGTH
+                    }
+                    className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                <p className="mt-2 text-sm text-gray-500">
+                  Add up to 10 keywords. Press Enter or click + Add.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        className="text-gray-500 hover:text-black"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-2 text-sm text-gray-500">
+                  {tags.length}/{MAX_TAGS} tags
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-gray-200 bg-gray-50/70 px-6 py-4">
+              <form onSubmit={handleSave}>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-[#2fb2a8] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#269a91] disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+                <p className="mt-2 text-xs text-gray-500">
+                  Saves your category selection and keyword tags together.
+                </p>
+              </form>
+            </div>
           </div>
         </div>
       )}

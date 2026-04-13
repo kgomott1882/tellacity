@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
 import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -11,40 +11,10 @@ import { formatBusinessAddress } from "@/lib/address";
 import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
-import {
-  REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR,
-} from "@/lib/reviewVisibility";
 import RatingStars from "@/components/RatingStars";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
 
-type BusinessRow = {
-  id: string;
-  name: string;
-  slug: string;
-  website: string | null;
-  trust_score: number | null;
-  review_count: number;
-  category_slug: string | null;
-  country_code: string | null;
-  address: string | null;
-  city: string | null;
-  display_location: string | null;
-  /** Present on some queries; category RPC uses resolved_logo_url only. */
-  logo_url?: string | null;
-  /** RPC get_top_businesses_for_category_global returns logo as this column. */
-  resolved_logo_url?: string | null;
-  average_rating?: number | null;
-  avg_rating?: number | null;
-  tags?: string[] | null;
-};
-
-function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
-  const trust =
-    (Number(row.trust_score ?? 0) || 0) ||
-    (Number(row.average_rating ?? 0) || 0) ||
-    (Number(row.avg_rating ?? 0) || 0);
-  return { trust, count: Number(row.review_count ?? 0) || 0 };
-}
+type BusinessRow = CategoryBusinessRow;
 
 /** Match business profile / search: use stored logo + website → logo.dev fallback. */
 function categoryListLogoUrl(
@@ -70,15 +40,6 @@ const PAGE_SIZE = 10;
 /** How many candidates to pull for “Top rated” before live review aggregation + top 8. */
 const TOP_RATED_CANDIDATE_LIMIT = 40;
 const TOP_RATED_DISPLAY_COUNT = 8;
-const FALLBACK_COUNTRY_ALIASES: Record<string, string[]> = {
-  US: ["US", "USA"],
-  GB: ["GB", "UK", "GBR"],
-  ZA: ["ZA", "ZAF"],
-  AU: ["AU", "AUS"],
-  CA: ["CA", "CAN"],
-  NZ: ["NZ", "NZL"],
-  IE: ["IE", "IRL"],
-};
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
@@ -86,185 +47,12 @@ function isValidSlug(slug: string) {
   return /^[a-z0-9-]+$/.test(clean);
 }
 
-function countryAliases(code: string): string[] {
-  const normalized = normalizeCountryCode(code).toUpperCase();
-  return FALLBACK_COUNTRY_ALIASES[normalized] ?? [normalized];
-}
-
-async function fetchCategoryRowsWithFallback(
-  supabase: SupabaseClient,
-  categorySlug: string,
-  countryCode: string,
-  minRating: number | null,
-  limit: number,
-  offset: number
-): Promise<{ rows: BusinessRow[]; error: string | null }> {
-  const rpc = await supabase.rpc("get_top_businesses_for_category_global", {
-    p_category_slug: categorySlug,
-    p_country_code: countryCode,
-    p_min_rating: minRating,
-    p_limit: limit,
-    p_offset: offset,
-  });
-
-  if (!rpc.error) {
-    return { rows: (rpc.data ?? []) as BusinessRow[], error: null };
-  }
-
-  const categories =
-    categorySlug === "banking"
-      ? ["banking", "banking-and-money"]
-      : [categorySlug];
-  const countries = countryAliases(countryCode);
-
-  const direct = await supabase
-    .from("businesses")
-    .select(
-      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags"
-    )
-    .in("category_slug", categories)
-    .in("country_code", countries)
-    .eq("status", "active")
-    .order("trust_score", { ascending: false })
-    .order("review_count", { ascending: false })
-    .order("name", { ascending: true })
-    .range(offset, Math.max(offset + limit - 1, offset));
-
-  if (direct.error) {
-    return {
-      rows: [],
-      error: rpc.error.message ?? direct.error.message ?? "Failed to load businesses.",
-    };
-  }
-
-  let rows = (direct.data ?? []) as BusinessRow[];
-  if (typeof minRating === "number") {
-    rows = rows.filter((r) => (Number(r.trust_score ?? 0) || 0) >= minRating);
-  }
-  return {
-    rows,
-    error: rpc.error.message ?? null,
-  };
-}
-
-async function fetchCategoryCount(
-  supabase: SupabaseClient,
-  categorySlug: string,
-  countryCode: string
-): Promise<number | null> {
-  const categories =
-    categorySlug === "banking"
-      ? ["banking", "banking-and-money"]
-      : [categorySlug];
-  const countries = countryAliases(countryCode);
-
-  const query = supabase
-    .from("businesses")
-    .select("id", { count: "exact", head: true })
-    .in("category_slug", categories)
-    .in("country_code", countries)
-    .eq("status", "active");
-
-  const { count, error } = await query;
-  if (error) return null;
-  return count ?? 0;
-}
-
-/**
- * Merges visible published reviews into rows when the browser can read them.
- * If the direct `reviews` query returns nothing (RLS, filters), keeps RPC
- * `get_top_businesses_for_category_global` metrics — never overwrites with zeros.
- */
-async function fetchAndApplyLiveReviewMetrics(
-  supabase: SupabaseClient,
-  rows: BusinessRow[]
-): Promise<void> {
-  const ids = rows.map((row) => row.id).filter(Boolean);
-  if (ids.length === 0) return;
-
-  const rpcSnapshot = new Map<string, { trust: number; count: number }>();
-  for (const row of rows) {
-    if (!row.id) continue;
-    rpcSnapshot.set(row.id, snapshotRpcRating(row));
-  }
-
-  const agg: Record<string, { count: number; sum: number }> = {};
-
-  try {
-    const { data: aggRpc, error: aggErr } = await supabase.rpc(
-      "get_public_review_aggregates",
-      { p_business_ids: ids }
-    );
-
-    if (!aggErr && Array.isArray(aggRpc)) {
-      for (const row of aggRpc as {
-        business_id?: string;
-        review_count?: number | null;
-        average_rating?: number | null;
-      }[]) {
-        const id = String(row.business_id ?? "");
-        if (!id) continue;
-        const count = Number(row.review_count ?? 0) || 0;
-        const avg = Number(row.average_rating ?? 0) || 0;
-        if (count > 0) {
-          agg[id] = { count, sum: avg * count };
-        }
-      }
-    } else {
-      const { data: reviews, error: reviewError } = await supabase
-        .from("reviews")
-        .select("business_id, rating")
-        .in("business_id", ids)
-        .or(REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR);
-
-      if (reviewError || !reviews) return;
-
-      for (const row of reviews as { business_id?: string; rating?: number }[]) {
-        const id = String(row.business_id);
-        const rating = Number(row.rating ?? 0);
-        if (!agg[id]) agg[id] = { count: 0, sum: 0 };
-        if (rating > 0) {
-          agg[id].count += 1;
-          agg[id].sum += rating;
-        }
-      }
-    }
-
-    const mergedRating = (id: string) => {
-      const m = agg[id];
-      if (m && m.count > 0) return m.sum / m.count;
-      return rpcSnapshot.get(id)?.trust ?? 0;
-    };
-    const mergedCount = (id: string) => {
-      const m = agg[id];
-      if (m && m.count > 0) return m.count;
-      return rpcSnapshot.get(id)?.count ?? 0;
-    };
-
-    rows.sort((a, b) => {
-      const aRating = mergedRating(a.id);
-      const bRating = mergedRating(b.id);
-      const aCt = mergedCount(a.id);
-      const bCt = mergedCount(b.id);
-      if (bRating !== aRating) return bRating - aRating;
-      if (bCt !== aCt) return bCt - aCt;
-      return (a.name || "").localeCompare(b.name || "");
-    });
-
-    rows.forEach((row) => {
-      const m = agg[row.id];
-      const snap = rpcSnapshot.get(row.id);
-      if (m && m.count > 0) {
-        row.trust_score = m.sum / m.count;
-        row.review_count = m.count;
-      } else if (snap) {
-        row.trust_score = snap.trust;
-        row.review_count = snap.count;
-      }
-    });
-  } catch {
-    // keep RPC metrics
-  }
+function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
+  const trust =
+    (Number(row.trust_score ?? 0) || 0) ||
+    (Number(row.average_rating ?? 0) || 0) ||
+    (Number(row.avg_rating ?? 0) || 0);
+  return { trust, count: Number(row.review_count ?? 0) || 0 };
 }
 
 type TopRatedDisplayItem = {
@@ -436,29 +224,40 @@ export default function CategoryClient({
       }
 
       setTopRatedLoading(true);
-      const supabase = supabaseBrowser();
       const countryCode = derivedCountry ?? "US";
       const min = typeof minRating === "number" ? minRating : 0;
 
-      const topRatedResult = await fetchCategoryRowsWithFallback(
-        supabase,
-        categorySlug,
-        countryCode,
-        min,
-        TOP_RATED_CANDIDATE_LIMIT,
-        0
-      );
+      const q = new URLSearchParams();
+      q.set("slug", categorySlug);
+      q.set("country", countryCode);
+      q.set("minRating", String(min));
+      q.set("mode", "top");
+      q.set("candidateLimit", String(TOP_RATED_CANDIDATE_LIMIT));
+      const res = await fetch(`/api/category-listings?${q.toString()}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(28_000),
+      });
+      const data = (await res.json()) as {
+        rows?: BusinessRow[];
+        error?: string | null;
+      };
 
       if (cancelled) return;
 
-      if (topRatedResult.error && topRatedResult.rows.length === 0) {
+      const topRows = Array.isArray(data.rows) ? data.rows : [];
+      if (!res.ok && topRows.length === 0) {
         setTopRatedItems([]);
         setTopRatedLoading(false);
         return;
       }
 
-      const list = topRatedResult.rows.map((r) => ({ ...r }));
-      await fetchAndApplyLiveReviewMetrics(supabase, list);
+      if (data.error && topRows.length === 0) {
+        setTopRatedItems([]);
+        setTopRatedLoading(false);
+        return;
+      }
+
+      const list = topRows.map((r) => ({ ...r }));
 
       list.sort((a, b) => {
         const ar = Number(a.trust_score ?? 0);
@@ -628,46 +427,55 @@ export default function CategoryClient({
       const countryCode = derivedCountry ?? "US";
       const min = typeof minRating === "number" ? minRating : 0;
 
-      const supabase = supabaseBrowser();
-      const result = await fetchCategoryRowsWithFallback(
-        supabase,
-        categorySlug,
-        countryCode,
-        min,
-        PAGE_SIZE + 1,
-        offset
-      );
+      const q = new URLSearchParams();
+      q.set("slug", categorySlug);
+      q.set("country", countryCode);
+      q.set("page", String(page));
+      q.set("minRating", String(min));
+      q.set("mode", "page");
+      const res = await fetch(`/api/category-listings?${q.toString()}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(28_000),
+      });
+      const data = (await res.json()) as {
+        rows?: BusinessRow[];
+        totalCount?: number;
+        hasNext?: boolean;
+        error?: string | null;
+      };
 
       if (!isMounted) return;
 
-      if (result.error && result.rows.length === 0) {
+      const list = Array.isArray(data.rows) ? data.rows : [];
+      if (!res.ok && list.length === 0) {
         setRows([]);
         setComputedCount(offset);
         setComputedHasNext(false);
-        setFetchError(result.error ?? "Failed to load businesses.");
+        setFetchError("Failed to load businesses.");
         setLoading(false);
         return;
       }
 
-      const list = result.rows;
-      const hasNext = list.length > PAGE_SIZE;
-      const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
+      if (data.error && list.length === 0) {
+        setRows([]);
+        setComputedCount(offset);
+        setComputedHasNext(false);
+        setFetchError(data.error ?? "Failed to load businesses.");
+        setLoading(false);
+        return;
+      }
 
-      await fetchAndApplyLiveReviewMetrics(supabase, sliced);
-      const realCount = await fetchCategoryCount(
-        supabase,
-        categorySlug,
-        countryCode
-      );
+      const hasNext = Boolean(data.hasNext);
+      const sliced = list;
 
       setRows(sliced);
       setComputedCount(
-        typeof realCount === "number"
-          ? realCount
+        typeof data.totalCount === "number"
+          ? data.totalCount
           : offset + sliced.length + (hasNext ? 1 : 0)
       );
       setComputedHasNext(hasNext);
-      setFetchError(null);
+      setFetchError(data.error ?? null);
       setLoading(false);
     };
 
@@ -1066,19 +874,28 @@ export default function CategoryClient({
                               • {reviewCount.toLocaleString("en-US")} reviews
                             </span>
                           </div>
-                          {businessTags.length > 0 && (
-                            <div className="hidden md:flex items-center gap-1.5 mt-1 flex-wrap text-[11px] text-gray-500">
-                              <span className="text-gray-400">•</span>
+                          {(business.category_slug || businessTags.length > 0) && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-600">
+                              {business.category_slug && (
+                                <span className="font-medium text-gray-600">
+                                  {formatBusinessTagLabel(business.category_slug)}
+                                </span>
+                              )}
+                              {business.category_slug && businessTags.length > 0 && (
+                                <span className="text-gray-400" aria-hidden>
+                                  •
+                                </span>
+                              )}
                               {businessTags.slice(0, 2).map((tag) => (
                                 <span
                                   key={`${business.id}-${tag}`}
-                                  className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-500"
+                                  className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600"
                                 >
                                   {formatBusinessTagLabel(tag)}
                                 </span>
                               ))}
                               {businessTags.length > 2 && (
-                                <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-500">
+                                <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600">
                                   +{businessTags.length - 2}
                                 </span>
                               )}

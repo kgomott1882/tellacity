@@ -5,17 +5,19 @@ export const fetchCache = "force-no-store";
 import { Suspense } from "react";
 import HomePageClient from "./HomePageClient";
 import type { BestInBusiness } from "./HomePageClient";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabaseServerClientForHomeBestIn,
+} from "@/lib/supabase/server";
 import { normalizeCountryCode } from "@/lib/country";
 import {
   HOME_MARQUEE_CATEGORY_ITEMS,
   buildMarqueeCategoryCards,
   enrichMarqueeItemsWithDbNames,
 } from "@/lib/homeMarqueeCategories";
-import {
-  HOME_ROTATING_BEST_IN_SLUGS,
-  loadHomeBestInByCategory,
-} from "@/lib/homeBestInBundle";
+import { HOME_ROTATING_BEST_IN_SLUGS } from "@/lib/homeBestInBundle";
+import { loadHomeBestInFromCache } from "@/lib/loadHomeBestInFromCache";
+import { loadHomePageFeedRows } from "@/lib/homePageFeedServer";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",
@@ -84,6 +86,7 @@ function buildHomeCategoryRows(
 export default async function HomePage(props: PageProps) {
   let country = "US";
   let bestInByCategory: Record<string, unknown[]> = {};
+  let homeFeedRows: Record<string, unknown>[] = [];
   let marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   let categoryRowsForHome: HomeCategoryRow[] = [];
 
@@ -100,56 +103,61 @@ export default async function HomePage(props: PageProps) {
       console.error("Homepage fetch failed: Supabase client is null");
     } else {
       try {
-        const { data: catRows } = await supabase
-          .from("categories")
-          .select("id, slug, name")
-          .order("name", { ascending: true });
+        const [{ data: catRows }, rawBestIn, feedRows] = await Promise.all([
+          supabase
+            .from("categories")
+            .select("id, slug, name")
+            .order("name", { ascending: true }),
+          loadHomeBestInFromCache(
+            createSupabaseServerClientForHomeBestIn(),
+            country,
+          ),
+          loadHomePageFeedRows(supabase, country).catch((err) => {
+            console.error("Homepage home feed:", err);
+            return [] as Record<string, unknown>[];
+          }),
+        ]);
         categoryRowsForHome = buildHomeCategoryRows(catRows);
         const slugSet = new Set(
           (catRows ?? [])
             .map((r) => (r.slug ?? "").trim().toLowerCase())
-            .filter(Boolean)
+            .filter(Boolean),
         );
         if (slugSet.size > 0) {
           const filtered = HOME_MARQUEE_CATEGORY_ITEMS.filter((i) =>
-            slugSet.has(i.slug.trim().toLowerCase())
+            slugSet.has(i.slug.trim().toLowerCase()),
           );
           const source =
             filtered.length >= 8 ? filtered : HOME_MARQUEE_CATEGORY_ITEMS;
           const enriched = enrichMarqueeItemsWithDbNames(source, catRows);
           marqueeCategories = buildMarqueeCategoryCards(enriched);
         }
-      } catch (marqueeErr) {
-        console.error("Homepage marquee categories:", marqueeErr);
-      }
-
-      const { byCategory, rpcErrors } = await loadHomeBestInByCategory(
-        supabase,
-        country
-      );
-      bestInByCategory = byCategory as unknown as Record<string, unknown[]>;
-      for (const slug of HOME_ROTATING_BEST_IN_SLUGS) {
-        const err = rpcErrors[slug];
-        if (err) {
-          console.warn(`[homepage] best-in RPC ${slug}:`, err);
+        const mergedBestIn: Record<string, unknown[]> = {};
+        for (const slug of HOME_ROTATING_BEST_IN_SLUGS) {
+          const v = rawBestIn[slug];
+          mergedBestIn[slug] = Array.isArray(v) ? v : [];
         }
+        bestInByCategory = mergedBestIn;
+        homeFeedRows = Array.isArray(feedRows) ? feedRows : [];
+      } catch (marqueeErr) {
+        console.error("Homepage marquee / best-in:", marqueeErr);
       }
     }
   } catch (error) {
     console.error("Homepage fetch failed:", error);
     country = "US";
     bestInByCategory = {};
+    homeFeedRows = [];
     marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   }
 
   const safeBestInByCategory: Record<string, BestInBusiness[]> = {};
-  Object.entries(bestInByCategory ?? {}).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      safeBestInByCategory[key] = value as BestInBusiness[];
-    } else {
-      safeBestInByCategory[key] = [];
-    }
-  });
+  for (const slug of HOME_ROTATING_BEST_IN_SLUGS) {
+    const value = (bestInByCategory ?? {})[slug];
+    safeBestInByCategory[slug] = Array.isArray(value)
+      ? (value as BestInBusiness[])
+      : [];
+  }
 
   const safeLabels: Record<string, string> = CATEGORY_LABELS ?? {};
   const safeRotatingSlugs = [...HOME_ROTATING_BEST_IN_SLUGS];
@@ -163,6 +171,7 @@ export default async function HomePage(props: PageProps) {
           bestInByCategory={safeBestInByCategory}
           bestInCategoryLabels={safeLabels}
           marqueeCategories={marqueeCategories}
+          initialHomeFeedRows={homeFeedRows}
         />
       </Suspense>
     );

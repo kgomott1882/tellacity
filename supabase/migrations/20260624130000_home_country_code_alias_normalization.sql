@@ -1,5 +1,14 @@
 -- Normalize common country aliases so homepage country switching always aligns
 -- between Best-in RPCs and home feed.
+--
+-- IMPORTANT (manual runs in SQL Editor):
+-- This file also replaces get_top_businesses_for_category_global, get_category_business_count,
+-- and get_home_feed_for_country. If Postgres returns 42P13 ("cannot change return type"),
+-- your database already has a newer signature (for example after
+-- 20260701120000_rpc_include_business_tags.sql adds columns). Do not DROP shared RPCs on a
+-- whim: dependents include category pages and business profiles. Prefer applying migrations
+-- in repo order. If you only need the country helper on an already-newer DB, run
+-- supabase/snippets/normalize_country_code_home_only.sql instead of this whole file.
 
 create or replace function public.normalize_country_code_home(p_code text)
 returns text

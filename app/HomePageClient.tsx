@@ -175,6 +175,8 @@ type HomePageClientProps = {
   bestInCategoryLabels: Record<string, string>;
   /** Server-validated marquee tiles; falls back to static list if empty. */
   marqueeCategories?: HomeMarqueeCategoryCard[];
+  /** Recent reviews from SSR (same query as GET /api/home-feed). */
+  initialHomeFeedRows?: Record<string, unknown>[];
 };
 
 export default function HomePageClient({
@@ -183,6 +185,7 @@ export default function HomePageClient({
   bestInByCategory = {},
   bestInCategoryLabels = {},
   marqueeCategories: marqueeCategoriesProp,
+  initialHomeFeedRows = [],
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -191,8 +194,18 @@ export default function HomePageClient({
 
   const [homeFeedRawRows, setHomeFeedRawRows] = useState<
     Record<string, unknown>[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
+  >(() =>
+    sortHomeFeedRowsByDateDesc(
+      Array.isArray(initialHomeFeedRows) ? [...initialHomeFeedRows] : [],
+    ),
+  );
+  const [isLoading, setIsLoading] = useState(
+    () =>
+      !(
+        Array.isArray(initialHomeFeedRows) &&
+        initialHomeFeedRows.length > 0
+      ),
+  );
   const [error, setError] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
   const [highlightedReviewId, setHighlightedReviewId] = useState<
@@ -206,9 +219,13 @@ export default function HomePageClient({
   const homeHighlightClearTimerRef = useRef<number | null>(null);
   const heroStarFieldRef = useRef<HeroStarFieldHandle | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
-  const [bestInLoading, setBestInLoading] = useState(false);
   const bestInCountryPrevRef = useRef<string | null>(null);
-  const bestInFetchIdRef = useRef(0);
+  /** Set only after a successful `/api/home-feed` (or SSR skip). Avoid Strict Mode double-invoke skipping the real fetch. */
+  const lastCompletedFeedKeyRef = useRef<string | null>(null);
+  const feedFetchGenRef = useRef(0);
+  /** Set only after a successful `/api/home-best-in` (or SSR skip). */
+  const lastCompletedBestInKeyRef = useRef<string | null>(null);
+  const bestInFetchGenRef = useRef(0);
   const [clientBestInByCategory, setClientBestInByCategory] =
     useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
 
@@ -221,6 +238,27 @@ export default function HomePageClient({
   const activeCountry =
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
     COUNTRIES[0];
+
+  /** Stable primitive for hooks — avoids effect dependency array length / identity churn. */
+  const rotatingBestInSlugsKey = useMemo(() => {
+    if (!Array.isArray(rotatingCategorySlugs)) return "";
+    return rotatingCategorySlugs
+      .map((s) => String(s ?? "").trim().toLowerCase())
+      .filter(Boolean)
+      .join("|");
+  }, [rotatingCategorySlugs]);
+
+  const feedDataSyncKey = useMemo(
+    () =>
+      `${pathname}::${activeCountryCode}::${homeParamsKey}::${String(initialSelectedCountry ?? "")}`,
+    [pathname, activeCountryCode, homeParamsKey, initialSelectedCountry],
+  );
+
+  const bestInEffectSyncKey = useMemo(
+    () =>
+      `${pathname}::${activeCountryCode}::${rotatingBestInSlugsKey}::${String(initialSelectedCountry ?? "")}`,
+    [pathname, activeCountryCode, rotatingBestInSlugsKey, initialSelectedCountry],
+  );
 
   const marqueeItems = useMemo(() => {
     if (marqueeCategoriesProp && marqueeCategoriesProp.length > 0) {
@@ -423,7 +461,7 @@ export default function HomePageClient({
       ? rotatingCategorySlugs[bestInIndex % rotatingCategorySlugs.length]
       : "banking";
 
-  /** Same ordering rules as before, using scores from `get_top_businesses_for_category_global` only. */
+  /** Server already returns top 8 per slug; keep trust → count → name order (include 0-review rows). */
   const rankedBestInBusinesses: BestInBusiness[] = useMemo(() => {
     const list = (clientBestInByCategory ?? {})[activeBestInSlug] ?? [];
     if (!Array.isArray(list) || list.length === 0) return [];
@@ -436,9 +474,6 @@ export default function HomePageClient({
     });
 
     withScores.sort((a, b) => {
-      const aZero = a.reviewCount === 0 ? 1 : 0;
-      const bZero = b.reviewCount === 0 ? 1 : 0;
-      if (aZero !== bZero) return aZero - bZero;
       if (b.rating !== a.rating) return b.rating - a.rating;
       if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
       return (a.biz.name || "").localeCompare(b.biz.name || "");
@@ -451,38 +486,67 @@ export default function HomePageClient({
     (bestInCategoryLabels ?? {})[activeBestInSlug] ??
     (activeBestInSlug ?? "").replace(/-/g, " ");
 
-  // Recent reviews: always hit `/api/home-feed` with `cache: "no-store"` (avoids client Supabase / stale state after navigation).
+  // Recent reviews: `/api/home-feed` — independent from Best-in so the feed can paint first.
   useEffect(() => {
     if (pathname !== "/") return;
 
+    const ac = activeCountryCode;
+    const feedKey = `${pathname}:${ac}:${homeParamsKey}`;
+    const initialNorm = normalizeHomeCountry(initialSelectedCountry ?? "US");
+
+    let skipInitialFetch = false;
+
+    if (lastCompletedFeedKeyRef.current === feedKey) {
+      setIsLoading(false);
+      skipInitialFetch = true;
+    } else if (
+      lastCompletedFeedKeyRef.current === null &&
+      ac === initialNorm &&
+      (initialHomeFeedRows?.length ?? 0) > 0
+    ) {
+      lastCompletedFeedKeyRef.current = feedKey;
+      setIsLoading(false);
+      skipInitialFetch = true;
+    }
+
     let isMounted = true;
-    let fetchGeneration = 0;
+    let activeFeedController: AbortController | null = null;
     const spFeed = new URLSearchParams(homeParamsKey);
     const refreshBust =
       spFeed.get("refresh") === "true" || spFeed.get("refresh") === "1";
 
     const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
-      const myGen = ++fetchGeneration;
+      const myGen = ++feedFetchGenRef.current;
+      activeFeedController?.abort();
+      const controller = new AbortController();
+      activeFeedController = controller;
 
-      if (!silent) {
+      const alreadyShowingForCountry = homeFeedRawRows.some((r) =>
+        feedRowCountryMatches(r, ac),
+      );
+      // Avoid skeleton flash: if SSR or a prior fetch already filled cards for this
+      // country, refresh in the background without toggling `isLoading`.
+      if (!silent && !alreadyShowingForCountry) {
         setIsLoading(true);
+        setError(null);
+      } else if (!silent) {
         setError(null);
       }
 
       try {
         const q = new URLSearchParams();
-        q.set("country", activeCountryCode);
+        q.set("country", ac);
         if (refreshBust) {
           q.set("_", String(Date.now()));
         }
         const res = await fetch(`/api/home-feed?${q.toString()}`, {
           cache: "no-store",
-          signal: AbortSignal.timeout(28_000),
+          signal: controller.signal,
         });
         const raw: unknown = await res.json();
 
-        if (!isMounted || myGen !== fetchGeneration) return;
+        if (!isMounted || myGen !== feedFetchGenRef.current) return;
 
         let rows: Record<string, unknown>[] = [];
         if (Array.isArray(raw)) {
@@ -503,30 +567,37 @@ export default function HomePageClient({
               ? (raw as { error: string }).error
               : "Failed to load reviews.";
           setError(msg);
-          setHomeFeedRawRows([]);
+          if (!alreadyShowingForCountry) {
+            setHomeFeedRawRows([]);
+          }
           return;
         }
 
         setHomeFeedRawRows(sortHomeFeedRowsByDateDesc(rows));
+        lastCompletedFeedKeyRef.current = feedKey;
 
-        if (refreshBust && isMounted && myGen === fetchGeneration) {
+        if (refreshBust && isMounted && myGen === feedFetchGenRef.current) {
           const p = new URLSearchParams(homeParamsKey);
           p.delete("refresh");
           const qs = p.toString();
           router.replace(qs ? `/?${qs}` : "/", { scroll: false });
         }
       } catch (e) {
-        if (!isMounted || myGen !== fetchGeneration) return;
+        if (!isMounted || myGen !== feedFetchGenRef.current) return;
         setError(e instanceof Error ? e.message : "Failed to load reviews.");
-        setHomeFeedRawRows([]);
+        if (!alreadyShowingForCountry) {
+          setHomeFeedRawRows([]);
+        }
       } finally {
-        if (isMounted && myGen === fetchGeneration) {
+        if (isMounted && myGen === feedFetchGenRef.current) {
           setIsLoading(false);
         }
       }
     };
 
-    void fetchHomeFeed();
+    if (!skipInitialFetch) {
+      void fetchHomeFeed();
+    }
 
     const onVisible = () => {
       if (document.visibilityState !== "visible" || !isMounted) return;
@@ -542,10 +613,102 @@ export default function HomePageClient({
 
     return () => {
       isMounted = false;
+      activeFeedController?.abort();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [pathname, homeParamsKey, router, activeCountryCode]);
+  }, [feedDataSyncKey, router]);
+
+  // Best-in: `/api/home-best-in` — reads `home_best_in_cache` (single request per country).
+  useEffect(() => {
+    if (pathname !== "/") return;
+    if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;
+
+    const ac = activeCountryCode;
+    const bestKey = `${pathname}:${ac}:${rotatingBestInSlugsKey}`;
+
+    if (lastCompletedBestInKeyRef.current === bestKey) {
+      return;
+    }
+
+    const initialNorm = normalizeHomeCountry(initialSelectedCountry ?? "US");
+    if (
+      lastCompletedBestInKeyRef.current === null &&
+      ac === initialNorm &&
+      rotatingCategorySlugs.every((slug) =>
+        Object.prototype.hasOwnProperty.call(clientBestInByCategory, slug),
+      )
+    ) {
+      lastCompletedBestInKeyRef.current = bestKey;
+      bestInCountryPrevRef.current = ac;
+      return;
+    }
+
+    const prevCountry = bestInCountryPrevRef.current;
+    bestInCountryPrevRef.current = ac;
+    if (prevCountry !== null && prevCountry !== ac) {
+      setClientBestInByCategory({});
+    }
+
+    const fetchId = ++bestInFetchGenRef.current;
+    const bestInController = new AbortController();
+
+    const applyFullBestIn = (raw: Record<string, unknown> | undefined) => {
+      const incoming = raw ?? {};
+      setClientBestInByCategory(() => {
+        const out: Record<string, BestInBusiness[]> = {};
+        for (const slug of rotatingCategorySlugs) {
+          const rows = incoming[slug];
+          out[slug] = Array.isArray(rows) ? (rows as BestInBusiness[]) : [];
+        }
+        return out;
+      });
+    };
+
+    void (async () => {
+      try {
+        const q = new URLSearchParams();
+        q.set("country", ac);
+        const res = await fetch(`/api/home-best-in?${q.toString()}`, {
+          cache: "no-store",
+          signal: bestInController.signal,
+        });
+        if (fetchId !== bestInFetchGenRef.current) return;
+
+        if (res.ok) {
+          try {
+            const raw = (await res.json()) as unknown;
+            if (
+              raw &&
+              typeof raw === "object" &&
+              "byCategory" in (raw as object)
+            ) {
+              const pack = raw as { byCategory?: Record<string, unknown> };
+              applyFullBestIn(pack.byCategory);
+            } else {
+              applyFullBestIn({});
+            }
+            lastCompletedBestInKeyRef.current = bestKey;
+          } catch {
+            applyFullBestIn({});
+            lastCompletedBestInKeyRef.current = bestKey;
+          }
+        } else {
+          applyFullBestIn({});
+          lastCompletedBestInKeyRef.current = bestKey;
+        }
+      } catch {
+        if (fetchId !== bestInFetchGenRef.current) return;
+        if (bestInController.signal.aborted) return;
+        applyFullBestIn({});
+        lastCompletedBestInKeyRef.current = bestKey;
+      }
+    })();
+
+    return () => {
+      bestInController.abort();
+    };
+  }, [bestInEffectSyncKey, rotatingCategorySlugs]);
 
   useEffect(() => {
     if (pathname !== "/" || reviews.length === 0) {
@@ -592,68 +755,6 @@ export default function HomePageClient({
       }
     };
   }, []);
-
-  // Best-in: same pattern as Recent reviews — always `/api/home-best-in?country=…` (no browser Supabase).
-  useEffect(() => {
-    if (pathname !== "/") return;
-    if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;
-
-    const ac = activeCountryCode;
-    const prev = bestInCountryPrevRef.current;
-    bestInCountryPrevRef.current = ac;
-    const countryChanged = prev !== null && prev !== ac;
-
-    const fetchId = ++bestInFetchIdRef.current;
-    let cancelled = false;
-
-    if (countryChanged) {
-      setClientBestInByCategory({});
-    }
-    setBestInLoading(true);
-
-    void (async () => {
-      try {
-        const q = new URLSearchParams();
-        q.set("country", ac);
-        const res = await fetch(`/api/home-best-in?${q.toString()}`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(28_000),
-        });
-        const raw = (await res.json()) as unknown;
-        if (cancelled || fetchId !== bestInFetchIdRef.current) return;
-
-        if (
-          !res.ok ||
-          !raw ||
-          typeof raw !== "object" ||
-          !("byCategory" in (raw as object))
-        ) {
-          return;
-        }
-
-        const pack = raw as { byCategory?: Record<string, unknown> };
-        const incoming = pack.byCategory ?? {};
-        const next: Record<string, BestInBusiness[]> = {};
-        for (const slug of rotatingCategorySlugs) {
-          const rows = incoming[slug];
-          next[slug] = Array.isArray(rows)
-            ? (rows as BestInBusiness[])
-            : [];
-        }
-        setClientBestInByCategory(next);
-      } catch {
-        /* keep existing cards; countryChanged may have cleared until next success */
-      } finally {
-        if (!cancelled && fetchId === bestInFetchIdRef.current) {
-          setBestInLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname, activeCountryCode, rotatingCategorySlugs]);
 
   useEffect(() => {
     if (reviewPage >= totalReviewPages) {
@@ -1099,7 +1200,13 @@ export default function HomePageClient({
         categoryLabel={activeBestInLabel}
         businesses={rankedBestInBusinesses}
         countryCode={activeCountryCode}
-        isLoading={bestInLoading && rankedBestInBusinesses.length === 0}
+        isLoading={
+          rotatingCategorySlugs.length > 0 &&
+          !Object.prototype.hasOwnProperty.call(
+            clientBestInByCategory ?? {},
+            activeBestInSlug,
+          )
+        }
         onPrevious={() =>
           setBestInIndex((prev) =>
             rotatingCategorySlugs?.length

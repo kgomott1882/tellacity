@@ -42,15 +42,20 @@ export function useUnifiedCountry(
   const pendingCountryRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let queryCountryRaw = searchParams.get("country");
+    // On `/`, prefer the real address bar first — Next `useSearchParams()` can lag one
+    // frame behind `?country=`, which used to fall through to localStorage (wrong country).
+    let queryCountryRaw: string | null = null;
     if (
       preferWindowSearchOnRoot &&
       pathname === "/" &&
       typeof window !== "undefined"
     ) {
-      queryCountryRaw =
-        new URLSearchParams(window.location.search).get("country") ??
-        queryCountryRaw;
+      queryCountryRaw = new URLSearchParams(window.location.search).get(
+        "country",
+      );
+    }
+    if (queryCountryRaw == null || queryCountryRaw === "") {
+      queryCountryRaw = searchParams.get("country");
     }
 
     if (queryCountryRaw) {
@@ -81,14 +86,16 @@ export function useUnifiedCountry(
 
   useEffect(() => {
     const syncFromStorage = () => {
-      let fromUrl = searchParams.get("country");
+      let fromUrl: string | null = null;
       if (
         preferWindowSearchOnRoot &&
         pathname === "/" &&
         typeof window !== "undefined"
       ) {
-        fromUrl =
-          new URLSearchParams(window.location.search).get("country") ?? fromUrl;
+        fromUrl = new URLSearchParams(window.location.search).get("country");
+      }
+      if (fromUrl == null || fromUrl === "") {
+        fromUrl = searchParams.get("country");
       }
       if (fromUrl) return;
       const stored = getStoredCountry() ?? initialFallback;
@@ -120,15 +127,26 @@ export function useUnifiedCountry(
 
   useEffect(() => {
     if (!ensureQueryParam) return;
-    if (searchParams.get("country")) return;
+    let urlHasCountry = searchParams.get("country");
+    if (
+      preferWindowSearchOnRoot &&
+      pathname === "/" &&
+      typeof window !== "undefined"
+    ) {
+      urlHasCountry =
+        new URLSearchParams(window.location.search).get("country") ??
+        urlHasCountry;
+    }
+    if (urlHasCountry) return;
     const params = new URLSearchParams(searchKey);
     params.set("country", countryCode);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [
     ensureQueryParam,
+    preferWindowSearchOnRoot,
+    pathname,
     searchParams,
     countryCode,
-    pathname,
     router,
     searchKey,
   ]);

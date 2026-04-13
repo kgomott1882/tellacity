@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getServerEnv } from "@/lib/serverEnv";
 import { normalizeCountryCode } from "@/lib/country";
-import { loadHomeBestInByCategory } from "@/lib/homeBestInBundle";
+import { HOME_ROTATING_BEST_IN_SLUGS } from "@/lib/homeBestInBundle";
+import { loadHomeBestInFromCache } from "@/lib/loadHomeBestInFromCache";
+import { createSupabaseServerClientForHomeBestIn } from "@/lib/supabase/server";
 
 const CACHE_HEADER =
-  "public, s-maxage=20, stale-while-revalidate=120, max-age=0";
+  "public, s-maxage=300, stale-while-revalidate=600, max-age=0";
 
 /**
- * Homepage “Best in …” carousel: one HTTP round-trip, same RPC stack as SSR,
- * keyed by `country` like `/api/home-feed` so client + URL stay in sync.
+ * Homepage “Best in …” carousel from `home_best_in_cache`. Query: `country` (required).
  */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const country = normalizeCountryCode(url.searchParams.get("country"));
 
-    const { supabaseUrl, serviceRoleKey } = getServerEnv();
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const { byCategory, rpcErrors } = await loadHomeBestInByCategory(
-      supabase,
-      country,
-    );
+    const supabase = createSupabaseServerClientForHomeBestIn();
+    const raw = await loadHomeBestInFromCache(supabase, country);
+
+    const byCategory: Record<string, unknown[]> = {};
+    for (const slug of HOME_ROTATING_BEST_IN_SLUGS) {
+      const v = raw[slug];
+      byCategory[slug] = Array.isArray(v) ? v : [];
+    }
 
     return NextResponse.json(
-      { country, byCategory, rpcErrors },
+      { country, byCategory, rpcErrors: {} },
       {
         headers: {
           "Cache-Control": CACHE_HEADER,

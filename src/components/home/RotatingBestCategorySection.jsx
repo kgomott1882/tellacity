@@ -19,7 +19,7 @@ export default function RotatingBestCategorySection({
   onPrevious,
   onNext,
   countryCode,
-  /** True while `/api/home-best-in` is loading for the selected country. */
+  /** True while best-in data for the active slug is not yet available (e.g. country switch). */
   isLoading = false,
 }) {
   const hasBusinesses = Array.isArray(businesses) && businesses.length > 0;
