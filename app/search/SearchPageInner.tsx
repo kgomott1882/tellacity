@@ -11,7 +11,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getActiveCountry } from "@/lib/getActiveCountry";
-import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
+import {
+  businessCategoryPillClassName,
+  businessTagPillClassName,
+  formatBusinessTagLabel,
+  mergeTagsForDisplay,
+} from "@/lib/businessTags";
 import { normalizeLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
 
@@ -86,7 +91,7 @@ export default function SearchPageInner() {
       const { data, error } = await supabase
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city, tags, category_slug"
+          "id, name, slug, website, website_display, logo_url, trust_score, review_count, country_code, city, tags, category_slug, secondary_category_slugs"
         )
         .eq("status", "active")
         .or(
@@ -116,7 +121,12 @@ export default function SearchPageInner() {
             trustScore: Number(business.trust_score ?? 0),
             reviewCount: Number(business.review_count ?? 0),
             location: business.city ?? business.country_code ?? "",
-            tags: normalizeBusinessTags(business.tags),
+            tags: mergeTagsForDisplay(
+              business.tags,
+              (business as { secondary_category_slugs?: string[] | null })
+                .secondary_category_slugs,
+              (business as { category_slug?: string | null }).category_slug,
+            ),
             categorySlug: (business as { category_slug?: string | null }).category_slug ?? null,
           });
         }
@@ -207,7 +217,7 @@ export default function SearchPageInner() {
             results.map((business) => {
               const safeSlug = (business.slug ?? "").trim().toLowerCase();
               if (!isValidSlug(safeSlug)) return null;
-              const businessTags = normalizeBusinessTags(business.tags);
+              const businessTags = business.tags ?? [];
               const catSlug = business.categorySlug?.trim() || "";
               return (
               <Link
@@ -262,28 +272,27 @@ export default function SearchPageInner() {
                     </span>
                   </div>
                   {(catSlug || businessTags.length > 0) && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-600">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {catSlug && (
-                        <span className="font-medium text-gray-600">
+                        <span className={businessCategoryPillClassName()}>
                           {formatBusinessTagLabel(catSlug)}
                         </span>
                       )}
-                      {catSlug && businessTags.length > 0 && (
-                        <span className="text-gray-400" aria-hidden>
-                          •
-                        </span>
-                      )}
-                      {businessTags.slice(0, 3).map((tag) => (
+                      {businessTags.slice(0, 8).map((tag, idx) => (
                         <span
                           key={`${business.id}-${tag}`}
-                          className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-600"
+                          className={businessTagPillClassName(idx + (catSlug ? 1 : 0))}
                         >
                           {formatBusinessTagLabel(tag)}
                         </span>
                       ))}
-                      {businessTags.length > 3 && (
-                        <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-gray-600">
-                          +{businessTags.length - 3}
+                      {businessTags.length > 8 && (
+                        <span
+                          className={businessTagPillClassName(
+                            businessTags.length + (catSlug ? 1 : 0),
+                          )}
+                        >
+                          +{businessTags.length - 8}
                         </span>
                       )}
                     </div>

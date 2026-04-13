@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mergeTagsForDisplay } from "@/lib/businessTags";
 import { normalizeCountryCode } from "@/lib/country";
 import {
   REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR,
@@ -21,6 +22,7 @@ export type CategoryBusinessRow = {
   average_rating?: number | null;
   avg_rating?: number | null;
   tags?: string[] | null;
+  secondary_category_slugs?: string[] | null;
 };
 
 const FALLBACK_COUNTRY_ALIASES: Record<string, string[]> = {
@@ -66,7 +68,15 @@ export async function fetchCategoryRowsWithFallback(
   });
 
   if (!rpc.error) {
-    return { rows: (rpc.data ?? []) as CategoryBusinessRow[], error: null };
+    const rows = (rpc.data ?? []) as CategoryBusinessRow[];
+    for (const row of rows) {
+      row.tags = mergeTagsForDisplay(
+        row.tags,
+        row.secondary_category_slugs,
+        row.category_slug,
+      );
+    }
+    return { rows, error: null };
   }
 
   const categories =
@@ -78,7 +88,7 @@ export async function fetchCategoryRowsWithFallback(
   const direct = await supabase
     .from("businesses")
     .select(
-      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags",
+      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags,secondary_category_slugs",
     )
     .in("category_slug", categories)
     .in("country_code", countries)
@@ -101,6 +111,13 @@ export async function fetchCategoryRowsWithFallback(
   let rows = (direct.data ?? []) as CategoryBusinessRow[];
   if (typeof minRating === "number") {
     rows = rows.filter((r) => (Number(r.trust_score ?? 0) || 0) >= minRating);
+  }
+  for (const row of rows) {
+    row.tags = mergeTagsForDisplay(
+      row.tags,
+      row.secondary_category_slugs,
+      row.category_slug,
+    );
   }
   return {
     rows,

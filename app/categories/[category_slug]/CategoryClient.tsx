@@ -8,7 +8,12 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
-import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
+import {
+  businessCategoryPillClassName,
+  businessTagPillClassName,
+  formatBusinessTagLabel,
+  mergeTagsForDisplay,
+} from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
@@ -62,6 +67,9 @@ type TopRatedDisplayItem = {
   logoUrl: string | null;
   trustScore: number;
   reviewCount: number;
+  /** Primary category slug for first pill (may differ from page filter). */
+  categorySlug: string | null;
+  tags: string[];
 };
 
 function mapRowToTopRatedItem(
@@ -75,6 +83,7 @@ function mapRowToTopRatedItem(
     typeof business.trust_score === "number" ? business.trust_score : 0;
   const reviewCount =
     typeof business.review_count === "number" ? business.review_count : 0;
+  const catSlug = (business.category_slug ?? "").trim().toLowerCase() || null;
   return {
     id: business.id ?? `top-${index}-${safeSlug}`,
     slug: safeSlug,
@@ -82,6 +91,12 @@ function mapRowToTopRatedItem(
     logoUrl,
     trustScore,
     reviewCount,
+    categorySlug: catSlug,
+    tags: mergeTagsForDisplay(
+      business.tags,
+      business.secondary_category_slugs,
+      business.category_slug,
+    ),
   };
 }
 
@@ -602,6 +617,25 @@ export default function CategoryClient({
                             • {business.reviewCount.toLocaleString("en-US")} reviews
                           </span>
                         </div>
+                        {(business.categorySlug || business.tags.length > 0) && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {business.categorySlug && (
+                              <span className={businessCategoryPillClassName()}>
+                                {formatBusinessTagLabel(business.categorySlug)}
+                              </span>
+                            )}
+                            {business.tags.map((tag, idx) => (
+                              <span
+                                key={`${business.id}-${tag}`}
+                                className={businessTagPillClassName(
+                                  idx + (business.categorySlug ? 1 : 0),
+                                )}
+                              >
+                                {formatBusinessTagLabel(tag)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </Link>
                   ))}
@@ -821,7 +855,11 @@ export default function CategoryClient({
                 const locationText =
                   formatBusinessAddress(business.address, business.city, business.country_code) ||
                   business.display_location;
-                const businessTags = normalizeBusinessTags(business.tags);
+                const businessTags = mergeTagsForDisplay(
+                  business.tags,
+                  business.secondary_category_slugs,
+                  business.category_slug,
+                );
 
                 const logoUrl = categoryListLogoUrl(business);
 
@@ -875,30 +913,22 @@ export default function CategoryClient({
                             </span>
                           </div>
                           {(business.category_slug || businessTags.length > 0) && (
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-600">
+                            <div className="mt-2 flex flex-wrap gap-2">
                               {business.category_slug && (
-                                <span className="font-medium text-gray-600">
+                                <span className={businessCategoryPillClassName()}>
                                   {formatBusinessTagLabel(business.category_slug)}
                                 </span>
                               )}
-                              {business.category_slug && businessTags.length > 0 && (
-                                <span className="text-gray-400" aria-hidden>
-                                  •
-                                </span>
-                              )}
-                              {businessTags.slice(0, 2).map((tag) => (
+                              {businessTags.map((tag, idx) => (
                                 <span
                                   key={`${business.id}-${tag}`}
-                                  className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600"
+                                  className={businessTagPillClassName(
+                                    idx + (business.category_slug ? 1 : 0),
+                                  )}
                                 >
                                   {formatBusinessTagLabel(tag)}
                                 </span>
                               ))}
-                              {businessTags.length > 2 && (
-                                <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600">
-                                  +{businessTags.length - 2}
-                                </span>
-                              )}
                             </div>
                           )}
                           {locationText && (
@@ -997,6 +1027,11 @@ export default function CategoryClient({
                   const reviewCount = (Number(company.review_count ?? 0)) || 0;
                   const ratingValue = snapshotRpcRating(company).trust;
                   const logoUrl = categoryListLogoUrl(company);
+                  const companyTags = mergeTagsForDisplay(
+                    company.tags,
+                    company.secondary_category_slugs,
+                    company.category_slug,
+                  );
 
                   return (
                     <Link
@@ -1048,6 +1083,25 @@ export default function CategoryClient({
                               ({reviewCount.toLocaleString("en-US")})
                             </span>
                           </div>
+                          {(company.category_slug || companyTags.length > 0) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {company.category_slug && (
+                                <span className={businessCategoryPillClassName()}>
+                                  {formatBusinessTagLabel(company.category_slug)}
+                                </span>
+                              )}
+                              {companyTags.map((tag, idx) => (
+                                <span
+                                  key={`${company.id}-${tag}`}
+                                  className={businessTagPillClassName(
+                                    idx + (company.category_slug ? 1 : 0),
+                                  )}
+                                >
+                                  {formatBusinessTagLabel(tag)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Link>

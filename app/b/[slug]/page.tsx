@@ -98,6 +98,7 @@ export default async function BusinessPage({
   // Always use normalized slug
   const cleanSlug = normalizedSlug;
 
+  // Full row for BusinessClient (includes `tags` and rating aggregates on `businesses`).
   // 1. Try direct slug
   let { data: business } = await supabase
     .from("businesses")
