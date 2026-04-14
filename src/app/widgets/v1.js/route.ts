@@ -9,8 +9,12 @@ const SCRIPT = `
   var origin = new URL(script.src).origin;
   var business = script.dataset.business || '';
   var type = script.dataset.type || 'badge';
-  var theme = (script.dataset.theme || 'minimal').trim();
-  var isMinimal = theme.toLowerCase() === 'minimal';
+  var themeAttr = script.getAttribute('data-theme');
+  var theme = (themeAttr != null && String(themeAttr).trim() !== '')
+    ? String(themeAttr).trim().toLowerCase()
+    : 'inherit';
+  // Iframe chrome: explicit minimal stays inline; inherit may resolve to DB "light", so use wide layout unless explicitly minimal.
+  var layoutMinimal = theme === 'minimal';
   var limit = parseInt(script.dataset.limit || '5', 10);
   if (isNaN(limit) || limit < 1) limit = 1;
   if (limit > 20) limit = 20;
@@ -30,11 +34,11 @@ const SCRIPT = `
     '/widgets/embed?business=' + encodeURIComponent(business) +
     '&type=' + encodeURIComponent(type) +
     '&limit=' + encodeURIComponent(limit) +
-    '&theme=' + encodeURIComponent(theme);
+    '&theme=' + encodeURIComponent(theme === 'light' ? 'light' : theme === 'minimal' ? 'minimal' : theme);
 
   var iframe = document.createElement('iframe');
   iframe.src = src;
-  iframe.style.cssText = isMinimal
+  iframe.style.cssText = layoutMinimal
     ? 'border:0;width:auto;max-width:100%;min-width:0;display:inline-block;vertical-align:middle;overflow:hidden;'
     : 'border:0;width:100%;display:block;overflow:hidden;';
   iframe.height = String(height);

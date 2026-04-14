@@ -268,6 +268,9 @@ export default function WebsiteWidgetsPage() {
   const [widgetSettingsAdvanced, setWidgetSettingsAdvanced] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewSiteBackgroundHex, setPreviewSiteBackgroundHex] = useState("");
+  const [embedSettingsSynced, setEmbedSettingsSynced] = useState(false);
+  const [embedSettingsSaveError, setEmbedSettingsSaveError] = useState<string | null>(null);
+  const skipNextEmbedSettingsSave = useRef(true);
   const whiteLabelRef = useRef<WidgetWhiteLabelSettings>(WHITE_LABEL_DEFAULTS);
 
   const FEATURE_LOCKED = "website_widget" as const;
@@ -323,15 +326,140 @@ export default function WebsiteWidgetsPage() {
   }, [widgetSettingsAdvanced, previewSiteBackgroundHex]);
 
   useEffect(() => {
-    if (!widgetSettingsAdvanced) {
-      setEmbedMinimal(true);
-      setPreviewSiteBackgroundHex("");
-    }
-  }, [widgetSettingsAdvanced]);
-
-  useEffect(() => {
     whiteLabelRef.current = whiteLabel;
   }, [whiteLabel]);
+
+  type ServerEmbedTheme = "minimal" | "light";
+
+  type ServerEmbedSettings = {
+    themes: Partial<Record<WidgetId, ServerEmbedTheme>>;
+    advancedEnabled: boolean;
+    previewSiteBackgroundHex: string;
+  };
+
+  const [serverEmbedSettings, setServerEmbedSettings] = useState<ServerEmbedSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEmbedSettings() {
+      if (!selectedBusiness?.id) {
+        setServerEmbedSettings(null);
+        setEmbedSettingsSynced(false);
+        return;
+      }
+      skipNextEmbedSettingsSave.current = true;
+      setEmbedSettingsSynced(false);
+      try {
+        const res = await fetch(`/api/business/${selectedBusiness.id}/widget-embed-settings`, {
+          cache: "no-store",
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          settings?: {
+            themes?: Partial<Record<string, string>>;
+            advancedEnabled?: boolean;
+            previewSiteBackgroundHex?: string;
+          };
+          error?: string;
+        };
+        if (!res.ok) throw new Error(json.error ?? "Failed to load widget embed settings.");
+        if (cancelled) return;
+        const themes: Partial<Record<WidgetId, ServerEmbedTheme>> = {};
+        for (const w of WIDGETS) {
+          const t = json.settings?.themes?.[w.id];
+          if (t === "light" || t === "minimal") themes[w.id] = t;
+        }
+        setServerEmbedSettings({
+          themes,
+          advancedEnabled: !!json.settings?.advancedEnabled,
+          previewSiteBackgroundHex: json.settings?.previewSiteBackgroundHex ?? "",
+        });
+        setWidgetSettingsAdvanced(!!json.settings?.advancedEnabled);
+        setPreviewSiteBackgroundHex(json.settings?.previewSiteBackgroundHex ?? "");
+        setEmbedSettingsSaveError(null);
+      } catch {
+        if (!cancelled) {
+          setServerEmbedSettings({ themes: {}, advancedEnabled: false, previewSiteBackgroundHex: "" });
+          setEmbedSettingsSaveError(null);
+        }
+      } finally {
+        if (!cancelled) setEmbedSettingsSynced(true);
+      }
+    }
+    void loadEmbedSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBusiness?.id]);
+
+  useEffect(() => {
+    if (!serverEmbedSettings || !embedSettingsSynced) return;
+    const t = serverEmbedSettings.themes[selected] ?? "minimal";
+    setEmbedMinimal(t !== "light");
+  }, [selected, serverEmbedSettings, embedSettingsSynced]);
+
+  useEffect(() => {
+    if (!selectedBusiness?.id || !embedSettingsSynced || previewLocked) return;
+    if (skipNextEmbedSettingsSave.current) {
+      skipNextEmbedSettingsSave.current = false;
+      return;
+    }
+
+    const hexClean = previewSiteBackgroundHex.trim();
+    const previewHexResolved = parsePreviewSiteHex(hexClean) ?? "";
+    const patch: {
+      advancedEnabled: boolean;
+      previewSiteBackgroundHex: string;
+      themes?: Record<WidgetId, ServerEmbedTheme>;
+    } = {
+      advancedEnabled: widgetSettingsAdvanced,
+      previewSiteBackgroundHex: previewHexResolved,
+    };
+    if (widgetSettingsAdvanced) {
+      patch.themes = { [selected]: embedMinimal ? "minimal" : "light" };
+    }
+
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/business/${selectedBusiness.id}/widget-embed-settings`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ patch }),
+          });
+          const json = (await res.json().catch(() => ({}))) as {
+            settings?: ServerEmbedSettings & { themes?: Partial<Record<string, string>> };
+            error?: string;
+          };
+          if (!res.ok) throw new Error(json.error ?? "Failed to save widget settings.");
+          setEmbedSettingsSaveError(null);
+          if (json.settings?.themes) {
+            const themes: Partial<Record<WidgetId, ServerEmbedTheme>> = {};
+            for (const w of WIDGETS) {
+              const th = json.settings.themes[w.id];
+              if (th === "light" || th === "minimal") themes[w.id] = th;
+            }
+            setServerEmbedSettings({
+              themes,
+              advancedEnabled: !!json.settings.advancedEnabled,
+              previewSiteBackgroundHex: json.settings.previewSiteBackgroundHex ?? "",
+            });
+          }
+        } catch (e) {
+          setEmbedSettingsSaveError(e instanceof Error ? e.message : "Save failed.");
+        }
+      })();
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [
+    selectedBusiness?.id,
+    embedSettingsSynced,
+    previewLocked,
+    widgetSettingsAdvanced,
+    embedMinimal,
+    selected,
+    previewSiteBackgroundHex,
+  ]);
 
   useEffect(() => {
     setSelected((current) => {
@@ -673,7 +801,16 @@ export default function WebsiteWidgetsPage() {
                   role="switch"
                   aria-checked={widgetSettingsAdvanced}
                   disabled={previewLocked}
-                  onClick={() => setWidgetSettingsAdvanced((v) => !v)}
+                  onClick={() =>
+                    setWidgetSettingsAdvanced((v) => {
+                      const next = !v;
+                      if (!next) {
+                        setEmbedMinimal(true);
+                        setPreviewSiteBackgroundHex("");
+                      }
+                      return next;
+                    })
+                  }
                   className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2fb2a8] focus-visible:ring-offset-2 ${
                     widgetSettingsAdvanced ? "bg-[#2fb2a8]" : "bg-gray-300"
                   }`}
@@ -715,10 +852,12 @@ export default function WebsiteWidgetsPage() {
                   </fieldset>
 
                   <div className="space-y-2 border-t border-gray-100 pt-4">
-                    <p className="text-xs font-medium text-gray-700">Preview</p>
+                    <p className="text-xs font-medium text-gray-700">Preview backdrop (dashboard only)</p>
                     <p className="text-xs text-gray-500">
-                      Optional: enter your page background hex to check contrast. Leave empty for the transparency
-                      grid.
+                      Simulates your site background behind the widget in this preview only. It is not sent to your
+                      live site — the real page color shows through a floating widget. Use{" "}
+                      <span className="font-medium text-gray-700">Classic</span> above if you want a card inside the
+                      embed.
                     </p>
                     <div className="flex items-center gap-2">
                       <input
@@ -779,8 +918,13 @@ export default function WebsiteWidgetsPage() {
               </div>
             </div>
             <p className="mb-3 text-xs text-gray-500">
-              Checkerboard indicates a transparent widget — it inherits the host page behind it.
+              Checkerboard indicates a transparent widget — it inherits the host page behind it. Embed surface
+              (floating vs classic) is saved for your business and also appears in the code snippet as{" "}
+              <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px]">data-theme</code>.
             </p>
+            {embedSettingsSaveError ? (
+              <p className="mb-2 text-xs text-red-600">{embedSettingsSaveError}</p>
+            ) : null}
 
             <div
               className={`relative rounded-lg border border-gray-200 p-4 sm:p-6 ${
@@ -970,9 +1114,11 @@ export default function WebsiteWidgetsPage() {
           </h2>
           <p className="mb-4 text-sm text-gray-600">
             The snippet includes{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> matching your choices
-            under Customize (default floating uses{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">minimal</code>).
+            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> matching Customize (floating ={" "}
+            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">minimal</code>, classic ={" "}
+            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">light</code>). If your site builder strips custom
+            attributes, remove <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> entirely —
+            your saved surface choice still applies on the live widget.
           </p>
           <div className="relative overflow-hidden rounded-lg border border-gray-100 bg-neutral-50/30 shadow-sm">
             <div className={previewLocked ? "blur-sm select-none" : ""}>

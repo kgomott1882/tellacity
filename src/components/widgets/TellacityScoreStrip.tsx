@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { WidgetPayload } from "./types";
 import { TELLACITY_BRAND_ICON_SRC } from "@/lib/emailBranding";
 import {
@@ -135,6 +136,19 @@ export default function TellacityScoreStrip({
       ? FILL_COLORS[roundedTier] ?? TELLACITY_STAR_TIER_COLORS[4]
       : null;
 
+  const shellStyle: CSSProperties = minimal
+    ? {}
+    : {
+        display: "inline-block",
+        maxWidth: 320,
+        boxSizing: "border-box",
+        padding: "12px 16px",
+        borderRadius: 10,
+        backgroundColor: "#ffffff",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06)",
+      };
+
   return (
     <a
       href={url}
@@ -142,18 +156,19 @@ export default function TellacityScoreStrip({
       rel="noopener noreferrer"
       style={{
         display: "inline-block",
-        maxWidth: 320,
+        maxWidth: minimal ? 320 : undefined,
         textDecoration: "none",
         color: "var(--tc-widget-text-color, #111827)",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
       }}
     >
+      <div style={shellStyle}>
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           gap: 10,
-          padding: minimal ? 0 : "4px 0",
+          padding: minimal ? 0 : 0,
         }}
       >
         {showTellacityLogo ? (
@@ -208,6 +223,7 @@ export default function TellacityScoreStrip({
             reviews
           </span>
         </p>
+      </div>
       </div>
     </a>
   );

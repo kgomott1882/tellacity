@@ -116,8 +116,6 @@ export default async function WidgetEmbedPage({
   const limit = Math.min(Math.max((parseInt(params.limit ?? "5", 10)) || 5, 1), 20);
   const dashboardDemo =
     params.dashboard_demo === "1" || params.dashboard_demo === "true";
-  const rawTheme = (params.theme ?? "minimal").trim().toLowerCase();
-  const minimal = rawTheme === "minimal";
   const emptyStarBorder = "#9CA3AF";
 
   if (!slug) {
@@ -147,9 +145,35 @@ export default async function WidgetEmbedPage({
 
   const { data: themeRow } = await supabase
     .from("businesses")
-    .select("id, widget_white_label")
+    .select("id, widget_white_label, widget_embed_settings")
     .eq("slug", slug)
     .maybeSingle();
+
+  const rawTheme = (params.theme ?? "inherit").trim().toLowerCase();
+  const embedSettingsRaw = (themeRow as { widget_embed_settings?: unknown } | null)?.widget_embed_settings;
+  const embedThemes =
+    embedSettingsRaw &&
+    typeof embedSettingsRaw === "object" &&
+    embedSettingsRaw !== null &&
+    "themes" in embedSettingsRaw &&
+    typeof (embedSettingsRaw as { themes?: unknown }).themes === "object"
+      ? ((embedSettingsRaw as { themes: Record<string, unknown> }).themes ?? {})
+      : {};
+
+  const savedThemeForType = embedThemes[type];
+  const savedIsLight =
+    savedThemeForType === "light" ||
+    (typeof savedThemeForType === "string" && savedThemeForType.toLowerCase() === "light");
+
+  let minimal = true;
+  if (rawTheme === "minimal") {
+    minimal = true;
+  } else if (rawTheme === "light") {
+    minimal = false;
+  } else {
+    minimal = !savedIsLight;
+  }
+
   const businessId = (themeRow as { id?: string | null } | null)?.id ?? null;
   let allowWhiteLabel = false;
   if (businessId) {
