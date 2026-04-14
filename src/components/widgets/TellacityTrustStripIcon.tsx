@@ -55,9 +55,11 @@ function StarCell({ fill, color }: { fill: number; color: string }) {
 export default function TellacityTrustStripIcon({
   payload,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const raw = Number(payload.avg_rating ?? 0);
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;
@@ -82,7 +84,7 @@ export default function TellacityTrustStripIcon({
         textDecoration: "none",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
         borderRadius: 0,
-        padding: "8px 10px",
+        padding: minimal ? 0 : "8px 10px",
       }}
     >
       <span
@@ -90,7 +92,7 @@ export default function TellacityTrustStripIcon({
           fontSize: 16,
           fontWeight: 700,
           lineHeight: 1,
-          color: "var(--tc-widget-accent-color, var(--tc-widget-text-color, #0E0E0E))",
+          color: "var(--tc-widget-text-color, #000000)",
         }}
       >
         {statusLabel}

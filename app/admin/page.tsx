@@ -141,11 +141,23 @@ export default async function AdminOverviewPage(props: {
         <AdminStatCard title="Total users" value={totalUsersFromAuth} />
         <AdminStatCard title="Total businesses" value={num(s?.total_businesses)} />
         <AdminStatCard title="Total reviews" value={num(s?.total_reviews)} />
-        <AdminStatCard title="New users today" value={num(s?.new_users_today)} />
+        <AdminStatCard
+          title="New users today"
+          value={num(s?.new_users_today)}
+          href="/admin/new-users-today"
+        />
         <AdminStatCard title="Reviews today" value={num(s?.reviews_today)} />
         <AdminStatCard title="Pending businesses" value={num(s?.pending_businesses)} />
-        <AdminStatCard title="Business users" value={businessUsersCount} />
-        <AdminStatCard title="Consumer users" value={num(s?.consumer_users)} />
+        <AdminStatCard
+          title="Business users"
+          value={businessUsersCount}
+          href="/admin/business-users"
+        />
+        <AdminStatCard
+          title="Consumer users"
+          value={num(s?.consumer_users)}
+          href="/admin/consumer-users"
+        />
       </div>
 
       <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">

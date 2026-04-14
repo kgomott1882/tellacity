@@ -13,8 +13,8 @@ type WidgetWhiteLabelSettings = {
 
 const DEFAULTS: WidgetWhiteLabelSettings = {
   starColor: "#12B76A",
-  textColor: "#0E0E0E",
-  accentColor: "#2FB2A8",
+  textColor: "#000000",
+  accentColor: "#000000",
   font: "system",
   showTellacityLogo: true,
 };

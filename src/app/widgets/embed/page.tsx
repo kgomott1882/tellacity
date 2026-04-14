@@ -54,6 +54,9 @@ export default async function WidgetEmbedPage({
   const limit = clampLimit(Array.isArray(params.limit) ? params.limit[0] : params.limit);
   const dashboardRaw = Array.isArray(params.dashboard_demo) ? params.dashboard_demo[0] : params.dashboard_demo;
   const dashboardDemo = dashboardRaw === "1" || dashboardRaw === "true";
+  const themeRaw = Array.isArray(params.theme) ? params.theme[0] : params.theme;
+  const rawTheme = (themeRaw ?? "minimal").toString().trim().toLowerCase();
+  const minimal = rawTheme === "minimal";
 
   const payload = business ? await fetchPayload(business, limit) : null;
   const writeReviewHref = payload
@@ -65,7 +68,7 @@ export default async function WidgetEmbedPage({
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { background: transparent; }
-        body { padding: 20px 24px; font-family: system-ui, -apple-system, sans-serif; }
+        body { padding: ${minimal ? "0" : "20px 24px"}; font-family: system-ui, -apple-system, sans-serif; }
       `}</style>
 
       {!payload ? (
@@ -75,32 +78,39 @@ export default async function WidgetEmbedPage({
       ) : (
         <>
           {type === "carousel" && (
-            <ReviewCarousel payload={payload} dashboardDemo={dashboardDemo} />
+            <ReviewCarousel payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
           )}
-          {type === "list" && <ReviewList payload={payload} dashboardDemo={dashboardDemo} />}
+          {type === "list" && (
+            <ReviewList payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+          )}
           {type === "collector" && (
-            <ReviewCollector payload={payload} dashboardDemo={dashboardDemo} />
+            <ReviewCollector payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
           )}
           {type === "review_us" && (
             <div
               style={{
                 display: "flex",
-                justifyContent: "center",
+                justifyContent: minimal ? "flex-start" : "center",
                 alignItems: "center",
-                minHeight: 44,
+                minHeight: minimal ? undefined : 44,
               }}
             >
               <TellacityReviewUsBadge
                 href={getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug)}
                 size="md"
+                minimal={minimal}
               />
             </div>
           )}
-          {type === "badge" && <TrustBadge payload={payload} dashboardDemo={dashboardDemo} />}
-          {type === "score_strip" && <TellacityScoreStrip payload={payload} />}
-          {type === "showcase" && <ReviewShowcaseEmbed payload={payload} />}
+          {type === "badge" && (
+            <TrustBadge payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+          )}
+          {type === "score_strip" && <TellacityScoreStrip payload={payload} minimal={minimal} />}
+          {type === "showcase" && (
+            <ReviewShowcaseEmbed payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+          )}
           {type === "tellacity_trust" && (
-            <TellacityTrustBadgeEmbed payload={payload} reviewHref={writeReviewHref} />
+            <TellacityTrustBadgeEmbed payload={payload} reviewHref={writeReviewHref} minimal={minimal} />
           )}
         </>
       )}

@@ -116,9 +116,11 @@ function ScoreStarBlock({
 export default function TellacityScoreStrip({
   payload,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const url = `https://tellacity.com/b/${payload.slug}`;
   const raw = Number(payload.avg_rating);
@@ -151,7 +153,7 @@ export default function TellacityScoreStrip({
           display: "flex",
           flexDirection: "column",
           gap: 10,
-          padding: "4px 0",
+          padding: minimal ? 0 : "4px 0",
         }}
       >
         {showTellacityLogo ? (

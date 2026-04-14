@@ -7,11 +7,14 @@ export default function TrustBadge({
   payload,
   dashboardDemo,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   /** Dashboard iframe: hide business logo entirely. */
   dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
+  /** Transparent inline embed (`data-theme="minimal"`). */
+  minimal?: boolean;
 }) {
   const url = `https://tellacity.com/b/${payload.slug}`;
   const avg = payload.avg_rating != null ? (Number(payload.avg_rating) || 0).toFixed(1) : "-";
@@ -36,7 +39,7 @@ export default function TrustBadge({
         maxWidth: 340,
       }}
     >
-      <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={44} fontSize={10} />
+      <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} size={44} fontSize={10} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {payload.business_name}
@@ -46,7 +49,7 @@ export default function TrustBadge({
           <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tc-widget-text-color, #0E0E0E)" }}>{avg}</span>
           <span style={{ fontSize: 12, color: "var(--tc-widget-text-color, #0E0E0E)" }}>({payload.review_count})</span>
         </div>
-        <div style={{ marginTop: 4, fontSize: 11, color: "#0E0E0E", display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ marginTop: 4, fontSize: 11, color: "#000000", display: "flex", alignItems: "center", gap: 4 }}>
           {showTellacityLogo ? (
             <>
               Verified by{" "}
@@ -55,7 +58,7 @@ export default function TrustBadge({
               {" · "}
             </>
           ) : null}
-          <span style={{ color: "var(--tc-widget-accent-color, var(--tc-widget-text-color, #0E0E0E))" }}>View reviews →</span>
+          <span style={{ color: "var(--tc-widget-text-color, #000000)" }}>View reviews →</span>
         </div>
       </div>
     </a>

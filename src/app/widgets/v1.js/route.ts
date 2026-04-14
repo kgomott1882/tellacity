@@ -1,16 +1,5 @@
 import { NextResponse } from "next/server";
 
-const HEIGHT_DEFAULTS: Record<string, number> = {
-  badge: 110,
-  collector: 70,
-  list: 420,
-  carousel: 260,
-  review_us: 72,
-  score_strip: 150,
-  showcase: 400,
-  tellacity_trust: 200,
-};
-
 const SCRIPT = `
 (function () {
   var scripts = document.querySelectorAll('script[data-business]');
@@ -20,12 +9,13 @@ const SCRIPT = `
   var origin = new URL(script.src).origin;
   var business = script.dataset.business || '';
   var type = script.dataset.type || 'badge';
-  var theme = script.dataset.theme || 'light';
+  var theme = (script.dataset.theme || 'minimal').trim();
+  var isMinimal = theme.toLowerCase() === 'minimal';
   var limit = parseInt(script.dataset.limit || '5', 10);
   if (isNaN(limit) || limit < 1) limit = 1;
   if (limit > 20) limit = 20;
 
-  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200 };
+  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200, trust_strip: 86, trust_stacked: 220, trust_strip_icon: 86, trust_mini: 34 };
   var defaultHeight = heightDefaults[type] || 110;
   var height = parseInt(script.dataset.height || String(defaultHeight), 10);
   if (isNaN(height)) height = defaultHeight;
@@ -44,7 +34,9 @@ const SCRIPT = `
 
   var iframe = document.createElement('iframe');
   iframe.src = src;
-  iframe.style.cssText = 'border:0;width:100%;display:block;overflow:hidden;';
+  iframe.style.cssText = isMinimal
+    ? 'border:0;width:auto;max-width:100%;min-width:0;display:inline-block;vertical-align:middle;overflow:hidden;'
+    : 'border:0;width:100%;display:block;overflow:hidden;';
   iframe.height = String(height);
   iframe.setAttribute('allowtransparency', 'true');
   iframe.setAttribute('scrolling', 'no');

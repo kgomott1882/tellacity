@@ -5,6 +5,8 @@ type Props = {
   payload: WidgetPayload;
   /** Dashboard iframe preview: show a neutral "Logo" tile instead of the real business logo. */
   dashboardDemo?: boolean;
+  /** Transparent minimal embed: no grey tile behind the logo. */
+  minimal?: boolean;
   size: number;
   fontSize?: number;
 };
@@ -16,6 +18,7 @@ type Props = {
 export default function WidgetBrandLogoSlot({
   payload,
   dashboardDemo,
+  minimal,
   size,
   fontSize: _fontSize = 9,
 }: Props) {
@@ -41,9 +44,9 @@ export default function WidgetBrandLogoSlot({
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        padding: 2,
-        background: "#f9fafb",
-        border: "1px solid #e5e7eb",
+        padding: minimal ? 0 : 2,
+        background: minimal ? "transparent" : "#f9fafb",
+        border: minimal ? "none" : "1px solid #e5e7eb",
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Bell, Info, LogOut, Settings, CreditCard } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
+import { useBusinessContext } from "../_context/BusinessContext";
+import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
 
 const TOPBAR_USER_CACHE = "tellacity_dashboard_topbar_user";
 
@@ -37,6 +39,24 @@ function writeCachedUser(u: CachedUser) {
   if (typeof window === "undefined") return;
   try {
     sessionStorage.setItem(TOPBAR_USER_CACHE, JSON.stringify(u));
+  } catch {
+    // ignore
+  }
+}
+
+function clearDashboardLoginSessionFlags() {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith("tc_dash_login_")) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) {
+      sessionStorage.removeItem(key);
+    }
   } catch {
     // ignore
   }
@@ -89,16 +109,43 @@ type TopBarProps = {
   sessionEmail?: string | null;
 };
 
+type DashboardNotificationItem = {
+  key: string;
+  title: string;
+  description: string;
+  href: string;
+  read: boolean;
+  created_at: string;
+};
+
+function formatTimeAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "Just now";
+  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+}
+
 export default function TopBar({
   sessionUserId,
   sessionEmail,
 }: TopBarProps) {
   const router = useRouter();
+  const { selectedBusiness } = useBusinessContext();
   const [user, setUser] = useState<CachedUser | null>(null);
   const [userInitials, setUserInitials] = useState<string>("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
+  const [notifications, setNotifications] = useState<DashboardNotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +163,7 @@ export default function TopBar({
   }, [user, sessionEmailNorm]);
 
   const emailLine = user?.email ?? sessionEmailNorm;
+  const businessId = selectedBusiness?.id ?? null;
 
   useEffect(() => {
     const applyRow = (row: CachedUser) => {
@@ -253,6 +301,7 @@ export default function TopBar({
         setUserInitials("");
         try {
           sessionStorage.removeItem(TOPBAR_USER_CACHE);
+          clearDashboardLoginSessionFlags();
         } catch {
           // ignore
         }
@@ -265,6 +314,66 @@ export default function TopBar({
       authListener?.subscription.unsubscribe();
     };
   }, [sessionUserId, sessionEmailNorm]);
+
+  const refreshNotifications = async () => {
+    if (!businessId) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setNotificationsError(null);
+      return;
+    }
+    setNotificationsLoading(true);
+    try {
+      const data = await dashboardApiGet<{
+        items: DashboardNotificationItem[];
+        unreadCount: number;
+      }>(`/api/business/dashboard-notifications?businessId=${encodeURIComponent(businessId)}`);
+      setNotifications(Array.isArray(data.items) ? data.items : []);
+      setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0);
+      setNotificationsError(null);
+    } catch (e) {
+      setNotificationsError(e instanceof Error ? e.message : "Failed to load notifications.");
+      setNotifications([]);
+      setUnreadCount(0);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const markOneRead = async (key: string) => {
+    if (!businessId || !key) return;
+    setNotifications((prev) =>
+      prev.map((n) => (n.key === key ? { ...n, read: true } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+    try {
+      await dashboardApiPost("/api/business/dashboard-notifications", {
+        businessId,
+        action: "mark_one_read",
+        key,
+      });
+    } catch {
+      // Ignore, dropdown refresh will reconcile state.
+    }
+  };
+
+  const markAllRead = async () => {
+    if (!businessId || unreadCount === 0) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await dashboardApiPost("/api/business/dashboard-notifications", {
+        businessId,
+        action: "mark_all_read",
+      });
+    } catch {
+      // Ignore, dropdown refresh will reconcile state.
+    }
+  };
+
+  useEffect(() => {
+    void refreshNotifications();
+  }, [businessId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -306,6 +415,7 @@ export default function TopBar({
 
     try {
       sessionStorage.removeItem(TOPBAR_USER_CACHE);
+      clearDashboardLoginSessionFlags();
       window.localStorage.removeItem("selectedBusinessId");
       window.localStorage.removeItem("selectedBusiness");
     } catch {
@@ -336,13 +446,21 @@ export default function TopBar({
         <div className="relative" ref={notificationsRef}>
           <button
             type="button"
-            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+            onClick={() => {
+              const next = !isNotificationsOpen;
+              setIsNotificationsOpen(next);
+              if (next) {
+                void refreshNotifications();
+              }
+            }}
             className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center relative"
           >
             <Bell size={18} className="text-gray-500" />
-            <span className="absolute -top-0.5 -right-0.5 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
-              6
-            </span>
+            {unreadCount > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
           </button>
 
           {isNotificationsOpen && (
@@ -352,46 +470,53 @@ export default function TopBar({
             >
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Notifications</h3>
-                <button type="button" className="text-xs text-[#124541] hover:underline">
+                <button
+                  type="button"
+                  onClick={() => void markAllRead()}
+                  disabled={unreadCount === 0}
+                  className="text-xs text-[#124541] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   Mark all as read
                 </button>
               </div>
               <div className="py-2">
-                {[
-                  {
-                    title: "You've logged in 5 times!",
-                    description:
-                      "Let reviews run themselves by automating your requests. Want to learn more? Head to our support articles.",
-                    time: "4 minutes ago",
-                  },
-                  {
-                    title: "Your public profile is incomplete",
-                    description: "Add a logo and company description",
-                    time: "4 minutes ago",
-                  },
-                  {
-                    title: "Manage your company's categories",
-                    description: "Select categories for your business",
-                    time: "4 minutes ago",
-                  },
-                  {
-                    title: "Confirm your business registration address",
-                    description:
-                      "Adding your registration address helps us bring you the best experience on Tellacity.",
-                    time: "4 minutes ago",
-                  },
-                ].map((notif, idx) => (
-                  <div key={idx} className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-gray-900">{notif.title}</div>
-                        <div className="text-xs text-gray-600 mt-1">{notif.description}</div>
-                        <div className="text-xs text-gray-400 mt-1">{notif.time}</div>
-                      </div>
-                    </div>
+                {notificationsLoading ? (
+                  <div className="px-4 py-6 text-sm text-gray-500">Loading notifications...</div>
+                ) : notificationsError ? (
+                  <div className="px-4 py-6 text-sm text-red-600">{notificationsError}</div>
+                ) : notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-gray-500">
+                    You're all caught up.
                   </div>
-                ))}
+                ) : (
+                  notifications.map((notif) => (
+                    <button
+                      type="button"
+                      key={notif.key}
+                      onClick={() => {
+                        void markOneRead(notif.key);
+                        setIsNotificationsOpen(false);
+                        router.push(notif.href);
+                      }}
+                      className="w-full px-4 py-3 hover:bg-gray-50 border-b border-gray-100 text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                            notif.read ? "bg-gray-300" : "bg-blue-500"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900">{notif.title}</div>
+                          <div className="text-xs text-gray-600 mt-1">{notif.description}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {formatTimeAgo(notif.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           )}

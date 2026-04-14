@@ -43,10 +43,12 @@ export default function ReviewCollector({
   payload,
   dashboardDemo,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const writeUrl = getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug);
 
@@ -66,7 +68,7 @@ export default function ReviewCollector({
     }}>
       {/* Left: branding */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} size={36} />
+        <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} size={36} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)" }}>
             {payload.business_name}
@@ -93,17 +95,18 @@ export default function ReviewCollector({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          padding: "11px 20px",
+          padding: minimal ? "4px 0" : "11px 20px",
           background: "transparent",
           color: "var(--tc-widget-text-color, #0E0E0E)",
-          border: "1px solid var(--tc-widget-accent-color, #d1d5db)",
-          borderRadius: 8,
-          textDecoration: "none",
+          border: minimal ? "none" : "1px solid var(--tc-widget-accent-color, #d1d5db)",
+          borderRadius: minimal ? 0 : 8,
+          textDecoration: minimal ? "underline" : "none",
+          textUnderlineOffset: minimal ? 3 : undefined,
           fontSize: 13,
           fontWeight: 600,
           whiteSpace: "nowrap",
           flexShrink: 0,
-          marginLeft: 8,
+          marginLeft: minimal ? 4 : 8,
         }}
       >
         <TellacityStarIcon />

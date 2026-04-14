@@ -250,10 +250,16 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   const prevViewLogKey = React.useRef<string>("");
 
+  // One `dashboard_login` row per Supabase sign-in × business (bell + admin counts use this).
+  // Dedupe with sessionStorage so refreshes don't spam. Key includes `last_sign_in_at` so each
+  // new sign-in gets a new row; without it we fell back to one log per tab (legacy key).
   useEffect(() => {
     if (!selectedBusiness?.id || !user?.id || !pathname?.startsWith("/business/dashboard")) return;
+    const signAt = user.last_sign_in_at?.trim() || "";
     try {
-      const key = `tc_dash_login_${selectedBusiness.id}`;
+      const key = signAt
+        ? `tc_dash_login_${selectedBusiness.id}_${user.id}_${signAt}`
+        : `tc_dash_login_${selectedBusiness.id}_${user.id}`;
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, "1");
       logDashboardActivityClient({
@@ -263,7 +269,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignore */
     }
-  }, [selectedBusiness?.id, user?.id, pathname]);
+  }, [selectedBusiness?.id, user?.id, user?.last_sign_in_at, pathname]);
 
   useEffect(() => {
     if (!selectedBusiness?.id || !user?.id || !pathname) return;

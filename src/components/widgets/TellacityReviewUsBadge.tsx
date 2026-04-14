@@ -7,6 +7,8 @@ type Props = {
   href?: string;
   size?: "sm" | "md";
   showTellacityLogo?: boolean;
+  /** Transparent minimal embed — no extra padding chrome. */
+  minimal?: boolean;
 };
 
 const SIZES = {
@@ -26,11 +28,13 @@ export default function TellacityReviewUsBadge({
   href,
   size = "md",
   showTellacityLogo = true,
+  minimal,
 }: Props) {
   const s = SIZES[size];
+  const padClass = minimal ? "gap-2 px-0 py-0 text-sm leading-snug" : s.pad;
   const inner = (
     <span
-      className={`inline-flex items-center bg-transparent ${s.pad} ${className}`}
+      className={`inline-flex items-center bg-transparent ${padClass} ${className}`}
       style={{
         color: "var(--tc-widget-text-color, #111827)",
         fontFamily: "var(--tc-widget-font-family, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif)",

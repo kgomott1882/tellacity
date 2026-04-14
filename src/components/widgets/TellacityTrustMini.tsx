@@ -4,9 +4,11 @@ import WidgetStars from "./WidgetStars";
 export default function TellacityTrustMini({
   payload,
   showTellacityLogo = true,
+  minimal: _minimal,
 }: {
   payload: WidgetPayload;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const raw = Number(payload.avg_rating ?? 0);
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;

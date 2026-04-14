@@ -19,12 +19,27 @@ function snippetText(s: string | null | undefined, max: number) {
 
 export default function ReviewShowcaseEmbed({
   payload,
+  dashboardDemo,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
+  dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
-  const featured = payload.reviews[0];
+  const featured =
+    payload.reviews[0] ??
+    (dashboardDemo
+      ? {
+          id: "demo-showcase-review",
+          rating: 5,
+          title: "Excellent service",
+          body: "Friendly team, clear communication, and quality results from start to finish.",
+          reviewer_name: "M. Nkosi",
+          created_at: "2026-02-03T08:30:00.000Z",
+        }
+      : undefined);
   const avgRounded =
     payload.review_count > 0 && Number.isFinite(payload.avg_rating)
       ? Math.round(payload.avg_rating * 10) / 10
@@ -37,7 +52,7 @@ export default function ReviewShowcaseEmbed({
 
   return (
     <div
-      className="mx-auto w-full max-w-md"
+      className={minimal ? "mx-auto w-full max-w-none" : "mx-auto w-full max-w-md"}
       style={{
         color: "var(--tc-widget-text-color, #0E0E0E)",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
@@ -45,7 +60,7 @@ export default function ReviewShowcaseEmbed({
     >
       <div className="overflow-hidden rounded-none border-0 bg-transparent shadow-none">
         <div className="h-0" />
-        <div className="px-3 py-3 text-left">
+        <div className={minimal ? "px-0 py-0 text-left" : "px-3 py-3 text-left"}>
           {featured ? (
             <>
               <div className="flex items-start justify-between gap-2">
@@ -76,7 +91,13 @@ export default function ReviewShowcaseEmbed({
             </div>
           )}
         </div>
-        <div className="border-t border-gray-200 px-3 py-2 text-center text-[10px] text-black">
+        <div
+          className={
+            minimal
+              ? "border-t-0 px-0 py-1 text-left text-[10px] text-black"
+              : "border-t border-gray-200 px-3 py-2 text-center text-[10px] text-black"
+          }
+        >
           {avgRounded != null && payload.review_count > 0 ? (
             <>
               Rated <strong>{avgRounded}</strong> out of <strong>5</strong> |{" "}

@@ -6,7 +6,12 @@ import { isAbortError } from "@/lib/authErrors";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 
 type BusinessAuthState = {
-  user: { id: string; email?: string | null } | null;
+  user: {
+    id: string;
+    email?: string | null;
+    /** New on each Supabase sign-in; used to log distinct `dashboard_login` rows per login. */
+    last_sign_in_at?: string | null;
+  } | null;
   /** @deprecated Unused; business access is resolved in `useBusinesses`. Kept for call-site compatibility. */
   isBusiness: boolean;
   loading: boolean;
@@ -41,14 +46,22 @@ export const useBusinessAuth = (): BusinessAuthState => {
   useEffect(() => {
     let isMounted = true;
 
-    const applySession = (sessionUser: { id: string; email?: string | null } | null) => {
+    const applySession = (sessionUser: {
+      id: string;
+      email?: string | null;
+      last_sign_in_at?: string | null;
+    } | null) => {
       if (!isMounted) return;
       if (!sessionUser) {
         setUser(null);
         setLoading(false);
         return;
       }
-      setUser({ id: sessionUser.id, email: sessionUser.email });
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email,
+        last_sign_in_at: sessionUser.last_sign_in_at ?? null,
+      });
       setLoading(false);
       void ensureSessionFresh();
     };

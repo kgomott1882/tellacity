@@ -62,9 +62,11 @@ function StarCell({
 export default function TellacityTrustStacked({
   payload,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const raw = Number(payload.avg_rating ?? 0);
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;
@@ -89,6 +91,7 @@ export default function TellacityTrustStacked({
         textDecoration: "none",
         color: "var(--tc-widget-text-color, #0E0E0E)",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
+        ...(minimal ? { padding: 0 } : {}),
       }}
     >
       <span
@@ -96,7 +99,7 @@ export default function TellacityTrustStacked({
           fontSize: hasStats ? 30 : 24,
           fontWeight: 400,
           lineHeight: 1,
-          color: "var(--tc-widget-accent-color, var(--tc-widget-text-color, #0E0E0E))",
+          color: "var(--tc-widget-text-color, #000000)",
         }}
       >
         {statusLabel}

@@ -6,10 +6,12 @@ export default function TellacityTrustBadgeEmbed({
   payload,
   reviewHref,
   showTellacityLogo = true,
+  minimal,
 }: {
   payload: WidgetPayload;
   reviewHref: string;
   showTellacityLogo?: boolean;
+  minimal?: boolean;
 }) {
   const reviewCount = Math.max(0, payload.review_count);
   const avg = payload.avg_rating;
@@ -27,11 +29,11 @@ export default function TellacityTrustBadgeEmbed({
   return (
     <div
       style={{
-        margin: "0 auto",
+        margin: minimal ? 0 : "0 auto",
         width: "100%",
-        maxWidth: 420,
+        maxWidth: minimal ? "100%" : 420,
         background: "transparent",
-        textAlign: "center",
+        textAlign: minimal ? "left" : "center",
         color: "var(--tc-widget-text-color, #0E0E0E)",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
       }}
@@ -43,7 +45,7 @@ export default function TellacityTrustBadgeEmbed({
         style={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
       >
         {showTellacityLogo ? (
-          <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "flex", justifyContent: minimal ? "flex-start" : "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={TELLACITY_TRUST_BADGE_LOGO_PATH}
@@ -52,13 +54,19 @@ export default function TellacityTrustBadgeEmbed({
             />
           </div>
         ) : null}
-        <div style={{ marginTop: showTellacityLogo ? 6 : 0, display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            marginTop: showTellacityLogo ? 6 : 0,
+            display: "flex",
+            justifyContent: minimal ? "flex-start" : "center",
+          }}
+        >
           <WidgetStars rating={starsRating} size={12} />
         </div>
       </a>
       <p
         style={{
-          marginTop: 12,
+          marginTop: minimal ? 8 : 12,
           fontSize: 11,
           color: "var(--tc-widget-text-color, #0E0E0E)",
         }}

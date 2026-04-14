@@ -27,6 +27,7 @@ import {
   type HomeMarqueeCategoryCard,
 } from "@/lib/homeMarqueeCategories";
 import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
+import type { HomeBestInBusiness } from "@/lib/homeBestInBundle";
 
 type HomeReview = {
   review_id: string;
@@ -156,17 +157,8 @@ function isSafeCategorySlug(slug: string) {
   return true;
 }
 
-export type BestInBusiness = {
-  id: string;
-  name: string;
-  slug: string;
-  website: string | null;
-  website_display?: string | null;
-  logo_url?: string | null;
-  resolved_logo_url?: string | null;
-  trust_score?: number | null;
-  review_count?: number | null;
-};
+/** Homepage Best-in row (from `home_best_in_cache`); alias for bundle type. */
+export type BestInBusiness = HomeBestInBusiness;
 
 type HomePageClientProps = {
   initialSelectedCountry: string | null;
@@ -468,8 +460,7 @@ export default function HomePageClient({
 
     const withScores = list.map((biz) => {
       const reviewCount = Number(biz.review_count ?? 0) || 0;
-      const rating =
-        typeof biz.trust_score === "number" ? biz.trust_score || 0 : 0;
+      const rating = Number(biz.trust_score ?? 0) || 0;
       return { biz, reviewCount, rating };
     });
 

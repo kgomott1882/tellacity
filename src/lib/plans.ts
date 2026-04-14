@@ -326,7 +326,8 @@ export function canAccessWebsiteWidget(
     return (
       widget === "review_collector" ||
       widget === "review_carousel" ||
-      widget === "trust_badge"
+      widget === "trust_badge" ||
+      widget === "review_list"
     );
   }
   return true;

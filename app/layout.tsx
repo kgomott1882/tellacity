@@ -6,7 +6,6 @@ import AbortErrorHandler from "@/components/AbortErrorHandler";
 import CookieBar from "@/components/CookieBar";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
 import CountrySync from "@/components/common/CountrySync";
-import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -43,7 +42,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ScrollProgress />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
         <CountrySync />
