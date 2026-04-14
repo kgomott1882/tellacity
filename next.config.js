@@ -62,14 +62,6 @@ const nextConfig = {
         permanent: true,
       },
 
-      // Business dashboard root: avoid a redirect-only page (fixes Performance API
-      // "negative time stamp" overlay when measuring the old default export name).
-      {
-        source: "/business/dashboard",
-        destination: "/business/dashboard/analytics/performance",
-        permanent: false,
-      },
-
       // Removed Invite Settings (customer review invite tuning)
       {
         source: "/business/dashboard/settings/invite-settings",

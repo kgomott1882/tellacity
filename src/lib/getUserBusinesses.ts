@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 export type UserBusinessRow = {
@@ -39,12 +40,17 @@ function collectFromOwnerLinks(
 /**
  * Businesses the user owns: `business_owners` join **and** `businesses.owner_id` (OTP / legacy can set
  * owner without a `business_owners` row). Results are merged by `id`.
+ *
+ * Pass `supabase` (e.g. cookie-bound server client) when calling from a Server Component.
  */
-export async function getUserBusinesses(userId: string): Promise<UserBusinessRow[]> {
-  const supabase = createClient();
+export async function getUserBusinesses(
+  userId: string,
+  supabase?: SupabaseClient
+): Promise<UserBusinessRow[]> {
+  const client = supabase ?? createClient();
 
   const [ownersRes, directRes] = await Promise.all([
-    supabase
+    client
       .from("business_owners")
       .select(
         `
@@ -59,7 +65,7 @@ export async function getUserBusinesses(userId: string): Promise<UserBusinessRow
     `
       )
       .eq("owner_user_id", userId),
-    supabase
+    client
       .from("businesses")
       .select("id, name, slug, website, plan")
       .eq("owner_id", userId),

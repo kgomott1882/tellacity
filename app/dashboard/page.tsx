@@ -14,6 +14,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { normalizeLogoUrl } from "@/lib/logo";
 import { getPostLoginPath } from "@/lib/postLoginRedirect";
+import { getUserBusinesses } from "@/lib/getUserBusinesses";
 
 type ReviewItem = {
   id: string;
@@ -65,6 +66,8 @@ export default function ConsumerDashboard() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [showWriteReviewSearch, setShowWriteReviewSearch] = useState(false);
+  /** Final ownership guard: keep consumer UI from flashing while sending owners to the business dashboard. */
+  const [ownerRedirectActive, setOwnerRedirectActive] = useState(false);
 
   const recentActivities = useMemo(() => {
     return reviews.slice(0, 3).map((review) => {
@@ -120,6 +123,13 @@ export default function ConsumerDashboard() {
         return;
       }
 
+      const businesses = await getUserBusinesses(data.user.id);
+      if (!isMounted) return;
+      if (businesses.length > 0) {
+        window.location.replace(`${window.location.origin}/business/dashboard`);
+        return;
+      }
+
       setUserEmail(data.user.email ?? "");
       setDisplayName(
         (data.user.user_metadata?.display_name as string | undefined) ?? ""
@@ -127,6 +137,15 @@ export default function ConsumerDashboard() {
       setCountry(
         (data.user.user_metadata?.country as string | undefined) ?? ""
       );
+
+      const ownedFinal = await getUserBusinesses(data.user.id);
+      if (!isMounted) return;
+      if (ownedFinal.length > 0) {
+        setOwnerRedirectActive(true);
+        window.location.replace(`${window.location.origin}/business/dashboard`);
+        return;
+      }
+
       setLoadingUser(false);
     };
     loadUser();
@@ -274,6 +293,10 @@ export default function ConsumerDashboard() {
       setDeletingId(null);
     }
   };
+
+  if (ownerRedirectActive) {
+    return null;
+  }
 
   if (loadingUser) {
     return (

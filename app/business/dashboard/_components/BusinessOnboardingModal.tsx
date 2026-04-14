@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import BusinessSearchInput, {
   type BusinessSearchResult,
 } from "@/components/search/BusinessSearchInput";
@@ -15,6 +14,14 @@ import {
   type AccountApiOnboarding,
 } from "@/lib/businessOnboardingPrefill";
 import { emailDomainToBusinessSearchHint } from "@/lib/emailDomainBusinessHint";
+import { supabaseBrowser } from "@/lib/supabaseBrowser";
+
+function sanitizeClaimSearchToken(q: string): string {
+  return q
+    .trim()
+    .replace(/[%_,]/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 function stripWebsiteInput(raw: string): string {
   return raw
@@ -55,7 +62,6 @@ export default function BusinessOnboardingModal({
   userEmail,
   onCompleted,
 }: Props) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>("choice");
   const [businessName, setBusinessName] = useState("");
   const [createWebsiteHost, setCreateWebsiteHost] = useState("");
@@ -73,6 +79,8 @@ export default function BusinessOnboardingModal({
   const [claimSearchKey, setClaimSearchKey] = useState(0);
   /** Pre-filled from work email domain when user picks “listed on Tellacity”. */
   const [claimSearchInitialQuery, setClaimSearchInitialQuery] = useState("");
+  const [claimExpandedResults, setClaimExpandedResults] = useState<BusinessSearchResult[] | null>(null);
+  const [claimExpandedLoading, setClaimExpandedLoading] = useState(false);
   const [claimEligibilityLoading, setClaimEligibilityLoading] = useState(false);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -108,6 +116,8 @@ export default function BusinessOnboardingModal({
     setPrefillSummary(null);
     createFormPrefillLoadedRef.current = false;
     setClaimSearchInitialQuery("");
+    setClaimExpandedResults(null);
+    setClaimExpandedLoading(false);
   }, []);
 
   useEffect(() => {
@@ -300,7 +310,51 @@ export default function BusinessOnboardingModal({
     setInfo("");
   }
 
+  async function loadExpandedClaimResults(rawQuery: string) {
+    const q = sanitizeClaimSearchToken(rawQuery);
+    if (q.length < 1) return;
+    setClaimExpandedLoading(true);
+    setClaimExpandedResults(null);
+    setError("");
+    try {
+      const supabase = supabaseBrowser();
+      const { data, error: sbError } = await supabase
+        .from("businesses")
+        .select("id, name, slug, website, website_display, status")
+        .eq("status", "active")
+        .or(`name.ilike.%${q}%,website_display.ilike.%${q}%,website.ilike.%${q}%`)
+        .order("trust_score", { ascending: false, nullsFirst: false })
+        .order("review_count", { ascending: false })
+        .limit(50);
+
+      if (sbError || !data) {
+        setClaimExpandedResults([]);
+        return;
+      }
+      const rows = data as {
+        id: string;
+        name?: string | null;
+        slug: string;
+        website?: string | null;
+        website_display?: string | null;
+      }[];
+      setClaimExpandedResults(
+        rows.map((row) => ({
+          id: row.id,
+          name: row.name ?? "Business",
+          slug: row.slug,
+          website: row.website_display ?? row.website ?? null,
+        }))
+      );
+    } catch {
+      setClaimExpandedResults([]);
+    } finally {
+      setClaimExpandedLoading(false);
+    }
+  }
+
   async function handleHeroBusinessSelect(business: BusinessSearchResult) {
+    setClaimExpandedResults(null);
     setError("");
     setClaimEligibilityLoading(true);
     try {
@@ -746,6 +800,8 @@ export default function BusinessOnboardingModal({
               onClick={() => {
                 setStep("choice");
                 setError("");
+                setClaimExpandedResults(null);
+                setClaimExpandedLoading(false);
               }}
               className="mb-4 text-sm font-medium text-[#1FAF9E] hover:underline"
             >
@@ -779,13 +835,43 @@ export default function BusinessOnboardingModal({
                 heroButtonLabel="FIND A BUSINESS"
                 hideSuggestMissing
                 externalError={error || null}
-                onSearchChange={() => setError("")}
+                onSearchChange={() => {
+                  setError("");
+                  setClaimExpandedResults(null);
+                }}
                 onSelect={handleHeroBusinessSelect}
                 onSubmitQuery={(query) => {
                   if (!query.trim()) return;
-                  router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                  void loadExpandedClaimResults(query);
                 }}
               />
+              {claimExpandedLoading ? (
+                <p className="mt-3 text-center text-sm text-gray-500">Loading more results…</p>
+              ) : null}
+              {claimExpandedResults !== null && !claimExpandedLoading ? (
+                <div className="mt-3 max-h-96 overflow-y-auto rounded-2xl border border-gray-200 bg-white text-sm shadow-lg">
+                  {claimExpandedResults.length === 0 ? (
+                    <p className="px-4 py-3 text-gray-500">No businesses found.</p>
+                  ) : (
+                    <ul>
+                      {claimExpandedResults.map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            className="flex w-full flex-col items-start px-4 py-2 text-left hover:bg-gray-50"
+                            onClick={() => void handleHeroBusinessSelect(item)}
+                          >
+                            <span className="text-sm font-semibold text-[#124541]">{item.name}</span>
+                            {item.website ? (
+                              <span className="mt-1 text-xs text-gray-500">{item.website}</span>
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -800,6 +886,8 @@ export default function BusinessOnboardingModal({
                 setSelectedHit(null);
                 setClaimBusinessId(null);
                 setError("");
+                setClaimExpandedResults(null);
+                setClaimExpandedLoading(false);
               }}
               className="mb-4 text-sm font-medium text-[#1FAF9E] hover:underline"
             >

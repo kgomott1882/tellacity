@@ -8,10 +8,12 @@ export type PostLoginContext = "default" | "business";
  * Resolves the in-app path after authentication.
  *
  * 1. Admin → `/admin`.
- * 2. `user_metadata.account_kind` (set at signup) is authoritative when present:
+ * 2. Business ownership (`businesses.owner_id` and/or `business_owners`) → `/business/dashboard`
+ *    (takes priority over signup `account_kind`, so consumer accounts that own a listing still land correctly).
+ * 3. `user_metadata.account_kind` when present:
  *    - `consumer` → `/dashboard`
  *    - `business` → `/business/dashboard`
- * 3. Legacy users without `account_kind`: same routing as before (ownership, business_profiles, role, login surface).
+ * 4. Legacy users without `account_kind`: same routing as before (role, login surface, business_profiles).
  */
 export async function getPostLoginPath(
   userId: string,
@@ -29,6 +31,11 @@ export async function getPostLoginPath(
     return "/admin";
   }
 
+  const ownedBusinesses = await getUserBusinesses(userId);
+  if (ownedBusinesses.length > 0) {
+    return "/business/dashboard";
+  }
+
   const { data: authData } = await supabase.auth.getUser();
   const sessionUser =
     authData?.user?.id === userId ? authData.user : null;
@@ -39,11 +46,6 @@ export async function getPostLoginPath(
     return "/dashboard";
   }
   if (accountKind === "business") {
-    return "/business/dashboard";
-  }
-
-  const ownedBusinesses = await getUserBusinesses(userId);
-  if (ownedBusinesses.length > 0) {
     return "/business/dashboard";
   }
 
