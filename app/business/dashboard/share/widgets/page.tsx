@@ -409,7 +409,7 @@ export default function WebsiteWidgetsPage() {
     const patch: {
       advancedEnabled: boolean;
       previewSiteBackgroundHex: string;
-      themes?: Record<WidgetId, ServerEmbedTheme>;
+      themes?: Partial<Record<WidgetId, ServerEmbedTheme>>;
     } = {
       advancedEnabled: widgetSettingsAdvanced,
       previewSiteBackgroundHex: previewHexResolved,

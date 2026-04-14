@@ -76,7 +76,8 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "domain_mismatch",
-          message: "Use a work email that matches this business website domain.",
+          message:
+            "Use your company email (e.g. name@syfnet.com) to verify ownership of this business. Personal emails like Gmail or Yahoo won't work for security reasons.",
         },
         { status: 403 }
       );
