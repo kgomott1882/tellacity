@@ -6,6 +6,7 @@ import SignaturePreview from "./SignaturePreview";
 import type { SignatureState } from "./SignaturePreview";
 export type { SignatureState } from "./SignaturePreview";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 
 type Props = {
   plan: PlanKey;
@@ -117,8 +118,9 @@ export function SignatureSection({ plan, value, onChange, businessId }: Props) {
         <div className="border rounded-xl p-5 bg-white shadow-sm">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-900">
                 Email Signature
+                <AvailableToUseLabel />
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 {value.signature_name || "No signature configured"}
@@ -163,7 +165,10 @@ export function SignatureSection({ plan, value, onChange, businessId }: Props) {
         <div className="border rounded-xl p-6 bg-gray-50">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-gray-900">Email signature</p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                Email signature
+                <AvailableToUseLabel />
+              </p>
               <p className="text-xs text-gray-500">
                 Add a branded email signature to the bottom of your review invites.
               </p>
@@ -276,6 +281,10 @@ export function SignatureSection({ plan, value, onChange, businessId }: Props) {
               <div className="space-y-3">
                 {isElite && (
                   <>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-gray-100 pb-2">
+                      <span className="text-[11px] font-medium text-gray-700">Elite email options</span>
+                      <AvailableToUseLabel />
+                    </div>
                     <div>
                       <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
                         Address

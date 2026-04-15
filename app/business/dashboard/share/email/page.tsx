@@ -33,6 +33,7 @@ function planAllowsEmailWidgetLayout(plan: PlanKey, layoutStyle: string): boolea
   return canAccessEmailWidget(plan, "premium_layout");
 }
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
   EmailWidgetEliteBrandedCard,
   EmailWidgetInviteBlock,
@@ -594,7 +595,10 @@ export default function EmailWidgetsPage() {
       )}
       {/* ── Layout Options comparison ── */}
       <div className="mt-8">
-        <h3 className="text-sm font-semibold text-gray-900">Layout Options</h3>
+        <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-gray-900">
+          Layout Options
+          <AvailableToUseLabel />
+        </h3>
         <p className="mt-0.5 text-xs text-gray-500">
           Click a layout for outgoing invite emails. Review showcase and Tellacity reviews badges live under{" "}
           <button
@@ -639,7 +643,10 @@ export default function EmailWidgetsPage() {
                     }`}
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-800">Premium Widget Layout</p>
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
+                        Premium Widget Layout
+                        {canStandardLayout ? <AvailableToUseLabel /> : null}
+                      </p>
                       {widgetLayoutStyle === "standard" && (
                         <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
                           <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -689,7 +696,10 @@ export default function EmailWidgetsPage() {
                     }`}
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-800">Review Hunter</p>
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
+                        Review Hunter
+                        {canReviewHunterLayout ? <AvailableToUseLabel /> : null}
+                      </p>
                       {isReviewHunter && (
                         <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
                           <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -741,7 +751,10 @@ export default function EmailWidgetsPage() {
                     }`}
                   >
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-800">Rating ladder</p>
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
+                    Rating ladder
+                    {canRatingLadderLayout ? <AvailableToUseLabel /> : null}
+                  </p>
                   {isRatingLadder && (
                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
                       <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
@@ -797,7 +810,10 @@ export default function EmailWidgetsPage() {
                   </span>
                 )}
 
-                <p className="mb-1 text-sm font-medium text-gray-900">Elite Branded Layout</p>
+                <p className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                  <span>Elite Branded Layout</span>
+                  {canEliteBrandedLayout ? <AvailableToUseLabel /> : null}
+                </p>
                 <p className="mb-2 min-h-[30px] text-xs text-gray-500">Includes your business logo &amp; branded header</p>
 
                 <div className="pointer-events-none">
@@ -835,7 +851,12 @@ export default function EmailWidgetsPage() {
         {/* Compose chrome (familiar mail-client header) */}
         <div className="flex items-start justify-between gap-3 bg-[#404040] px-3 py-2.5 text-white sm:px-4">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-medium sm:text-[15px]">New message</h2>
+            <h2 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 truncate text-sm font-medium sm:text-[15px]">
+              <span className="truncate">New message</span>
+              {canSend ? (
+                <AvailableToUseLabel className="!text-[#9ee5df] shrink-0 font-normal normal-case tracking-wide" />
+              ) : null}
+            </h2>
             <p className="truncate text-[11px] font-normal text-white/70">
               Review invite · no credits used ·{" "}
               {isEliteBranded ? (

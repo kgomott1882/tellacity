@@ -15,7 +15,11 @@ export type WebsiteWidgetPlanKey =
   | "trust_strip"
   | "trust_stacked"
   | "trust_strip_icon"
-  | "trust_mini";
+  | "trust_mini"
+  | "spotlight_carousel"
+  | "review_slider"
+  | "review_dropdown"
+  | "micro_trustscore";
 
 const EMBED_TYPE_BY_WIDGET: Record<WebsiteWidgetPlanKey, string> = {
   trust_badge: "badge",
@@ -30,6 +34,10 @@ const EMBED_TYPE_BY_WIDGET: Record<WebsiteWidgetPlanKey, string> = {
   trust_stacked: "trust_stacked",
   trust_strip_icon: "trust_strip_icon",
   trust_mini: "trust_mini",
+  spotlight_carousel: "spotlight_carousel",
+  review_slider: "review_slider",
+  review_dropdown: "review_dropdown",
+  micro_trustscore: "micro_trustscore",
 };
 
 function embedUrlsMatchForResize(expectedParentHref: string, messageSrc: string): boolean {
@@ -56,6 +64,10 @@ const PREVIEW_HEIGHT_BY_WIDGET: Record<WebsiteWidgetPlanKey, number> = {
   trust_stacked: 240,
   trust_strip_icon: 128,
   trust_mini: 120,
+  spotlight_carousel: 560,
+  review_slider: 420,
+  review_dropdown: 400,
+  micro_trustscore: 120,
 };
 
 const RESIZE_HEIGHT_BUFFER = 24;
@@ -80,9 +92,10 @@ export default function WebsiteWidgetUpgradePreview({
     const slug = (businessSlug ?? "").trim().toLowerCase();
     if (!slug) return null;
     const embedType = EMBED_TYPE_BY_WIDGET[widget];
+    const limitQs = widget === "review_dropdown" ? "&limit=20" : "";
     const previewSrc = `/widgets/embed?business=${encodeURIComponent(
       slug
-    )}&type=${encodeURIComponent(embedType)}&dashboard_demo=1`;
+    )}&type=${encodeURIComponent(embedType)}&dashboard_demo=1${limitQs}`;
     const minIframeHeight = PREVIEW_HEIGHT_BY_WIDGET[widget];
     return { previewSrc, minIframeHeight, widget };
   }, [widget, businessSlug]);

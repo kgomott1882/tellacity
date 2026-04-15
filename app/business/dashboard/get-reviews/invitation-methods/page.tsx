@@ -13,6 +13,7 @@ import {
   type PlanKey,
 } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 type TemplateChoice = "standard" | "custom" | "widget";
@@ -155,7 +156,10 @@ export default function InvitationMethodsPage() {
       <PlanStatusBanner plan={normalizedPlan} />
 
       <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-gray-900">Send email invite</h2>
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
+          Send email invite
+          <AvailableToUseLabel />
+        </h2>
         <p className="mt-1 text-sm text-gray-500">
           Send a one-off review invitation to a customer by email.
         </p>
@@ -174,7 +178,10 @@ export default function InvitationMethodsPage() {
                 onChange={() => setTemplateChoice("standard")}
                 className="h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541]"
               />
-              <span className="text-sm font-medium text-gray-900">Standard</span>
+              <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                Standard
+                <AvailableToUseLabel />
+              </span>
             </label>
             <label
               className={`flex items-center gap-2 rounded-lg border px-4 py-3 transition ${
@@ -192,7 +199,10 @@ export default function InvitationMethodsPage() {
                 disabled={!canChooseCustom}
                 className="h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541] disabled:cursor-not-allowed"
               />
-              <span className="text-sm font-medium text-gray-900">Custom</span>
+              <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                Custom
+                {canChooseCustom ? <AvailableToUseLabel /> : null}
+              </span>
               {!canChooseCustom && (
                 <span className="text-xs text-amber-800">
                   🔒 Custom emails available on Grow and above
@@ -215,7 +225,10 @@ export default function InvitationMethodsPage() {
                 disabled={!canChooseWidget}
                 className="h-4 w-4 border-gray-300 text-[#124541] focus:ring-[#124541] disabled:cursor-not-allowed"
               />
-              <span className="text-sm font-medium text-gray-900">Email Widget</span>
+              <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                Email Widget
+                {canChooseWidget ? <AvailableToUseLabel /> : null}
+              </span>
             </label>
           </div>
           {templateChoice === "widget" && canChooseWidget && (

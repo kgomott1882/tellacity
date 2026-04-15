@@ -54,7 +54,7 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl">
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">Sign in</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Access Your Tellacity Consumer Dashboard
+            You are about to log in as a reviewer to access consumer dashboard
           </p>
           <div className="mt-6 space-y-3">
             <button

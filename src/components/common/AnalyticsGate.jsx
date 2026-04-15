@@ -1,24 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Script from "next/script";
 
 export default function AnalyticsGate() {
-  const [allowAnalytics, setAllowAnalytics] = useState(false);
-
-  useEffect(() => {
+  const pathname = usePathname();
+  const isWidgetRoute = pathname?.startsWith("/widgets");
+  let allowAnalytics = false;
+  if (!isWidgetRoute && typeof window !== "undefined") {
     const consent = localStorage.getItem("tellacity_cookie_consent");
-    if (!consent) return;
-
-    try {
-      const parsed = JSON.parse(consent);
-      if (parsed.analytics === true) {
-        setAllowAnalytics(true);
+    if (consent) {
+      try {
+        const parsed = JSON.parse(consent);
+        allowAnalytics = parsed.analytics === true;
+      } catch {
+        allowAnalytics = false;
       }
-    } catch {}
-  }, []);
+    }
+  }
 
-  if (!allowAnalytics) return null;
+  if (isWidgetRoute || !allowAnalytics) return null;
 
   return (
     <>

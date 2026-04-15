@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { Check, Copy, Monitor, RotateCcw, Smartphone, Undo2, Redo2 } from "lucide-react";
+import { Check, Copy, Lock, Monitor, RotateCcw, Smartphone, Undo2, Redo2, X } from "lucide-react";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import {
   incrementUpgradeClickCount,
@@ -16,6 +16,20 @@ import {
   type PlanKey,
 } from "@/lib/plans";
 import WebsiteWidgetUpgradePreview from "@/components/widgets/WebsiteWidgetUpgradePreview";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
+
+/** Iframe `location.href` vs parent `previewUrl` can differ in hash/trailing slash; compare path+query. */
+function embedResizeMessageMatchesPreview(previewUrl: string, messageSrc: unknown): boolean {
+  if (typeof messageSrc !== "string" || !messageSrc.trim()) return false;
+  try {
+    const base = typeof window !== "undefined" ? window.location.origin : "https://tellacity.com";
+    const a = new URL(previewUrl, base);
+    const b = new URL(messageSrc);
+    return a.pathname === b.pathname && a.search === b.search;
+  } catch {
+    return previewUrl === messageSrc;
+  }
+}
 
 const WIDGETS = [
   {
@@ -114,6 +128,46 @@ const WIDGETS = [
     previewHeight: 120,
     planWidget: "trust_mini" as const,
   },
+  {
+    id: "spotlight_carousel",
+    name: "Spotlight Carousel",
+    description:
+      "Tellacity Score on top; latest reviews in a single row (no card backgrounds — floats on your page).",
+    sizesHelp:
+      "Responsive block; minimum about 180×350px, typical max width 100% and ~520px height.",
+    previewHeight: 560,
+    planWidget: "spotlight_carousel" as const,
+  },
+  {
+    id: "review_slider",
+    name: "Review Slider",
+    description:
+      "Floating latest reviews in a window with arrows and a rating footer (Tellacity Trust Stacked mark); no card backgrounds.",
+    sizesHelp:
+      "Wide strip; about 300–1200px width, height roughly 260–420px depending on copy.",
+    previewHeight: 420,
+    planWidget: "review_slider" as const,
+  },
+  {
+    id: "review_dropdown",
+    name: "Review Drop-Down",
+    description:
+      "Compact row: Tellacity block stars plus “See our reviews” — opens a dropdown of recent reviews (Trustpilot-style).",
+    sizesHelp:
+      "Inline header/footer friendly; about 255–760px wide, ~30px row height (panel opens below).",
+    previewHeight: 400,
+    planWidget: "review_dropdown" as const,
+  },
+  {
+    id: "micro_trustscore",
+    name: "Micro TrustScore",
+    description:
+      "Ultra-compact row: status word, score out of 5, Tellacity block stars, and Trust Stacked mark (Trustpilot Micro TrustScore–style).",
+    sizesHelp:
+      "Single horizontal strip (word, score, stars, logo — no wrap). About 150–250px wide (or %); row ~22–28px tall. Transparent background.",
+    previewHeight: 120,
+    planWidget: "micro_trustscore" as const,
+  },
 ] as const;
 
 type WidgetId = (typeof WIDGETS)[number]["id"];
@@ -168,6 +222,11 @@ function requiredPlanForWebsiteWidget(widget: WebsiteWidgetKey): PlanKey {
       return "premium";
     case "trust_mini":
       return "elite";
+    case "spotlight_carousel":
+    case "review_slider":
+    case "review_dropdown":
+    case "micro_trustscore":
+      return "premium";
     default:
       return "grow";
   }
@@ -248,6 +307,8 @@ export default function WebsiteWidgetsPage() {
     ? normalizePlanCodeToKey(selectedBusiness.plan)
     : "free";
   const [selected, setSelected] = useState<WidgetId>("collector");
+  /** Trustpilot-style: pick a widget from the grid, then configure in a full-screen modal. */
+  const [widgetConfigureOpen, setWidgetConfigureOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [upgradeFeatureModalOpen, setUpgradeFeatureModalOpen] = useState(false);
   const [upgradeFeatureModalTitle, setUpgradeFeatureModalTitle] = useState(
@@ -263,6 +324,29 @@ export default function WebsiteWidgetsPage() {
   const [whiteLabelRevision, setWhiteLabelRevision] = useState(0);
   const [whiteLabelPast, setWhiteLabelPast] = useState<WidgetWhiteLabelSettings[]>([]);
   const [whiteLabelFuture, setWhiteLabelFuture] = useState<WidgetWhiteLabelSettings[]>([]);
+
+  type EmbedCustomizeSnapshot = {
+    widgetSettingsAdvanced: boolean;
+    embedMinimal: boolean;
+    previewSiteBackgroundHex: string;
+  };
+  const EMBED_CUSTOMIZE_INITIAL: EmbedCustomizeSnapshot = {
+    widgetSettingsAdvanced: false,
+    embedMinimal: true,
+    previewSiteBackgroundHex: "",
+  };
+  function isSameEmbedCustomize(a: EmbedCustomizeSnapshot, b: EmbedCustomizeSnapshot) {
+    return (
+      a.widgetSettingsAdvanced === b.widgetSettingsAdvanced &&
+      a.embedMinimal === b.embedMinimal &&
+      a.previewSiteBackgroundHex === b.previewSiteBackgroundHex
+    );
+  }
+  const [embedCustomizePast, setEmbedCustomizePast] = useState<EmbedCustomizeSnapshot[]>([]);
+  const [embedCustomizeFuture, setEmbedCustomizeFuture] = useState<EmbedCustomizeSnapshot[]>([]);
+  const embedCustomizeRef = useRef<EmbedCustomizeSnapshot>(EMBED_CUSTOMIZE_INITIAL);
+  const lastEmbedThemeForWidgetRef = useRef<WidgetId | null>(null);
+
   const [embedMinimal, setEmbedMinimal] = useState(true);
   /** When false, embed uses default floating (transparent) theme; when true, user can pick classic + preview backdrop. */
   const [widgetSettingsAdvanced, setWidgetSettingsAdvanced] = useState(false);
@@ -272,6 +356,64 @@ export default function WebsiteWidgetsPage() {
   const [embedSettingsSaveError, setEmbedSettingsSaveError] = useState<string | null>(null);
   const skipNextEmbedSettingsSave = useRef(true);
   const whiteLabelRef = useRef<WidgetWhiteLabelSettings>(WHITE_LABEL_DEFAULTS);
+
+  useEffect(() => {
+    embedCustomizeRef.current = {
+      widgetSettingsAdvanced,
+      embedMinimal,
+      previewSiteBackgroundHex,
+    };
+  }, [widgetSettingsAdvanced, embedMinimal, previewSiteBackgroundHex]);
+
+  function applyEmbedCustomizeSnapshot(next: EmbedCustomizeSnapshot) {
+    const cur = embedCustomizeRef.current;
+    if (isSameEmbedCustomize(cur, next)) return;
+    setEmbedCustomizePast((p) => [...p, cur].slice(-40));
+    setEmbedCustomizeFuture([]);
+    skipNextEmbedSettingsSave.current = true;
+    setWidgetSettingsAdvanced(next.widgetSettingsAdvanced);
+    setEmbedMinimal(next.embedMinimal);
+    setPreviewSiteBackgroundHex(next.previewSiteBackgroundHex);
+  }
+
+  function undoEmbedCustomize() {
+    setEmbedCustomizePast((prevPast) => {
+      if (prevPast.length === 0) return prevPast;
+      const previous = prevPast[prevPast.length - 1];
+      const cur = embedCustomizeRef.current;
+      skipNextEmbedSettingsSave.current = true;
+      setWidgetSettingsAdvanced(previous.widgetSettingsAdvanced);
+      setEmbedMinimal(previous.embedMinimal);
+      setPreviewSiteBackgroundHex(previous.previewSiteBackgroundHex);
+      setEmbedCustomizeFuture((f) => [cur, ...f].slice(0, 40));
+      return prevPast.slice(0, -1);
+    });
+  }
+
+  function redoEmbedCustomize() {
+    setEmbedCustomizeFuture((prevFuture) => {
+      if (prevFuture.length === 0) return prevFuture;
+      const [next, ...rest] = prevFuture;
+      const cur = embedCustomizeRef.current;
+      skipNextEmbedSettingsSave.current = true;
+      setWidgetSettingsAdvanced(next.widgetSettingsAdvanced);
+      setEmbedMinimal(next.embedMinimal);
+      setPreviewSiteBackgroundHex(next.previewSiteBackgroundHex);
+      setEmbedCustomizePast((p) => [...p, cur].slice(-40));
+      return rest;
+    });
+  }
+
+  function resetEmbedCustomize() {
+    const cur = embedCustomizeRef.current;
+    if (isSameEmbedCustomize(cur, EMBED_CUSTOMIZE_INITIAL)) return;
+    setEmbedCustomizePast((p) => [...p, cur].slice(-40));
+    setEmbedCustomizeFuture([]);
+    skipNextEmbedSettingsSave.current = true;
+    setWidgetSettingsAdvanced(EMBED_CUSTOMIZE_INITIAL.widgetSettingsAdvanced);
+    setEmbedMinimal(EMBED_CUSTOMIZE_INITIAL.embedMinimal);
+    setPreviewSiteBackgroundHex(EMBED_CUSTOMIZE_INITIAL.previewSiteBackgroundHex);
+  }
 
   const FEATURE_LOCKED = "website_widget" as const;
 
@@ -312,7 +454,21 @@ export default function WebsiteWidgetsPage() {
   const previewLocked = !canAccessWebsiteWidget(planKey, currentWidget.planWidget);
   const canWhiteLabelCurrentWidget = planKey === "elite";
 
+  useEffect(() => {
+    if (!widgetConfigureOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setWidgetConfigureOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [widgetConfigureOpen]);
+
   const effectiveEmbedMinimal = !widgetSettingsAdvanced || embedMinimal;
+  /** Row widgets need full iframe width; minimal embeds default to shrink-to-fit which squeezes the layout. */
+  const rowWidgetPreviewFullBleed =
+    selected === "spotlight_carousel" ||
+    selected === "review_slider" ||
+    selected === "micro_trustscore";
 
   const previewPanelSurface = useMemo((): CSSProperties => {
     if (!widgetSettingsAdvanced) {
@@ -376,6 +532,9 @@ export default function WebsiteWidgetsPage() {
         setWidgetSettingsAdvanced(!!json.settings?.advancedEnabled);
         setPreviewSiteBackgroundHex(json.settings?.previewSiteBackgroundHex ?? "");
         setEmbedSettingsSaveError(null);
+        lastEmbedThemeForWidgetRef.current = null;
+        setEmbedCustomizePast([]);
+        setEmbedCustomizeFuture([]);
       } catch {
         if (!cancelled) {
           setServerEmbedSettings({ themes: {}, advancedEnabled: false, previewSiteBackgroundHex: "" });
@@ -392,8 +551,22 @@ export default function WebsiteWidgetsPage() {
   }, [selectedBusiness?.id]);
 
   useEffect(() => {
+    lastEmbedThemeForWidgetRef.current = null;
+    setEmbedCustomizePast([]);
+    setEmbedCustomizeFuture([]);
+  }, [selectedBusiness?.id]);
+
+  useEffect(() => {
+    setEmbedCustomizePast([]);
+    setEmbedCustomizeFuture([]);
+  }, [selected]);
+
+  useEffect(() => {
     if (!serverEmbedSettings || !embedSettingsSynced) return;
+    if (lastEmbedThemeForWidgetRef.current === selected) return;
+    lastEmbedThemeForWidgetRef.current = selected;
     const t = serverEmbedSettings.themes[selected] ?? "minimal";
+    skipNextEmbedSettingsSave.current = true;
     setEmbedMinimal(t !== "light");
   }, [selected, serverEmbedSettings, embedSettingsSynced]);
 
@@ -486,6 +659,7 @@ export default function WebsiteWidgetsPage() {
       qs.set("wl_font", whiteLabel.font);
       qs.set("wl_logo", whiteLabel.showTellacityLogo ? "1" : "0");
       qs.set("theme", effectiveEmbedMinimal ? "minimal" : "light");
+      if (selected === "review_dropdown") qs.set("limit", "20");
       const glue = previewExtraParams ? `${previewExtraParams}` : "";
       return `${previewBaseUrl}/widgets/embed?${qs.toString()}${glue}`;
     },
@@ -506,7 +680,8 @@ export default function WebsiteWidgetsPage() {
 
   const embedCode = useMemo(() => {
     const theme = effectiveEmbedMinimal ? "minimal" : "light";
-    return `<script src="${baseUrl}/widgets/v1.js" data-business="${slug}" data-type="${selected}" data-theme="${theme}"></script>`;
+    const limitAttr = selected === "review_dropdown" ? ` data-limit="20"` : "";
+    return `<script src="${baseUrl}/widgets/v1.js" data-business="${slug}" data-type="${selected}" data-theme="${theme}"${limitAttr}></script>`;
   }, [baseUrl, slug, selected, effectiveEmbedMinimal]);
 
   // Auto-resize iframe from postMessage
@@ -515,10 +690,13 @@ export default function WebsiteWidgetsPage() {
       if (
         e.data?.type === "tellacity-widget-resize" &&
         iframeRef.current &&
-        e.data.src === previewUrl
+        embedResizeMessageMatchesPreview(previewUrl, e.data.src)
       ) {
         const pad = effectiveEmbedMinimal ? 4 : 20;
-        iframeRef.current.style.height = `${e.data.height + pad}px`;
+        const raw = Number(e.data.height);
+        if (!Number.isFinite(raw) || raw < 40) return;
+        const next = Math.min(Math.ceil(raw + pad), 2400);
+        iframeRef.current.style.height = `${next}px`;
       }
     }
     window.addEventListener("message", onMessage);
@@ -687,12 +865,16 @@ export default function WebsiteWidgetsPage() {
         </p>
       </div>
 
-      {/* Widget selector */}
+      {/* Widget gallery (Trustpilot Essentials–style): click any card for full preview & settings */}
       <div>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
           Choose a widget
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+        <p className="mb-4 text-sm text-gray-600">
+          Select a style to preview it full size. Locked widgets still show a live preview — upgrade your plan to
+          copy embed code.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {WIDGETS.map((widget) => {
             const isActive = selected === widget.id;
             const cardLocked = !canAccessWebsiteWidget(planKey, widget.planWidget);
@@ -702,55 +884,103 @@ export default function WebsiteWidgetsPage() {
                 type="button"
                 onClick={() => {
                   setSelected(widget.id);
-                  if (cardLocked) {
-                    openUpgradeFeatureModal(
-                      requiredPlanForWebsiteWidget(widget.planWidget),
-                      widget.planWidget,
-                    );
-                  }
+                  setWidgetConfigureOpen(true);
                 }}
                 className={`text-left rounded-xl border-2 p-4 transition-all ${
                   isActive
                     ? "border-[#2fb2a8] bg-[#2fb2a8]/5 shadow-sm"
-                    : "border-gray-200 hover:border-[#2fb2a8]/50 bg-white"
-                } ${cardLocked ? "opacity-60" : ""}`}
+                    : "border-gray-200 hover:border-[#2fb2a8]/50 bg-white shadow-sm"
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-[#0E0E0E]">{widget.name}</h3>
-                  {cardLocked && (
-                    <span className="text-xs" aria-hidden>
-                      🔒
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#2fb2a8]">
-                      <Check size={10} strokeWidth={3} className="text-white" />
-                    </span>
-                  )}
+                  <h3 className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-[#0E0E0E]">
+                    <span>{widget.name}</span>
+                    {!cardLocked ? <AvailableToUseLabel /> : null}
+                  </h3>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {cardLocked ? (
+                      <span className="inline-flex rounded-full bg-gray-100 p-1 text-gray-600" title="Requires higher plan">
+                        <Lock size={14} strokeWidth={2} aria-hidden />
+                      </span>
+                    ) : null}
+                    {isActive && widgetConfigureOpen ? (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2fb2a8]">
+                        <Check size={10} strokeWidth={3} className="text-white" />
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">{widget.description}</p>
+                <p className="mt-2 line-clamp-3 text-xs leading-snug text-gray-500">{widget.description}</p>
+                <p className="mt-3 text-[11px] font-medium text-[#2fb2a8]">Preview &amp; configure →</p>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="rounded-xl border-2 border-[#124541] bg-white p-6 shadow-sm space-y-8">
-        {/* Widget settings + preview (Trustpilot-style) */}
-        <div className="grid gap-8 border-b border-gray-100 pb-8 lg:grid-cols-[minmax(280px,340px)_1fr] lg:gap-10">
-          <aside
-            className={`space-y-6 lg:border-r lg:border-gray-100 lg:pr-8 ${previewLocked ? "opacity-60" : ""}`}
-          >
-            <div>
-              <h2 className="text-lg font-semibold text-[#0E0E0E]">{currentWidget.name}</h2>
-              <p className="mt-1 text-xs text-gray-500">Website widget · availability follows your plan</p>
+      <div
+        className="border-t border-gray-100 pt-8 text-sm text-[#374151]"
+        aria-labelledby="website-widgets-howto-heading"
+      >
+        <h2
+          id="website-widgets-howto-heading"
+          className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500"
+        >
+          How to add a widget to your website
+        </h2>
+        <ol className="list-decimal space-y-3 pl-4 marker:font-semibold marker:text-[#2fb2a8]">
+          <li>Pick a widget from the gallery above and open <strong>Preview &amp; configure</strong>.</li>
+          <li>
+            Copy the embed code from the HTML box. It loads{" "}
+            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">/widgets/v1.js</code> and shows your reviews.
+          </li>
+          <li>
+            Paste into your site (Custom HTML / Embed block) — homepage, footer, or a Reviews page.
+          </li>
+          <li>Publish; widgets update automatically when new reviews arrive.</li>
+        </ol>
+      </div>
+
+      {widgetConfigureOpen ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-3 py-6 sm:px-6 sm:py-10"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="widget-configure-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/45"
+            aria-hidden
+            onClick={() => setWidgetConfigureOpen(false)}
+          />
+          <div className="relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl max-h-[min(92vh,920px)] my-auto">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div>
+                <h2
+                  id="widget-configure-title"
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-[#0E0E0E]"
+                >
+                  <span>{currentWidget.name}</span>
+                  {!previewLocked ? <AvailableToUseLabel /> : null}
+                </h2>
+                <p className="text-xs text-gray-500">Website widget · live preview</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWidgetConfigureOpen(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
             </div>
 
             {previewLocked ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm text-amber-950">
-                <p className="font-medium">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#E9E1D2] bg-[#F9F6EF] px-5 py-3">
+                <p className="flex items-center gap-2 text-sm font-medium text-[#1f2937]">
+                  <Lock size={16} className="shrink-0 text-[#92400e]" aria-hidden />
                   Get the {planDisplayName(requiredPlanForWebsiteWidget(currentWidget.planWidget))} plan to use this
-                  widget on your website.
+                  widget on your site.
                 </p>
                 <button
                   type="button"
@@ -760,14 +990,19 @@ export default function WebsiteWidgetsPage() {
                       currentWidget.planWidget,
                     )
                   }
-                  className="mt-3 rounded-md bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
+                  className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185a87]"
                 >
-                  {upgradeLabelForPlan(requiredPlanForWebsiteWidget(currentWidget.planWidget))}
+                  Upgrade
                 </button>
               </div>
             ) : null}
 
-            <section className="space-y-2 border-t border-gray-100 pt-5">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="space-y-8 p-5 sm:p-6 lg:p-8">
+        {/* Widget settings + preview (Trustpilot-style) */}
+        <div className="grid gap-8 border-b border-gray-100 pb-8 lg:grid-cols-[minmax(280px,340px)_1fr] lg:gap-10">
+          <aside className="space-y-6 lg:border-r lg:border-gray-100 lg:pr-8">
+            <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">About</h3>
               <p className="text-sm leading-relaxed text-gray-700">{currentWidget.description}</p>
             </section>
@@ -779,8 +1014,42 @@ export default function WebsiteWidgetsPage() {
             </section>
 
             <section className="space-y-4 border-t border-gray-100 pt-5">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Customize</h3>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Customize</h3>
+                  <div
+                    className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 shadow-sm"
+                    title="Embed preview options"
+                  >
+                    <button
+                      type="button"
+                      aria-label="Back — undo embed preview change"
+                      disabled={previewLocked || embedCustomizePast.length === 0}
+                      onClick={undoEmbedCustomize}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Undo2 className="h-4 w-4" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Forward — redo embed preview change"
+                      disabled={previewLocked || embedCustomizeFuture.length === 0}
+                      onClick={redoEmbedCustomize}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Redo2 className="h-4 w-4" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Reset embed preview options"
+                      disabled={previewLocked}
+                      onClick={resetEmbedCustomize}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                </div>
                 <a
                   href="#website-widgets-howto-heading"
                   className="shrink-0 text-xs font-medium text-[#1e6b9e] underline-offset-2 hover:underline"
@@ -791,7 +1060,10 @@ export default function WebsiteWidgetsPage() {
 
               <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2.5">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Custom embed options</p>
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium text-gray-900">
+                    Custom embed options
+                    {!previewLocked ? <AvailableToUseLabel /> : null}
+                  </p>
                   <p className="text-xs text-gray-500">
                     Off = default floating (transparent). On = change surface and preview backdrop.
                   </p>
@@ -801,16 +1073,16 @@ export default function WebsiteWidgetsPage() {
                   role="switch"
                   aria-checked={widgetSettingsAdvanced}
                   disabled={previewLocked}
-                  onClick={() =>
-                    setWidgetSettingsAdvanced((v) => {
-                      const next = !v;
-                      if (!next) {
-                        setEmbedMinimal(true);
-                        setPreviewSiteBackgroundHex("");
-                      }
-                      return next;
-                    })
-                  }
+                  onClick={() => {
+                    if (previewLocked) return;
+                    const cur = embedCustomizeRef.current;
+                    const nextAdvanced = !cur.widgetSettingsAdvanced;
+                    applyEmbedCustomizeSnapshot({
+                      widgetSettingsAdvanced: nextAdvanced,
+                      embedMinimal: nextAdvanced ? cur.embedMinimal : true,
+                      previewSiteBackgroundHex: nextAdvanced ? cur.previewSiteBackgroundHex : "",
+                    });
+                  }}
                   className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2fb2a8] focus-visible:ring-offset-2 ${
                     widgetSettingsAdvanced ? "bg-[#2fb2a8]" : "bg-gray-300"
                   }`}
@@ -834,7 +1106,13 @@ export default function WebsiteWidgetsPage() {
                         className="border-gray-300 text-[#2fb2a8] focus:ring-[#2fb2a8]"
                         checked={embedMinimal}
                         disabled={previewLocked}
-                        onChange={() => setEmbedMinimal(true)}
+                        onChange={() => {
+                          if (previewLocked) return;
+                          applyEmbedCustomizeSnapshot({
+                            ...embedCustomizeRef.current,
+                            embedMinimal: true,
+                          });
+                        }}
                       />
                       Floating (transparent, like a PNG)
                     </label>
@@ -845,7 +1123,13 @@ export default function WebsiteWidgetsPage() {
                         className="border-gray-300 text-[#2fb2a8] focus:ring-[#2fb2a8]"
                         checked={!embedMinimal}
                         disabled={previewLocked}
-                        onChange={() => setEmbedMinimal(false)}
+                        onChange={() => {
+                          if (previewLocked) return;
+                          applyEmbedCustomizeSnapshot({
+                            ...embedCustomizeRef.current,
+                            embedMinimal: false,
+                          });
+                        }}
                       />
                       Classic (padded card-style in the embed)
                     </label>
@@ -865,7 +1149,13 @@ export default function WebsiteWidgetsPage() {
                         aria-label="Preview background swatch"
                         value={parsePreviewSiteHex(previewSiteBackgroundHex) ?? "#ffffff"}
                         disabled={previewLocked}
-                        onChange={(e) => setPreviewSiteBackgroundHex(e.target.value)}
+                        onChange={(e) => {
+                          if (previewLocked) return;
+                          applyEmbedCustomizeSnapshot({
+                            ...embedCustomizeRef.current,
+                            previewSiteBackgroundHex: e.target.value,
+                          });
+                        }}
                         className="h-9 w-12 cursor-pointer rounded border border-gray-200 bg-white p-0.5"
                       />
                       <input
@@ -873,7 +1163,13 @@ export default function WebsiteWidgetsPage() {
                         placeholder="#f5f5f5"
                         value={previewSiteBackgroundHex}
                         disabled={previewLocked}
-                        onChange={(e) => setPreviewSiteBackgroundHex(e.target.value)}
+                        onChange={(e) => {
+                          if (previewLocked) return;
+                          applyEmbedCustomizeSnapshot({
+                            ...embedCustomizeRef.current,
+                            previewSiteBackgroundHex: e.target.value,
+                          });
+                        }}
                         className="min-w-0 flex-1 rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-800"
                         spellCheck={false}
                       />
@@ -927,7 +1223,7 @@ export default function WebsiteWidgetsPage() {
             ) : null}
 
             <div
-              className={`relative rounded-lg border border-gray-200 p-4 sm:p-6 ${
+              className={`relative flex min-h-[min(52vh,560px)] items-center justify-center rounded-lg border border-gray-200 p-6 sm:p-10 ${
                 previewDevice === "mobile" ? "mx-auto max-w-[400px]" : ""
               }`}
               style={previewPanelSurface}
@@ -937,51 +1233,37 @@ export default function WebsiteWidgetsPage() {
                   No business selected. Please select a business to preview the widget.
                 </p>
               ) : (
-                <>
-                  <div className={previewLocked ? "blur-sm select-none" : ""}>
-                    <iframe
-                      ref={iframeRef}
-                      key={previewUrl}
-                      src={previewUrl}
-                      title={`${currentWidget.name} preview`}
-                      className={
-                        effectiveEmbedMinimal
-                          ? "max-w-full align-middle transition-all duration-300"
-                          : "w-full transition-all duration-300"
-                      }
-                      style={{
-                        height: currentWidget.previewHeight,
-                        border: 0,
-                        display: effectiveEmbedMinimal ? "inline-block" : "block",
-                        verticalAlign: effectiveEmbedMinimal ? "middle" : undefined,
-                        width: effectiveEmbedMinimal ? "auto" : "100%",
-                        maxWidth: effectiveEmbedMinimal ? "100%" : undefined,
-                        backgroundColor: "transparent",
-                        overflow: "hidden",
-                      }}
-                      scrolling="no"
-                    />
-                  </div>
-                  {previewLocked ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openUpgradeFeatureModal(
-                          requiredPlanForWebsiteWidget(currentWidget.planWidget),
-                          currentWidget.planWidget,
-                        )
-                      }
-                      className="absolute inset-4 z-10 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-0 bg-white/80 px-4 text-center backdrop-blur-md sm:inset-6"
-                    >
-                      <span className="text-sm font-medium text-gray-900">
-                        Unlock this widget for your plan to preview and embed it live.
-                      </span>
-                      <span className="rounded-lg bg-[#124541] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]">
-                        {upgradeLabelForPlan(requiredPlanForWebsiteWidget(currentWidget.planWidget))}
-                      </span>
-                    </button>
-                  ) : null}
-                </>
+                <iframe
+                  ref={iframeRef}
+                  key={previewUrl}
+                  src={previewUrl}
+                  title={`${currentWidget.name} preview`}
+                  className={
+                    effectiveEmbedMinimal && !rowWidgetPreviewFullBleed
+                      ? "max-w-full align-middle transition-all duration-300"
+                      : "w-full transition-all duration-300"
+                  }
+                  style={{
+                    height: currentWidget.previewHeight,
+                    border: 0,
+                    display:
+                      effectiveEmbedMinimal && !rowWidgetPreviewFullBleed
+                        ? "inline-block"
+                        : "block",
+                    verticalAlign:
+                      effectiveEmbedMinimal && !rowWidgetPreviewFullBleed
+                        ? "middle"
+                        : undefined,
+                    width:
+                      effectiveEmbedMinimal && !rowWidgetPreviewFullBleed
+                        ? "auto"
+                        : "100%",
+                    maxWidth: "100%",
+                    backgroundColor: "transparent",
+                    overflow: "hidden",
+                  }}
+                  scrolling="no"
+                />
               )}
             </div>
           </div>
@@ -989,8 +1271,9 @@ export default function WebsiteWidgetsPage() {
 
         {canWhiteLabelCurrentWidget ? (
           <div className="border-t border-gray-100 pt-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Elite white-label
+            <h2 className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <span>Elite white-label</span>
+              <AvailableToUseLabel />
             </h2>
             <p className="text-xs text-gray-500">
               Customize stars, font, and widget colors for all website widgets on Elite. The Tellacity logo asset
@@ -1120,92 +1403,69 @@ export default function WebsiteWidgetsPage() {
             attributes, remove <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> entirely —
             your saved surface choice still applies on the live widget.
           </p>
-          <div className="relative overflow-hidden rounded-lg border border-gray-100 bg-neutral-50/30 shadow-sm">
-            <div className={previewLocked ? "blur-sm select-none" : ""}>
-              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
-                <span className="text-xs font-medium text-gray-500">HTML</span>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  disabled={previewLocked}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                    copied
-                      ? "bg-green-50 text-green-700 border border-green-200"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent"
-                  } disabled:cursor-not-allowed disabled:opacity-50`}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={12} strokeWidth={2.5} />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={12} strokeWidth={2} />
-                      Copy code
-                    </>
-                  )}
-                </button>
-              </div>
-              <pre className="overflow-x-auto px-4 py-4 text-xs leading-relaxed text-gray-700 font-mono whitespace-pre-wrap break-all">
-                {embedCode}
-              </pre>
-            </div>
-            {previewLocked ? (
+          <div className="rounded-lg border border-gray-100 bg-neutral-50/30 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+              <span className="text-xs font-medium text-gray-500">HTML</span>
               <button
                 type="button"
-                onClick={() =>
-                  openUpgradeFeatureModal(
-                    requiredPlanForWebsiteWidget(currentWidget.planWidget),
-                    currentWidget.planWidget,
-                  )
-                }
-                className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center justify-center gap-3 border-0 bg-white/75 px-6 text-center backdrop-blur-md"
+                onClick={handleCopy}
+                disabled={previewLocked}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  copied
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
               >
-                <span className="text-sm font-medium text-gray-900">
-                  Unlock more widget styles to spotlight reviews and build trust on your site.
-                </span>
-                <span className="rounded-lg bg-[#124541] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]">
-                  {upgradeLabelForPlan(upgradeRequiredPlan)}
-                </span>
+                {copied ? (
+                  <>
+                    <Check size={12} strokeWidth={2.5} />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} strokeWidth={2} />
+                    Copy code
+                  </>
+                )}
               </button>
-            ) : null}
+            </div>
+            <pre className="overflow-x-auto px-4 py-4 text-xs leading-relaxed text-gray-700 font-mono whitespace-pre-wrap break-all">
+              {embedCode}
+            </pre>
           </div>
           <p className="mt-3 text-xs text-gray-400">
             Paste this snippet anywhere in your website HTML where you want the widget to appear.
-          </p>
-        </div>
-
-        <div
-          className="border-t border-gray-100 pt-6 text-sm text-[#374151]"
-          aria-labelledby="website-widgets-howto-heading"
-        >
-          <h2
-            id="website-widgets-howto-heading"
-            className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500"
-          >
-            How to add this to your website
-          </h2>
-          <ol className="list-decimal space-y-3 pl-4 marker:font-semibold marker:text-[#2fb2a8]">
-            <li>
-              Choose a widget above and check the live preview matches what you want visitors to see.
-            </li>
-            <li>
-              Copy the embed code from the HTML box. It loads our script (
-              <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">/widgets/v1.js</code>) and automatically
-              displays your business reviews.
-            </li>
-            <li>
-              Paste it into your website (usually in a Custom HTML or Embed block) — common places include your
-              homepage, footer, or a dedicated &ldquo;Reviews&rdquo; page.
-            </li>
-            <li>Publish and refresh your site for instant backlink for SEO.</li>
-          </ol>
-          <p className="mt-4 border-t border-gray-100 pt-4 text-xs leading-relaxed text-gray-600">
-            Your widget updates automatically when new reviews come in — no maintenance needed.
+            {previewLocked ? " Upgrade your plan to copy embed code." : ""}
           </p>
         </div>
       </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-[#fafafa] px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setWidgetConfigureOpen(false)}
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCopy()}
+                disabled={previewLocked}
+                className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                  previewLocked
+                    ? "bg-gray-200 text-gray-500"
+                    : "bg-[#124541] text-white hover:bg-[#0f3a35]"
+                }`}
+              >
+                <Copy size={16} strokeWidth={2} aria-hidden />
+                Get code
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {upgradeFeatureModalOpen ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

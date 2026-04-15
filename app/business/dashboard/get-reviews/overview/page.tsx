@@ -14,6 +14,7 @@ import {
 } from "@/lib/plans";
 import { incrementUpgradeClickCount, upgradeModalTitleForClickCount } from "@/lib/upgradeClickStorage";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
@@ -477,8 +478,9 @@ export default function GetReviewsOverviewPage() {
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
-              Invitations sent this month
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-gray-500">
+              <span>Invitations sent this month</span>
+              <AvailableToUseLabel />
             </div>
             <div className="mt-2 text-2xl font-semibold text-gray-900">
               {monthlyUsage} / {monthlyLimit}
@@ -517,8 +519,9 @@ export default function GetReviewsOverviewPage() {
             ) : null}
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
-              Delivered
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-gray-500">
+              <span>Delivered</span>
+              <AvailableToUseLabel />
             </div>
             <>
               <div className="mt-2 text-2xl font-semibold text-gray-900">
@@ -530,8 +533,9 @@ export default function GetReviewsOverviewPage() {
             </>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
-              Reviews generated
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-gray-500">
+              <span>Reviews generated</span>
+              <AvailableToUseLabel />
             </div>
             {viewMode === "monthly" ? (
               <>
@@ -554,8 +558,9 @@ export default function GetReviewsOverviewPage() {
             )}
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
-              Average rating
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-gray-500">
+              <span>Average rating</span>
+              <AvailableToUseLabel />
             </div>
             {viewMode === "monthly" ? (
               <>
@@ -608,8 +613,9 @@ export default function GetReviewsOverviewPage() {
         id="invites-sent"
         className="scroll-mt-24 mt-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
       >
-        <h2 className="text-base font-semibold text-gray-900">
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
           Invites sent
+          <AvailableToUseLabel />
         </h2>
         <p className="mt-1 text-sm text-gray-500">
           See every invite you've sent and when it was sent.
@@ -694,8 +700,9 @@ export default function GetReviewsOverviewPage() {
       {/* Section C - QR code */}
       {reviewUrl && (
         <div className="mt-10 rounded-xl border-2 border-[#2fb2a8] bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">
+          <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
             Collect reviews offline
+            {canQrReviews ? <AvailableToUseLabel /> : null}
           </h2>
           <p className="mt-1 text-sm text-gray-500">
             Use your public review link anywhere, or print a QR code for counters, tables, packaging,
@@ -719,8 +726,9 @@ export default function GetReviewsOverviewPage() {
               </div>
               <div className="flex flex-1 flex-col gap-4">
                 <div className={!canQrReviews ? "select-text" : ""}>
-                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Review link
+                  <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <span>Review link</span>
+                    {!canQrReviews ? <AvailableToUseLabel /> : null}
                   </p>
                   <div className="flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
                     <span className="flex-1 truncate text-sm text-gray-800">{reviewUrl}</span>

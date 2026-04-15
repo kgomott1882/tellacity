@@ -15,6 +15,10 @@ const WIDGET_TYPES = new Set<WidgetType>([
   "trust_stacked",
   "trust_strip_icon",
   "trust_mini",
+  "spotlight_carousel",
+  "review_slider",
+  "review_dropdown",
+  "micro_trustscore",
 ]);
 
 export type WidgetEmbedSettingsStored = {

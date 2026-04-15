@@ -28,4 +28,8 @@ export type WidgetType =
   | "trust_strip"
   | "trust_stacked"
   | "trust_strip_icon"
-  | "trust_mini";
+  | "trust_mini"
+  | "spotlight_carousel"
+  | "review_slider"
+  | "review_dropdown"
+  | "micro_trustscore";

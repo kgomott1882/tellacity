@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import CookieConsent from "./CookieConsent";
 
 export default function CookieBar() {
-  const [visible, setVisible] = useState(false);
+  const pathname = usePathname();
+  const isWidgetRoute = pathname?.startsWith("/widgets");
+  const [hasConsent, setHasConsent] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return !!window.localStorage.getItem("tellacity_cookie_consent");
+  });
   const [showModal, setShowModal] = useState(false);
+  const visible = !isWidgetRoute && !hasConsent && !showModal;
 
   useEffect(() => {
-    const consent = localStorage.getItem("tellacity_cookie_consent");
-    if (!consent) {
-      setVisible(true);
-    }
-  }, []);
-
-  useEffect(() => {
+    if (isWidgetRoute) return;
     if (visible || showModal) {
       document.body.style.overflow = "hidden";
     } else {
@@ -24,13 +25,15 @@ export default function CookieBar() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [visible, showModal]);
+  }, [visible, showModal, isWidgetRoute]);
 
   const closeAll = () => {
     localStorage.setItem("tellacity_cookie_consent", "accepted");
+    setHasConsent(true);
     setShowModal(false);
-    setVisible(false);
   };
+
+  if (isWidgetRoute) return null;
 
   return (
     <>

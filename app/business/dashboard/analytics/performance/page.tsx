@@ -11,6 +11,7 @@ import {
   nextTierUpgradeCtaLabel,
 } from "@/lib/plans";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
   useDashboardPerformanceData,
   type DailyReview,
@@ -572,7 +573,13 @@ function ReviewCard({ review }: { review: RecentReview }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function PerformanceAnalyticsContent({ businessId }: { businessId: string }) {
+function PerformanceAnalyticsContent({
+  businessId,
+  showIncludedGuide,
+}: {
+  businessId: string;
+  showIncludedGuide: boolean;
+}) {
   const {
     data,
     error,
@@ -658,7 +665,12 @@ function PerformanceAnalyticsContent({ businessId }: { businessId: string }) {
 
       {/* Page title */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-100">Performance</h1>
+        <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold text-neutral-100">
+          <span>Performance</span>
+          {showIncludedGuide ? (
+            <AvailableToUseLabel className="!text-[#7dd3ce] font-normal normal-case tracking-wide" />
+          ) : null}
+        </h1>
         <p className="mt-0.5 text-xs text-neutral-500">Overview of ratings, review trends, and trust growth.</p>
       </div>
 
@@ -922,7 +934,10 @@ export default function PerformancePage() {
     <>
       <div className="relative w-full min-h-[calc(100vh-80px)]">
         <div className={analyticsLocked ? "pointer-events-none select-none" : undefined}>
-          <PerformanceAnalyticsContent businessId={businessId} />
+          <PerformanceAnalyticsContent
+            businessId={businessId}
+            showIncludedGuide={!analyticsLocked}
+          />
         </div>
 
         {analyticsLocked ? (

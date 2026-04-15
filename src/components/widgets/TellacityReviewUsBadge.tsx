@@ -14,11 +14,11 @@ type Props = {
 const SIZES = {
   sm: {
     pad: "px-3 py-2.5 gap-2 text-sm leading-snug",
-    logoClass: "h-[17px] max-w-[142px] sm:max-w-[154px]",
+    logoClass: "h-[13px] max-w-[112px] sm:max-w-[120px]",
   },
   md: {
     pad: "px-4 py-3 gap-2.5 text-[15px] leading-snug",
-    logoClass: "h-[20px] max-w-[162px] sm:max-w-[178px]",
+    logoClass: "h-[15px] max-w-[126px] sm:max-w-[136px]",
   },
 } as const;
 
@@ -45,8 +45,8 @@ export default function TellacityReviewUsBadge({
         <Image
           src={TELLACITY_TRUST_BADGE_LOGO_PATH}
           alt="Tellacity"
-          width={178}
-          height={28}
+          width={142}
+          height={23}
           className={`w-auto shrink-0 object-contain object-left ${s.logoClass}`}
           unoptimized
         />

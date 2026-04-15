@@ -10,6 +10,10 @@ import TellacityTrustStrip from "@/components/widgets/TellacityTrustStrip";
 import TellacityTrustStacked from "@/components/widgets/TellacityTrustStacked";
 import TellacityTrustStripIcon from "@/components/widgets/TellacityTrustStripIcon";
 import TellacityTrustMini from "@/components/widgets/TellacityTrustMini";
+import SpotlightCarouselWidget from "@/components/widgets/SpotlightCarouselWidget";
+import ReviewSliderWidget from "@/components/widgets/ReviewSliderWidget";
+import ReviewDropdownWidget from "@/components/widgets/ReviewDropdownWidget";
+import MicroTrustScoreWidget from "@/components/widgets/MicroTrustScoreWidget";
 import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
 import TellacityTrustBadgeEmbed from "@/components/widgets/TellacityTrustBadgeEmbed";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
@@ -30,6 +34,10 @@ const VALID_TYPES: WidgetType[] = [
   "trust_stacked",
   "trust_strip_icon",
   "trust_mini",
+  "spotlight_carousel",
+  "review_slider",
+  "review_dropdown",
+  "micro_trustscore",
 ];
 
 type FontKey = "system" | "inter" | "serif" | "mono";
@@ -113,7 +121,16 @@ export default async function WidgetEmbedPage({
   const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
     ? (rawType as WidgetType)
     : "badge";
-  const limit = Math.min(Math.max((parseInt(params.limit ?? "5", 10)) || 5, 1), 20);
+  const defaultLimitStr = type === "review_dropdown" ? "20" : "5";
+  const fallbackLimit = parseInt(defaultLimitStr, 10);
+  const parsedLimit = parseInt(params.limit ?? defaultLimitStr, 10);
+  const n =
+    Number.isFinite(parsedLimit) && parsedLimit >= 1 ? parsedLimit : fallbackLimit;
+  const requestedLimit = Math.min(20, Math.max(1, n));
+  const limit =
+    type === "spotlight_carousel" || type === "review_slider"
+      ? Math.min(20, Math.max(requestedLimit, 6))
+      : requestedLimit;
   const dashboardDemo =
     params.dashboard_demo === "1" || params.dashboard_demo === "true";
   const emptyStarBorder = "#9CA3AF";
@@ -232,10 +249,21 @@ export default async function WidgetEmbedPage({
           background: transparent;
         }
         body {
-          padding: ${minimal ? "0" : "20px 24px"};
+          padding: ${
+            minimal
+              ? "0"
+              : type === "review_slider"
+                ? "12px 18px 8px"
+                : "20px 24px"
+          };
           background: transparent;
           color: var(--tc-widget-text-color);
           font-family: var(--tc-widget-font-family);
+        }
+        ${
+          type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore"
+            ? `html, body { width: 100%; min-width: 100%; }`
+            : ""
         }
       `}</style>
 
@@ -339,10 +367,41 @@ export default async function WidgetEmbedPage({
           minimal={minimal}
         />
       )}
+      {type === "spotlight_carousel" && (
+        <SpotlightCarouselWidget
+          payload={payload}
+          dashboardDemo={dashboardDemo}
+          showTellacityLogo={whiteLabel.showTellacityLogo}
+          minimal={minimal}
+        />
+      )}
+      {type === "review_slider" && (
+        <ReviewSliderWidget
+          payload={payload}
+          dashboardDemo={dashboardDemo}
+          showTellacityLogo={whiteLabel.showTellacityLogo}
+          minimal={minimal}
+        />
+      )}
+      {type === "review_dropdown" && (
+        <ReviewDropdownWidget
+          payload={payload}
+          dashboardDemo={dashboardDemo}
+          showTellacityLogo={whiteLabel.showTellacityLogo}
+          minimal={minimal}
+        />
+      )}
+      {type === "micro_trustscore" && (
+        <MicroTrustScoreWidget
+          payload={payload}
+          showTellacityLogo={whiteLabel.showTellacityLogo}
+          minimal={minimal}
+        />
+      )}
 
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){function s(){var h=document.body.scrollHeight;window.parent.postMessage({type:'tellacity-widget-resize',src:window.location.href,height:h},'*');}if(document.readyState==='complete'){s();}else{window.addEventListener('load',s);}setTimeout(s,300);})();`,
+          __html: `(function(){function s(){var b=document.body,d=document.documentElement;var h=Math.ceil(Math.max(b.scrollHeight,b.offsetHeight,d.scrollHeight));window.parent.postMessage({type:'tellacity-widget-resize',src:window.location.href,height:h},'*');}if(document.readyState==='complete'){s();}else{window.addEventListener('load',s);}setTimeout(s,0);setTimeout(s,300);setTimeout(s,900);setTimeout(s,1800);})();`,
         }}
       />
     </>

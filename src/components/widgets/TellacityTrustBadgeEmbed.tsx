@@ -50,7 +50,7 @@ export default function TellacityTrustBadgeEmbed({
             <img
               src={TELLACITY_TRUST_BADGE_LOGO_PATH}
               alt="Tellacity"
-              style={{ height: 24, maxWidth: 148, objectFit: "contain" }}
+              style={{ height: 18, maxWidth: 124, objectFit: "contain" }}
             />
           </div>
         ) : null}

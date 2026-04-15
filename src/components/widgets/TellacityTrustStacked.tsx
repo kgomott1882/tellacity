@@ -97,8 +97,9 @@ export default function TellacityTrustStacked({
       <span
         style={{
           fontSize: hasStats ? 30 : 24,
-          fontWeight: 400,
+          fontWeight: 700,
           lineHeight: 1,
+          fontFamily: "Arial, Helvetica, sans-serif",
           color: "var(--tc-widget-text-color, #000000)",
         }}
       >
@@ -127,9 +128,9 @@ export default function TellacityTrustStacked({
           src={TELLACITY_TRUST_BADGE_LOGO_PATH}
           alt="Tellacity"
           style={{
-            height: 24,
+            height: 18,
             width: "auto",
-            maxWidth: 160,
+            maxWidth: 132,
             objectFit: "contain",
             objectPosition: "center",
             display: "block",

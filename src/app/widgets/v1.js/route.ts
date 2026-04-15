@@ -13,13 +13,19 @@ const SCRIPT = `
   var theme = (themeAttr != null && String(themeAttr).trim() !== '')
     ? String(themeAttr).trim().toLowerCase()
     : 'inherit';
-  // Iframe chrome: explicit minimal stays inline; inherit may resolve to DB "light", so use wide layout unless explicitly minimal.
+  // Iframe chrome: explicit minimal stays inline; spotlight row needs full width even in minimal.
   var layoutMinimal = theme === 'minimal';
-  var limit = parseInt(script.dataset.limit || '5', 10);
+  var spotlightWide = type === 'spotlight_carousel' || type === 'review_slider' || type === 'micro_trustscore';
+  var limitStr = script.dataset.limit;
+  if (type === 'review_dropdown' && (limitStr == null || String(limitStr).trim() === '')) {
+    limitStr = '20';
+  }
+  var limit = parseInt(limitStr || '5', 10);
   if (isNaN(limit) || limit < 1) limit = 1;
   if (limit > 20) limit = 20;
+  if ((type === 'spotlight_carousel' || type === 'review_slider') && limit < 6) limit = 6;
 
-  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200, trust_strip: 86, trust_stacked: 220, trust_strip_icon: 86, trust_mini: 34 };
+  var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200, trust_strip: 86, trust_stacked: 220, trust_strip_icon: 86, trust_mini: 34, spotlight_carousel: 520, review_slider: 380, review_dropdown: 400, micro_trustscore: 44 };
   var defaultHeight = heightDefaults[type] || 110;
   var height = parseInt(script.dataset.height || String(defaultHeight), 10);
   if (isNaN(height)) height = defaultHeight;
@@ -38,9 +44,9 @@ const SCRIPT = `
 
   var iframe = document.createElement('iframe');
   iframe.src = src;
-  iframe.style.cssText = layoutMinimal
+  iframe.style.cssText = layoutMinimal && !spotlightWide
     ? 'border:0;width:auto;max-width:100%;min-width:0;display:inline-block;vertical-align:middle;overflow:hidden;'
-    : 'border:0;width:100%;display:block;overflow:hidden;';
+    : 'border:0;width:100%;max-width:100%;min-width:0;display:block;overflow:hidden;';
   iframe.height = String(height);
   iframe.setAttribute('allowtransparency', 'true');
   iframe.setAttribute('scrolling', 'no');

@@ -15,6 +15,7 @@ import {
 } from "@/lib/plans";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 
 const DEFAULT_STANDARD_SUBJECT = "You're invited to leave a review";
 const DEFAULT_STANDARD_BODY =
@@ -261,9 +262,14 @@ export default function EmailTemplatesPage() {
 
       {/* Standard template */}
       <div className="mt-8 rounded-xl border-2 border-[#2fb2a8] bg-white p-6 shadow-sm">
-        <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-900">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">1</span>
-          Standard template
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
+          <span className="inline-flex items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">
+              1
+            </span>
+            Standard template
+          </span>
+          <AvailableToUseLabel />
         </h2>
         <p className="mt-1 text-sm text-gray-500">Default subject and body used for review invites.</p>
         {(
@@ -280,9 +286,14 @@ export default function EmailTemplatesPage() {
 
       {/* Custom template */}
       <div className="mt-8 rounded-xl border-2 border-[#2fb2a8] bg-white p-6 shadow-sm">
-        <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-900">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">2</span>
-          Custom template
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
+          <span className="inline-flex items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">
+              2
+            </span>
+            Custom template
+          </span>
+          {canEditCustom ? <AvailableToUseLabel /> : null}
         </h2>
         <p className="mt-1 text-sm text-gray-500">
           Customise the subject and body for your review invitation emails. Higher tiers add branded

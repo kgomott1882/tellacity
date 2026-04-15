@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 
 const INVITES_SENT_OVERVIEW =
   "/business/dashboard/get-reviews/overview#invites-sent";
@@ -118,8 +119,9 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
   return (
     <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-6">
       <div className="mb-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          Recent Review Invites
+        <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <span>Recent Review Invites</span>
+          <AvailableToUseLabel className="!text-[#7dd3ce]" />
         </h3>
         <p className="mt-0.5 text-xs text-neutral-500">Latest outreach for this business.</p>
       </div>

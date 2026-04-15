@@ -16,6 +16,7 @@ import {
   normalizePlanCodeToKey,
   nextTierUpgradeCtaLabel,
 } from "@/lib/plans";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -199,8 +200,9 @@ export default function SocialSharePage() {
 
           {/* Share public profile */}
           <div>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Your public profile
+            <h2 className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <span>Your public profile</span>
+              <AvailableToUseLabel />
             </h2>
             <p className="mb-3 text-xs text-gray-400">
               Share this link so customers can read your reviews and learn about your business.
@@ -223,8 +225,9 @@ export default function SocialSharePage() {
 
           {/* Collect reviews + QR */}
           <div>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Collect more reviews
+            <h2 className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <span>Collect more reviews</span>
+              <AvailableToUseLabel />
             </h2>
             <p className="mb-3 text-xs text-gray-400">
               Send this link directly to customers to make leaving a review quick and easy.
@@ -236,6 +239,12 @@ export default function SocialSharePage() {
 
             {/* QR code: same gate as Get reviews overview (Grow+ for clear / printable use) */}
             <div className="relative mt-4 inline-flex min-w-[152px] flex-col items-stretch rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              {canUseQrClearly ? (
+                <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <span>QR code</span>
+                  <AvailableToUseLabel />
+                </p>
+              ) : null}
               <div
                 className={`mx-auto flex flex-col items-center gap-2 ${
                   !canUseQrClearly
@@ -267,8 +276,9 @@ export default function SocialSharePage() {
 
           {/* Quick share */}
           <div>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Quick share
+            <h2 className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <span>Quick share</span>
+              <AvailableToUseLabel />
             </h2>
             <p className="mb-4 text-xs text-gray-400">
               Share your profile directly to your social channels.

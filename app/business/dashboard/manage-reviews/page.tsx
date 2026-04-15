@@ -5,6 +5,7 @@ import { useBusinessContext } from "../_context/BusinessContext";
 import { getOptionalAccessToken } from "@/lib/dashboardApiFetch";
 import { supabase } from "@/lib/supabaseBrowser";
 import PageLoadingOverlay from "../_components/PageLoadingOverlay";
+import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import RatingStars from "@/components/RatingStars";
 import { MessageCircle, Share2, Flag, Link2 } from "lucide-react";
 import Image from "next/image";
@@ -282,7 +283,10 @@ export default function ManageReviewsPage() {
       <p className="mt-2 text-sm text-gray-500">Monitor, moderate, and manage customer feedback.</p>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-[#0E0E0E]">Your review inbox</h2>
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-[#0E0E0E]">
+          Your review inbox
+          <AvailableToUseLabel />
+        </h2>
         <p className="mt-1 text-sm text-gray-500">New reviews and replies will appear here.</p>
       </div>
 

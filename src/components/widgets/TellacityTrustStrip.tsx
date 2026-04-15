@@ -118,9 +118,9 @@ export default function TellacityTrustStrip({
           src={TELLACITY_TRUST_BADGE_LOGO_PATH}
           alt="Tellacity"
           style={{
-            height: 18,
+            height: 14,
             width: "auto",
-            maxWidth: 162,
+            maxWidth: 132,
             objectFit: "contain",
             objectPosition: "left center",
             display: "block",

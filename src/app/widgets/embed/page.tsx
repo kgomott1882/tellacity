@@ -9,6 +9,10 @@ import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge"
 import TellacityScoreStrip from "@/components/widgets/TellacityScoreStrip";
 import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
 import TellacityTrustBadgeEmbed from "@/components/widgets/TellacityTrustBadgeEmbed";
+import SpotlightCarouselWidget from "@/components/widgets/SpotlightCarouselWidget";
+import ReviewSliderWidget from "@/components/widgets/ReviewSliderWidget";
+import ReviewDropdownWidget from "@/components/widgets/ReviewDropdownWidget";
+import MicroTrustScoreWidget from "@/components/widgets/MicroTrustScoreWidget";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
 
 export const metadata: Metadata = { robots: "noindex" };
@@ -23,12 +27,22 @@ const VALID_TYPES: WidgetType[] = [
   "score_strip",
   "showcase",
   "tellacity_trust",
+  "spotlight_carousel",
+  "review_slider",
+  "review_dropdown",
+  "micro_trustscore",
 ];
 
-function clampLimit(raw: string | undefined): number {
-  const n = parseInt(raw ?? "5", 10);
-  if (isNaN(n)) return 5;
-  return Math.min(20, Math.max(1, n));
+function clampLimit(raw: string | undefined, type: WidgetType): number {
+  const defaultStr = type === "review_dropdown" ? "20" : "5";
+  const fallback = parseInt(defaultStr, 10);
+  const parsed = parseInt(raw ?? defaultStr, 10);
+  const n = Number.isFinite(parsed) && parsed >= 1 ? parsed : fallback;
+  let limit = Math.min(20, Math.max(1, n));
+  if (type === "spotlight_carousel" || type === "review_slider") {
+    limit = Math.min(20, Math.max(limit, 6));
+  }
+  return limit;
 }
 
 async function fetchPayload(business: string, limit: number): Promise<WidgetPayload | null> {
@@ -51,7 +65,11 @@ export default async function WidgetEmbedPage({
   const business = (Array.isArray(params.business) ? params.business[0] : params.business)?.trim() ?? "";
   const rawType = (Array.isArray(params.type) ? params.type[0] : params.type) ?? "badge";
   const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType) ? (rawType as WidgetType) : "badge";
-  const limit = clampLimit(Array.isArray(params.limit) ? params.limit[0] : params.limit);
+  const requestedLimit = clampLimit(
+    Array.isArray(params.limit) ? params.limit[0] : params.limit,
+    type,
+  );
+  const limit = requestedLimit;
   const dashboardRaw = Array.isArray(params.dashboard_demo) ? params.dashboard_demo[0] : params.dashboard_demo;
   const dashboardDemo = dashboardRaw === "1" || dashboardRaw === "true";
   const themeRaw = Array.isArray(params.theme) ? params.theme[0] : params.theme;
@@ -68,7 +86,10 @@ export default async function WidgetEmbedPage({
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { background: transparent; }
-        body { padding: ${minimal ? "0" : "20px 24px"}; font-family: system-ui, -apple-system, sans-serif; }
+        body { padding: ${
+          minimal ? "0" : type === "review_slider" ? "12px 18px 8px" : "20px 24px"
+        }; font-family: system-ui, -apple-system, sans-serif; }
+        ${type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore" ? `html, body { width: 100%; min-width: 100%; }` : ""}
       `}</style>
 
       {!payload ? (
@@ -112,13 +133,40 @@ export default async function WidgetEmbedPage({
           {type === "tellacity_trust" && (
             <TellacityTrustBadgeEmbed payload={payload} reviewHref={writeReviewHref} minimal={minimal} />
           )}
+          {type === "spotlight_carousel" && (
+            <SpotlightCarouselWidget
+              payload={payload}
+              dashboardDemo={dashboardDemo}
+              showTellacityLogo
+              minimal={minimal}
+            />
+          )}
+          {type === "review_slider" && (
+            <ReviewSliderWidget
+              payload={payload}
+              dashboardDemo={dashboardDemo}
+              showTellacityLogo
+              minimal={minimal}
+            />
+          )}
+          {type === "review_dropdown" && (
+            <ReviewDropdownWidget
+              payload={payload}
+              dashboardDemo={dashboardDemo}
+              showTellacityLogo
+              minimal={minimal}
+            />
+          )}
+          {type === "micro_trustscore" && (
+            <MicroTrustScoreWidget payload={payload} showTellacityLogo minimal={minimal} />
+          )}
         </>
       )}
 
       {/* Notify parent iframe of rendered height for auto-resize */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){function s(){var h=document.body.scrollHeight;window.parent.postMessage({type:'tellacity-widget-resize',src:window.location.href,height:h},'*');}if(document.readyState==='complete'){s();}else{window.addEventListener('load',s);}setTimeout(s,300);})();`,
+          __html: `(function(){function s(){var b=document.body,d=document.documentElement;var h=Math.ceil(Math.max(b.scrollHeight,b.offsetHeight,d.scrollHeight));window.parent.postMessage({type:'tellacity-widget-resize',src:window.location.href,height:h},'*');}if(document.readyState==='complete'){s();}else{window.addEventListener('load',s);}setTimeout(s,0);setTimeout(s,300);setTimeout(s,900);setTimeout(s,1800);})();`,
         }}
       />
     </>

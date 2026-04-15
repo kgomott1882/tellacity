@@ -311,7 +311,11 @@ export function canAccessWebsiteWidget(
     | "trust_strip"
     | "trust_stacked"
     | "trust_strip_icon"
-    | "trust_mini",
+    | "trust_mini"
+    | "spotlight_carousel"
+    | "review_slider"
+    | "review_dropdown"
+    | "micro_trustscore",
 ) {
   if (
     widget === "tellacity_trust" ||
@@ -320,6 +324,14 @@ export function canAccessWebsiteWidget(
     widget === "trust_mini"
   ) {
     return plan === "elite";
+  }
+  if (
+    widget === "spotlight_carousel" ||
+    widget === "review_slider" ||
+    widget === "review_dropdown" ||
+    widget === "micro_trustscore"
+  ) {
+    return plan === "premium" || plan === "elite";
   }
   if (plan === "free") return widget === "review_collector";
   if (plan === "grow") {
