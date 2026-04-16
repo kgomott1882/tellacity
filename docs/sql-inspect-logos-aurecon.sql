@@ -39,9 +39,9 @@ WHERE coalesce(status, 'active') = 'active'
 ORDER BY name
 LIMIT 20;
 
--- 3) (Optional) If you have view home_feed_v1, run this in a NEW query tab:
+-- 3) (Optional) If you have view home_feed_v2, run this in a NEW query tab:
 --    SELECT business_slug, resolved_logo_url, business_name, website
---    FROM public.home_feed_v1
+--    FROM public.home_feed_v2
 --    WHERE lower(business_name) LIKE '%aurecon%' OR lower(business_slug) LIKE '%aurecon%'
 --    LIMIT 5;
 

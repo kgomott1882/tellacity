@@ -7,12 +7,17 @@ import CookieConsent from "./CookieConsent";
 export default function CookieBar() {
   const pathname = usePathname();
   const isWidgetRoute = pathname?.startsWith("/widgets");
+  const [mounted, setMounted] = useState(false);
   const [hasConsent, setHasConsent] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     return !!window.localStorage.getItem("tellacity_cookie_consent");
   });
   const [showModal, setShowModal] = useState(false);
   const visible = !isWidgetRoute && !hasConsent && !showModal;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isWidgetRoute) return;
@@ -37,7 +42,7 @@ export default function CookieBar() {
 
   return (
     <>
-      {(visible || showModal) && (
+      {mounted && (visible || showModal) && (
         <div className="fixed inset-0 z-30 backdrop-blur-md bg-black/30 pointer-events-none"></div>
       )}
 

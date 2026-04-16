@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { normalizeCountryCode } from "@/lib/country";
-import { loadHomePageFeedRows } from "@/lib/homePageFeedServer";
 
 const CACHE_HEADER =
   "public, s-maxage=20, stale-while-revalidate=120, max-age=0";
 
 /**
- * Public homepage recent reviews: prefer RPC `get_home_feed_for_country` (indexed),
- * fall back to `home_feed_v1` if the RPC is not deployed yet.
+ * Public homepage recent reviews from `home_feed_v2`.
  */
 export async function GET(req: Request) {
   try {
@@ -16,9 +14,20 @@ export async function GET(req: Request) {
     const country = normalizeCountryCode(url.searchParams.get("country"));
 
     const supabase = createSupabaseServerClient();
-    const sorted = await loadHomePageFeedRows(supabase, country);
+    const { data, error } = await supabase
+      .from("home_feed_v2")
+      .select("*")
+      .eq("country_code", country)
+      .order("created_at", { ascending: false })
+      .limit(16);
 
-    return NextResponse.json(sorted, {
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    console.log("HOME FEED SOURCE: home_feed_v2", data?.length);
+
+    return NextResponse.json(data, {
       headers: {
         "Cache-Control": CACHE_HEADER,
       },

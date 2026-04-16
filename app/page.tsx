@@ -161,11 +161,11 @@ export default async function HomePage(props: PageProps) {
 
   const safeLabels: Record<string, string> = CATEGORY_LABELS ?? {};
   const safeRotatingSlugs = [...HOME_ROTATING_BEST_IN_SLUGS];
-
   try {
     return (
       <Suspense fallback={<HomePageShellFallback />}>
         <HomePageClient
+          key={country}
           initialSelectedCountry={country ?? "US"}
           rotatingCategorySlugs={safeRotatingSlugs}
           bestInByCategory={safeBestInByCategory}

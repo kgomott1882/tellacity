@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import RotatingBestCategorySection from "@/components/home/RotatingBestCategorySection";
 import HeroStarField, {
@@ -131,22 +131,6 @@ function normalizeHomeCountry(code: string | null | undefined): CountryCode {
   return normalizeCountryCodeLib(code) as CountryCode;
 }
 
-/**
- * On `/`, prefer the real address bar during SPA transitions — `useSearchParams()`
- * can briefly omit the query while `window.location` is already updated.
- */
-function useHomeSearchParams() {
-  const pathname = usePathname();
-  const nextSp = useSearchParams();
-  const nextSpString = nextSp.toString();
-  return useMemo(() => {
-    if (typeof window !== "undefined" && pathname === "/") {
-      return new URLSearchParams(window.location.search);
-    }
-    return new URLSearchParams(nextSpString);
-  }, [pathname, nextSpString]);
-}
-
 function isSafeCategorySlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const s = slug.trim();
@@ -181,24 +165,14 @@ export default function HomePageClient({
 }: HomePageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const homeParams = useHomeSearchParams();
-  const homeParamsKey = homeParams.toString();
 
-  const [homeFeedRawRows, setHomeFeedRawRows] = useState<
-    Record<string, unknown>[]
-  >(() =>
+  const [homeFeedRawRows] = useState<Record<string, unknown>[]>(() =>
     sortHomeFeedRowsByDateDesc(
       Array.isArray(initialHomeFeedRows) ? [...initialHomeFeedRows] : [],
     ),
   );
-  const [isLoading, setIsLoading] = useState(
-    () =>
-      !(
-        Array.isArray(initialHomeFeedRows) &&
-        initialHomeFeedRows.length > 0
-      ),
-  );
-  const [error, setError] = useState<string | null>(null);
+  const isLoading = false;
+  const error: string | null = null;
   const [reviewPage, setReviewPage] = useState(0);
   const [highlightedReviewId, setHighlightedReviewId] = useState<
     string | null
@@ -212,9 +186,6 @@ export default function HomePageClient({
   const heroStarFieldRef = useRef<HeroStarFieldHandle | null>(null);
   const [bestInIndex, setBestInIndex] = useState(0);
   const bestInCountryPrevRef = useRef<string | null>(null);
-  /** Set only after a successful `/api/home-feed` (or SSR skip). Avoid Strict Mode double-invoke skipping the real fetch. */
-  const lastCompletedFeedKeyRef = useRef<string | null>(null);
-  const feedFetchGenRef = useRef(0);
   /** Set only after a successful `/api/home-best-in` (or SSR skip). */
   const lastCompletedBestInKeyRef = useRef<string | null>(null);
   const bestInFetchGenRef = useRef(0);
@@ -239,12 +210,6 @@ export default function HomePageClient({
       .filter(Boolean)
       .join("|");
   }, [rotatingCategorySlugs]);
-
-  const feedDataSyncKey = useMemo(
-    () =>
-      `${pathname}::${activeCountryCode}::${homeParamsKey}::${String(initialSelectedCountry ?? "")}`,
-    [pathname, activeCountryCode, homeParamsKey, initialSelectedCountry],
-  );
 
   const bestInEffectSyncKey = useMemo(
     () =>
@@ -403,14 +368,40 @@ export default function HomePageClient({
     reviewPage * reviewsPerPage,
     reviewPage * reviewsPerPage + reviewsPerPage
   );
+  // Single review-card source; both mobile and desktop reuse this.
+  const reviewCards = useMemo(
+    () =>
+      reviews.map((review) => (
+        <div
+          key={review.review_id}
+          className="transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
+        >
+          <RecentReviewCard
+            review={review}
+            showMoreAndReply={false}
+            variant="landing"
+            highlight={highlightedReviewId === review.review_id}
+          />
+        </div>
+      )),
+    [reviews, highlightedReviewId],
+  );
+  const visibleReviewCards = useMemo(
+    () =>
+      reviewCards.slice(
+        reviewPage * reviewsPerPage,
+        reviewPage * reviewsPerPage + reviewsPerPage,
+      ),
+    [reviewCards, reviewPage, reviewsPerPage],
+  );
   // Mobile: one horizontal strip of all reviews (pairs of 2 cards) for swipe + prev/next
-  const allReviewPairs = useMemo(() => {
-    const pairs: HomeReview[][] = [];
-    for (let i = 0; i < reviews.length; i += 2) {
-      pairs.push(reviews.slice(i, i + 2));
+  const allReviewPairCards = useMemo(() => {
+    const pairs: [React.ReactNode | null, React.ReactNode | null][] = [];
+    for (let i = 0; i < reviewCards.length; i += 2) {
+      pairs.push([reviewCards[i] ?? null, reviewCards[i + 1] ?? null]);
     }
     return pairs;
-  }, [reviews]);
+  }, [reviewCards]);
 
   const scrollMobileReviewCarousel = (direction: "prev" | "next") => {
     const el = reviewsScrollRef.current;
@@ -476,139 +467,6 @@ export default function HomePageClient({
   const activeBestInLabel =
     (bestInCategoryLabels ?? {})[activeBestInSlug] ??
     (activeBestInSlug ?? "").replace(/-/g, " ");
-
-  // Recent reviews: `/api/home-feed` — independent from Best-in so the feed can paint first.
-  useEffect(() => {
-    if (pathname !== "/") return;
-
-    const ac = activeCountryCode;
-    const feedKey = `${pathname}:${ac}:${homeParamsKey}`;
-    const initialNorm = normalizeHomeCountry(initialSelectedCountry ?? "US");
-
-    let skipInitialFetch = false;
-
-    if (lastCompletedFeedKeyRef.current === feedKey) {
-      setIsLoading(false);
-      skipInitialFetch = true;
-    } else if (
-      lastCompletedFeedKeyRef.current === null &&
-      ac === initialNorm &&
-      (initialHomeFeedRows?.length ?? 0) > 0
-    ) {
-      lastCompletedFeedKeyRef.current = feedKey;
-      setIsLoading(false);
-      skipInitialFetch = true;
-    }
-
-    let isMounted = true;
-    let activeFeedController: AbortController | null = null;
-    const spFeed = new URLSearchParams(homeParamsKey);
-    const refreshBust =
-      spFeed.get("refresh") === "true" || spFeed.get("refresh") === "1";
-
-    const fetchHomeFeed = async (opts?: { silent?: boolean }) => {
-      const silent = opts?.silent === true;
-      const myGen = ++feedFetchGenRef.current;
-      activeFeedController?.abort();
-      const controller = new AbortController();
-      activeFeedController = controller;
-
-      const alreadyShowingForCountry = homeFeedRawRows.some((r) =>
-        feedRowCountryMatches(r, ac),
-      );
-      // Avoid skeleton flash: if SSR or a prior fetch already filled cards for this
-      // country, refresh in the background without toggling `isLoading`.
-      if (!silent && !alreadyShowingForCountry) {
-        setIsLoading(true);
-        setError(null);
-      } else if (!silent) {
-        setError(null);
-      }
-
-      try {
-        const q = new URLSearchParams();
-        q.set("country", ac);
-        if (refreshBust) {
-          q.set("_", String(Date.now()));
-        }
-        const res = await fetch(`/api/home-feed?${q.toString()}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const raw: unknown = await res.json();
-
-        if (!isMounted || myGen !== feedFetchGenRef.current) return;
-
-        let rows: Record<string, unknown>[] = [];
-        if (Array.isArray(raw)) {
-          rows = raw as Record<string, unknown>[];
-        } else if (
-          raw &&
-          typeof raw === "object" &&
-          Array.isArray((raw as { data?: unknown }).data)
-        ) {
-          rows = (raw as { data: Record<string, unknown>[] }).data;
-        }
-
-        if (!res.ok) {
-          const msg =
-            raw &&
-            typeof raw === "object" &&
-            typeof (raw as { error?: string }).error === "string"
-              ? (raw as { error: string }).error
-              : "Failed to load reviews.";
-          setError(msg);
-          if (!alreadyShowingForCountry) {
-            setHomeFeedRawRows([]);
-          }
-          return;
-        }
-
-        setHomeFeedRawRows(sortHomeFeedRowsByDateDesc(rows));
-        lastCompletedFeedKeyRef.current = feedKey;
-
-        if (refreshBust && isMounted && myGen === feedFetchGenRef.current) {
-          const p = new URLSearchParams(homeParamsKey);
-          p.delete("refresh");
-          const qs = p.toString();
-          router.replace(qs ? `/?${qs}` : "/", { scroll: false });
-        }
-      } catch (e) {
-        if (!isMounted || myGen !== feedFetchGenRef.current) return;
-        setError(e instanceof Error ? e.message : "Failed to load reviews.");
-        if (!alreadyShowingForCountry) {
-          setHomeFeedRawRows([]);
-        }
-      } finally {
-        if (isMounted && myGen === feedFetchGenRef.current) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    if (!skipInitialFetch) {
-      void fetchHomeFeed();
-    }
-
-    const onVisible = () => {
-      if (document.visibilityState !== "visible" || !isMounted) return;
-      void fetchHomeFeed({ silent: true });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
-    const onPageShow = (ev: PageTransitionEvent) => {
-      if (!isMounted) return;
-      if (ev.persisted) void fetchHomeFeed({ silent: true });
-    };
-    window.addEventListener("pageshow", onPageShow);
-
-    return () => {
-      isMounted = false;
-      activeFeedController?.abort();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, [feedDataSyncKey, router]);
 
   // Best-in: `/api/home-best-in` — reads `home_best_in_cache` (single request per country).
   useEffect(() => {
@@ -1441,26 +1299,15 @@ export default function HomePageClient({
               </div>
             ))}
           {!isLoading &&
-            allReviewPairs.length > 0 &&
-            allReviewPairs.map((pair, idx) => (
+            allReviewPairCards.length > 0 &&
+            allReviewPairCards.map((pair, idx) => (
               <div
-                key={pair[0]?.review_id ?? `slide-${idx}`}
+                key={`slide-${idx}`}
                 data-review-slide
                 className="flex w-[calc((100vw-3rem)*0.67)] min-w-[260px] shrink-0 snap-center flex-col gap-4"
               >
-                {pair.map((review) => (
-                  <div
-                    key={review.review_id}
-                    className="transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
-                  >
-                    <RecentReviewCard
-                      review={review}
-                      showMoreAndReply={false}
-                      variant="landing"
-                      highlight={highlightedReviewId === review.review_id}
-                    />
-                  </div>
-                ))}
+                {pair[0]}
+                {pair[1]}
               </div>
             ))}
         </div>
@@ -1475,20 +1322,8 @@ export default function HomePageClient({
               />
             ))}
           {!isLoading &&
-            visibleReviews.length > 0 &&
-            visibleReviews.map((review) => (
-              <div
-                key={review.review_id}
-                className="transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-xl"
-              >
-                <RecentReviewCard
-                  review={review}
-                  showMoreAndReply={false}
-                  variant="landing"
-                  highlight={highlightedReviewId === review.review_id}
-                />
-              </div>
-            ))}
+            visibleReviewCards.length > 0 &&
+            visibleReviewCards}
         </div>
 
         {!isLoading && visibleReviews.length === 0 && !error && (

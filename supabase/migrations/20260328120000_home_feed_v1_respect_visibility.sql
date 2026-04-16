@@ -1,9 +1,9 @@
--- Landing page uses public.home_feed_v1 when present; it must exclude moderated hidden
+-- Landing page uses public.home_feed_v2 when present; it must exclude moderated hidden
 -- reviews (same rules as business_review_metrics_v + reviews fallback).
 
-drop view if exists public.home_feed_v1;
+drop view if exists public.home_feed_v2;
 
-create view public.home_feed_v1 as
+create view public.home_feed_v2 as
 select
   r.id as review_id,
   r.rating,
@@ -27,7 +27,7 @@ where (r.status is null or r.status = 'published')
   and coalesce(r.visibility_status, 'visible') = 'visible'
   and coalesce(b.status, 'active') = 'active';
 
-comment on view public.home_feed_v1 is
+comment on view public.home_feed_v2 is
   'Public landing feed: active businesses, published reviews, visibility visible only.';
 
-grant select on public.home_feed_v1 to anon, authenticated;
+grant select on public.home_feed_v2 to anon, authenticated;

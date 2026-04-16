@@ -390,9 +390,9 @@ comment on function public.admin_list_reviews(text, text, integer, integer, text
 
 grant execute on function public.admin_list_reviews(text, text, integer, integer, text) to authenticated;
 
-drop view if exists public.home_feed_v1;
+drop view if exists public.home_feed_v2;
 
-create view public.home_feed_v1 as
+create view public.home_feed_v2 as
 select
   r.id as review_id,
   r.rating,
@@ -416,10 +416,10 @@ where (r.status is null or r.status = 'published')
   and coalesce(r.visibility, 'visible') = 'visible'
   and coalesce(b.status, 'active') = 'active';
 
-comment on view public.home_feed_v1 is
+comment on view public.home_feed_v2 is
   'Public landing feed: active businesses, published reviews, visibility visible only.';
 
-grant select on public.home_feed_v1 to anon, authenticated;
+grant select on public.home_feed_v2 to anon, authenticated;
 
 -- Drop legacy columns (after all dependents updated)
 alter table public.reviews drop column if exists visibility_status;
