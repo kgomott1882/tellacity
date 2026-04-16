@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WidgetPayload, WidgetReview } from "./types";
 import WidgetBrandLogoSlot from "./WidgetBrandLogoSlot";
 import WidgetStars from "./WidgetStars";
@@ -13,7 +13,8 @@ import {
   TELLACITY_STAR_TIER_COLORS,
 } from "@/lib/tellacityStarColors";
 
-const MAX_REVIEWS_ROW = 6;
+/** Matches embed / dashboard cap for spotlight (horizontal scroll + arrows). */
+const MAX_SPOTLIGHT_REVIEWS = 14;
 
 const FILL_COLORS: Record<number, string> = {
   1: TELLACITY_STAR_TIER_COLORS[0],
@@ -166,6 +167,58 @@ function VerifiedBadge({ compact }: { compact?: boolean }) {
   );
 }
 
+function CarouselArrow({
+  dir,
+  disabled,
+  onClick,
+  label,
+}: {
+  dir: "left" | "right";
+  disabled: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  const accent = "var(--tc-widget-accent-color, #D1D5DB)";
+  const ink = "var(--tc-widget-text-color, #111827)";
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        position: "absolute",
+        top: "50%",
+        ...(dir === "left" ? { left: 0 } : { right: 0 }),
+        transform: "translateY(-50%)",
+        zIndex: 2,
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        border: `1px solid ${accent}`,
+        backgroundColor: "rgba(255,255,255,0.96)",
+        boxShadow: "0 1px 4px rgba(15,23,42,0.12)",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.38 : 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+      }}
+    >
+      <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d={dir === "left" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"}
+          stroke={ink}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
 function ReviewMiniCard({
   review,
   text,
@@ -231,13 +284,18 @@ export default function SpotlightCarouselWidget({
   dashboardDemo,
   showTellacityLogo: _showTellacityLogo = true,
   minimal,
+  showBusinessName = true,
 }: {
   payload: WidgetPayload;
   dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
   minimal?: boolean;
+  showBusinessName?: boolean;
 }) {
-  const realReviews = (payload.reviews ?? []).slice(0, MAX_REVIEWS_ROW);
+  const realReviews = useMemo(
+    () => (payload.reviews ?? []).slice(0, MAX_SPOTLIGHT_REVIEWS),
+    [payload.reviews],
+  );
   const demoReviews: WidgetReview[] = useMemo(
     () =>
       realReviews.length === 0 && dashboardDemo
@@ -271,7 +329,7 @@ export default function SpotlightCarouselWidget({
     [realReviews.length, dashboardDemo],
   );
   const reviews = useMemo(
-    () => (realReviews.length > 0 ? realReviews : demoReviews).slice(0, MAX_REVIEWS_ROW),
+    () => (realReviews.length > 0 ? realReviews : demoReviews).slice(0, MAX_SPOTLIGHT_REVIEWS),
     [realReviews, demoReviews],
   );
 
@@ -316,6 +374,64 @@ export default function SpotlightCarouselWidget({
     payload.avg_rating,
     realReviews.length,
   ]);
+
+  const reviewsScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollAffordance, setScrollAffordance] = useState({
+    showArrows: false,
+    canLeft: false,
+    canRight: false,
+  });
+
+  const updateScrollAffordance = useCallback(() => {
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const maxScroll = Math.max(0, scrollWidth - clientWidth);
+    const showArrows = maxScroll > 6;
+    const next = {
+      showArrows,
+      canLeft: scrollLeft > 6,
+      canRight: scrollLeft < maxScroll - 6,
+    };
+    setScrollAffordance((prev) =>
+      prev.showArrows === next.showArrows && prev.canLeft === next.canLeft && prev.canRight === next.canRight
+        ? prev
+        : next,
+    );
+  }, []);
+
+  useEffect(() => {
+    updateScrollAffordance();
+    const t = window.setTimeout(updateScrollAffordance, 80);
+    const t2 = window.setTimeout(updateScrollAffordance, 400);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(t2);
+    };
+  }, [reviews.length, minimal, updateScrollAffordance]);
+
+  useEffect(() => {
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateScrollAffordance, { passive: true });
+    const ro =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => updateScrollAffordance()) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateScrollAffordance);
+      ro?.disconnect();
+    };
+  }, [updateScrollAffordance, reviews.length]);
+
+  const scrollReviews = useCallback(
+    (direction: -1 | 1) => {
+      const el = reviewsScrollRef.current;
+      if (!el) return;
+      const step = Math.max(180, Math.floor(el.clientWidth * 0.75));
+      el.scrollBy({ left: direction * step, behavior: "smooth" });
+    },
+    [],
+  );
 
   const text = "var(--tc-widget-text-color, #111827)";
   const muted = "#6B7280";
@@ -362,9 +478,11 @@ export default function SpotlightCarouselWidget({
             size={32}
             fontSize={8}
           />
+          {showBusinessName ? (
           <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: text }}>
             {payload.business_name}
           </span>
+          ) : null}
         </div>
 
         <div
@@ -422,19 +540,66 @@ export default function SpotlightCarouselWidget({
       </p>
 
       {hasReviews ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${reviews.length}, minmax(0, 1fr))`,
-            gap: "12px 16px",
-            width: "100%",
-            alignItems: "start",
-            paddingBottom: 2,
-          }}
-        >
-          {reviews.map((r) => (
-            <ReviewMiniCard key={r.id} review={r} text={text} muted={muted} />
-          ))}
+        <div style={{ position: "relative", width: "100%", minWidth: 0 }}>
+          <CarouselArrow
+            dir="left"
+            disabled={!scrollAffordance.canLeft}
+            onClick={() => scrollReviews(-1)}
+            label="Scroll reviews left"
+          />
+          <CarouselArrow
+            dir="right"
+            disabled={!scrollAffordance.canRight}
+            onClick={() => scrollReviews(1)}
+            label="Scroll reviews right"
+          />
+          <div
+            ref={reviewsScrollRef}
+            role="region"
+            aria-label="Latest reviews, scroll horizontally for more"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                scrollReviews(-1);
+              } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                scrollReviews(1);
+              }
+            }}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "nowrap",
+              gap: 16,
+              width: "100%",
+              overflowX: "auto",
+              overflowY: "hidden",
+              scrollSnapType: "x proximity",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "thin",
+              paddingLeft: 40,
+              paddingRight: 40,
+              paddingBottom: 4,
+              boxSizing: "border-box",
+            }}
+          >
+            {reviews.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  flex: "0 0 auto",
+                  width: "clamp(168px, 32vw, 260px)",
+                  minWidth: 168,
+                  maxWidth: 260,
+                  scrollSnapAlign: "start",
+                  boxSizing: "border-box",
+                }}
+              >
+                <ReviewMiniCard review={r} text={text} muted={muted} />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <div style={{ fontSize: 13, color: text, padding: "8px 0 4px" }}>

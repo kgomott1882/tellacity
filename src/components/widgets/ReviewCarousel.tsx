@@ -27,13 +27,15 @@ export default function ReviewCarousel({
   dashboardDemo,
   showTellacityLogo = true,
   minimal,
+  showBusinessName = true,
 }: {
   payload: WidgetPayload;
   dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
   minimal?: boolean;
+  showBusinessName?: boolean;
 }) {
-  const realReviews = (payload.reviews ?? []).slice(0, 10);
+  const realReviews = payload.reviews ?? [];
   const demoReviews =
     realReviews.length === 0 && dashboardDemo
       ? [
@@ -55,7 +57,7 @@ export default function ReviewCarousel({
           },
         ]
       : [];
-  const reviews = (realReviews.length > 0 ? realReviews : demoReviews).slice(0, 10);
+  const reviews = realReviews.length > 0 ? realReviews : demoReviews;
   const profileUrl = `https://tellacity.com/b/${payload.slug}`;
 
   if (realReviews.length === 0 && !dashboardDemo) {
@@ -80,9 +82,11 @@ export default function ReviewCarousel({
             size={28}
             fontSize={8}
           />
+          {showBusinessName ? (
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)" }}>
             {payload.business_name}
           </span>
+          ) : null}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <WidgetStars rating={payload.avg_rating} />
@@ -130,17 +134,30 @@ export default function ReviewCarousel({
     {
       fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, sans-serif)",
       maxWidth: minimal ? "100%" : 420,
+      width: minimal ? "100%" : undefined,
+      boxSizing: "border-box",
       borderTop: minimal ? "none" : "1px solid #D1D5DB",
       borderBottom: minimal ? "none" : "1px solid #D1D5DB",
     },
     minimal,
   );
 
+  /** In minimal mode, full-width slides hide that there are multiple reviews; narrow when there are 2+. */
+  const slideWidth =
+    minimal && reviews.length > 1
+      ? "clamp(150px, min(280px, 78%), 300px)"
+      : minimal
+        ? "min(100%, 300px)"
+        : "100%";
+
   return (
     <div style={outer}>
       <div
         style={{
           display: "flex",
+          width: minimal ? "100%" : undefined,
+          minWidth: minimal ? 0 : undefined,
+          boxSizing: "border-box",
           gap: 12,
           overflowX: "auto",
           scrollSnapType: "x mandatory",
@@ -154,13 +171,13 @@ export default function ReviewCarousel({
             key={review.id}
             style={{
               flexShrink: 0,
-              width: minimal ? "min(100%, 300px)" : "100%",
+              width: slideWidth,
               scrollSnapAlign: "start",
               background: "transparent",
               border: "none",
               borderRadius: 0,
               boxShadow: "none",
-              padding: minimal ? "12px 8px 12px 0" : "14px 16px",
+              padding: minimal ? "12px 10px" : "14px 16px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -171,9 +188,11 @@ export default function ReviewCarousel({
                 size={28}
                 fontSize={8}
               />
+              {showBusinessName ? (
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)" }}>
                 {payload.business_name}
               </span>
+              ) : null}
             </div>
 
             <WidgetStars rating={review.rating} />

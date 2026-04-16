@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import type { WidgetType } from "@/components/widgets/types";
+import { normalizeReviewStarRatings } from "@/lib/widgetReviewStarFilter";
 
 const WIDGET_TYPES = new Set<WidgetType>([
   "badge",
@@ -25,6 +26,10 @@ export type WidgetEmbedSettingsStored = {
   themes?: Partial<Record<WidgetType, "minimal" | "light">>;
   advancedEnabled?: boolean;
   previewSiteBackgroundHex?: string;
+  /** When false, website widgets hide the business name (logo + links unchanged). Default true if unset. */
+  showBusinessName?: boolean;
+  /** Per widget type: which whole-star ratings (1–5) may appear in review lists. */
+  reviewStarRatingsByType?: Partial<Record<WidgetType, number[]>>;
 };
 
 function isHex6(v: string): boolean {
@@ -44,6 +49,16 @@ function sanitizeThemeValue(v: unknown): "minimal" | "light" | null {
   return null;
 }
 
+function sanitizeReviewStarRatingsMap(raw: unknown): Partial<Record<WidgetType, number[]>> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Partial<Record<WidgetType, number[]>> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!WIDGET_TYPES.has(k as WidgetType)) continue;
+    out[k as WidgetType] = normalizeReviewStarRatings(v);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function sanitizeStored(input: unknown): WidgetEmbedSettingsStored {
   const src = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const themes: Partial<Record<WidgetType, "minimal" | "light">> = {};
@@ -59,10 +74,15 @@ function sanitizeStored(input: unknown): WidgetEmbedSettingsStored {
   const previewSiteBackgroundHex =
     hexRaw === undefined ? undefined : hexRaw === "" ? "" : hexRaw;
 
+  const reviewStarRatingsByType = sanitizeReviewStarRatingsMap(src.reviewStarRatingsByType);
+
   return {
     themes: Object.keys(themes).length ? themes : undefined,
     advancedEnabled: typeof src.advancedEnabled === "boolean" ? src.advancedEnabled : undefined,
     previewSiteBackgroundHex,
+    showBusinessName:
+      typeof src.showBusinessName === "boolean" ? src.showBusinessName : undefined,
+    reviewStarRatingsByType,
   };
 }
 
@@ -77,6 +97,14 @@ function mergePatch(
         ? patch.previewSiteBackgroundHex
         : existing.previewSiteBackgroundHex,
     themes: { ...(existing.themes ?? {}) },
+    showBusinessName:
+      patch.showBusinessName !== undefined
+        ? patch.showBusinessName
+        : existing.showBusinessName,
+    reviewStarRatingsByType:
+      patch.reviewStarRatingsByType !== undefined
+        ? { ...(existing.reviewStarRatingsByType ?? {}), ...patch.reviewStarRatingsByType }
+        : existing.reviewStarRatingsByType,
   };
   if (patch.themes) {
     for (const [k, v] of Object.entries(patch.themes)) {
@@ -115,6 +143,8 @@ export async function GET(
         themes: settings.themes ?? {},
         advancedEnabled: settings.advancedEnabled ?? false,
         previewSiteBackgroundHex: settings.previewSiteBackgroundHex ?? "",
+        showBusinessName: settings.showBusinessName !== false,
+        reviewStarRatingsByType: settings.reviewStarRatingsByType ?? {},
       },
     },
     { headers: { "Cache-Control": "no-store" } }
@@ -160,6 +190,8 @@ export async function PUT(
       themes: merged.themes ?? {},
       advancedEnabled: merged.advancedEnabled ?? false,
       previewSiteBackgroundHex: merged.previewSiteBackgroundHex ?? "",
+      showBusinessName: merged.showBusinessName !== false,
+      reviewStarRatingsByType: merged.reviewStarRatingsByType ?? {},
     },
   });
 }

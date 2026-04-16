@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { WidgetPayload, WidgetReview } from "./types";
+import type { WidgetPayload } from "./types";
 import WidgetStars from "./WidgetStars";
 import { minimalClearFrame } from "@/lib/widgetMinimalSurface";
 import { TELLACITY_TRUST_BADGE_LOGO_PATH } from "@/lib/emailBranding";
@@ -12,6 +12,7 @@ import {
   TELLACITY_STAR_EMPTY_ICON,
   TELLACITY_STAR_TIER_COLORS,
 } from "@/lib/tellacityStarColors";
+import { buildWidgetEmbedDemoReviews } from "@/lib/widgetDashboardDemoPayload";
 
 const MAX_DROPDOWN_REVIEWS = 20;
 
@@ -145,36 +146,6 @@ function formatRelativeTime(iso: string): string {
   }
 }
 
-function buildDemoReviews(): WidgetReview[] {
-  const now = Date.now();
-  return [
-    {
-      id: "dd-demo-1",
-      rating: 5,
-      title: "This was awesome!",
-      body: "Never had a better experience than with this awesome company.",
-      reviewer_name: "Steve",
-      created_at: new Date(now - 2 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "dd-demo-2",
-      rating: 5,
-      title: "Highly recommended",
-      body: "Friendly service, quick turnaround, and reliable support from start to finish.",
-      reviewer_name: "T. Mokoena",
-      created_at: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "dd-demo-3",
-      rating: 4,
-      title: "Solid choice",
-      body: "Good value and clear communication throughout the project.",
-      reviewer_name: "A. Naidoo",
-      created_at: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
-
 /**
  * Trustpilot-style “See our reviews” row with Tellacity block stars; opens a panel of recent reviews.
  */
@@ -191,7 +162,7 @@ export default function ReviewDropdownWidget({
 }) {
   const realReviews = (payload.reviews ?? []).slice(0, MAX_DROPDOWN_REVIEWS);
   const demoReviews = useMemo(
-    () => (realReviews.length === 0 && dashboardDemo ? buildDemoReviews() : []),
+    () => (realReviews.length === 0 && dashboardDemo ? buildWidgetEmbedDemoReviews() : []),
     [realReviews.length, dashboardDemo],
   );
   const reviews = useMemo(

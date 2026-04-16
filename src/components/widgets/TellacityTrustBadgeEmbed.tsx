@@ -33,7 +33,7 @@ export default function TellacityTrustBadgeEmbed({
         width: "100%",
         maxWidth: minimal ? "100%" : 420,
         background: "transparent",
-        textAlign: minimal ? "left" : "center",
+        textAlign: "center",
         color: "var(--tc-widget-text-color, #0E0E0E)",
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
       }}
@@ -45,7 +45,7 @@ export default function TellacityTrustBadgeEmbed({
         style={{ display: "inline-block", color: "inherit", textDecoration: "none" }}
       >
         {showTellacityLogo ? (
-          <div style={{ display: "flex", justifyContent: minimal ? "flex-start" : "center" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={TELLACITY_TRUST_BADGE_LOGO_PATH}
@@ -58,7 +58,7 @@ export default function TellacityTrustBadgeEmbed({
           style={{
             marginTop: showTellacityLogo ? 6 : 0,
             display: "flex",
-            justifyContent: minimal ? "flex-start" : "center",
+            justifyContent: "center",
           }}
         >
           <WidgetStars rating={starsRating} size={12} />
@@ -69,6 +69,7 @@ export default function TellacityTrustBadgeEmbed({
           marginTop: minimal ? 8 : 12,
           fontSize: 11,
           color: "var(--tc-widget-text-color, #0E0E0E)",
+          textAlign: "center",
         }}
       >
         {statsLabel}

@@ -82,7 +82,9 @@ export default function TellacityTrustStacked({
       target="_blank"
       rel="noopener noreferrer"
       style={{
-        display: "inline-flex",
+        display: "flex",
+        boxSizing: "border-box",
+        width: "100%",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
@@ -116,7 +118,7 @@ export default function TellacityTrustStacked({
         ))}
       </span>
 
-      <span style={{ fontSize: 16, lineHeight: 1.25 }}>
+      <span style={{ fontSize: 16, lineHeight: 1.25, textAlign: "center" }}>
         Based on{" "}
         <span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>
           {reviewCount.toLocaleString("en-US")} {reviewCount === 1 ? "review" : "reviews"}

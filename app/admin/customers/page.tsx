@@ -7,6 +7,7 @@ import {
   emptyAdminCustomerMetrics,
   loadAdminCustomerMetricsMap,
 } from "@/lib/adminCustomerMetrics";
+import { loadPublishedReviewCountByBusinessIdMap } from "@/lib/adminPublishedReviewCounts";
 
 export const dynamic = "force-dynamic";
 
@@ -64,19 +65,28 @@ export default async function AdminCustomerBusinessesPage() {
 
   const listError = error?.message ?? null;
   const rawRows = (Array.isArray(data) ? data : []) as CustomerBusinessRow[];
+
+  const publishedReviewByBusiness = await loadPublishedReviewCountByBusinessIdMap(
+    supabase,
+    rawRows.map((b) => b.id),
+  );
+
   const customers = rawRows.map((b) => {
     const profile = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles;
     const subscription = Array.isArray(b.subscriptions)
       ? b.subscriptions[0]
       : b.subscriptions;
     const planCode = subscription?.plan_code?.trim() || "free";
+    const reviewCount =
+      publishedReviewByBusiness.get(b.id) ??
+      (Number(b.review_count) || 0);
     return {
       id: b.id,
       name: b.name,
       website: b.website,
       status: b.status,
       created_at: b.created_at,
-      review_count: b.review_count,
+      review_count: reviewCount,
       plan_code: planCode,
       owner_email: profile?.email ?? "-",
       owner_name: profile?.display_name?.trim() || profile?.email || "-",

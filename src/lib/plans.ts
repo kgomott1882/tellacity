@@ -333,10 +333,14 @@ export function canAccessWebsiteWidget(
   ) {
     return plan === "premium" || plan === "elite";
   }
-  if (plan === "free") return widget === "review_collector";
+  // Review Collector in the dashboard uses `review_strip` (strip embed); treat both keys as the free-tier website widget.
+  if (plan === "free") {
+    return widget === "review_collector" || widget === "review_strip";
+  }
   if (plan === "grow") {
     return (
       widget === "review_collector" ||
+      widget === "review_strip" ||
       widget === "review_carousel" ||
       widget === "trust_badge" ||
       widget === "review_list"

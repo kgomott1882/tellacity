@@ -4,7 +4,6 @@ import type { WidgetPayload, WidgetType } from "@/components/widgets/types";
 import TrustBadge from "@/components/widgets/TrustBadge";
 import ReviewCarousel from "@/components/widgets/ReviewCarousel";
 import ReviewList from "@/components/widgets/ReviewList";
-import ReviewCollector from "@/components/widgets/ReviewCollector";
 import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
 import TellacityScoreStrip from "@/components/widgets/TellacityScoreStrip";
 import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
@@ -14,6 +13,17 @@ import ReviewSliderWidget from "@/components/widgets/ReviewSliderWidget";
 import ReviewDropdownWidget from "@/components/widgets/ReviewDropdownWidget";
 import MicroTrustScoreWidget from "@/components/widgets/MicroTrustScoreWidget";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
+import { resolveWidgetShowBusinessName } from "@/lib/widgetEmbedShowBusinessName";
+import {
+  applyDashboardPreviewReviewLimit,
+  applyWidgetDashboardDemoOverlay,
+  widgetEmbedDataLimitCap,
+} from "@/lib/widgetDashboardDemoPayload";
+import {
+  applyReviewStarFilterToPayload,
+  isWidgetTypeWithReviewStarFilter,
+  resolveWidgetReviewStarRatings,
+} from "@/lib/widgetReviewStarFilter";
 
 export const metadata: Metadata = { robots: "noindex" };
 export const dynamic = "force-dynamic";
@@ -34,15 +44,17 @@ const VALID_TYPES: WidgetType[] = [
 ];
 
 function clampLimit(raw: string | undefined, type: WidgetType): number {
-  const defaultStr = type === "review_dropdown" ? "20" : "5";
+  const cap = widgetEmbedDataLimitCap(type);
+  const defaultStr =
+    type === "review_dropdown" || type === "carousel" || type === "list" || type === "showcase"
+      ? String(cap)
+      : type === "spotlight_carousel" || type === "review_slider"
+        ? "8"
+        : "5";
   const fallback = parseInt(defaultStr, 10);
   const parsed = parseInt(raw ?? defaultStr, 10);
   const n = Number.isFinite(parsed) && parsed >= 1 ? parsed : fallback;
-  let limit = Math.min(20, Math.max(1, n));
-  if (type === "spotlight_carousel" || type === "review_slider") {
-    limit = Math.min(20, Math.max(limit, 6));
-  }
-  return limit;
+  return Math.min(cap, Math.max(1, n));
 }
 
 async function fetchPayload(business: string, limit: number): Promise<WidgetPayload | null> {
@@ -77,9 +89,50 @@ export default async function WidgetEmbedPage({
   const minimal = rawTheme === "minimal";
 
   const payload = business ? await fetchPayload(business, limit) : null;
-  const writeReviewHref = payload
-    ? getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug)
+
+  const showNameParamRaw = Array.isArray(params.show_business_name)
+    ? params.show_business_name[0]
+    : params.show_business_name;
+  const reviewStarsParamRaw = Array.isArray(params.review_stars)
+    ? params.review_stars[0]
+    : params.review_stars;
+
+  let embedSettingsRaw: unknown;
+  if (business) {
+    const sb = createWidgetClient();
+    const { data: bizRow } = await sb
+      .from("businesses")
+      .select("widget_embed_settings")
+      .eq("slug", business)
+      .maybeSingle();
+    embedSettingsRaw = (bizRow as { widget_embed_settings?: unknown } | null)?.widget_embed_settings;
+  }
+
+  const embedPayload = payload
+    ? (() => {
+        let next = dashboardDemo ? applyWidgetDashboardDemoOverlay(payload) : payload;
+        if (dashboardDemo) {
+          next = applyDashboardPreviewReviewLimit(next, limit, type);
+        }
+        const reviewRatings = resolveWidgetReviewStarRatings(
+          typeof reviewStarsParamRaw === "string" ? reviewStarsParamRaw : undefined,
+          embedSettingsRaw,
+          type,
+        );
+        if (isWidgetTypeWithReviewStarFilter(type)) {
+          next = applyReviewStarFilterToPayload(next, reviewRatings);
+        }
+        return next;
+      })()
+    : null;
+  const writeReviewHref = embedPayload
+    ? getPublicWriteReviewUrl(getPublicAppOrigin(), embedPayload.slug)
     : "";
+
+  const showBusinessName = resolveWidgetShowBusinessName(
+    typeof showNameParamRaw === "string" ? showNameParamRaw : undefined,
+    embedSettingsRaw,
+  );
 
   return (
     <>
@@ -89,25 +142,46 @@ export default async function WidgetEmbedPage({
         body { padding: ${
           minimal ? "0" : type === "review_slider" ? "12px 18px 8px" : "20px 24px"
         }; font-family: system-ui, -apple-system, sans-serif; }
-        ${type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore" ? `html, body { width: 100%; min-width: 100%; }` : ""}
+        ${type === "carousel" || type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore" ? `html, body { width: 100%; min-width: 100%; }` : ""}
+        ${
+          type === "tellacity_trust"
+            ? `
+        html { height: 100%; }
+        body {
+          min-height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        `
+            : ""
+        }
       `}</style>
 
-      {!payload ? (
+      {!embedPayload ? (
         <div style={{ fontSize: 13, color: "#9ca3af", padding: 8 }}>
           {business ? "Business not found." : "No business specified."}
         </div>
       ) : (
         <>
           {type === "carousel" && (
-            <ReviewCarousel payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+            <ReviewCarousel
+              payload={embedPayload}
+              dashboardDemo={dashboardDemo}
+              minimal={minimal}
+              showBusinessName={showBusinessName}
+            />
           )}
           {type === "list" && (
-            <ReviewList payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+            <ReviewList
+              payload={embedPayload}
+              dashboardDemo={dashboardDemo}
+              minimal={minimal}
+              showBusinessName={showBusinessName}
+            />
           )}
-          {type === "collector" && (
-            <ReviewCollector payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
-          )}
-          {type === "review_us" && (
+          {(type === "collector" || type === "review_us") && (
             <div
               style={{
                 display: "flex",
@@ -117,33 +191,44 @@ export default async function WidgetEmbedPage({
               }}
             >
               <TellacityReviewUsBadge
-                href={getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug)}
+                href={getPublicWriteReviewUrl(getPublicAppOrigin(), embedPayload.slug)}
                 size="md"
                 minimal={minimal}
               />
             </div>
           )}
           {type === "badge" && (
-            <TrustBadge payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+            <TrustBadge
+              payload={embedPayload}
+              dashboardDemo={dashboardDemo}
+              minimal={minimal}
+              showBusinessName={showBusinessName}
+            />
           )}
-          {type === "score_strip" && <TellacityScoreStrip payload={payload} minimal={minimal} />}
+          {type === "score_strip" && <TellacityScoreStrip payload={embedPayload} minimal={minimal} />}
           {type === "showcase" && (
-            <ReviewShowcaseEmbed payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} />
+            <ReviewShowcaseEmbed
+              payload={embedPayload}
+              dashboardDemo={dashboardDemo}
+              minimal={minimal}
+              showBusinessName={showBusinessName}
+            />
           )}
           {type === "tellacity_trust" && (
-            <TellacityTrustBadgeEmbed payload={payload} reviewHref={writeReviewHref} minimal={minimal} />
+            <TellacityTrustBadgeEmbed payload={embedPayload} reviewHref={writeReviewHref} minimal={minimal} />
           )}
           {type === "spotlight_carousel" && (
             <SpotlightCarouselWidget
-              payload={payload}
+              payload={embedPayload}
               dashboardDemo={dashboardDemo}
               showTellacityLogo
               minimal={minimal}
+              showBusinessName={showBusinessName}
             />
           )}
           {type === "review_slider" && (
             <ReviewSliderWidget
-              payload={payload}
+              payload={embedPayload}
               dashboardDemo={dashboardDemo}
               showTellacityLogo
               minimal={minimal}
@@ -151,14 +236,14 @@ export default async function WidgetEmbedPage({
           )}
           {type === "review_dropdown" && (
             <ReviewDropdownWidget
-              payload={payload}
+              payload={embedPayload}
               dashboardDemo={dashboardDemo}
               showTellacityLogo
               minimal={minimal}
             />
           )}
           {type === "micro_trustscore" && (
-            <MicroTrustScoreWidget payload={payload} showTellacityLogo minimal={minimal} />
+            <MicroTrustScoreWidget payload={embedPayload} showTellacityLogo minimal={minimal} />
           )}
         </>
       )}

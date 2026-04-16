@@ -22,13 +22,15 @@ export default function ReviewList({
   dashboardDemo,
   showTellacityLogo = true,
   minimal,
+  showBusinessName = true,
 }: {
   payload: WidgetPayload;
   dashboardDemo?: boolean;
   showTellacityLogo?: boolean;
   minimal?: boolean;
+  showBusinessName?: boolean;
 }) {
-  const realReviews = (payload.reviews ?? []).slice(0, 5);
+  const realReviews = payload.reviews ?? [];
   const demoReviews =
     realReviews.length === 0 && dashboardDemo
       ? [
@@ -50,7 +52,7 @@ export default function ReviewList({
           },
         ]
       : [];
-  const reviews = (realReviews.length > 0 ? realReviews : demoReviews).slice(0, 5);
+  const reviews = realReviews.length > 0 ? realReviews : demoReviews;
   const profileUrl = `https://tellacity.com/b/${payload.slug}`;
 
   const outer = minimalClearFrame(
@@ -87,9 +89,11 @@ export default function ReviewList({
           size={34}
         />
         <div>
+          {showBusinessName ? (
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)" }}>
             {payload.business_name}
           </div>
+          ) : null}
           <div style={{ fontSize: 11, color: "var(--tc-widget-text-color, #0E0E0E)" }}>
             {(Number(payload.avg_rating) || 0).toFixed(1)} · {payload.review_count} reviews
           </div>

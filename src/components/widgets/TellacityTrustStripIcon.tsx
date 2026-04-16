@@ -75,8 +75,11 @@ export default function TellacityTrustStripIcon({
       target="_blank"
       rel="noopener noreferrer"
       style={{
-        display: "inline-flex",
+        display: "flex",
+        boxSizing: "border-box",
+        width: "100%",
         alignItems: "center",
+        justifyContent: "center",
         flexWrap: "wrap",
         gap: 8,
         background: "transparent",
@@ -85,6 +88,7 @@ export default function TellacityTrustStripIcon({
         fontFamily: "var(--tc-widget-font-family, system-ui, -apple-system, Segoe UI, sans-serif)",
         borderRadius: 0,
         padding: minimal ? 0 : "8px 10px",
+        textAlign: "center",
       }}
     >
       <span
@@ -102,7 +106,7 @@ export default function TellacityTrustStripIcon({
           <StarCell key={i} fill={hasStats ? rating - i : 0} color={activeStarColor} />
         ))}
       </span>
-      <span style={{ fontSize: 14, lineHeight: 1.2 }}>
+      <span style={{ fontSize: 14, lineHeight: 1.2, textAlign: "center" }}>
         {hasStats ? (
           <>
             <strong style={{ fontWeight: 700 }}>{rating.toFixed(1)}</strong> out of 5 based on{" "}

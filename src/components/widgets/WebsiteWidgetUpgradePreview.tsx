@@ -1,25 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { WebsiteWidgetPlanKey } from "@/lib/widgetsConfig";
 
-/** Matches `planWidget` on the website widgets dashboard grid. */
-export type WebsiteWidgetPlanKey =
-  | "trust_badge"
-  | "review_carousel"
-  | "review_list"
-  | "review_collector"
-  | "review_strip"
-  | "review_showcase"
-  | "tellacity_trust"
-  | "tellacity_score"
-  | "trust_strip"
-  | "trust_stacked"
-  | "trust_strip_icon"
-  | "trust_mini"
-  | "spotlight_carousel"
-  | "review_slider"
-  | "review_dropdown"
-  | "micro_trustscore";
+export type { WebsiteWidgetPlanKey };
 
 const EMBED_TYPE_BY_WIDGET: Record<WebsiteWidgetPlanKey, string> = {
   trust_badge: "badge",
@@ -55,7 +39,7 @@ const PREVIEW_HEIGHT_BY_WIDGET: Record<WebsiteWidgetPlanKey, number> = {
   trust_badge: 128,
   review_carousel: 320,
   review_list: 440,
-  review_collector: 96,
+  review_collector: 112,
   review_strip: 112,
   review_showcase: 420,
   tellacity_trust: 220,
@@ -92,7 +76,18 @@ export default function WebsiteWidgetUpgradePreview({
     const slug = (businessSlug ?? "").trim().toLowerCase();
     if (!slug) return null;
     const embedType = EMBED_TYPE_BY_WIDGET[widget];
-    const limitQs = widget === "review_dropdown" ? "&limit=20" : "";
+    let limitQs = "";
+    if (widget === "spotlight_carousel" || widget === "review_slider") {
+      limitQs = "&limit=8";
+    } else if (widget === "review_dropdown") {
+      limitQs = "&limit=12";
+    } else if (
+      widget === "review_carousel" ||
+      widget === "review_list" ||
+      widget === "review_showcase"
+    ) {
+      limitQs = "&limit=5";
+    }
     const previewSrc = `/widgets/embed?business=${encodeURIComponent(
       slug
     )}&type=${encodeURIComponent(embedType)}&dashboard_demo=1${limitQs}`;

@@ -77,7 +77,8 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
         <p className="mt-2 max-w-4xl text-xs text-neutral-500">
           Activity matches the business dashboard bell: owner logins, page views, widget usage, and
           review invite sends (monthly cap). There is no session timer — “Events 7d” is the count of
-          owner dashboard actions logged in the last 7 days.
+          owner dashboard actions logged in the last 7 days. Reviews counts published, visible
+          reviews (same as the public profile), not the cached column on businesses.
         </p>
       </div>
       {filtered.length === 0 ? (
@@ -106,11 +107,11 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
                 const m = c.metrics;
                 const widgetLabel = m.widgetUsed
                   ? m.widgetGeneratedCount > 0
-                    ? `Yes · ${m.widgetGeneratedCount} gen`
+                    ? `Widget generated (${m.widgetGeneratedCount})`
                     : m.emailWidgetSignals > 0
-                      ? `Yes · email`
-                      : "Yes"
-                  : "No";
+                      ? "Email widget activity"
+                      : "Widget activity"
+                  : "No widget activity";
                 return (
                   <tr key={c.id} className="bg-white align-top">
                     <td className="px-3 py-2">

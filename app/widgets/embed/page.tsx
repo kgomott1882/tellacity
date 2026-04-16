@@ -3,7 +3,6 @@ import type { WidgetPayload, WidgetType } from "@/components/widgets/types";
 import TrustBadge from "@/components/widgets/TrustBadge";
 import ReviewCarousel from "@/components/widgets/ReviewCarousel";
 import ReviewList from "@/components/widgets/ReviewList";
-import ReviewCollector from "@/components/widgets/ReviewCollector";
 import TellacityReviewUsBadge from "@/components/widgets/TellacityReviewUsBadge";
 import TellacityScoreStrip from "@/components/widgets/TellacityScoreStrip";
 import TellacityTrustStrip from "@/components/widgets/TellacityTrustStrip";
@@ -18,6 +17,17 @@ import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
 import TellacityTrustBadgeEmbed from "@/components/widgets/TellacityTrustBadgeEmbed";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
+import { resolveWidgetShowBusinessName } from "@/lib/widgetEmbedShowBusinessName";
+import {
+  applyDashboardPreviewReviewLimit,
+  applyWidgetDashboardDemoOverlay,
+  widgetEmbedDataLimitCap,
+} from "@/lib/widgetDashboardDemoPayload";
+import {
+  applyReviewStarFilterToPayload,
+  isWidgetTypeWithReviewStarFilter,
+  resolveWidgetReviewStarRatings,
+} from "@/lib/widgetReviewStarFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +123,8 @@ export default async function WidgetEmbedPage({
     wl_accent?: string;
     wl_font?: string;
     wl_logo?: string;
+    show_business_name?: string;
+    review_stars?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -121,16 +133,18 @@ export default async function WidgetEmbedPage({
   const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
     ? (rawType as WidgetType)
     : "badge";
-  const defaultLimitStr = type === "review_dropdown" ? "20" : "5";
+  const cap = widgetEmbedDataLimitCap(type);
+  const defaultLimitStr =
+    type === "review_dropdown" || type === "carousel" || type === "list" || type === "showcase"
+      ? String(cap)
+      : type === "spotlight_carousel" || type === "review_slider"
+        ? "8"
+        : "5";
   const fallbackLimit = parseInt(defaultLimitStr, 10);
   const parsedLimit = parseInt(params.limit ?? defaultLimitStr, 10);
   const n =
     Number.isFinite(parsedLimit) && parsedLimit >= 1 ? parsedLimit : fallbackLimit;
-  const requestedLimit = Math.min(20, Math.max(1, n));
-  const limit =
-    type === "spotlight_carousel" || type === "review_slider"
-      ? Math.min(20, Math.max(requestedLimit, 6))
-      : requestedLimit;
+  const limit = Math.min(cap, Math.max(1, n));
   const dashboardDemo =
     params.dashboard_demo === "1" || params.dashboard_demo === "true";
   const emptyStarBorder = "#9CA3AF";
@@ -157,8 +171,10 @@ export default async function WidgetEmbedPage({
   }
 
   const payload = data as WidgetPayload;
-  const writeReviewHref = getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug);
-  let whiteLabel = WHITE_LABEL_DEFAULTS;
+  let embedPayload = dashboardDemo ? applyWidgetDashboardDemoOverlay(payload) : payload;
+  if (dashboardDemo) {
+    embedPayload = applyDashboardPreviewReviewLimit(embedPayload, limit, type);
+  }
 
   const { data: themeRow } = await supabase
     .from("businesses")
@@ -168,6 +184,23 @@ export default async function WidgetEmbedPage({
 
   const rawTheme = (params.theme ?? "inherit").trim().toLowerCase();
   const embedSettingsRaw = (themeRow as { widget_embed_settings?: unknown } | null)?.widget_embed_settings;
+
+  const reviewRatings = resolveWidgetReviewStarRatings(
+    params.review_stars,
+    embedSettingsRaw,
+    type,
+  );
+  if (isWidgetTypeWithReviewStarFilter(type)) {
+    embedPayload = applyReviewStarFilterToPayload(embedPayload, reviewRatings);
+  }
+
+  const writeReviewHref = getPublicWriteReviewUrl(getPublicAppOrigin(), embedPayload.slug);
+  let whiteLabel = WHITE_LABEL_DEFAULTS;
+
+  const showBusinessName = resolveWidgetShowBusinessName(
+    params.show_business_name,
+    embedSettingsRaw,
+  );
   const embedThemes =
     embedSettingsRaw &&
     typeof embedSettingsRaw === "object" &&
@@ -218,7 +251,7 @@ export default async function WidgetEmbedPage({
     };
   }
 
-  // Dashboard preview can send unsaved draft values for instant feedback.
+  // Dashboard preview: draft query params only for Elite (same as live embed white-label).
   if (dashboardDemo && allowWhiteLabel) {
     whiteLabel = {
       starColor: sanitizeHexColor(params.wl_star, whiteLabel.starColor),
@@ -261,37 +294,48 @@ export default async function WidgetEmbedPage({
           font-family: var(--tc-widget-font-family);
         }
         ${
-          type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore"
+          type === "carousel" ||
+          type === "spotlight_carousel" ||
+          type === "review_slider" ||
+          type === "micro_trustscore"
             ? `html, body { width: 100%; min-width: 100%; }`
+            : ""
+        }
+        ${
+          type === "tellacity_trust"
+            ? `
+        html { height: 100%; }
+        body {
+          min-height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        `
             : ""
         }
       `}</style>
 
       {type === "carousel" && (
         <ReviewCarousel
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
+          showBusinessName={showBusinessName}
         />
       )}
       {type === "list" && (
         <ReviewList
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
+          showBusinessName={showBusinessName}
         />
       )}
-      {type === "collector" && (
-        <ReviewCollector
-          payload={payload}
-          dashboardDemo={dashboardDemo}
-          showTellacityLogo={whiteLabel.showTellacityLogo}
-          minimal={minimal}
-        />
-      )}
-      {type === "review_us" && (
+      {(type === "collector" || type === "review_us") && (
         <div
           style={{
             display: "flex",
@@ -301,7 +345,7 @@ export default async function WidgetEmbedPage({
           }}
         >
           <TellacityReviewUsBadge
-            href={getPublicWriteReviewUrl(getPublicAppOrigin(), payload.slug)}
+            href={getPublicWriteReviewUrl(getPublicAppOrigin(), embedPayload.slug)}
             size="md"
             showTellacityLogo={whiteLabel.showTellacityLogo}
             minimal={minimal}
@@ -310,58 +354,60 @@ export default async function WidgetEmbedPage({
       )}
       {type === "badge" && (
         <TrustBadge
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
+          showBusinessName={showBusinessName}
         />
       )}
       {type === "score_strip" && (
         <TellacityScoreStrip
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />
       )}
       {type === "trust_strip" && (
         <TellacityTrustStrip
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />
       )}
       {type === "trust_stacked" && (
         <TellacityTrustStacked
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />
       )}
       {type === "trust_strip_icon" && (
         <TellacityTrustStripIcon
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />
       )}
       {type === "trust_mini" && (
         <TellacityTrustMini
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />
       )}
       {type === "showcase" && (
         <ReviewShowcaseEmbed
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
+          showBusinessName={showBusinessName}
         />
       )}
       {type === "tellacity_trust" && (
         <TellacityTrustBadgeEmbed
-          payload={payload}
+          payload={embedPayload}
           reviewHref={writeReviewHref}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
@@ -369,15 +415,16 @@ export default async function WidgetEmbedPage({
       )}
       {type === "spotlight_carousel" && (
         <SpotlightCarouselWidget
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
+          showBusinessName={showBusinessName}
         />
       )}
       {type === "review_slider" && (
         <ReviewSliderWidget
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
@@ -385,7 +432,7 @@ export default async function WidgetEmbedPage({
       )}
       {type === "review_dropdown" && (
         <ReviewDropdownWidget
-          payload={payload}
+          payload={embedPayload}
           dashboardDemo={dashboardDemo}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
@@ -393,7 +440,7 @@ export default async function WidgetEmbedPage({
       )}
       {type === "micro_trustscore" && (
         <MicroTrustScoreWidget
-          payload={payload}
+          payload={embedPayload}
           showTellacityLogo={whiteLabel.showTellacityLogo}
           minimal={minimal}
         />

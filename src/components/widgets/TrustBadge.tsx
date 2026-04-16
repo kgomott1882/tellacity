@@ -8,6 +8,7 @@ export default function TrustBadge({
   dashboardDemo,
   showTellacityLogo = true,
   minimal,
+  showBusinessName = true,
 }: {
   payload: WidgetPayload;
   /** Dashboard iframe: hide business logo entirely. */
@@ -15,6 +16,8 @@ export default function TrustBadge({
   showTellacityLogo?: boolean;
   /** Transparent inline embed (`data-theme="minimal"`). */
   minimal?: boolean;
+  /** When false, hide the business title row (stars + counts still show). */
+  showBusinessName?: boolean;
 }) {
   const url = `https://tellacity.com/b/${payload.slug}`;
   const avg = payload.avg_rating != null ? (Number(payload.avg_rating) || 0).toFixed(1) : "-";
@@ -41,9 +44,11 @@ export default function TrustBadge({
     >
       <WidgetBrandLogoSlot payload={payload} dashboardDemo={dashboardDemo} minimal={minimal} size={44} fontSize={10} />
       <div style={{ flex: 1, minWidth: 0 }}>
+        {showBusinessName ? (
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tc-widget-text-color, #0E0E0E)", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {payload.business_name}
         </div>
+        ) : null}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <WidgetStars rating={payload.avg_rating} size={13} />
           <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tc-widget-text-color, #0E0E0E)" }}>{avg}</span>

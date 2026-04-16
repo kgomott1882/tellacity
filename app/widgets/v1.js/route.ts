@@ -18,12 +18,17 @@ const SCRIPT = `
   var spotlightWide = type === 'spotlight_carousel' || type === 'review_slider' || type === 'micro_trustscore';
   var limitStr = script.dataset.limit;
   if (type === 'review_dropdown' && (limitStr == null || String(limitStr).trim() === '')) {
-    limitStr = '20';
+    limitStr = '4';
   }
   var limit = parseInt(limitStr || '5', 10);
   if (isNaN(limit) || limit < 1) limit = 1;
-  if (limit > 20) limit = 20;
-  if ((type === 'spotlight_carousel' || type === 'review_slider') && limit < 6) limit = 6;
+  if (type === 'spotlight_carousel' || type === 'review_slider') {
+    if (limit > 14) limit = 14;
+  } else if (type === 'carousel' || type === 'list' || type === 'showcase' || type === 'review_dropdown') {
+    if (limit > 4) limit = 4;
+  } else {
+    if (limit > 20) limit = 20;
+  }
 
   var heightDefaults = { badge: 110, collector: 70, list: 420, carousel: 260, review_us: 72, score_strip: 150, showcase: 400, tellacity_trust: 200, trust_strip: 86, trust_stacked: 220, trust_strip_icon: 86, trust_mini: 34, spotlight_carousel: 520, review_slider: 380, review_dropdown: 400, micro_trustscore: 44 };
   var defaultHeight = heightDefaults[type] || 110;
@@ -35,12 +40,28 @@ const SCRIPT = `
     return;
   }
 
+  var showNameAttr = script.getAttribute('data-show-business-name');
+  var showNameQs = '';
+  if (showNameAttr === 'false' || showNameAttr === '0') {
+    showNameQs = '&show_business_name=0';
+  } else if (showNameAttr === 'true' || showNameAttr === '1') {
+    showNameQs = '&show_business_name=1';
+  }
+
+  var reviewStarsAttr = script.getAttribute('data-review-stars');
+  var reviewStarsQs = '';
+  if (reviewStarsAttr != null && String(reviewStarsAttr).trim() !== '') {
+    reviewStarsQs = '&review_stars=' + encodeURIComponent(String(reviewStarsAttr).trim());
+  }
+
   var src =
     origin +
     '/widgets/embed?business=' + encodeURIComponent(business) +
     '&type=' + encodeURIComponent(type) +
     '&limit=' + encodeURIComponent(limit) +
-    '&theme=' + encodeURIComponent(theme === 'light' ? 'light' : theme === 'minimal' ? 'minimal' : theme);
+    '&theme=' + encodeURIComponent(theme === 'light' ? 'light' : theme === 'minimal' ? 'minimal' : theme) +
+    showNameQs +
+    reviewStarsQs;
 
   var iframe = document.createElement('iframe');
   iframe.src = src;

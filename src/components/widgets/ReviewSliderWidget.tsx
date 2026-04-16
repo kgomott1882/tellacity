@@ -7,8 +7,9 @@ import WidgetStars from "./WidgetStars";
 import { minimalClearFrame } from "@/lib/widgetMinimalSurface";
 import { TELLACITY_TRUST_BADGE_LOGO_PATH } from "@/lib/emailBranding";
 import { postTellacityWidgetHeightToParent } from "@/lib/widgetEmbedParentResize";
+import { buildWidgetEmbedDemoReviews } from "@/lib/widgetDashboardDemoPayload";
 
-const MAX_SLIDER_REVIEWS = 15;
+const MAX_SLIDER_REVIEWS = 14;
 const VISIBLE_CARDS = 4;
 
 function clampBody(text: string | null, max = 140) {
@@ -124,52 +125,6 @@ function SliderReviewCard({
   );
 }
 
-function buildDemoReviews(): WidgetReview[] {
-  const now = Date.now();
-  return [
-    {
-      id: "slider-demo-1",
-      rating: 5,
-      title: "This was awesome!",
-      body: "Never had a better experience than with this awesome company.",
-      reviewer_name: "Steve",
-      created_at: new Date(now - 2 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "slider-demo-2",
-      rating: 5,
-      title: "Highly recommended",
-      body: "Friendly service, quick turnaround, and reliable support from start to finish.",
-      reviewer_name: "T. Mokoena",
-      created_at: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "slider-demo-3",
-      rating: 4,
-      title: "Solid choice",
-      body: "Good value and clear communication throughout the project.",
-      reviewer_name: "A. Naidoo",
-      created_at: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "slider-demo-4",
-      rating: 5,
-      title: "Would use again",
-      body: "Professional team and delivered on time.",
-      reviewer_name: "J. Pillay",
-      created_at: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "slider-demo-5",
-      rating: 4,
-      title: "Great experience",
-      body: "Clear process from quote to completion. Would recommend to others.",
-      reviewer_name: "Ronald Makhubela",
-      created_at: new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
-
 /**
  * Trustpilot-style slider: floating review columns (no per-review cards), prev/next arrows, summary footer with Tellacity Trust Stacked mark.
  */
@@ -184,9 +139,12 @@ export default function ReviewSliderWidget({
   showTellacityLogo?: boolean;
   minimal?: boolean;
 }) {
-  const realReviews = (payload.reviews ?? []).slice(0, MAX_SLIDER_REVIEWS);
+  const realReviews = useMemo(
+    () => (payload.reviews ?? []).slice(0, MAX_SLIDER_REVIEWS),
+    [payload.reviews],
+  );
   const demoReviews = useMemo(
-    () => (realReviews.length === 0 && dashboardDemo ? buildDemoReviews() : []),
+    () => (realReviews.length === 0 && dashboardDemo ? buildWidgetEmbedDemoReviews() : []),
     [realReviews.length, dashboardDemo],
   );
   const reviews = useMemo(
@@ -210,7 +168,6 @@ export default function ReviewSliderWidget({
   const count = Math.max(0, Math.floor(Number(payload.review_count) || 0));
 
   const windowed = reviews.slice(offset, offset + visible);
-  const showArrows = reviews.length > visible;
 
   const goPrev = useCallback(() => setOffset((o) => Math.max(0, o - 1)), []);
   const goNext = useCallback(() => setOffset((o) => Math.min(maxOffset, o + 1)), [maxOffset]);
@@ -300,29 +257,25 @@ export default function ReviewSliderWidget({
       </p>
 
       {hasReviews ? (
-        <div style={{ position: "relative", paddingLeft: showArrows ? 44 : 0, paddingRight: showArrows ? 44 : 0 }}>
-          {showArrows ? (
-            <button
-              type="button"
-              aria-label="Previous reviews"
-              style={{ ...arrowBtn, left: 0, opacity: offset <= 0 ? 0.4 : 1 }}
-              disabled={offset <= 0}
-              onClick={goPrev}
-            >
-              ‹
-            </button>
-          ) : null}
-          {showArrows ? (
-            <button
-              type="button"
-              aria-label="Next reviews"
-              style={{ ...arrowBtn, right: 0, opacity: offset >= maxOffset ? 0.4 : 1 }}
-              disabled={offset >= maxOffset}
-              onClick={goNext}
-            >
-              ›
-            </button>
-          ) : null}
+        <div style={{ position: "relative", paddingLeft: 44, paddingRight: 44 }}>
+          <button
+            type="button"
+            aria-label="Previous reviews"
+            style={{ ...arrowBtn, left: 0, opacity: offset <= 0 ? 0.4 : 1 }}
+            disabled={offset <= 0}
+            onClick={goPrev}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Next reviews"
+            style={{ ...arrowBtn, right: 0, opacity: offset >= maxOffset ? 0.4 : 1 }}
+            disabled={offset >= maxOffset}
+            onClick={goNext}
+          >
+            ›
+          </button>
 
           <div
             style={{
