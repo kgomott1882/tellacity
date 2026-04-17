@@ -17,9 +17,27 @@ export function parseBillingPlanQuery(
 }
 
 export function parseBillingCycleQuery(
-  raw: string | string[] | undefined | null
-): "monthly" | "annual" {
+  raw: string | string[] | undefined | null,
+  options: { strict: true }
+): "monthly" | "annual" | null;
+export function parseBillingCycleQuery(
+  raw: string | string[] | undefined | null,
+  options?: { strict?: false }
+): "monthly" | "annual";
+export function parseBillingCycleQuery(
+  raw: string | string[] | undefined | null,
+  options?: { strict?: boolean }
+): "monthly" | "annual" | null {
   const s = Array.isArray(raw) ? raw[0] : raw;
+  const strict = options?.strict === true;
+  if (strict) {
+    if (typeof s !== "string") return null;
+    const t = s.trim().toLowerCase();
+    if (t === "") return null;
+    if (t === "annual") return "annual";
+    if (t === "monthly") return "monthly";
+    return null;
+  }
   if (typeof s !== "string") return "monthly";
   return s.trim().toLowerCase() === "annual" ? "annual" : "monthly";
 }

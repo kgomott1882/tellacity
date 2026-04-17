@@ -663,7 +663,11 @@ export default function AdminBusinessesTable() {
                     const isSuspended = normalizedRowStatus === "suspended";
 
                     return (
-                      <tr key={id || `b-${i}`} className="bg-white align-top">
+                      <tr
+                        key={id || `b-${i}`}
+                        className="bg-white align-top"
+                        aria-selected={selectedIds.has(id)}
+                      >
                         <td className="px-2 py-2 align-middle">
                           <input
                             type="checkbox"

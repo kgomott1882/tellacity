@@ -3,11 +3,10 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { PaidPlanKey } from "@/lib/billingPlanConfirm";
-import { isPaidPlanForConfirm } from "@/lib/billingPlanConfirm";
+import { isPaidPlanForConfirm, parseBillingCycleQuery } from "@/lib/billingPlanConfirm";
+import { paystackSecretKeyCandidates, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import { getActivePlanCodeForBusiness } from "@/lib/plans";
-import { paystackSecretKeyCandidates } from "@/lib/billingPaystack";
 import { getServerEnv } from "@/lib/serverEnv";
-import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import {
   syncBusinessPlanColumn,
   upsertActiveSubscriptionForBusiness,
@@ -18,9 +17,16 @@ type PaystackVerifyResponse = {
   message?: string;
   data?: {
     status?: string;
-    metadata?: { business_id?: string; plan_code?: string };
+    amount?: number;
+    currency?: string;
+    metadata?: { business_id?: string; plan_code?: string; billing_cycle?: string };
   };
 };
+
+function normalizeCurrency(code: unknown): string {
+  const s = typeof code === "string" ? code.trim().toUpperCase() : "";
+  return s.length >= 3 ? s.slice(0, 3) : "";
+}
 
 export async function POST(req: Request) {
   try {
@@ -53,9 +59,6 @@ export async function POST(req: Request) {
     if (!businessId) {
       return NextResponse.json({ error: "businessId is required." }, { status: 400 });
     }
-
-    const access = await requireBusinessAccess(req, businessId);
-    if (!access.ok) return access.response;
 
     let payload: PaystackVerifyResponse = {};
     let verifyStatus = 400;
@@ -110,8 +113,78 @@ export async function POST(req: Request) {
       );
     }
 
+    // Verify must not default or guess billing_cycle: wrong value would pass amount checks while mis-grading the subscription.
+    const rawBillingCycle = meta.billing_cycle;
+    const cycle = parseBillingCycleQuery(
+      typeof rawBillingCycle === "string" ? rawBillingCycle : undefined,
+      { strict: true }
+    );
+    if (cycle === null) {
+      return NextResponse.json(
+        { error: "Transaction metadata is missing or invalid billing_cycle." },
+        { status: 400 }
+      );
+    }
+
+    const expected = await resolvePaystackChargeDetails(plan, cycle);
+    const paidMinor =
+      typeof payload.data?.amount === "number" && Number.isFinite(payload.data.amount)
+        ? Math.round(payload.data.amount)
+        : NaN;
+    const paidCurrency = normalizeCurrency(payload.data?.currency);
+
+    if (
+      !Number.isFinite(paidMinor) ||
+      paidMinor !== expected.amountMinor ||
+      paidCurrency !== expected.currency
+    ) {
+      console.warn("[billing/paystack/verify] charge mismatch", {
+        reference,
+        businessId,
+        plan,
+        cycle,
+        expectedAmountMinor: expected.amountMinor,
+        expectedCurrency: expected.currency,
+        paidMinor,
+        paidCurrency,
+      });
+      return NextResponse.json(
+        { error: "Payment amount or currency does not match the selected plan." },
+        { status: 400 }
+      );
+    }
+
+    console.info("[billing/paystack/verify] verification succeeded", {
+      reference,
+      businessId,
+      plan,
+      cycle,
+      amountMinor: paidMinor,
+      currency: paidCurrency,
+    });
+
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("plan_code")
+      .eq("business_id", businessId)
+      .eq("provider_sub_id", reference)
+      .maybeSingle();
+
+    if (existingSub && typeof (existingSub as { plan_code?: unknown }).plan_code === "string") {
+      const existingPlan = String((existingSub as { plan_code: string }).plan_code).trim();
+      console.info("[billing/paystack/verify] idempotent — subscription already recorded", {
+        reference,
+        businessId,
+        plan: existingPlan,
+      });
+      return NextResponse.json({
+        success: true,
+        plan: existingPlan as PaidPlanKey,
+      });
+    }
 
     const oldPlan = await getActivePlanCodeForBusiness(businessId, supabase);
 
@@ -125,6 +198,12 @@ export async function POST(req: Request) {
       console.error("[billing/paystack/verify] upsert:", sub.error);
       return NextResponse.json({ error: "Could not save subscription after payment." }, { status: 500 });
     }
+
+    console.info("[billing/paystack/verify] subscription row updated", {
+      reference,
+      businessId,
+      plan,
+    });
 
     await syncBusinessPlanColumn(supabase, businessId, plan);
 

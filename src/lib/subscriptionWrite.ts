@@ -39,6 +39,7 @@ export async function upsertActiveSubscriptionForBusiness(
       plan_code: args.planCode,
       status: "active",
       provider,
+      provider_sub_id: providerSubId,
       updated_at: now,
     })
     .eq("business_id", args.businessId)
@@ -67,7 +68,10 @@ export async function upsertActiveSubscriptionForBusiness(
   return { ok: true };
 }
 
-/** Keeps `businesses.plan` aligned with subscription plan_code (free | grow | premium | elite). */
+/**
+ * Keeps `businesses.plan` aligned with subscription plan_code (free | grow | premium | elite).
+ * NOTE: subscriptions is source of truth, this is only for legacy compatibility.
+ */
 export async function syncBusinessPlanColumn(
   db: SupabaseClient,
   businessId: string,

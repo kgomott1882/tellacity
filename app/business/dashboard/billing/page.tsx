@@ -207,10 +207,10 @@ export default function BillingPage() {
                 </span>
               </div>
               <h2 className="text-xl font-semibold text-[#0E0E0E]">
-                You&apos;re now on {PLAN_LABELS[successPlan]}
+                Payment successful, congratulations for your upgrade.
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                Your upgrade was successful. Your new features are now available.
+                You are now on {PLAN_LABELS[successPlan]}. Your new features are available now.
               </p>
               <Link
                 href="/business/dashboard"

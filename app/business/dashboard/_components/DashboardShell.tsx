@@ -193,7 +193,12 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   // Redirect to login only after auth has settled and there is no session (don't redirect while loading).
   useEffect(() => {
-    if (!authLoading && !user && !pathname?.includes("/integrations/connect-shopify")) {
+    if (
+      !authLoading &&
+      !user &&
+      !pathname?.includes("/integrations/connect-shopify") &&
+      !pathname?.includes("/business/dashboard/billing/paystack-return")
+    ) {
       router.replace("/business/login");
     }
   }, [authLoading, user, router, pathname]);
@@ -288,11 +293,13 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
   const normalizedPath = (pathname ?? "").replace(/\/$/, "") || "";
   const isBillingCheckoutPage = normalizedPath === "/business/dashboard/billing/checkout";
+  const isBillingPaystackReturnPage =
+    normalizedPath === "/business/dashboard/billing/paystack-return";
   const emailStr = user?.email?.trim() ?? "";
   const needsOnboarding = !selectedBusiness;
 
   // Session only: full-screen loader. Business list loads inside the shell so navigation is not blocked for minutes.
-  if (!isConnectShopifyPage) {
+  if (!isConnectShopifyPage && !isBillingPaystackReturnPage) {
     if (authLoading) {
       return <PageLoadingOverlay />;
     }
@@ -319,6 +326,17 @@ function InnerShell({ children }: { children: React.ReactNode }) {
             bumpNavRefresh();
           }}
         />
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // Return from Paystack should not force dashboard auth redirect mid-verify.
+  if (isBillingPaystackReturnPage) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F8F4F0]">
         <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">
           {children}
         </main>

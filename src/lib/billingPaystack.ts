@@ -110,7 +110,8 @@ function normalizePaystackKey(raw: string | undefined): string {
 
 /**
  * Return unique candidate secret keys (primary first) for server-side Paystack calls.
- * Supports legacy/alias env names so production misconfigs don't silently break checkout.
+ * Prefers {@link process.env.PAYSTACK_SECRET_KEY}; other names are legacy/alias fallbacks.
+ * WARNING: avoid mixing test and live keys in production — each candidate is tried until verify succeeds.
  */
 export function paystackSecretKeyCandidates(): string[] {
   const candidates = [

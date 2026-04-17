@@ -11,6 +11,7 @@ export default function PaystackReturnClient() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("verifying");
   const [message, setMessage] = useState<string | null>(null);
+  const [successPlan, setSuccessPlan] = useState<string | null>(null);
 
   useEffect(() => {
     const reference = sp.get("reference")?.trim() || sp.get("trxref")?.trim();
@@ -38,18 +39,25 @@ export default function PaystackReturnClient() {
         if (cancelled) return;
         if (!res.ok) {
           setPhase("verify_failed");
-          setMessage(typeof data.error === "string" ? data.error : "Payment could not be verified.");
+          setMessage(
+            typeof data.error === "string"
+              ? data.error
+              : "Payment not successful. Please try again from billing."
+          );
           return;
         }
         const plan = typeof data.plan === "string" ? data.plan.trim().toLowerCase() : "";
+        setSuccessPlan(plan || null);
         setPhase("done");
-        router.replace(
-          `/business/dashboard/billing?success=true&plan=${encodeURIComponent(plan || "grow")}`
-        );
+        window.setTimeout(() => {
+          router.replace(
+            `/business/dashboard/billing?success=true&plan=${encodeURIComponent(plan || "grow")}`
+          );
+        }, 1400);
       } catch {
         if (!cancelled) {
           setPhase("verify_failed");
-          setMessage("Network error while confirming payment.");
+          setMessage("Payment not successful. Network error while confirming payment.");
         }
       }
     })();
@@ -62,12 +70,17 @@ export default function PaystackReturnClient() {
   if (phase === "done") {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center px-4 py-16 text-center">
-        <div
-          className="h-10 w-10 animate-spin rounded-full border-2 border-[#124541] border-t-transparent"
-          role="status"
-          aria-label="Redirecting"
-        />
-        <p className="mt-4 text-sm text-gray-600">Payment confirmed. Taking you to billing…</p>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+          <span className="text-xl" aria-hidden>
+            ✓
+          </span>
+        </div>
+        <h1 className="text-lg font-semibold text-[#0E0E0E]">
+          Payment successful, congratulations for your upgrade.
+        </h1>
+        <p className="mt-2 text-sm text-gray-600">
+          {successPlan ? `Your ${successPlan} plan is now active. ` : ""}Taking you back to billing…
+        </p>
       </div>
     );
   }
@@ -93,7 +106,9 @@ export default function PaystackReturnClient() {
   if (phase === "verify_failed") {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-md flex-col justify-center px-4 py-16 text-center">
-        <h1 className="text-lg font-semibold text-[#0E0E0E]">We couldn&apos;t confirm that payment</h1>
+        <h1 className="text-lg font-semibold text-[#0E0E0E]">
+          Payment not successful. Please try again.
+        </h1>
         <p className="mt-2 text-sm text-gray-600">{message}</p>
         <p className="mt-3 text-xs text-gray-500">
           If you were charged, contact support with your Paystack reference from your email receipt.

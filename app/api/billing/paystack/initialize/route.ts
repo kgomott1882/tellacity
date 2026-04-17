@@ -29,7 +29,7 @@ function isLikelyValidEmail(raw: string): boolean {
 
 /**
  * Paystack requires a valid customer email on initialize.
- * Priority: auth.users email → profiles.email → businesses.email → env / dev fallback.
+ * Priority: auth.users email → profiles.email → businesses.email → session email → PAYSTACK_CHECKOUT_FALLBACK_EMAIL (optional).
  */
 async function resolveCustomerEmailForPaystack(
   userId: string,
@@ -121,12 +121,21 @@ export async function POST(req: Request) {
       null;
 
     if (!email || !isLikelyValidEmail(email)) {
-      email =
-        process.env.PAYSTACK_CHECKOUT_FALLBACK_EMAIL?.trim() || "test@tellacity.com";
-      console.warn(
-        "[billing/paystack/initialize] No valid payer email from auth/profile/business; using fallback:",
-        email
-      );
+      const envFallback = process.env.PAYSTACK_CHECKOUT_FALLBACK_EMAIL?.trim();
+      if (envFallback && isLikelyValidEmail(envFallback)) {
+        email = envFallback;
+        console.warn(
+          "[billing/paystack/initialize] No valid payer email from auth/profile/business; using PAYSTACK_CHECKOUT_FALLBACK_EMAIL."
+        );
+      } else {
+        return NextResponse.json(
+          {
+            error:
+              "No valid billing email found. Add an email to your account, profile, or business and try again.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const charge = await resolvePaystackChargeDetails(plan, cycle);
@@ -139,6 +148,9 @@ export async function POST(req: Request) {
     const reference = `tellacity_${businessId.slice(0, 8)}_${Date.now()}`;
     const callbackUrl = buildPaystackBillingReturnCallbackUrl(req, businessId);
 
+    // Paystack verify reconciles charge amount using metadata.billing_cycle — always send explicit "monthly" | "annual".
+    const billingCycleMetadata: "monthly" | "annual" = cycle;
+
     const paystackRequestBody = {
       email,
       amount,
@@ -148,7 +160,7 @@ export async function POST(req: Request) {
       metadata: {
         business_id: businessId,
         plan_code: plan,
-        billing_cycle: cycle,
+        billing_cycle: billingCycleMetadata,
         list_price_usd: String(charge.listUsdMajor),
         ...(charge.fxUsdZar != null
           ? { fx_usd_zar: String(Math.round(charge.fxUsdZar * 10000) / 10000) }

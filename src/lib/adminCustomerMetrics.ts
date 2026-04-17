@@ -111,7 +111,7 @@ export async function loadAdminCustomerMetricsMap(
     { data: emailSendRows, error: emailSendErr },
     { data: emailInviteRows, error: emailInviteErr },
     { data: monthInviteRows, error: monthInviteErr },
-    lastInviteResults,
+    { data: sentInviteRows, error: sentInviteErr },
     limitResults,
   ] = await Promise.all([
     db
@@ -138,31 +138,19 @@ export async function loadAdminCustomerMetricsMap(
       .eq("source", "email_widget")
       .limit(100_000),
     db
-      .from("review_invite_events")
+      .from("review_invites")
       .select("business_id, created_at")
       .in("business_id", businessIds)
-      .eq("event_type", "invitation_sent")
       .gte("created_at", monthStart)
+      .or("source.is.null,source.neq.email_widget")
       .limit(200_000),
-    Promise.all(
-      businessIds.map(async (businessId) => {
-        const { data, error } = await db
-          .from("review_invite_events")
-          .select("created_at")
-          .eq("business_id", businessId)
-          .eq("event_type", "invitation_sent")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) {
-          if (!isMissingRelationError(error)) {
-            console.warn("[admin customers] last invite:", error.message);
-          }
-          return [businessId, null] as const;
-        }
-        return [businessId, (data as { created_at?: string } | null)?.created_at ?? null] as const;
-      }),
-    ),
+    db
+      .from("review_invites")
+      .select("business_id, sent_at")
+      .in("business_id", businessIds)
+      .not("sent_at", "is", null)
+      .or("source.is.null,source.neq.email_widget")
+      .limit(200_000),
     Promise.all(
       businessIds.map(async (businessId) => {
         const limit = await getMonthlyInviteLimitForBusiness(businessId, db);
@@ -261,7 +249,23 @@ export async function loadAdminCustomerMetricsMap(
       monthCounts.set(bid, (monthCounts.get(bid) ?? 0) + 1);
     }
   } else if (!isMissingRelationError(monthInviteErr)) {
-    console.warn("[admin customers] invite events month:", monthInviteErr.message);
+    console.warn("[admin customers] invites month:", monthInviteErr.message);
+  }
+
+  const lastInviteByBusiness = new Map<string, string | null>();
+  if (!sentInviteErr) {
+    for (const raw of sentInviteRows ?? []) {
+      const row = raw as { business_id?: string; sent_at?: string | null };
+      const bid = String(row.business_id ?? "");
+      const sentAt = row.sent_at ?? null;
+      if (!bid || !sentAt) continue;
+      const prev = lastInviteByBusiness.get(bid);
+      if (!prev || parseTime(sentAt) > parseTime(prev)) {
+        lastInviteByBusiness.set(bid, sentAt);
+      }
+    }
+  } else if (!isMissingRelationError(sentInviteErr)) {
+    console.warn("[admin customers] last sent invite:", sentInviteErr.message);
   }
 
   const createdByBusiness = new Map<string, string | null>();
@@ -278,9 +282,10 @@ export async function loadAdminCustomerMetricsMap(
     m.invitesRemaining = Math.max(0, m.inviteLimit - sent);
   }
 
-  for (const [businessId, lastAt] of lastInviteResults) {
+  for (const businessId of businessIds) {
     if (!out.has(businessId)) continue;
     const m = out.get(businessId)!;
+    const lastAt = lastInviteByBusiness.get(businessId) ?? null;
     m.lastInviteSentAt = lastAt;
 
     const referenceIso = lastAt || createdByBusiness.get(businessId) || null;
