@@ -307,7 +307,7 @@ export default function InvitationMethodsPage() {
                 type="button"
                 onClick={() => {
                   setInviteLimitModalOpen(false);
-                  router.push("/business/dashboard/billing?reason=limit");
+                  router.push("/business/dashboard/settings/usage");
                 }}
                 className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
               >

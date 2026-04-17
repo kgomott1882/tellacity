@@ -24,13 +24,15 @@ export default function IntegrationsDashboardPage() {
   );
 
   return (
-    <IntegrationsOverview
-      plan={plan}
-      businessId={businessId}
-      connected={connected}
-      available={available}
-      locked={locked}
-      enterprise={enterprise}
-    />
+    <div className="space-y-6">
+      <IntegrationsOverview
+        plan={plan}
+        businessId={businessId}
+        connected={connected}
+        available={available}
+        locked={locked}
+        enterprise={enterprise}
+      />
+    </div>
   );
 }

@@ -11,7 +11,6 @@ import {
   Settings,
   ChevronRight,
   LayoutTemplate,
-  CreditCard,
 } from "lucide-react";
 
 import NavItem from "./NavItem";
@@ -103,19 +102,16 @@ export const NAV_ITEMS = [
       { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
       { label: "Team Access", path: "/business/dashboard/settings/team-access" },
       { label: "Notifications", path: "/business/dashboard/settings/notifications" },
-      { label: "Account", path: "/business/dashboard/settings/account" },
+      { label: "User Account", path: "/business/dashboard/settings/account" },
+      { label: "Pricing Plans", path: "/business/dashboard/settings/usage" },
+      { label: "Billing Settings", path: "/business/dashboard/settings/billing-profile" },
+      { label: "Payment History", path: "/business/dashboard/billing" },
     ],
-  },
-  {
-    label: "Billing",
-    icon: CreditCard,
-    key: "billing",
-    path: "/business/dashboard/billing",
   },
 ];
 
 function sectionKeyFromPath(pathname: string) {
-  if (pathname.includes("/business/dashboard/billing")) return "";
+  if (pathname.includes("/business/dashboard/billing")) return "settings";
   if (pathname.includes("/analytics")) return "analytics";
   if (pathname.includes("/manage-reviews")) return "manage-reviews";
   if (pathname.includes("/get-reviews")) return "get-reviews";

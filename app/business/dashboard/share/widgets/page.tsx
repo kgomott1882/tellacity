@@ -20,15 +20,10 @@ import {
 } from "lucide-react";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import {
-  incrementUpgradeClickCount,
-  upgradeModalTitleForClickCount,
-} from "@/lib/upgradeClickStorage";
-import {
   canAccessWebsiteWidget,
   normalizePlanCodeToKey,
   type PlanKey,
 } from "@/lib/plans";
-import WebsiteWidgetUpgradePreview from "@/components/widgets/WebsiteWidgetUpgradePreview";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
   DASHBOARD_PREVIEW_REVIEW_LIMIT_MIN,
@@ -47,7 +42,6 @@ import {
   WEBSITE_WIDGETS as WIDGETS,
   WIDGET_EMBED_IDS_WITH_PREVIEW_AND_STAR_CONTROLS,
   type WebsiteWidgetId as WidgetId,
-  type WebsiteWidgetPlanKey as WebsiteWidgetKey,
 } from "@/lib/widgetsConfig";
 
 /** Iframe `location.href` vs parent `previewUrl` can differ in hash/trailing slash; compare path+query. */
@@ -124,19 +118,6 @@ function requiredPlanForWebsiteWidget(
       return "premium";
     default:
       return "grow";
-  }
-}
-
-function upgradeLabelForPlan(plan: PlanKey): string {
-  switch (plan) {
-    case "grow":
-      return "Upgrade to Grow";
-    case "premium":
-      return "Upgrade to Premium";
-    case "elite":
-      return "Upgrade to Elite";
-    default:
-      return "Upgrade";
   }
 }
 
@@ -250,13 +231,6 @@ export default function WebsiteWidgetsPage() {
   /** Trustpilot-style: pick a widget from the grid, then configure in a full-screen modal. */
   const [widgetConfigureOpen, setWidgetConfigureOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [upgradeFeatureModalOpen, setUpgradeFeatureModalOpen] = useState(false);
-  const [upgradeFeatureModalTitle, setUpgradeFeatureModalTitle] = useState(
-    "Unlock this feature",
-  );
-  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<PlanKey>("grow");
-  const [upgradePreviewWidget, setUpgradePreviewWidget] =
-    useState<WebsiteWidgetKey | null>(null);
   const [whiteLabel, setWhiteLabel] = useState<WidgetWhiteLabelSettings>(WHITE_LABEL_DEFAULTS);
   const [whiteLabelLoading, setWhiteLabelLoading] = useState(false);
   const [whiteLabelSaving, setWhiteLabelSaving] = useState(false);
@@ -371,21 +345,14 @@ export default function WebsiteWidgetsPage() {
 
   const FEATURE_LOCKED = "website_widget" as const;
 
-  const openUpgradeFeatureModal = (
-    requiredPlan: PlanKey,
-    previewWidget?: WebsiteWidgetKey,
-  ) => {
+  const goToPricingPlans = (requiredPlan: PlanKey) => {
     if (!selectedBusiness?.id) return;
-    setUpgradeRequiredPlan(requiredPlan);
-    setUpgradePreviewWidget(previewWidget ?? null);
-    const n = incrementUpgradeClickCount(FEATURE_LOCKED);
-    setUpgradeFeatureModalTitle(upgradeModalTitleForClickCount(n));
     logDashboardActivityClient({
       businessId: selectedBusiness.id,
       action: "feature_locked_clicked",
-      metadata: { feature: FEATURE_LOCKED },
+      metadata: { feature: FEATURE_LOCKED, required_plan: requiredPlan },
     });
-    setUpgradeFeatureModalOpen(true);
+    router.push("/business/dashboard/settings/usage");
   };
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const baseUrl = useMemo(() => resolveWidgetBaseUrl(), []);
@@ -794,11 +761,6 @@ export default function WebsiteWidgetsPage() {
   }, [previewUrl, effectiveEmbedMinimal]);
 
   // Reset iframe height when widget type changes
-  const upgradeWidgetDisplayName =
-    upgradePreviewWidget != null
-      ? (WIDGETS.find((w) => w.planWidget === upgradePreviewWidget)?.name ?? null)
-      : null;
-
   useEffect(() => {
     if (iframeRef.current) {
       iframeRef.current.style.height = `${currentWidget.previewHeight}px`;
@@ -1089,12 +1051,7 @@ export default function WebsiteWidgetsPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() =>
-                    openUpgradeFeatureModal(
-                      requiredPlanForWebsiteWidget(currentWidget.planWidget),
-                      currentWidget.planWidget,
-                    )
-                  }
+                  onClick={() => goToPricingPlans(requiredPlanForWebsiteWidget(currentWidget.planWidget))}
                   className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185a87]"
                 >
                   Upgrade
@@ -1559,7 +1516,7 @@ export default function WebsiteWidgetsPage() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => openUpgradeFeatureModal("elite", currentWidget.planWidget)}
+                        onClick={() => goToPricingPlans("elite")}
                         className="rounded-lg bg-[#124541] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35] sm:text-sm"
                       >
                         Upgrade to Elite
@@ -1742,66 +1699,6 @@ export default function WebsiteWidgetsPage() {
         </div>
       ) : null}
 
-      {upgradeFeatureModalOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setUpgradeFeatureModalOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-md rounded-xl bg-[#3A3A3A] p-6 text-[#E8DDC7] shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="widgets-upgrade-feature-title"
-          >
-            <h2
-              id="widgets-upgrade-feature-title"
-              className="text-lg font-semibold text-[#F3E8D0]"
-            >
-              {upgradeFeatureModalTitle}
-            </h2>
-            <p className="mt-2 text-sm text-[#D9CEB6]">
-              This widget requires the {upgradeRequiredPlan} plan.
-              Move up a tier to unlock more widgets and get more value from your reviews.
-              Showcasing reviews builds trust and increases conversions.
-            </p>
-            <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#C9BEA6]">
-                What you&apos;ll unlock
-              </p>
-              {upgradeWidgetDisplayName ? (
-                <p className="mb-2 text-sm font-semibold text-[#F3E8D0]">
-                  {upgradeWidgetDisplayName}
-                </p>
-              ) : null}
-              <WebsiteWidgetUpgradePreview
-                widget={upgradePreviewWidget}
-                businessSlug={selectedBusiness?.slug ?? null}
-              />
-            </div>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setUpgradeFeatureModalOpen(false)}
-                className="rounded-lg border border-[#C9BEA6]/60 px-4 py-2 text-sm font-medium text-[#E8DDC7] hover:bg-[#4A4A4A]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUpgradeFeatureModalOpen(false);
-                  router.push("/business/dashboard/billing?reason=widget");
-                }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-[#F3E8D0] hover:bg-[#0f3a35]"
-              >
-                {upgradeLabelForPlan(upgradeRequiredPlan)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

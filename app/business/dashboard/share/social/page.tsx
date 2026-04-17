@@ -263,7 +263,7 @@ export default function SocialSharePage() {
                       Grow unlocks a sharp code for print, tables, and receipts.
                     </p>
                     <Link
-                      href="/business/dashboard/billing"
+                      href="/business/dashboard/settings/usage"
                       className="mt-2 inline-block text-xs font-semibold text-[#124541] underline decoration-[#124541]/40 underline-offset-2 hover:text-[#0f3a35]"
                     >
                       {nextTierUpgradeCtaLabel(planKey)}

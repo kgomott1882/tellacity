@@ -5,20 +5,17 @@ import { useCallback, useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import type { PaidPlanKey, PlanConfirmPresentation } from "@/lib/billingPlanConfirm";
-import type { PaystackChargeResolution } from "@/lib/billingPaystack";
 
 type Props = {
   plan: PaidPlanKey;
   cycle: "monthly" | "annual";
   presentation: PlanConfirmPresentation;
-  chargePreview: PaystackChargeResolution;
 };
 
 export default function BillingCheckoutClient({
   plan,
   cycle,
   presentation,
-  chargePreview,
 }: Props) {
   const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
@@ -96,33 +93,6 @@ export default function BillingCheckoutClient({
       {presentation.priceSubLine ? (
         <p className="mt-2 text-center text-sm leading-snug text-gray-600">{presentation.priceSubLine}</p>
       ) : null}
-      {chargePreview.currency === "ZAR" &&
-      chargePreview.settleMajor != null &&
-      chargePreview.fxUsdZar != null ? (
-        <p className="mt-4 rounded-lg border border-emerald-100/80 bg-emerald-50/40 px-3 py-3 text-center text-xs leading-relaxed text-gray-700">
-          Prices on Tellacity are in <span className="font-medium">USD</span>. Paystack (South Africa)
-          collects in <span className="font-medium">ZAR</span>. At about{" "}
-          <span className="font-medium">1 USD = {chargePreview.fxUsdZar.toFixed(2)} ZAR</span>, expect
-          roughly{" "}
-          <span className="font-medium">
-            {new Intl.NumberFormat("en-ZA", {
-              style: "currency",
-              currency: "ZAR",
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(chargePreview.settleMajor)}
-          </span>{" "}
-          for this plan — that matches the amount on Paystack’s full checkout page. If you pay
-          from outside South Africa (for example with a Canadian card), your bank may show{" "}
-          <span className="font-medium">CAD</span> or another currency on your statement; that
-          conversion and any extra fee are set by your card issuer, not Tellacity.
-        </p>
-      ) : (
-        <p className="mt-4 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-3 text-center text-xs leading-relaxed text-gray-600">
-          This payment is processed in{" "}
-          <span className="font-medium">{chargePreview.currency}</span> on the Paystack checkout page.
-        </p>
-      )}
       <p className="mt-6 text-xs font-medium text-gray-600">Includes</p>
       <ul className="mt-2 space-y-2 text-sm text-gray-600">
         {presentation.bullets.slice(0, 4).map((line) => (
@@ -150,13 +120,8 @@ export default function BillingCheckoutClient({
       >
         {payBusy ? "Redirecting to Paystack…" : "Continue to Paystack checkout"}
       </button>
-      <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
-        You will leave this site for a secure, full-page Paystack payment step, then return here to
-        finish.
-      </p>
-      <p className="mt-2 text-center text-[11px] leading-relaxed text-gray-500">
-        Webhook URL in Paystack:{" "}
-        <span className="break-all font-mono text-[10px]">/api/webhooks/paystack</span>
+      <p className="mt-3 text-center text-xs text-gray-500">
+        Secure checkout powered by Paystack
       </p>
       <Link
         href="/business/dashboard/billing"

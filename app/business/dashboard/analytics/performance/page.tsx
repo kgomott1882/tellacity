@@ -916,14 +916,14 @@ export default function PerformancePage() {
   const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
-  const goToBillingForUpgrade = () => {
+  const goToPricingPlansForUpgrade = () => {
     if (!businessId) return;
     logDashboardActivityClient({
       businessId,
       action: "feature_locked_clicked",
-      metadata: { feature: "analytics", destination: "billing" },
+      metadata: { feature: "analytics", destination: "pricing_plans" },
     });
-    router.push("/business/dashboard/billing?reason=analytics");
+    router.push("/business/dashboard/settings/usage");
   };
 
   if (!businessId) return null;
@@ -965,7 +965,7 @@ export default function PerformancePage() {
                 </p>
                 <button
                   type="button"
-                  onClick={goToBillingForUpgrade}
+                  onClick={goToPricingPlansForUpgrade}
                   className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
                 >
                   {nextTierUpgradeCtaLabel(planKey)}

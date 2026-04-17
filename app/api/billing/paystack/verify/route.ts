@@ -166,6 +166,32 @@ export async function POST(req: Request) {
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const { error: transactionError } = await supabase
+      .from("billing_transactions")
+      .upsert(
+        {
+          business_id: businessId,
+          reference,
+          amount: paidMinor,
+          currency: paidCurrency,
+          status: "success",
+          plan_code: plan,
+        },
+        { onConflict: "reference", ignoreDuplicates: true }
+      );
+    if (transactionError) {
+      // Do not block a verified subscription upgrade on auxiliary ledger writes.
+      console.error("[billing/paystack/verify] billing_transactions:", transactionError.message);
+    } else {
+      console.info("[billing/paystack/verify] transaction recorded", {
+        reference,
+        businessId,
+        plan,
+        amountMinor: paidMinor,
+        currency: paidCurrency,
+      });
+    }
+
     const { data: existingSub } = await supabase
       .from("subscriptions")
       .select("plan_code")

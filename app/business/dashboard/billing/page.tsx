@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SimplePage from "../_components/SimplePage";
@@ -12,7 +12,8 @@ import {
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
 import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
-import { PricingPageContent } from "@/components/pricing/PricingPageContent";
+import type { BillingOverviewHistoryRow, BillingOverviewResponse } from "@/lib/billingOverview";
+import PaymentHistory from "./_components/PaymentHistory";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   free: "Free",
@@ -25,16 +26,11 @@ const PRICING_SCROLL_REASONS = new Set(["limit", "analytics", "widget", "team"])
 
 type UpgradeVerifyState = "idle" | "checking" | "ok";
 
-/** URL query flags often vary in casing or value across clients. */
 function queryFlagTrue(value: string | null | undefined): boolean {
   const v = (value ?? "").trim().toLowerCase();
   return v === "true" || v === "1" || v === "yes";
 }
 
-/**
- * After SPA navigation, `useSearchParams()` can briefly omit the query string while
- * `window.location` is already correct. On the billing route, prefer the address bar.
- */
 function billingPathMatch(pathname: string | null): boolean {
   const p = (pathname ?? "").replace(/\/$/, "") || "";
   return p === "/business/dashboard/billing";
@@ -44,20 +40,20 @@ function useBillingSearchParams() {
   const pathname = usePathname();
   const nextSp = useSearchParams();
   const nextSpString = nextSp.toString();
-  const q = useMemo(() => {
+  return useMemo(() => {
     if (typeof window !== "undefined" && billingPathMatch(pathname)) {
       return new URLSearchParams(window.location.search);
     }
     return new URLSearchParams(nextSpString);
   }, [pathname, nextSpString]);
-  return q;
 }
 
 export default function BillingPage() {
   const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
-  const { user } = useBusinessAuth();
+  const { selectedBusiness, navRefreshKey } = useBusinessContext();
+  const { user, loading: authLoading } = useBusinessAuth();
   const searchParams = useBillingSearchParams();
+
   const reason = searchParams.get("reason");
   const upgrade = queryFlagTrue(searchParams.get("upgrade"));
   const success = queryFlagTrue(searchParams.get("success"));
@@ -70,46 +66,38 @@ export default function BillingPage() {
     success && parsedCheckoutPlan && isPaidPlanForConfirm(parsedCheckoutPlan)
       ? parsedCheckoutPlan
       : null;
-
   const showSuccess = Boolean(successPlan);
 
   const dashboardCheckoutPlanFromUrl =
-    !success &&
-    parsedCheckoutPlan &&
-    isPaidPlanForConfirm(parsedCheckoutPlan)
+    !success && parsedCheckoutPlan && isPaidPlanForConfirm(parsedCheckoutPlan)
       ? parsedCheckoutPlan
       : null;
-  const dashboardInitialBillingMode = parsedCycle;
 
-  const pricingSectionRef = useRef<HTMLElement | null>(null);
   const [upgradeVerifyState, setUpgradeVerifyState] =
     useState<UpgradeVerifyState>("idle");
+  const [billingOverview, setBillingOverview] = useState<BillingOverviewResponse | null>(
+    null
+  );
+  const [billingOverviewLoading, setBillingOverviewLoading] = useState(false);
+  const [billingOverviewError, setBillingOverviewError] = useState<string | null>(null);
 
   const businessId = selectedBusiness?.id ?? null;
-  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
-  const shouldScrollToPricing =
+  const planKey = billingOverview?.current?.plan_code
+    ? normalizePlanCodeToKey(billingOverview.current.plan_code)
+    : normalizePlanCodeToKey(selectedBusiness?.plan);
+  const currentPlanLabel = PLAN_LABELS[planKey] ?? planKey;
+  const shouldPromotePlanChange =
     Boolean(businessId) && reason != null && PRICING_SCROLL_REASONS.has(reason);
-  const emphasizePremiumAnchor = shouldScrollToPricing;
-
-  useEffect(() => {
-    if (!shouldScrollToPricing || !pricingSectionRef.current) return;
-    const id = window.requestAnimationFrame(() => {
-      pricingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [shouldScrollToPricing]);
 
   useEffect(() => {
     if (!dashboardCheckoutPlanFromUrl) return;
-    const id = window.requestAnimationFrame(() => {
-      document
-        .getElementById(`plan-card-${dashboardCheckoutPlanFromUrl}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const qs = new URLSearchParams({
+      plan: dashboardCheckoutPlanFromUrl,
+      cycle: parsedCycle,
     });
-    return () => window.cancelAnimationFrame(id);
-  }, [dashboardCheckoutPlanFromUrl]);
+    router.replace(`/business/dashboard/settings/usage?${qs.toString()}`);
+  }, [dashboardCheckoutPlanFromUrl, parsedCycle, router]);
 
-  /** Legacy URLs: ?upgrade=true&plan=&cycle= → dedicated checkout page. */
   useEffect(() => {
     if (!upgrade || !parsedCheckoutPlan || !isPaidPlanForConfirm(parsedCheckoutPlan)) {
       return;
@@ -122,7 +110,8 @@ export default function BillingPage() {
   }, [upgrade, parsedCheckoutPlan, parsedCycle, router]);
 
   useEffect(() => {
-    if (!showSuccess || !successPlan || !businessId) {
+    if (authLoading) return;
+    if (!showSuccess || !successPlan || !businessId || !user?.id) {
       setUpgradeVerifyState("idle");
       return;
     }
@@ -133,7 +122,8 @@ export default function BillingPage() {
     void (async () => {
       try {
         const res = await fetch(
-          `/api/billing/plan?businessId=${encodeURIComponent(businessId)}`
+          `/api/billing/plan?businessId=${encodeURIComponent(businessId)}`,
+          { credentials: "same-origin" }
         );
         const data = (await res.json()) as { plan?: string; error?: string };
         if (cancelled) return;
@@ -153,7 +143,46 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [showSuccess, successPlan, businessId, router]);
+  }, [authLoading, showSuccess, successPlan, businessId, router, user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!businessId || showSuccess || !user?.id) return;
+
+    let cancelled = false;
+    setBillingOverviewLoading(true);
+    setBillingOverviewError(null);
+
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/billing/overview?businessId=${encodeURIComponent(businessId)}`,
+          { credentials: "same-origin" }
+        );
+        const data = (await res.json()) as BillingOverviewResponse & { error?: string };
+        if (cancelled) return;
+        if (!res.ok) {
+          setBillingOverview(null);
+          setBillingOverviewError(
+            typeof data.error === "string" ? data.error : "Could not load billing details."
+          );
+          return;
+        }
+        setBillingOverview(data);
+      } catch {
+        if (!cancelled) {
+          setBillingOverview(null);
+          setBillingOverviewError("Could not load billing details.");
+        }
+      } finally {
+        if (!cancelled) setBillingOverviewLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, businessId, showSuccess, navRefreshKey, user?.id]);
 
   if (!businessId || !selectedBusiness) return null;
 
@@ -165,7 +194,7 @@ export default function BillingPage() {
           role="status"
           aria-label="Opening checkout"
         />
-        <p className="mt-4 text-sm text-gray-600">Opening checkout…</p>
+        <p className="mt-4 text-sm text-gray-600">Opening checkout...</p>
       </div>
     );
   }
@@ -181,10 +210,26 @@ export default function BillingPage() {
             ? "Collaborate with your team and manage reviews more efficiently."
             : null;
 
-  const dashboardEmail = user?.email?.trim() ?? "";
+  const paymentHistoryRows: BillingOverviewHistoryRow[] =
+    billingOverview?.history && billingOverview.history.length > 0
+      ? billingOverview.history
+      : [
+          {
+            date: billingOverview?.current?.updated_at ?? new Date().toISOString(),
+            plan: currentPlanLabel,
+            reference: billingOverview?.current?.provider_sub_id ?? "Subscription updated",
+            amount: null,
+            currency: null,
+            status: billingOverview?.current?.status?.trim() || "Current plan",
+          },
+        ];
+
+  const goToPricingPlans = () => {
+    router.push("/business/dashboard/settings/usage");
+  };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 pb-12">
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
       {showSuccess && successPlan ? (
         upgradeVerifyState === "checking" || upgradeVerifyState === "idle" ? (
           <div className="mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
@@ -193,7 +238,7 @@ export default function BillingPage() {
               role="status"
               aria-label="Verifying upgrade"
             />
-            <p className="mt-4 text-sm text-gray-600">Verifying your upgrade…</p>
+            <p className="mt-4 text-sm text-gray-600">Verifying your upgrade...</p>
           </div>
         ) : upgradeVerifyState === "ok" ? (
           <div className="mx-auto flex max-w-lg flex-col items-center justify-center py-6">
@@ -203,7 +248,7 @@ export default function BillingPage() {
             >
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
                 <span className="text-xl" aria-hidden>
-                  ✓
+                  OK
                 </span>
               </div>
               <h2 className="text-xl font-semibold text-[#0E0E0E]">
@@ -223,10 +268,10 @@ export default function BillingPage() {
         ) : null
       ) : (
         <>
-          <div className="max-w-2xl space-y-6">
+          <div className="max-w-2xl space-y-4">
             <SimplePage
-              title="Billing & Plans"
-              subtitle="Manage your subscription and usage for this workspace."
+              title="Payment History"
+              subtitle="Review billing activity now and prepare for invoices and downloadable documents later."
             />
 
             {reasonMessage ? (
@@ -237,25 +282,30 @@ export default function BillingPage() {
                 {reasonMessage}
               </div>
             ) : null}
+
+            {shouldPromotePlanChange ? (
+              <button
+                type="button"
+                onClick={goToPricingPlans}
+                className="inline-flex items-center justify-center rounded-xl border border-[#124541] bg-white px-4 py-2.5 text-sm font-semibold text-[#124541] transition hover:bg-[#124541]/5"
+              >
+                Review available plans
+              </button>
+            ) : null}
           </div>
 
-          <section
-            ref={pricingSectionRef}
-            id="dashboard-pricing-compare"
-            aria-label="Plans and pricing"
-            className="scroll-mt-24 border-t border-gray-200 pt-10"
-          >
-            <PricingPageContent
-              variant="dashboard"
-              dashboardBusinessId={selectedBusiness.id}
-              dashboardUserEmail={dashboardEmail}
-              dashboardCurrentPlanKey={planKey}
-              emphasizePremiumAnchor={emphasizePremiumAnchor}
-              embedInDashboard
-              dashboardHideMarketingHero
-              dashboardInitialBillingMode={dashboardInitialBillingMode}
-            />
+          <section className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-[#0E0E0E]">Invoices and documents</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Downloadable invoices and billing documents will appear here when they are available.
+            </p>
           </section>
+
+          <PaymentHistory
+            rows={paymentHistoryRows}
+            loading={billingOverviewLoading}
+            errorMessage={billingOverviewError}
+          />
         </>
       )}
     </div>

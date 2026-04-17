@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
-import UpgradeButton from "@/components/billing/UpgradeButton";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
-import {
-  incrementUpgradeClickCount,
-  upgradeModalTitleForClickCount,
-} from "@/lib/upgradeClickStorage";
 import {
   canAccessEmailWidget,
   canUseCustomEmail,
@@ -94,72 +89,6 @@ function upgradeLabelForPlan(plan: PlanKey): string {
   }
 }
 
-function EmailLayoutUpgradePreview({
-  layout,
-  businessName,
-  businessLogoUrl,
-}: {
-  layout: "standard" | "review_hunter" | "elite_branded" | "rating_ladder" | null;
-  businessName: string;
-  businessLogoUrl?: string | null;
-}) {
-  const shell = "rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-[12px] text-gray-700";
-  if (!layout) {
-    return (
-      <div className={shell}>
-        <p className="font-semibold text-gray-900">Email layout preview</p>
-        <p className="mt-1 text-gray-600">Unlock higher-converting invite layouts with richer trust signals.</p>
-      </div>
-    );
-  }
-
-  const labels: Record<
-    "standard" | "review_hunter" | "rating_ladder" | "elite_branded",
-    string
-  > = {
-    standard: "Premium Widget Layout",
-    review_hunter: "Review Hunter",
-    rating_ladder: "Rating ladder",
-    elite_branded: "Elite Branded Layout",
-  };
-  const label = labels[layout];
-
-  return (
-    <div className={shell}>
-      <p className="font-semibold text-gray-900">{label}</p>
-      <p className="mt-1 text-xs text-gray-500">
-        Same preview as Layout Options and “Preview &amp; send” for this layout.
-      </p>
-      <div className="mt-3 max-h-[min(50vh,360px)] overflow-y-auto rounded-md border border-gray-100 bg-white p-2">
-        {layout === "standard" && (
-          <EmailWidgetInviteBlock
-            variant="standard"
-            businessName={businessName}
-            density="comfortable"
-            className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 text-center"
-          />
-        )}
-        {layout === "review_hunter" && (
-          <EmailWidgetInviteBlock
-            variant="review_hunter"
-            businessName={businessName}
-            density="comfortable"
-            className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 text-center"
-          />
-        )}
-        {layout === "rating_ladder" && <EmailWidgetRatingLadderPreview density="comfortable" />}
-        {layout === "elite_branded" && (
-          <EmailWidgetEliteBrandedCard
-            businessName={businessName}
-            logoUrl={businessLogoUrl}
-            density="comfortable"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
 function EmailLayoutLockOverlay({
   onUnlockClick,
   ctaLabel,
@@ -203,33 +132,18 @@ export default function EmailWidgetsPage() {
     kind: "success" | "error";
     message: string;
   } | null>(null);
-  const [upgradeFeatureModalOpen, setUpgradeFeatureModalOpen] = useState(false);
-  const [upgradeFeatureModalTitle, setUpgradeFeatureModalTitle] = useState(
-    "Unlock this feature",
-  );
-  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<PlanKey>("grow");
-  const [upgradePreviewLayout, setUpgradePreviewLayout] = useState<
-    "standard" | "review_hunter" | "elite_branded" | "rating_ladder" | null
-  >(null);
   const sendSectionRef = useRef<HTMLFormElement>(null);
   const emailLayoutMigratedRef = useRef(false);
 
   const FEATURE_LOCKED = "email_widget" as const;
 
-  const openUpgradeFeatureModal = (
-    requiredPlan: PlanKey,
-    previewLayout?: "standard" | "review_hunter" | "elite_branded" | "rating_ladder",
-  ) => {
-    setUpgradeRequiredPlan(requiredPlan);
-    setUpgradePreviewLayout(previewLayout ?? null);
-    const n = incrementUpgradeClickCount(FEATURE_LOCKED);
-    setUpgradeFeatureModalTitle(upgradeModalTitleForClickCount(n));
+  const goToPricingPlans = (requiredPlan: PlanKey) => {
     logDashboardActivityClient({
       businessId,
       action: "feature_locked_clicked",
-      metadata: { feature: FEATURE_LOCKED },
+      metadata: { feature: FEATURE_LOCKED, required_plan: requiredPlan, destination: "pricing_plans" },
     });
-    setUpgradeFeatureModalOpen(true);
+    router.push("/business/dashboard/settings/usage");
   };
 
   const fetchTemplate = useCallback(
@@ -589,7 +503,13 @@ export default function EmailWidgetsPage() {
             Upgrade to use this layout, or pick a layout your plan supports below. Sending uses the same access as saving.
           </p>
           <div className="mt-4">
-            <UpgradeButton businessId={business.id} plan="premium" cycle="monthly" />
+            <button
+              type="button"
+              onClick={() => goToPricingPlans("premium")}
+              className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90"
+            >
+              Upgrade to Premium
+            </button>
           </div>
         </div>
       )}
@@ -668,12 +588,7 @@ export default function EmailWidgetsPage() {
                 </div>
                 {!canStandardLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() =>
-                      openUpgradeFeatureModal(
-                        requiredPlanForEmailLayout("standard"),
-                        "standard",
-                      )
-                    }
+                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("standard"))}
                     ctaLabel={upgradeLabelForPlan(
                       requiredPlanForEmailLayout("standard"),
                     )}
@@ -723,12 +638,7 @@ export default function EmailWidgetsPage() {
                 </div>
                 {!canReviewHunterLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() =>
-                      openUpgradeFeatureModal(
-                        requiredPlanForEmailLayout("review_hunter"),
-                        "review_hunter",
-                      )
-                    }
+                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("review_hunter"))}
                     ctaLabel={upgradeLabelForPlan(
                       requiredPlanForEmailLayout("review_hunter"),
                     )}
@@ -773,12 +683,7 @@ export default function EmailWidgetsPage() {
                 </div>
                 {!canRatingLadderLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() =>
-                      openUpgradeFeatureModal(
-                        requiredPlanForEmailLayout("rating_ladder"),
-                        "rating_ladder",
-                      )
-                    }
+                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("rating_ladder"))}
                     ctaLabel={upgradeLabelForPlan(
                       requiredPlanForEmailLayout("rating_ladder"),
                     )}
@@ -827,12 +732,7 @@ export default function EmailWidgetsPage() {
                 </div>
                 {!canEliteBrandedLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() =>
-                      openUpgradeFeatureModal(
-                        requiredPlanForEmailLayout("elite_branded"),
-                        "elite_branded",
-                      )
-                    }
+                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("elite_branded"))}
                     ctaLabel={upgradeLabelForPlan(
                       requiredPlanForEmailLayout("elite_branded"),
                     )}
@@ -1051,61 +951,6 @@ export default function EmailWidgetsPage() {
         </form>
       </div>
 
-      {upgradeFeatureModalOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setUpgradeFeatureModalOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="email-upgrade-feature-title"
-          >
-            <h2
-              id="email-upgrade-feature-title"
-              className="text-lg font-semibold text-[#0E0E0E]"
-            >
-              {upgradeFeatureModalTitle}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              This layout requires the {upgradeRequiredPlan} plan.
-              Move up a tier to unlock this layout and get more value from your reviews.
-            </p>
-            <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                What you'll unlock
-              </p>
-              <EmailLayoutUpgradePreview
-                layout={upgradePreviewLayout}
-                businessName={selectedBusiness?.name ?? "Your Business"}
-                businessLogoUrl={businessLogoUrl}
-              />
-            </div>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setUpgradeFeatureModalOpen(false)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUpgradeFeatureModalOpen(false);
-                  router.push("/business/dashboard/billing?reason=widget");
-                }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
-              >
-                {upgradeLabelForPlan(upgradeRequiredPlan)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

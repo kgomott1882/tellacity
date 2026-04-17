@@ -93,11 +93,29 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
   },
   settings: {
     title: "SETTINGS",
-    items: [
-      { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
-      { label: "Team Access", path: "/business/dashboard/settings/team-access" },
-      { label: "Notifications", path: "/business/dashboard/settings/notifications" },
-      { label: "Account", path: "/business/dashboard/settings/account" },
+    groups: [
+      {
+        title: "BUSINESS",
+        items: [
+          { label: "Business Profile", path: "/business/dashboard/settings/business-profile" },
+          { label: "Team Access", path: "/business/dashboard/settings/team-access" },
+          { label: "Notifications", path: "/business/dashboard/settings/notifications" },
+        ],
+      },
+      {
+        title: "ACCOUNT",
+        items: [
+          { label: "User Account", path: "/business/dashboard/settings/account" },
+        ],
+      },
+      {
+        title: "BILLING",
+        items: [
+          { label: "Pricing Plans", path: "/business/dashboard/settings/usage" },
+          { label: "Billing Settings", path: "/business/dashboard/settings/billing-profile" },
+          { label: "Payment History", path: "/business/dashboard/billing" },
+        ],
+      },
     ],
   },
 };
@@ -231,7 +249,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations");
     } else if (pathname.includes("/business/dashboard/billing")) {
-      setActiveSection(null);
+      setActiveSection("settings");
     } else if (pathname.includes("/settings")) {
       setActiveSection("settings");
     } else if (pathname.includes("/manage-reviews")) {
@@ -560,23 +578,58 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                     <X size={22} />
                   </button>
                 </div>
-                <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-                  {subData?.items?.map((item) => {
-                    const isActive = pathname === item.path;
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        onClick={handleMobileSubLinkClick}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-md transition ${
-                          isActive ? "bg-white/20 text-white font-medium" : "text-white/90 hover:bg-white/10"
-                        }`}
-                      >
-                        <span>{item.label}</span>
-                        {!isActive && <ChevronRight size={16} className="text-white/60" />}
-                      </Link>
-                    );
-                  })}
+                <nav className="flex-1 overflow-y-auto px-4 py-4">
+                  {subData?.items?.length ? (
+                    <div className="space-y-1">
+                      {subData.items.map((item) => {
+                        const isActive = pathname === item.path;
+                        return (
+                          <Link
+                            key={item.path}
+                            href={item.path}
+                            onClick={handleMobileSubLinkClick}
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-md transition ${
+                              isActive ? "bg-white/20 text-white font-medium" : "text-white/90 hover:bg-white/10"
+                            }`}
+                          >
+                            <span>{item.label}</span>
+                            {!isActive && <ChevronRight size={16} className="text-white/60" />}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {subData?.groups?.length ? (
+                    <div className="space-y-6">
+                      {subData.groups.map((group: { title: string; items: { label: string; path: string }[] }) => (
+                        <div key={group.title}>
+                          <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
+                            {group.title}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {group.items.map((item: { label: string; path: string }) => {
+                              const isActive = pathname === item.path;
+                              return (
+                                <Link
+                                  key={item.path}
+                                  href={item.path}
+                                  onClick={handleMobileSubLinkClick}
+                                  className={`flex items-center justify-between px-3 py-2.5 rounded-md transition ${
+                                    isActive
+                                      ? "bg-white/20 text-white font-medium"
+                                      : "text-white/90 hover:bg-white/10"
+                                  }`}
+                                >
+                                  <span>{item.label}</span>
+                                  {!isActive && <ChevronRight size={16} className="text-white/60" />}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </nav>
               </>
             )}

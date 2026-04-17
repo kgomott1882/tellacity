@@ -721,7 +721,7 @@ export default function TeamAccessPage() {
                 type="button"
                 onClick={() => {
                   setTeamLimitModalOpen(false);
-                  router.push("/business/dashboard/billing?reason=team");
+                  router.push("/business/dashboard/settings/usage");
                 }}
                 className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
               >

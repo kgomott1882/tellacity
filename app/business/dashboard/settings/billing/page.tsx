@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Settings → Plans & billing now lives at `/business/dashboard/billing`. */
+/** Settings → billing profile now lives at `/business/dashboard/settings/billing-profile`. */
 export default function BillingSettingsRedirectPage() {
-  redirect("/business/dashboard/billing");
+  redirect("/business/dashboard/settings/billing-profile");
 }

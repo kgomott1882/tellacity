@@ -12,7 +12,6 @@ import {
   nextTierUpgradeCtaLabel,
   type PlanKey,
 } from "@/lib/plans";
-import { incrementUpgradeClickCount, upgradeModalTitleForClickCount } from "@/lib/upgradeClickStorage";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
@@ -118,10 +117,6 @@ export default function GetReviewsOverviewPage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sentOffset, setSentOffset] = useState<number>(0);
   const [hasMoreSent, setHasMoreSent] = useState<boolean>(true);
-  const [inviteLimitModalOpen, setInviteLimitModalOpen] = useState(false);
-  const [qrUpgradeModalOpen, setQrUpgradeModalOpen] = useState(false);
-  const [qrUpgradeModalTitle, setQrUpgradeModalTitle] = useState("Unlock this feature");
-
   const fetchUsage = useCallback(async () => {
     if (!businessId) {
       setMonthlyUsage(0);
@@ -196,21 +191,20 @@ export default function GetReviewsOverviewPage() {
       logDashboardActivityClient({
         businessId,
         action: "invite_limit_hit",
+        metadata: { destination: "pricing_plans" },
       });
     }
-    setInviteLimitModalOpen(true);
+    router.push("/business/dashboard/settings/usage");
   };
 
   const openQrUpgradeModal = () => {
     if (!businessId) return;
-    const n = incrementUpgradeClickCount(QR_UPGRADE_FEATURE_KEY);
-    setQrUpgradeModalTitle(upgradeModalTitleForClickCount(n));
     logDashboardActivityClient({
       businessId,
       action: "feature_locked_clicked",
-      metadata: { feature: QR_UPGRADE_FEATURE_KEY },
+      metadata: { feature: QR_UPGRADE_FEATURE_KEY, destination: "pricing_plans" },
     });
-    setQrUpgradeModalOpen(true);
+    router.push("/business/dashboard/settings/usage");
   };
 
   const handleSetUpInvitations = () => {
@@ -495,7 +489,7 @@ export default function GetReviewsOverviewPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => router.push("/business/dashboard/billing?reason=limit")}
+                  onClick={() => router.push("/business/dashboard/settings/usage")}
                   className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
                 >
                   {nextTierUpgradeCtaLabel(normalizedPlan)}
@@ -510,7 +504,7 @@ export default function GetReviewsOverviewPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => router.push("/business/dashboard/billing?reason=limit")}
+                  onClick={() => router.push("/business/dashboard/settings/usage")}
                   className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
                 >
                   {nextTierUpgradeCtaLabel(normalizedPlan)}
@@ -859,98 +853,6 @@ export default function GetReviewsOverviewPage() {
         </div>
       </div>
 
-      {qrUpgradeModalOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setQrUpgradeModalOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="overview-qr-upgrade-title"
-          >
-            <h2
-              id="overview-qr-upgrade-title"
-              className="text-lg font-semibold text-[#0E0E0E]"
-            >
-              {qrUpgradeModalTitle}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Grow unlocks print-ready QR downloads and lets you capture verified reviews at the
-              counter, on packaging, and at events. It is the same public link you already see on this
-              page, packaged for offline use.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setQrUpgradeModalOpen(false)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQrUpgradeModalOpen(false);
-                  router.push("/business/dashboard/billing");
-                }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
-              >
-                {nextTierUpgradeCtaLabel(normalizedPlan)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {inviteLimitModalOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setInviteLimitModalOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="overview-invite-limit-title"
-          >
-            <h2
-              id="overview-invite-limit-title"
-              className="text-lg font-semibold text-[#0E0E0E]"
-            >
-              You&apos;ve reached your limit
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Upgrade your plan to continue sending review invitations and keep growing your feedback.
-              New review requests will stop until you upgrade.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setInviteLimitModalOpen(false)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInviteLimitModalOpen(false);
-                  router.push("/business/dashboard/billing?reason=limit");
-                }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
-              >
-                {nextTierUpgradeCtaLabel(normalizedPlan)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

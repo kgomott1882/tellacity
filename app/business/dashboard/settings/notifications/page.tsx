@@ -135,7 +135,7 @@ export default function NotificationsPage() {
           Stay on top of new reviews and activity. Enable notifications with a Grow plan.
         </p>
         <Link
-          href="/business/dashboard/billing"
+          href="/business/dashboard/settings/usage"
           className="mt-8 inline-flex rounded-xl bg-[#124541] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a36]"
         >
           {nextTierUpgradeCtaLabel(planKey)}

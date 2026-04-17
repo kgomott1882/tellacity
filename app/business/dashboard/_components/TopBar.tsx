@@ -554,7 +554,7 @@ export default function TopBar({
                   type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
-                    router.push("/business/dashboard/billing");
+                    router.push("/business/dashboard/settings/usage");
                   }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
                 >

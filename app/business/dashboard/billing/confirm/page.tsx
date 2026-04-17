@@ -7,7 +7,6 @@ import {
   parseBillingCycleQuery,
   parseBillingPlanQuery,
 } from "@/lib/billingPlanConfirm";
-import { resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import ContinueToPaymentButton from "./ContinueToPaymentButton";
 
 type PageProps = {
@@ -28,20 +27,6 @@ export default async function ConfirmPlanPage({ searchParams }: PageProps) {
     redirect("/business/dashboard/billing");
   }
 
-  const charge = await resolvePaystackChargeDetails(plan as PaidPlanKey, cycle);
-  const zarExplain =
-    charge.currency === "ZAR" && charge.settleMajor != null && charge.fxUsdZar != null
-      ? {
-          zarFormatted: new Intl.NumberFormat("en-ZA", {
-            style: "currency",
-            currency: "ZAR",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(charge.settleMajor),
-          fx: charge.fxUsdZar,
-        }
-      : null;
-
   return (
     <div className="mx-auto flex min-h-[60vh] w-full max-w-lg flex-col justify-center px-4 py-12">
       <div className="rounded-2xl border border-emerald-100/80 bg-white p-8 shadow-[0_8px_30px_-12px_rgba(18,69,65,0.12)]">
@@ -57,15 +42,6 @@ export default async function ConfirmPlanPage({ searchParams }: PageProps) {
         {presentation.priceSubLine ? (
           <p className="mt-2 text-center text-sm leading-snug text-gray-600">
             {presentation.priceSubLine}
-          </p>
-        ) : null}
-        {zarExplain ? (
-          <p className="mt-4 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-3 text-center text-xs leading-relaxed text-gray-600">
-            Paystack settles in South African Rand. At about{" "}
-            <span className="font-medium text-gray-800">1 USD = {zarExplain.fx.toFixed(2)} ZAR</span>, the
-            card charge is expected to be{" "}
-            <span className="font-medium text-gray-800">{zarExplain.zarFormatted}</span> (list price in USD
-            above). Your bank may display another currency for international cards.
           </p>
         ) : null}
         <div className="mt-8 border-t border-gray-100 pt-6">

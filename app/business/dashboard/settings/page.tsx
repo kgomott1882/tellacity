@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function SettingsRoot() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/business/dashboard/settings/business-profile");
+    router.replace("/business/dashboard/settings/usage");
   }, [router]);
   return null;
 }

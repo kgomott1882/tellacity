@@ -396,7 +396,7 @@ export default function EmailTemplatesPage() {
                 <div className="mt-6 flex justify-center">
                   <button
                     type="button"
-                    onClick={() => router.push("/business/dashboard/billing")}
+                    onClick={() => router.push("/business/dashboard/settings/usage")}
                     className="inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
                   >
                     {nextTierUpgradeCtaLabel(normalizedPlan)}
@@ -447,7 +447,7 @@ export default function EmailTemplatesPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => router.push("/business/dashboard/billing")}
+                  onClick={() => router.push("/business/dashboard/settings/usage")}
                   className="mt-3 rounded-lg bg-[#124541] px-4 py-2 text-xs font-medium text-white hover:bg-[#0f3a35]"
                 >
                   Upgrade to Premium

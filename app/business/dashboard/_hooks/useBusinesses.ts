@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
 import { getUserBusinesses, type UserBusinessRow } from "@/lib/getUserBusinesses";
-import { getActivePlanKeysByBusinessIds, type PlanKey } from "@/lib/plans";
+import type { PlanKey } from "@/lib/plans";
 import type { DashboardBusiness } from "../_context/BusinessContext";
 
 const SESSION_FRESH_MAX_MS = 4000;
@@ -44,9 +43,14 @@ function mergePlans(
     name: b.name,
     slug: b.slug ?? null,
     website: b.website ?? null,
-    plan: planByBiz.get(b.id) ?? "free",
+    plan: planByBiz.get(b.id) ?? b.plan ?? "free",
   }));
 }
+
+type DashboardPlansResponse = {
+  plansByBusinessId?: Partial<Record<string, PlanKey>>;
+  error?: string;
+};
 
 export function useBusinesses(userId: string | null, refreshKey = 0) {
   const [data, setData] = useState<DashboardBusiness[]>([]);
@@ -103,12 +107,24 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
         setData(mergedNoPlans);
         setLoading(false);
 
-        const supabase = supabaseBrowser();
-        const ids = base.map((b) => b.id);
-
         try {
           const planByBiz = await withTimeout(
-            getActivePlanKeysByBusinessIds(ids, supabase),
+            (async () => {
+              const res = await fetch("/api/business/dashboard/plans", {
+                credentials: "same-origin",
+              });
+              const data = (await res.json()) as DashboardPlansResponse;
+              if (!res.ok) {
+                throw new Error(
+                  typeof data.error === "string"
+                    ? data.error
+                    : "Could not load subscription plans."
+                );
+              }
+              return new Map<string, PlanKey>(
+                Object.entries(data.plansByBusinessId ?? {}) as [string, PlanKey][]
+              );
+            })(),
             SUBSCRIPTIONS_FETCH_MAX_MS,
             new Map<string, PlanKey>(),
           );
