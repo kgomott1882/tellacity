@@ -79,12 +79,49 @@ export function paystackCurrencyPublic(): string {
 }
 
 export function paystackSecretKey(): string | null {
-  const k = process.env.PAYSTACK_SECRET_KEY?.trim();
-  return k || null;
+  const k = normalizePaystackKey(process.env.PAYSTACK_SECRET_KEY);
+  return isPaystackSecretKeyFormat(k) ? k : null;
 }
 
 /** True if the value looks like a Paystack public key (avoids opaque `invalid_key` from the popup API). */
 export function isPaystackPublicKeyFormat(key: string | undefined | null): boolean {
   const k = typeof key === "string" ? key.trim() : "";
   return /^pk_(test|live)_[A-Za-z0-9_-]+$/.test(k);
+}
+
+/** True if the value looks like a Paystack secret key. */
+export function isPaystackSecretKeyFormat(key: string | undefined | null): boolean {
+  const k = typeof key === "string" ? key.trim() : "";
+  return /^sk_(test|live)_[A-Za-z0-9_-]+$/.test(k);
+}
+
+/** Trim whitespace and optional surrounding quotes from env values. */
+function normalizePaystackKey(raw: string | undefined): string {
+  const value = raw?.trim() ?? "";
+  if (!value) return "";
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+/**
+ * Return unique candidate secret keys (primary first) for server-side Paystack calls.
+ * Supports legacy/alias env names so production misconfigs don't silently break checkout.
+ */
+export function paystackSecretKeyCandidates(): string[] {
+  const candidates = [
+    process.env.PAYSTACK_SECRET_KEY,
+    process.env.PAYSTACK_SECRET,
+    process.env.PAYSTACK_LIVE_SECRET_KEY,
+    process.env.PAYSTACK_TEST_SECRET_KEY,
+  ]
+    .map(normalizePaystackKey)
+    .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index)
+    .filter((value) => isPaystackSecretKeyFormat(value));
+
+  return candidates;
 }

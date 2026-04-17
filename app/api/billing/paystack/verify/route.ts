@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { PaidPlanKey } from "@/lib/billingPlanConfirm";
 import { isPaidPlanForConfirm } from "@/lib/billingPlanConfirm";
 import { getActivePlanCodeForBusiness } from "@/lib/plans";
-import { paystackSecretKey } from "@/lib/billingPaystack";
+import { paystackSecretKeyCandidates } from "@/lib/billingPaystack";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import {
@@ -24,10 +24,13 @@ type PaystackVerifyResponse = {
 
 export async function POST(req: Request) {
   try {
-    const secret = paystackSecretKey();
-    if (!secret) {
+    const secretCandidates = paystackSecretKeyCandidates();
+    if (secretCandidates.length === 0) {
       return NextResponse.json(
-        { error: "Paystack is not configured (missing PAYSTACK_SECRET_KEY)." },
+        {
+          error:
+            "Paystack is not configured (missing or invalid PAYSTACK_SECRET_KEY; expected sk_test_* or sk_live_*).",
+        },
         { status: 503 }
       );
     }
@@ -54,21 +57,31 @@ export async function POST(req: Request) {
     const access = await requireBusinessAccess(req, businessId);
     if (!access.ok) return access.response;
 
-    const verifyRes = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        headers: { Authorization: `Bearer ${secret}` },
-      }
-    );
+    let payload: PaystackVerifyResponse = {};
+    let verifyStatus = 400;
+    let verified = false;
+    for (const secret of secretCandidates) {
+      const verifyRes = await fetch(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        {
+          headers: { Authorization: `Bearer ${secret}` },
+        }
+      );
+      payload = (await verifyRes.json()) as PaystackVerifyResponse;
+      verifyStatus = verifyRes.status;
 
-    const payload = (await verifyRes.json()) as PaystackVerifyResponse;
-    const ok =
-      verifyRes.ok &&
-      payload.status === true &&
-      String(payload.data?.status).toLowerCase() === "success";
+      verified =
+        verifyRes.ok &&
+        payload.status === true &&
+        String(payload.data?.status).toLowerCase() === "success";
+      if (verified) break;
 
-    if (!ok) {
-      console.error("[billing/paystack/verify]", verifyRes.status, payload);
+      const message = typeof payload.message === "string" ? payload.message : "";
+      const isInvalidKeyMessage = /invalid\s+key/i.test(message);
+      if (!isInvalidKeyMessage) break;
+    }
+    if (!verified) {
+      console.error("[billing/paystack/verify]", verifyStatus, payload);
       return NextResponse.json(
         { error: typeof payload.message === "string" ? payload.message : "Payment not verified." },
         { status: 400 }
