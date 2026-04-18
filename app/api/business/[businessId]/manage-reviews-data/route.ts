@@ -19,7 +19,7 @@ export async function GET(
       )
       .eq("business_id", businessId)
       .eq("status", "published")
-      .eq("visibility", "visible")
+      .in("visibility", ["visible", "landing_hidden"])
       .order("created_at", { ascending: false });
 
     if (revErr) {

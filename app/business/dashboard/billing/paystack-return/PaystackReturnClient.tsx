@@ -38,11 +38,16 @@ export default function PaystackReturnClient() {
         };
         if (cancelled) return;
         if (!res.ok) {
+          const errorMessage = typeof data.error === "string" ? data.error.trim() : "";
+          const isConfigError =
+            res.status >= 500 ||
+            /paystack is not configured correctly/i.test(errorMessage) ||
+            /paystack_secret_key|sk_test_|sk_live_|invalid key/i.test(errorMessage);
           setPhase("verify_failed");
           setMessage(
-            typeof data.error === "string"
-              ? data.error
-              : "Payment not successful. Please try again from billing."
+            isConfigError
+              ? "Payment system is temporarily unavailable"
+              : errorMessage || "Payment not successful. Please try again from billing."
           );
           return;
         }

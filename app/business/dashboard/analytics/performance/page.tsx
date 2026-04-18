@@ -2,14 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useBusinessContext } from "../../_context/BusinessContext";
-import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
-import {
-  canAccessAnalytics,
-  normalizePlanCodeToKey,
-  nextTierUpgradeCtaLabel,
-} from "@/lib/plans";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
@@ -912,68 +905,18 @@ function PerformanceAnalyticsContent({
 }
 
 export default function PerformancePage() {
-  const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
-  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
-  const goToPricingPlansForUpgrade = () => {
-    if (!businessId) return;
-    logDashboardActivityClient({
-      businessId,
-      action: "feature_locked_clicked",
-      metadata: { feature: "analytics", destination: "pricing_plans" },
-    });
-    router.push("/business/dashboard/settings/usage");
-  };
 
   if (!businessId) return null;
-
-  const analyticsLocked = !canAccessAnalytics(planKey);
 
   return (
     <>
       <div className="relative w-full min-h-[calc(100vh-80px)]">
-        <div className={analyticsLocked ? "pointer-events-none select-none" : undefined}>
-          <PerformanceAnalyticsContent
-            businessId={businessId}
-            showIncludedGuide={!analyticsLocked}
-          />
-        </div>
-
-        {analyticsLocked ? (
-          <>
-            <div
-              className="absolute inset-0 z-20 rounded-xl bg-neutral-950/45 backdrop-blur-[2px]"
-              aria-hidden
-            />
-            <div className="absolute inset-0 z-30 flex items-start justify-center p-6 pt-[min(12vh,6rem)] pointer-events-none sm:items-center sm:pt-6">
-              <div
-                className="pointer-events-auto w-full max-w-md rounded-2xl border border-white/15 bg-neutral-900/70 px-8 py-10 text-center shadow-2xl backdrop-blur-md"
-                role="region"
-                aria-label="Performance analytics requires an upgrade"
-              >
-                <p className="text-2xl" aria-hidden>
-                  🔒
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-neutral-100">
-                  Understand what&apos;s working
-                </h2>
-                <p className="mt-3 text-sm text-neutral-300">
-                  See which invitations convert, track performance trends, and optimize your review
-                  strategy. Upgrade to interact with analytics. The preview behind this card shows
-                  what you&apos;ll unlock.
-                </p>
-                <button
-                  type="button"
-                  onClick={goToPricingPlansForUpgrade}
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
-                >
-                  {nextTierUpgradeCtaLabel(planKey)}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : null}
+        <PerformanceAnalyticsContent
+          businessId={businessId}
+          showIncludedGuide
+        />
       </div>
 
     </>

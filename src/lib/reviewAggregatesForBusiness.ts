@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Count + average for reviews shown on the public profile and Manage reviews:
- * `status = published` and `visibility = visible`.
+ * `status = published` and public-on-business visibility.
  * Direct query on `reviews` (avoids empty rows from `business_review_metrics_v` when the view is missing or out of sync).
  */
 export async function getPublishedVisibleReviewAggregates(
@@ -14,7 +14,7 @@ export async function getPublishedVisibleReviewAggregates(
     .select("rating")
     .eq("business_id", businessId)
     .eq("status", "published")
-    .eq("visibility", "visible");
+    .in("visibility", ["visible", "landing_hidden"]);
 
   if (error) {
     console.warn("[review aggregates]", error.message);

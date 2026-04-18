@@ -15,7 +15,7 @@ export type AdminReviewModerationResult =
   | {
       ok: true;
       reviewId: string;
-      nextVisibility?: "visible" | "hidden";
+      nextVisibility?: "visible" | "hidden" | "landing_hidden";
       nextFlagged?: boolean;
       deleted?: true;
     }
@@ -23,7 +23,7 @@ export type AdminReviewModerationResult =
 
 export async function adminUpdateReviewVisibilityAction(
   reviewId: string,
-  newStatus: "visible" | "hidden"
+  newStatus: "visible" | "hidden" | "landing_hidden"
 ): Promise<AdminReviewModerationResult> {
   console.log("[admin] adminUpdateReviewVisibilityAction", reviewId, newStatus);
   const supabase = await guard();

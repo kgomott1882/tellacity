@@ -187,14 +187,6 @@ export default function SocialSharePage() {
                   </span>
                 </div>
               </div>
-              <a
-                href={profileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-xs font-medium text-[#2fb2a8] hover:underline"
-              >
-                View profile →
-              </a>
             </div>
           )}
 

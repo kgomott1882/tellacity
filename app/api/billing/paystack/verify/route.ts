@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { PaidPlanKey } from "@/lib/billingPlanConfirm";
 import { isPaidPlanForConfirm, parseBillingCycleQuery } from "@/lib/billingPlanConfirm";
-import { paystackSecretKeyCandidates, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
+import { getValidatedPaystackSecret, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import { getActivePlanCodeForBusiness } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
 import {
@@ -30,14 +30,14 @@ function normalizeCurrency(code: unknown): string {
 
 export async function POST(req: Request) {
   try {
-    const secretCandidates = paystackSecretKeyCandidates();
-    if (secretCandidates.length === 0) {
+    let PAYSTACK_SECRET: string;
+    try {
+      PAYSTACK_SECRET = getValidatedPaystackSecret();
+    } catch (error) {
+      console.error("[billing/paystack/verify] config:", error);
       return NextResponse.json(
-        {
-          error:
-            "Paystack is not configured (missing or invalid PAYSTACK_SECRET_KEY; expected sk_test_* or sk_live_*).",
-        },
-        { status: 503 }
+        { error: "Paystack is not configured correctly" },
+        { status: 500 }
       );
     }
 
@@ -62,27 +62,19 @@ export async function POST(req: Request) {
 
     let payload: PaystackVerifyResponse = {};
     let verifyStatus = 400;
-    let verified = false;
-    for (const secret of secretCandidates) {
-      const verifyRes = await fetch(
-        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-        {
-          headers: { Authorization: `Bearer ${secret}` },
-        }
-      );
-      payload = (await verifyRes.json()) as PaystackVerifyResponse;
-      verifyStatus = verifyRes.status;
+    const verifyRes = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+      {
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+      }
+    );
+    payload = (await verifyRes.json()) as PaystackVerifyResponse;
+    verifyStatus = verifyRes.status;
 
-      verified =
-        verifyRes.ok &&
-        payload.status === true &&
-        String(payload.data?.status).toLowerCase() === "success";
-      if (verified) break;
-
-      const message = typeof payload.message === "string" ? payload.message : "";
-      const isInvalidKeyMessage = /invalid\s+key/i.test(message);
-      if (!isInvalidKeyMessage) break;
-    }
+    const verified =
+      verifyRes.ok &&
+      payload.status === true &&
+      String(payload.data?.status).toLowerCase() === "success";
     if (!verified) {
       console.error("[billing/paystack/verify]", verifyStatus, payload);
       return NextResponse.json(

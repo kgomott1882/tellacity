@@ -560,7 +560,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         .select("rating", { count: "exact" })
         .eq("business_id", businessId)
         .eq("status", "published")
-        .eq("visibility", "visible");
+        .in("visibility", ["visible", "landing_hidden"]);
 
       if (!isMounted || error) {
         return;
@@ -652,7 +652,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
         )
         .eq("business_id", businessId)
         .eq("status", "published")
-        .eq("visibility", "visible")
+        .in("visibility", ["visible", "landing_hidden"])
         .order("created_at", { ascending: false })
         .range(offset, offset + 4);
 
@@ -1353,7 +1353,7 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                           )
                           .eq("business_id", business.id)
                           .eq("status", "published")
-                          .eq("visibility", "visible")
+                          .in("visibility", ["visible", "landing_hidden"])
                           .order("created_at", { ascending: false })
                           .range(offset, offset + 4);
 

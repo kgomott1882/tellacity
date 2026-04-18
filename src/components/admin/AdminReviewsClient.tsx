@@ -46,7 +46,7 @@ function formatDate(date: string) {
 /** Row shape for handlers / buttons (stable id, visibility, is_flagged). */
 type AdminReviewTableRow = AdminReviewRow & {
   id: string;
-  visibility: "visible" | "hidden";
+  visibility: "visible" | "hidden" | "landing_hidden";
   is_flagged: boolean;
 };
 
@@ -70,7 +70,7 @@ function mergeVisibilityIntoRows(
   prev: AdminReviewTableRow[],
   listFilter: AdminReviewListFilter,
   reviewId: string,
-  nextVisibility: "visible" | "hidden"
+  nextVisibility: "visible" | "hidden" | "landing_hidden"
 ): AdminReviewTableRow[] {
   const updated = prev.map((r) =>
     r.id === reviewId ? { ...r, visibility: nextVisibility } : r
@@ -82,6 +82,42 @@ function mergeVisibilityIntoRows(
       ADMIN_REVIEWS_PAGE_SIZE
     )
   );
+}
+
+function formatVisibilityLabel(visibility: AdminReviewTableRow["visibility"]): string {
+  if (visibility === "hidden") return "hidden everywhere";
+  if (visibility === "landing_hidden") return "hidden on landing";
+  return "visible";
+}
+
+/** Wrap + select styling so non-default moderation states scan clearly in the Actions column. */
+function visibilityControlWrapClass(visibility: AdminReviewTableRow["visibility"]): string {
+  if (visibility === "hidden") {
+    return "rounded-md border border-red-200 bg-red-50/80 p-1.5 ring-1 ring-red-100";
+  }
+  if (visibility === "landing_hidden") {
+    return "rounded-md border border-amber-200 bg-amber-50/80 p-1.5 ring-1 ring-amber-100";
+  }
+  return "rounded-md border border-emerald-100 bg-emerald-50/40 p-1.5 ring-1 ring-emerald-50";
+}
+
+function visibilitySelectClass(visibility: AdminReviewTableRow["visibility"]): string {
+  const base =
+    "h-8 w-full max-w-[220px] rounded-md px-2 text-xs font-semibold shadow-sm focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50";
+  if (visibility === "hidden") {
+    return `${base} border border-red-300 bg-white text-red-950 focus:border-red-400 focus:ring-red-200`;
+  }
+  if (visibility === "landing_hidden") {
+    return `${base} border border-amber-300 bg-white text-amber-950 focus:border-amber-400 focus:ring-amber-200`;
+  }
+  return `${base} border border-emerald-200 bg-white text-emerald-950 focus:border-emerald-400 focus:ring-emerald-200`;
+}
+
+function visibilityLabelClass(visibility: AdminReviewTableRow["visibility"]): string {
+  const base = "text-[10px] font-bold uppercase tracking-wide";
+  if (visibility === "hidden") return `${base} text-red-800`;
+  if (visibility === "landing_hidden") return `${base} text-amber-900`;
+  return `${base} text-emerald-900`;
 }
 
 function mergeFlagIntoRows(
@@ -161,9 +197,11 @@ export default function AdminReviewsClient({
     setListError(initialListError);
   }, [initialListError]);
 
-  const handleToggleVisibility = async (review: AdminReviewTableRow) => {
-    console.log("[AdminReviews] hide/show click", review.id, review.visibility);
-    const newStatus = review.visibility === "visible" ? "hidden" : "visible";
+  const handleSetVisibility = async (
+    review: AdminReviewTableRow,
+    newStatus: AdminReviewTableRow["visibility"]
+  ) => {
+    console.log("[AdminReviews] visibility click", review.id, review.visibility, newStatus);
     const key = `${review.id}:visibility`;
     setPendingActionKey(key);
     try {
@@ -173,7 +211,11 @@ export default function AdminReviewsClient({
         return;
       }
       const nextVis = result.nextVisibility;
-      if (nextVis === "visible" || nextVis === "hidden") {
+      if (
+        nextVis === "visible" ||
+        nextVis === "hidden" ||
+        nextVis === "landing_hidden"
+      ) {
         setReviews((prev) => mergeVisibilityIntoRows(prev, listFilter, result.reviewId, nextVis));
       }
       await router.refresh();
@@ -318,7 +360,9 @@ export default function AdminReviewsClient({
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                           {review.status?.trim() || "-"}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{review.visibility}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          {formatVisibilityLabel(review.visibility)}
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                           {review.is_flagged ? "Yes" : "No"}
                         </td>
@@ -329,19 +373,37 @@ export default function AdminReviewsClient({
                             : "-"}
                         </td>
                         <td className="px-3 py-2">
-                          <div className="flex max-w-[280px] flex-wrap gap-1">
-                            <button
-                              type="button"
-                              disabled={rowBusy}
-                              onClick={() => void handleToggleVisibility(review)}
-                              className={
-                                review.visibility === "visible"
-                                  ? "rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-900 hover:bg-red-100 disabled:opacity-50"
-                                  : "rounded-md border border-emerald-600 bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                              }
+                          <div className="flex max-w-[280px] flex-wrap items-center gap-1">
+                            <div
+                              className={`flex min-w-[200px] flex-col gap-0.5 ${visibilityControlWrapClass(
+                                review.visibility
+                              )}`}
                             >
-                              {visPending ? "…" : review.visibility === "visible" ? "Hide" : "Show Review"}
-                            </button>
+                              <label
+                                className={visibilityLabelClass(review.visibility)}
+                                htmlFor={`review-vis-${review.id}`}
+                              >
+                                Public visibility
+                              </label>
+                              <select
+                                id={`review-vis-${review.id}`}
+                                disabled={rowBusy}
+                                className={visibilitySelectClass(review.visibility)}
+                                value={review.visibility}
+                                onChange={(e) => {
+                                  const next = e.target.value as AdminReviewTableRow["visibility"];
+                                  if (next === review.visibility) return;
+                                  void handleSetVisibility(review, next);
+                                }}
+                              >
+                                <option value="visible">Visible everywhere</option>
+                                <option value="landing_hidden">Hidden from landing only</option>
+                                <option value="hidden">Hidden everywhere</option>
+                              </select>
+                              {visPending ? (
+                                <span className="text-[10px] text-neutral-500">Updating…</span>
+                              ) : null}
+                            </div>
                             <button
                               type="button"
                               disabled={rowBusy}

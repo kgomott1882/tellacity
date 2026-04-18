@@ -57,7 +57,7 @@ export default function PaymentHistory({
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-8 text-center text-sm text-gray-600">
-          No billing activity recorded yet.
+          No payments yet.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">

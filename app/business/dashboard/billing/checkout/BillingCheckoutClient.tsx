@@ -48,10 +48,16 @@ export default function BillingCheckoutClient({
       }
 
       if (!initRes.ok) {
+        const errorMessage =
+          typeof initJson.error === "string" ? initJson.error.trim() : "";
+        const isConfigError =
+          initRes.status >= 500 ||
+          /paystack is not configured correctly/i.test(errorMessage) ||
+          /paystack_secret_key|sk_test_|sk_live_|invalid key/i.test(errorMessage);
         window.alert(
-          typeof initJson.error === "string"
-            ? initJson.error
-            : "Could not start checkout. Check Paystack keys on the server (PAYSTACK_SECRET_KEY)."
+          isConfigError
+            ? "Payment system is temporarily unavailable"
+            : errorMessage || "Could not start checkout."
         );
         setPayBusy(false);
         return;

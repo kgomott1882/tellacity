@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { PaidPlanKey } from "@/lib/billingPlanConfirm";
 import { isPaidPlanForConfirm, parseBillingCycleQuery } from "@/lib/billingPlanConfirm";
 import { buildPaystackBillingReturnCallbackUrl } from "@/lib/billingPaystackCallback";
-import { paystackSecretKeyCandidates, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
+import { getValidatedPaystackSecret, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
@@ -77,14 +77,14 @@ async function resolveCustomerEmailForPaystack(
 
 export async function POST(req: Request) {
   try {
-    const secretCandidates = paystackSecretKeyCandidates();
-    if (secretCandidates.length === 0) {
+    let PAYSTACK_SECRET: string;
+    try {
+      PAYSTACK_SECRET = getValidatedPaystackSecret();
+    } catch (error) {
+      console.error("[billing/paystack/initialize] config:", error);
       return NextResponse.json(
-        {
-          error:
-            "Paystack is not configured (missing or invalid PAYSTACK_SECRET_KEY; expected sk_test_* or sk_live_*).",
-        },
-        { status: 503 }
+        { error: "Paystack is not configured correctly" },
+        { status: 500 }
       );
     }
 
@@ -168,55 +168,40 @@ export async function POST(req: Request) {
       },
     };
 
-    let lastStatus = 0;
-    let lastMessage = "Paystack initialize failed.";
-    for (const secret of secretCandidates) {
-      const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${secret}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(paystackRequestBody),
+    const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(paystackRequestBody),
+    });
+
+    const initJson = (await initRes.json()) as PaystackInitResponse;
+    const success =
+      initRes.ok &&
+      initJson.status === true &&
+      Boolean(initJson.data?.access_code) &&
+      Boolean(initJson.data?.authorization_url);
+
+    if (success) {
+      return NextResponse.json({
+        access_code: initJson.data?.access_code,
+        authorization_url: initJson.data?.authorization_url,
+        reference: initJson.data?.reference ?? reference,
+        currency: currencyCode,
+        list_usd: charge.listUsdMajor,
+        approx_settle_major: charge.settleMajor,
+        fx_usd_zar: charge.fxUsdZar,
       });
-
-      const initJson = (await initRes.json()) as PaystackInitResponse;
-      const success =
-        initRes.ok &&
-        initJson.status === true &&
-        Boolean(initJson.data?.access_code) &&
-        Boolean(initJson.data?.authorization_url);
-
-      if (success) {
-        return NextResponse.json({
-          access_code: initJson.data?.access_code,
-          authorization_url: initJson.data?.authorization_url,
-          reference: initJson.data?.reference ?? reference,
-          currency: currencyCode,
-          list_usd: charge.listUsdMajor,
-          approx_settle_major: charge.settleMajor,
-          fx_usd_zar: charge.fxUsdZar,
-        });
-      }
-
-      lastStatus = initRes.status;
-      lastMessage =
-        typeof initJson.message === "string" && initJson.message.trim().length > 0
-          ? initJson.message
-          : "Paystack initialize failed.";
-
-      const isInvalidKeyMessage = /invalid\s+key/i.test(lastMessage);
-      if (!isInvalidKeyMessage) {
-        console.error("[billing/paystack/initialize]", initRes.status, initJson);
-        return NextResponse.json({ error: lastMessage }, { status: 502 });
-      }
-
-      console.warn(
-        "[billing/paystack/initialize] Received invalid key from Paystack; trying next configured secret."
-      );
     }
 
-    return NextResponse.json({ error: lastMessage }, { status: lastStatus || 502 });
+    const message =
+      typeof initJson.message === "string" && initJson.message.trim().length > 0
+        ? initJson.message
+        : "Paystack initialize failed.";
+    console.error("[billing/paystack/initialize]", initRes.status, initJson);
+    return NextResponse.json({ error: message }, { status: initRes.status || 502 });
   } catch (e) {
     console.error("[billing/paystack/initialize] unhandled:", e);
     return NextResponse.json({ error: "Server error." }, { status: 500 });

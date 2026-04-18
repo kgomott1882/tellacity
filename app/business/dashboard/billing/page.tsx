@@ -210,19 +210,7 @@ export default function BillingPage() {
             ? "Collaborate with your team and manage reviews more efficiently."
             : null;
 
-  const paymentHistoryRows: BillingOverviewHistoryRow[] =
-    billingOverview?.history && billingOverview.history.length > 0
-      ? billingOverview.history
-      : [
-          {
-            date: billingOverview?.current?.updated_at ?? new Date().toISOString(),
-            plan: currentPlanLabel,
-            reference: billingOverview?.current?.provider_sub_id ?? "Subscription updated",
-            amount: null,
-            currency: null,
-            status: billingOverview?.current?.status?.trim() || "Current plan",
-          },
-        ];
+  const paymentHistoryRows: BillingOverviewHistoryRow[] = billingOverview?.history ?? [];
 
   const goToPricingPlans = () => {
     router.push("/business/dashboard/settings/usage");

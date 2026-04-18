@@ -83,6 +83,30 @@ export function paystackSecretKey(): string | null {
   return isPaystackSecretKeyFormat(k) ? k : null;
 }
 
+export function getValidatedPaystackSecret(): string {
+  const key = normalizePaystackKey(process.env.PAYSTACK_SECRET_KEY);
+
+  if (!key) {
+    throw new Error("Missing PAYSTACK_SECRET_KEY");
+  }
+
+  if (!isPaystackSecretKeyFormat(key)) {
+    throw new Error("PAYSTACK_SECRET_KEY must be a valid Paystack secret key");
+  }
+
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (isProd && !key.startsWith("sk_live_")) {
+    throw new Error("Production must use PAYSTACK sk_live_ key");
+  }
+
+  if (!isProd && !key.startsWith("sk_test_")) {
+    throw new Error("Development must use PAYSTACK sk_test_ key");
+  }
+
+  return key;
+}
+
 /** True if the value looks like a Paystack public key (avoids opaque `invalid_key` from the popup API). */
 export function isPaystackPublicKeyFormat(key: string | undefined | null): boolean {
   const k = typeof key === "string" ? key.trim() : "";
@@ -108,21 +132,3 @@ function normalizePaystackKey(raw: string | undefined): string {
   return value;
 }
 
-/**
- * Return unique candidate secret keys (primary first) for server-side Paystack calls.
- * Prefers {@link process.env.PAYSTACK_SECRET_KEY}; other names are legacy/alias fallbacks.
- * WARNING: avoid mixing test and live keys in production — each candidate is tried until verify succeeds.
- */
-export function paystackSecretKeyCandidates(): string[] {
-  const candidates = [
-    process.env.PAYSTACK_SECRET_KEY,
-    process.env.PAYSTACK_SECRET,
-    process.env.PAYSTACK_LIVE_SECRET_KEY,
-    process.env.PAYSTACK_TEST_SECRET_KEY,
-  ]
-    .map(normalizePaystackKey)
-    .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index)
-    .filter((value) => isPaystackSecretKeyFormat(value));
-
-  return candidates;
-}

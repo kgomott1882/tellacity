@@ -69,16 +69,20 @@ export type AdminReviewRow = {
   verification_status?: string | null;
   /** Publication workflow: published, draft, null, etc. */
   status?: string | null;
-  /** Moderation: visible | hidden */
+  /** Moderation: visible | hidden | landing_hidden */
   visibility?: string | null;
   is_flagged?: boolean | null;
   created_at?: string | null;
 } & Record<string, unknown>;
 
 /** Moderation visibility from reviews.visibility */
-export function adminReviewVisibility(row: AdminReviewRow): "visible" | "hidden" {
+export function adminReviewVisibility(
+  row: AdminReviewRow
+): "visible" | "hidden" | "landing_hidden" {
   const v = row.visibility?.trim();
-  return v === "hidden" ? "hidden" : "visible";
+  if (v === "hidden") return "hidden";
+  if (v === "landing_hidden") return "landing_hidden";
+  return "visible";
 }
 
 export function adminReviewIsFlagged(row: AdminReviewRow): boolean {
@@ -96,7 +100,7 @@ export function applyAdminReviewsListFilter(
 ): AdminReviewRow[] {
   if (filter === "all") return rows;
   if (filter === "flagged") return rows.filter(adminReviewIsFlagged);
-  return rows.filter((r) => adminReviewVisibility(r) === "hidden");
+  return rows.filter((r) => adminReviewVisibility(r) !== "visible");
 }
 
 function firstRow<T>(data: unknown): T | null {
@@ -258,7 +262,7 @@ export async function deleteAdminReview(
 export async function updateAdminReviewStatus(
   supabase: SupabaseClient,
   targetReviewId: string,
-  newVisibility: "visible" | "hidden",
+  newVisibility: "visible" | "hidden" | "landing_hidden",
   newFlagged: boolean
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc("admin_update_review_status", {
