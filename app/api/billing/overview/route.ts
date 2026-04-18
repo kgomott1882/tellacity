@@ -12,6 +12,9 @@ type SubscriptionSelectRow = {
   status?: string | null;
   updated_at?: string | null;
   provider_sub_id?: string | null;
+  current_period_end?: string | null;
+  pending_plan_code?: string | null;
+  pending_change_at?: string | null;
 };
 
 type BillingTransactionRow = {
@@ -71,7 +74,9 @@ export async function GET(req: Request) {
 
     const { data: subRows, error: subErr } = await supabase
       .from("subscriptions")
-      .select("plan_code, status, updated_at, provider_sub_id")
+      .select(
+        "plan_code, status, updated_at, provider_sub_id, current_period_end, pending_plan_code, pending_change_at"
+      )
       .eq("business_id", businessId);
 
     if (subErr) {
@@ -82,17 +87,28 @@ export async function GET(req: Request) {
     const rows = (subRows ?? []) as SubscriptionSelectRow[];
 
     const picked = pickPlanResolutionSubscriptionRow(rows);
-    const current: BillingOverviewResponse["current"] = picked
+    const pickedRow = picked as SubscriptionSelectRow | null;
+    const current: BillingOverviewResponse["current"] = pickedRow
       ? {
           plan_code:
-            picked.plan_code != null && String(picked.plan_code).trim()
-              ? String(picked.plan_code)
+            pickedRow.plan_code != null && String(pickedRow.plan_code).trim()
+              ? String(pickedRow.plan_code)
               : null,
-          status: picked.status != null ? String(picked.status) : null,
-          updated_at: picked.updated_at != null ? String(picked.updated_at) : null,
+          status: pickedRow.status != null ? String(pickedRow.status) : null,
+          updated_at: pickedRow.updated_at != null ? String(pickedRow.updated_at) : null,
           provider_sub_id:
-            (picked as SubscriptionSelectRow).provider_sub_id != null
-              ? String((picked as SubscriptionSelectRow).provider_sub_id)
+            pickedRow.provider_sub_id != null ? String(pickedRow.provider_sub_id) : null,
+          current_period_end:
+            pickedRow.current_period_end != null && String(pickedRow.current_period_end).trim()
+              ? String(pickedRow.current_period_end)
+              : null,
+          pending_plan_code:
+            pickedRow.pending_plan_code != null && String(pickedRow.pending_plan_code).trim()
+              ? String(pickedRow.pending_plan_code).trim().toLowerCase()
+              : null,
+          pending_change_at:
+            pickedRow.pending_change_at != null && String(pickedRow.pending_change_at).trim()
+              ? String(pickedRow.pending_change_at)
               : null,
         }
       : null;

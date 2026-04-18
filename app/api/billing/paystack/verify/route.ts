@@ -7,6 +7,7 @@ import { isPaidPlanForConfirm, parseBillingCycleQuery } from "@/lib/billingPlanC
 import { getValidatedPaystackSecret, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import { getActivePlanCodeForBusiness } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
+import { computePaystackCurrentPeriodEndIso } from "@/lib/paystackSubscriptionPeriod";
 import {
   syncBusinessPlanColumn,
   upsertActiveSubscriptionForBusiness,
@@ -48,40 +49,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
     }
 
+    const { searchParams } = new URL(req.url);
     const reference =
-      typeof body.reference === "string" ? body.reference.trim() : "";
+      searchParams.get("reference")?.trim() ||
+      searchParams.get("trxref")?.trim() ||
+      searchParams.get("txref")?.trim() ||
+      (typeof body.reference === "string" ? body.reference.trim() : "");
     const businessId =
       typeof body.businessId === "string" ? body.businessId.trim() : "";
 
     if (!reference) {
-      return NextResponse.json({ error: "reference is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing transaction reference" },
+        { status: 400 }
+      );
     }
     if (!businessId) {
       return NextResponse.json({ error: "businessId is required." }, { status: 400 });
     }
 
-    let payload: PaystackVerifyResponse = {};
-    let verifyStatus = 400;
     const verifyRes = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
       {
-        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET}`,
+        },
       }
     );
-    payload = (await verifyRes.json()) as PaystackVerifyResponse;
-    verifyStatus = verifyRes.status;
+    const data = (await verifyRes.json()) as PaystackVerifyResponse;
 
-    const verified =
-      verifyRes.ok &&
-      payload.status === true &&
-      String(payload.data?.status).toLowerCase() === "success";
-    if (!verified) {
-      console.error("[billing/paystack/verify]", verifyStatus, payload);
+    if (!verifyRes.ok) {
+      console.error("[billing/paystack/verify]", verifyRes.status, data);
       return NextResponse.json(
-        { error: typeof payload.message === "string" ? payload.message : "Payment not verified." },
+        { error: typeof data.message === "string" ? data.message : "Payment not verified." },
         { status: 400 }
       );
     }
+
+    if (data?.data?.status !== "success") {
+      return NextResponse.json(
+        { error: "Payment not successful" },
+        { status: 400 }
+      );
+    }
+
+    const payload = data;
 
     const meta = payload.data?.metadata ?? {};
     const metaBiz =
@@ -184,6 +196,8 @@ export async function POST(req: Request) {
       });
     }
 
+    const currentPeriodEndIso = computePaystackCurrentPeriodEndIso(cycle);
+
     const { data: existingSub } = await supabase
       .from("subscriptions")
       .select("plan_code")
@@ -198,6 +212,20 @@ export async function POST(req: Request) {
         businessId,
         plan: existingPlan,
       });
+      const subIdempotent = await upsertActiveSubscriptionForBusiness(supabase, {
+        businessId,
+        planCode: plan,
+        provider: "paystack",
+        providerSubId: reference,
+        currentPeriodEndIso,
+      });
+      if (!subIdempotent.ok) {
+        console.error("[billing/paystack/verify] idempotent upsert:", subIdempotent.error);
+        return NextResponse.json(
+          { error: "Could not save subscription after payment." },
+          { status: 500 }
+        );
+      }
       return NextResponse.json({
         success: true,
         plan: existingPlan as PaidPlanKey,
@@ -211,6 +239,7 @@ export async function POST(req: Request) {
       planCode: plan,
       provider: "paystack",
       providerSubId: reference,
+      currentPeriodEndIso,
     });
     if (!sub.ok) {
       console.error("[billing/paystack/verify] upsert:", sub.error);

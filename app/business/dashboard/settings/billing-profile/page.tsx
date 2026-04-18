@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
@@ -114,6 +115,7 @@ function messageClasses(type: "success" | "error"): string {
 }
 
 export default function BillingProfilePage() {
+  const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
   const { user, loading: authLoading } = useBusinessAuth();
   const businessId = selectedBusiness?.id ?? null;
@@ -254,12 +256,13 @@ export default function BillingProfilePage() {
               </div>
             </dl>
           </div>
-          <a
-            href="/business/dashboard/settings/usage"
+          <button
+            type="button"
+            onClick={() => router.push("/business/dashboard/billing/downgrade")}
             className="inline-flex shrink-0 items-center justify-center rounded-xl border border-[#124541] bg-white px-4 py-2.5 text-sm font-semibold text-[#124541] transition hover:bg-[#124541]/5"
           >
             Change plan
-          </a>
+          </button>
         </div>
       </section>
 

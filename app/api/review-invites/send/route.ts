@@ -7,8 +7,8 @@ import crypto from "crypto";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
+import { buildInviteBodyInlineStyle, parseGrowMessageStyle } from "@/lib/reviewInviteGrowStyle";
 import {
-  canAccessAnalytics,
   getActivePlanKeyForBusiness,
   getMonthlyInviteLimitForBusiness,
 } from "@/lib/plans";
@@ -191,8 +191,12 @@ export async function POST(req: Request) {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
 
+    // Logo + company signature only on Premium+ (Grow is subject/body + optional Grow styling only).
+    const includePremiumSignature =
+      effectivePlan === "premium" || effectivePlan === "elite";
+
     let signatureBlock = "";
-    if (canAccessAnalytics(effectivePlan)) {
+    if (includePremiumSignature) {
       signatureBlock = `
   <div style="margin-top:32px; border-top:1px solid #eee; padding-top:16px;">
     ${t?.signature_logo_url ? `<div style="margin-bottom:12px;"><img src="${esc(t.signature_logo_url as string)}" alt="" style="max-height:60px;" /></div>` : ""}
@@ -207,6 +211,17 @@ export async function POST(req: Request) {
     const layoutStyle =
       (template as { layout_style?: string | null } | null)?.layout_style ?? "standard";
 
+    let growMessageStyleRaw = (t as Record<string, unknown> | null)?.grow_message_style;
+    if (growMessageStyleRaw == null) {
+      const { data: customStyleRow } = await supabase
+        .from("review_invite_email_templates")
+        .select("grow_message_style")
+        .eq("business_id", businessId)
+        .eq("template_key", "custom")
+        .maybeSingle();
+      growMessageStyleRaw = (customStyleRow as Record<string, unknown> | null)?.grow_message_style ?? null;
+    }
+
     const rendered = renderInviteEmail({
       businessName: bizRecord.name ?? "",
       inviteLink,
@@ -217,6 +232,7 @@ export async function POST(req: Request) {
       signatureBlock,
       layoutStyle,
       isReminder: false,
+      growMessageStyle: growMessageStyleRaw,
     });
     const subject = rendered.subject;
 
@@ -230,10 +246,11 @@ export async function POST(req: Request) {
             .replace(/"/g, "&quot;");
     const bodyText = String(templateBody || "We'd love your feedback.").trim();
     const safeInviteLink = escHtml(inviteLink);
+    const ratingBodyParaStyle = buildInviteBodyInlineStyle(parseGrowMessageStyle(growMessageStyleRaw));
 
     const ratingWidgetHtml = `
 <div style="font-family:Arial, sans-serif; font-size:14px; color:#222; max-width:600px;">
-  <p style="margin:0 0 14px 0;">${escHtml(bodyText).replace(/\n/g, "<br/>")}</p>
+  <p style="${ratingBodyParaStyle}">${escHtml(bodyText).replace(/\n/g, "<br/>")}</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:14px 0 12px 0;">
     <tr>
       <td align="center" style="font-size:22px; font-weight:700; color:#111827; padding-bottom:12px;">

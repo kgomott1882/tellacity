@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";
+import { isPlanDowngrade, isPlanUpgrade } from "@/lib/billingPlanRank";
 import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
 import {
   PAID_PLAN_USD,
@@ -166,7 +167,7 @@ export type PricingPageContentProps = {
   emphasizePremiumAnchor?: boolean;
   /** Use a div root when embedding inside the dashboard (avoids nested main landmark). */
   embedInDashboard?: boolean;
-  /** When returning from plan confirm, match monthly vs annual before checkout. */
+  /** When opening checkout from billing, match monthly vs annual from URL. */
   dashboardInitialBillingMode?: "monthly" | "annual";
   /** Billing dashboard only: hide the marketing hero (headline + animated plans preview). */
   dashboardHideMarketingHero?: boolean;
@@ -221,6 +222,19 @@ export function PricingPageContent({
     variant === "dashboard" &&
     Boolean(dashboardBusinessId?.trim()) &&
     Boolean(dashboardUserEmail?.trim());
+
+  const handleDashboardUpgrade = useCallback(
+    (targetKey: PlanKey) => {
+      const current = dashboardCurrentPlanKey ?? "free";
+      if (targetKey === current) return;
+      if (!isPlanUpgrade(targetKey, current)) return;
+      if (!isPaidPlanForConfirm(targetKey)) return;
+      router.push(
+        `/business/dashboard/billing/checkout?plan=${encodeURIComponent(targetKey)}&cycle=${encodeURIComponent(billing)}`
+      );
+    },
+    [billing, dashboardCurrentPlanKey, router]
+  );
 
   const isDashboardCurrentFree =
     variant === "dashboard" && dashboardCurrentPlanKey === "free";
@@ -616,35 +630,60 @@ export function PricingPageContent({
                     Current plan
                   </button>
                 ) : isDashboardCheckout && plan.name === "Free" ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      alert(
-                        "You’re already signed in. The Free plan doesn’t require payment. Use Plans & billing to manage your subscription."
-                      )
-                    }
-                    className={pricingButtonClass}
-                  >
-                    Choose This Plan
-                  </button>
+                  dashboardCurrentPlanKey &&
+                  isPlanDowngrade("free", dashboardCurrentPlanKey) ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-6 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 py-3 text-sm font-semibold text-gray-500"
+                    >
+                      Downgrade in Billing → Change plan
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        alert(
+                          "You’re already signed in. The Free plan doesn’t require payment. Use Plans & billing to manage your subscription."
+                        )
+                      }
+                      className={pricingButtonClass}
+                    >
+                      Choose This Plan
+                    </button>
+                  )
                 ) : isDashboardCheckout ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const code = plan.name.toLowerCase() as
-                        | "grow"
-                        | "premium"
-                        | "elite";
-                      router.push(
-                        `/business/dashboard/billing/confirm?plan=${encodeURIComponent(code)}&cycle=${encodeURIComponent(billing)}`
+                  (() => {
+                    const targetKey = planNameToKey(plan.name);
+                    if (!targetKey) return null;
+                    const current = dashboardCurrentPlanKey ?? "free";
+                    const down = isPlanDowngrade(targetKey, current);
+                    const up = isPlanUpgrade(targetKey, current);
+                    if (down) {
+                      return (
+                        <button
+                          type="button"
+                          disabled
+                          className="mt-6 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 py-3 text-sm font-semibold text-gray-500"
+                        >
+                          Downgrade in Billing → Change plan
+                        </button>
                       );
-                    }}
-                    className={pricingButtonClass}
-                  >
-                    {isRecommendedForYou && dashboardCurrentPlanKey
-                      ? nextTierUpgradeCtaLabel(dashboardCurrentPlanKey)
-                      : "Choose This Plan"}
-                  </button>
+                    }
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleDashboardUpgrade(targetKey)}
+                        className={pricingButtonClass}
+                      >
+                        {up && isRecommendedForYou && dashboardCurrentPlanKey
+                          ? nextTierUpgradeCtaLabel(dashboardCurrentPlanKey)
+                          : up
+                            ? `Upgrade to ${plan.name}`
+                            : "Choose This Plan"}
+                      </button>
+                    );
+                  })()
                 ) : (
                   <button
                     type="button"

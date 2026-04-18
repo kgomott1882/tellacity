@@ -3,6 +3,13 @@
  * Used by both the send endpoint (immediate) and the cron worker (scheduled).
  */
 
+import {
+  buildInviteBodyInlineStyle,
+  buildSubjectLeadInlineStyle,
+  parseGrowMessageStyle,
+  type GrowMessageStyle,
+} from "@/lib/reviewInviteGrowStyle";
+
 export type InviteEmailParams = {
   businessName: string;
   inviteLink: string;
@@ -13,6 +20,8 @@ export type InviteEmailParams = {
   signatureBlock?: string; // pre-rendered HTML from template (premium/elite)
   isReminder?: boolean;
   layoutStyle?: "standard" | "rating_widget" | string | null;
+  /** Optional Grow-tier body styling (subject line stays plain text in clients). */
+  growMessageStyle?: unknown;
 };
 
 const DEFAULT_SUBJECT = "You're invited to leave a review";
@@ -42,10 +51,18 @@ export function renderInviteEmail(params: InviteEmailParams): {
     signatureBlock = "",
     isReminder = false,
     layoutStyle = "standard",
+    growMessageStyle,
   } = params;
 
-  // Subject
-  let subject = customSubject?.trim() || DEFAULT_SUBJECT;
+  const trimmedCustomSubject =
+    customSubject != null && String(customSubject).trim() ? String(customSubject).trim() : null;
+
+  const bodyParsedStyle: GrowMessageStyle = parseGrowMessageStyle(growMessageStyle);
+  const bodyParaStyle = buildInviteBodyInlineStyle(bodyParsedStyle);
+  const subjectLeadStyle = buildSubjectLeadInlineStyle(bodyParsedStyle);
+
+  // Subject (SMTP line; most clients ignore HTML styling on the real subject.)
+  let subject = trimmedCustomSubject || DEFAULT_SUBJECT;
   if (businessName?.trim()) {
     const norm = subject.toLowerCase();
     const biz = businessName.trim().toLowerCase();
@@ -57,9 +74,12 @@ export function renderInviteEmail(params: InviteEmailParams): {
     subject = `Reminder: ${subject}`;
   }
 
-  // Body text
+  // Body text + optional styled headline inside HTML (matches dashboard “subject” appearance).
   const rawMessage = customMessage?.trim() || DEFAULT_MESSAGE;
-  const bodyHtml = esc(rawMessage).replace(/\n/g, "<br/>");
+  const bodyInner = esc(rawMessage).replace(/\n/g, "<br/>");
+  const subjectLeadHtml = trimmedCustomSubject
+    ? `<p style="${subjectLeadStyle}">${esc(trimmedCustomSubject)}</p>`
+    : "";
 
   // Signature line (plain text fallback when no premium template block)
   const sigLine = customSignature?.trim() || businessName?.trim() || "";
@@ -137,7 +157,8 @@ export function renderInviteEmail(params: InviteEmailParams): {
 
   const html = `
 <div style="font-family:Arial, sans-serif; font-size:14px; color:#222; max-width:600px;">
-  <p>${bodyHtml}</p>
+  ${subjectLeadHtml}
+  <p style="${bodyParaStyle}">${bodyInner}</p>
 
   ${ctaHtml}
 

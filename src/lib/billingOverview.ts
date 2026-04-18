@@ -15,6 +15,9 @@ export type BillingOverviewResponse = {
     status: string | null;
     updated_at: string | null;
     provider_sub_id: string | null;
+    current_period_end: string | null;
+    pending_plan_code: string | null;
+    pending_change_at: string | null;
   } | null;
   lastPayment: {
     amount: number | null;

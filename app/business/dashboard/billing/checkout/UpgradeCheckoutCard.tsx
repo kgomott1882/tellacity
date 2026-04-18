@@ -12,11 +12,7 @@ type Props = {
   presentation: PlanConfirmPresentation;
 };
 
-export default function BillingCheckoutClient({
-  plan,
-  cycle,
-  presentation,
-}: Props) {
+export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props) {
   const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
   const [payBusy, setPayBusy] = useState(false);
@@ -89,30 +85,33 @@ export default function BillingCheckoutClient({
   const canPay = Boolean(payerEmail);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-      <p className="text-center text-xs font-medium uppercase tracking-wide text-gray-500">
+    <div className="rounded-2xl border border-emerald-100/80 bg-white p-8 shadow-[0_8px_30px_-12px_rgba(18,69,65,0.12)]">
+      <p className="text-center text-xs font-medium uppercase tracking-wide text-emerald-800/80">
         Checkout
       </p>
-      <h1 className="mt-2 text-center text-xl font-semibold text-[#0E0E0E]">Complete your upgrade</h1>
-      <p className="mt-1 text-center text-sm text-gray-500">{presentation.title}</p>
-      <p className="mt-4 text-center text-2xl font-semibold text-[#124541]">{presentation.priceLine}</p>
+      <h1 className="mt-2 text-center text-2xl font-semibold capitalize tracking-tight text-[#0E0E0E]">
+        {presentation.title}
+      </h1>
+      <p className="mt-4 text-center text-3xl font-semibold text-[#124541]">{presentation.priceLine}</p>
       {presentation.priceSubLine ? (
         <p className="mt-2 text-center text-sm leading-snug text-gray-600">{presentation.priceSubLine}</p>
       ) : null}
-      <p className="mt-6 text-xs font-medium text-gray-600">Includes</p>
-      <ul className="mt-2 space-y-2 text-sm text-gray-600">
-        {presentation.bullets.slice(0, 4).map((line) => (
-          <li key={line} className="flex gap-2">
-            <span
-              className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-semibold text-emerald-700"
-              aria-hidden
-            >
-              ✓
-            </span>
-            <span>{line}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-8 border-t border-gray-100 pt-6">
+        <p className="text-sm font-medium text-gray-700">Includes</p>
+        <ul className="mt-3 space-y-2.5 text-sm text-gray-600">
+          {presentation.bullets.map((line) => (
+            <li key={line} className="flex gap-2">
+              <span
+                className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700"
+                aria-hidden
+              >
+                ✓
+              </span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
       {!canPay ? (
         <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
           Add an email address to your Tellacity account to pay with Paystack.
@@ -121,14 +120,11 @@ export default function BillingCheckoutClient({
       <button
         type="button"
         disabled={payBusy || !canPay}
-        className="mt-8 w-full rounded-xl bg-[#124541] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-8 w-full rounded-xl bg-[#124541] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60"
         onClick={() => void openPaystack()}
       >
-        {payBusy ? "Redirecting to Paystack…" : "Continue to Paystack checkout"}
+        {payBusy ? "Redirecting…" : "Proceed to payment"}
       </button>
-      <p className="mt-3 text-center text-xs text-gray-500">
-        Secure checkout powered by Paystack
-      </p>
       <Link
         href="/business/dashboard/billing"
         className="mt-4 block text-center text-sm text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline"

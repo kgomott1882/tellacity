@@ -50,7 +50,7 @@ function useBillingSearchParams() {
 
 export default function BillingPage() {
   const router = useRouter();
-  const { selectedBusiness, navRefreshKey } = useBusinessContext();
+  const { selectedBusiness, navRefreshKey, bumpNavRefresh } = useBusinessContext();
   const { user, loading: authLoading } = useBusinessAuth();
   const searchParams = useBillingSearchParams();
 
@@ -80,12 +80,24 @@ export default function BillingPage() {
   );
   const [billingOverviewLoading, setBillingOverviewLoading] = useState(false);
   const [billingOverviewError, setBillingOverviewError] = useState<string | null>(null);
+  const [cancelDowngradeBusy, setCancelDowngradeBusy] = useState(false);
 
   const businessId = selectedBusiness?.id ?? null;
   const planKey = billingOverview?.current?.plan_code
     ? normalizePlanCodeToKey(billingOverview.current.plan_code)
     : normalizePlanCodeToKey(selectedBusiness?.plan);
   const currentPlanLabel = PLAN_LABELS[planKey] ?? planKey;
+  const pendingPlanCode = billingOverview?.current?.pending_plan_code?.trim() || null;
+  const pendingChangeAtRaw = billingOverview?.current?.pending_change_at?.trim() || null;
+  const pendingChangeLabel = (() => {
+    if (!pendingChangeAtRaw) return null;
+    const d = new Date(pendingChangeAtRaw);
+    if (!Number.isFinite(d.getTime())) return pendingChangeAtRaw;
+    return d.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  })();
   const shouldPromotePlanChange =
     Boolean(businessId) && reason != null && PRICING_SCROLL_REASONS.has(reason);
 
@@ -216,6 +228,31 @@ export default function BillingPage() {
     router.push("/business/dashboard/settings/usage");
   };
 
+  const handleCancelDowngrade = async () => {
+    if (!businessId) return;
+    setCancelDowngradeBusy(true);
+    try {
+      const res = await fetch("/api/billing/cancel-downgrade", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setBillingOverviewError(
+          typeof data.error === "string" ? data.error : "Could not cancel downgrade."
+        );
+        return;
+      }
+      bumpNavRefresh();
+    } catch {
+      setBillingOverviewError("Could not cancel downgrade.");
+    } finally {
+      setCancelDowngradeBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
       {showSuccess && successPlan ? (
@@ -268,6 +305,29 @@ export default function BillingPage() {
                 role="status"
               >
                 {reasonMessage}
+              </div>
+            ) : null}
+
+            {pendingPlanCode && pendingChangeLabel ? (
+              <div
+                className="rounded-lg border border-[#124541]/30 bg-[#124541]/5 px-4 py-3 text-sm text-[#0E0E0E]"
+                role="status"
+              >
+                <p>
+                  Your plan will change to{" "}
+                  <span className="font-semibold">
+                    {PLAN_LABELS[normalizePlanCodeToKey(pendingPlanCode)] ?? pendingPlanCode}
+                  </span>{" "}
+                  on <span className="font-semibold">{pendingChangeLabel}</span>.
+                </p>
+                <button
+                  type="button"
+                  disabled={cancelDowngradeBusy}
+                  onClick={() => void handleCancelDowngrade()}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {cancelDowngradeBusy ? "Cancelling…" : "Cancel downgrade"}
+                </button>
               </div>
             ) : null}
 

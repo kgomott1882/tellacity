@@ -437,7 +437,8 @@ export async function POST(req: Request) {
       ? String(t.intro_message).trim()
       : `We'd love to hear about your experience with ${businessDisplayName || "us"}. It only takes a minute.`;
 
-    const signatureBlock = buildSignatureBlock(t);
+    const signatureBlock =
+      effectivePlan === "premium" || effectivePlan === "elite" ? buildSignatureBlock(t) : "";
     const removeBranding = Boolean(t.remove_tellacity_branding);
 
     let layoutStyle = String(t.layout_style ?? "standard");

@@ -40,114 +40,41 @@ function adminServiceClient() {
   );
 }
 
-function utcDayBounds(date = new Date()): { startIso: string; endIso: string } {
-  const startMs = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  const endMs = startMs + 24 * 60 * 60 * 1000;
-  return {
-    startIso: new Date(startMs).toISOString(),
-    endIso: new Date(endMs).toISOString(),
-  };
-}
-
 export async function getNewUsersTodayRows(): Promise<QueryResult> {
   const supabase = adminServiceClient();
-  const { startIso, endIso } = utcDayBounds();
-  const startMs = new Date(startIso).getTime();
-  const endMs = new Date(endIso).getTime();
-
-  const users: Array<{
-    id: string;
-    email: string | null;
-    created_at: string | null;
-    user_metadata?: Record<string, unknown> | null;
-  }> = [];
-
-  let page = 1;
-  const perPage = 200;
-  let keepPaging = true;
-  while (keepPaging) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      return { data: [], error: error.message };
-    }
-
-    const batch = data?.users ?? [];
-    if (batch.length === 0) break;
-
-    for (const u of batch) {
-      const createdMs = u.created_at ? new Date(u.created_at).getTime() : Number.NaN;
-      if (Number.isNaN(createdMs)) continue;
-      if (createdMs >= startMs && createdMs < endMs) {
-        users.push({
-          id: u.id,
-          email: u.email ?? null,
-          created_at: u.created_at ?? null,
-          user_metadata:
-            u.user_metadata && typeof u.user_metadata === "object" ? u.user_metadata : null,
-        });
-      }
-    }
-
-    // auth users are returned newest first; once we reach older users, we can stop.
-    const lastCreated = batch[batch.length - 1]?.created_at;
-    const lastCreatedMs = lastCreated ? new Date(lastCreated).getTime() : Number.NaN;
-    if (Number.isNaN(lastCreatedMs) || lastCreatedMs < startMs) {
-      keepPaging = false;
-    } else {
-      page += 1;
-    }
+  const { data, error } = await supabase.rpc("admin_list_new_users_today");
+  if (error) {
+    return { data: [], error: error.message };
   }
 
-  if (users.length === 0) {
-    return { data: [], error: null };
-  }
+  type RpcRow = {
+    kind?: string | null;
+    id?: string | null;
+    email?: string | null;
+    display_name?: string | null;
+    role?: string | null;
+    is_admin?: boolean | null;
+    created_at?: string | null;
+  };
 
-  const ids = users.map((u) => u.id);
-  const { data: profileData, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, email, display_name, role, is_admin")
-    .in("id", ids);
+  const rows = ((data ?? []) as RpcRow[]).map((r) => {
+    const kind = String(r.kind ?? "").trim();
+    const role =
+      kind === "first_review_email"
+        ? "guest (first review email)"
+        : (r.role?.trim() || "consumer");
 
-  if (profileError) {
-    return { data: [], error: profileError.message };
-  }
+    return {
+      id: String(r.id ?? ""),
+      email: r.email?.trim() || null,
+      display_name: r.display_name?.trim() || null,
+      role,
+      is_admin: r.is_admin ?? null,
+      created_at: r.created_at ?? null,
+    };
+  });
 
-  const profileById = new Map(
-    ((profileData ?? []) as Array<{
-      id: string;
-      email?: string | null;
-      display_name?: string | null;
-      role?: string | null;
-      is_admin?: boolean | null;
-    }>).map((p) => [p.id, p]),
-  );
-
-  const rows: AdminUsersListRow[] = users
-    .map((u) => {
-      const profile = profileById.get(u.id);
-      const metadataName =
-        (typeof u.user_metadata?.display_name === "string" &&
-        u.user_metadata.display_name.trim()) ||
-        (typeof u.user_metadata?.full_name === "string" &&
-        u.user_metadata.full_name.trim()) ||
-        null;
-
-      return {
-        id: u.id,
-        email: profile?.email?.trim() || u.email?.trim() || null,
-        display_name: profile?.display_name?.trim() || metadataName || null,
-        role: profile?.role?.trim() || null,
-        is_admin: profile?.is_admin ?? null,
-        created_at: u.created_at ?? null,
-      };
-    })
-    .sort((a, b) => {
-      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return tb - ta;
-    });
-
-  return { data: rows, error: null };
+  return { data: rows.filter((x) => x.id), error: null };
 }
 
 export async function getConsumerUserRows(): Promise<QueryResult> {
@@ -155,7 +82,9 @@ export async function getConsumerUserRows(): Promise<QueryResult> {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, email, display_name, role, is_admin, created_at")
-    .eq("role", "consumer")
+    .neq("role", "business")
+    .not("is_admin", "eq", true)
+    .not("email", "ilike", "%@tellacity.auth")
     .order("created_at", { ascending: false });
 
   return {

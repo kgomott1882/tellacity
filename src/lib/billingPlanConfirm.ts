@@ -42,7 +42,7 @@ export function parseBillingCycleQuery(
   return s.trim().toLowerCase() === "annual" ? "annual" : "monthly";
 }
 
-/** Plans that may proceed to the payment step (confirm screen). */
+/** Plans that may proceed to checkout / payment. */
 export function isPaidPlanForConfirm(plan: PlanKey): plan is PaidPlanKey {
   return PAID_KEYS.has(plan);
 }
@@ -57,7 +57,7 @@ export type PlanConfirmPresentation = {
 };
 
 /**
- * Single source for dashboard pricing, confirm, and checkout copy.
+ * Single source for dashboard pricing and checkout copy.
  * Amounts are always US dollars; ZA Paystack charges convert in `billingPaystack` / `billingUsdZarRate`.
  */
 export const PAID_PLAN_USD = {

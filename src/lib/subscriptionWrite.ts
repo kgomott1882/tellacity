@@ -11,6 +11,11 @@ type UpsertArgs = {
    * placeholder is used so NOT NULL `provider_sub_id` inserts succeed.
    */
   providerSubId?: string | null;
+  /**
+   * When set (e.g. after Paystack verify), sets `current_period_end` and clears
+   * `pending_plan_code` / `pending_change_at`.
+   */
+  currentPeriodEndIso?: string | null;
 };
 
 /**
@@ -33,15 +38,23 @@ export async function upsertActiveSubscriptionForBusiness(
       ? String(args.providerSubId).trim()
       : `tellacity:${args.businessId}`;
 
+  const updatePayload: Record<string, unknown> = {
+    plan_code: args.planCode,
+    status: "active",
+    provider,
+    provider_sub_id: providerSubId,
+    updated_at: now,
+  };
+
+  if (args.currentPeriodEndIso !== undefined) {
+    updatePayload.current_period_end = args.currentPeriodEndIso ?? null;
+    updatePayload.pending_plan_code = null;
+    updatePayload.pending_change_at = null;
+  }
+
   const { data: updated, error: updateError } = await db
     .from("subscriptions")
-    .update({
-      plan_code: args.planCode,
-      status: "active",
-      provider,
-      provider_sub_id: providerSubId,
-      updated_at: now,
-    })
+    .update(updatePayload)
     .eq("business_id", args.businessId)
     .select("id");
 
@@ -53,14 +66,21 @@ export async function upsertActiveSubscriptionForBusiness(
     return { ok: true };
   }
 
-  const { error: insertError } = await db.from("subscriptions").insert({
+  const insertPayload: Record<string, unknown> = {
     business_id: args.businessId,
     plan_code: args.planCode,
     status: "active",
     provider,
     provider_sub_id: providerSubId,
     updated_at: now,
-  });
+  };
+  if (args.currentPeriodEndIso !== undefined) {
+    insertPayload.current_period_end = args.currentPeriodEndIso ?? null;
+    insertPayload.pending_plan_code = null;
+    insertPayload.pending_change_at = null;
+  }
+
+  const { error: insertError } = await db.from("subscriptions").insert(insertPayload);
   if (insertError) {
     return { ok: false, error: insertError.message };
   }

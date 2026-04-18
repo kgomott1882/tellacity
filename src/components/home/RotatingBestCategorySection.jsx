@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import Link from "next/link";
-import { normalizeLogoUrl } from "@/lib/logo";
+import { similarBusinessLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
 
 const cleanDomain = (value) =>
@@ -89,9 +89,11 @@ export default function RotatingBestCategorySection({
                   Number(business.review_count ?? 0) || 0;
                 const ratingValue =
                   Number(business.trust_score ?? 0) || 0;
-                const rawLogo =
-                  business.logo_url || business.resolved_logo_url || null;
-                const logoUrl = normalizeLogoUrl(rawLogo);
+                const logoUrl = similarBusinessLogoUrl({
+                  resolved_logo_url: business.resolved_logo_url,
+                  logo_url: business.logo_url,
+                  website: business.website,
+                });
 
                 return (
                   <Link
@@ -107,7 +109,6 @@ export default function RotatingBestCategorySection({
                             alt={business.name ?? "Business"}
                             className="h-full w-full object-contain"
                             referrerPolicy="no-referrer"
-                            crossOrigin="anonymous"
                             onError={(event) => {
                               event.currentTarget.style.display = "none";
                             }}
@@ -162,9 +163,11 @@ export default function RotatingBestCategorySection({
                 const ratingValue =
                   Number(business.trust_score ?? 0) || 0;
 
-                const rawLogo =
-                  business.logo_url || business.resolved_logo_url || null;
-                const logoUrl = normalizeLogoUrl(rawLogo);
+                const logoUrl = similarBusinessLogoUrl({
+                  resolved_logo_url: business.resolved_logo_url,
+                  logo_url: business.logo_url,
+                  website: business.website,
+                });
 
                 return (
                   <Link
@@ -197,7 +200,6 @@ export default function RotatingBestCategorySection({
                             alt={business.name ?? "Business"}
                             className="h-full w-full object-contain"
                             referrerPolicy="no-referrer"
-                            crossOrigin="anonymous"
                             onError={(event) => {
                               event.currentTarget.style.display = "none";
                             }}

@@ -16,7 +16,7 @@ export default async function AdminConsumerUsersPage() {
       <AdminUsersListTable
         title="Consumer Users"
         rows={data}
-        emptyMessage="No consumer users found."
+        emptyMessage="No non-business profiles found."
       />
     </div>
   );

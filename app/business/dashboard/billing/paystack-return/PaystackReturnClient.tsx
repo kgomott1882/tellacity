@@ -14,7 +14,10 @@ export default function PaystackReturnClient() {
   const [successPlan, setSuccessPlan] = useState<string | null>(null);
 
   useEffect(() => {
-    const reference = sp.get("reference")?.trim() || sp.get("trxref")?.trim();
+    const reference =
+      sp.get("reference")?.trim() ||
+      sp.get("trxref")?.trim() ||
+      sp.get("txref")?.trim();
     const businessId = sp.get("business_id")?.trim();
 
     if (!reference || !businessId) {

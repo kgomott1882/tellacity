@@ -16,7 +16,7 @@ export default async function AdminNewUsersTodayPage() {
       <AdminUsersListTable
         title="New Users Today"
         rows={data}
-        emptyMessage="No new users found for the current UTC date."
+        emptyMessage="No new signups or first-time reviewer emails found for the current UTC date."
       />
     </div>
   );

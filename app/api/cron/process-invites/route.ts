@@ -22,7 +22,7 @@ import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { renderInviteEmail } from "@/lib/inviteEmail";
-import { canAccessAnalytics, getActivePlanKeyForBusiness } from "@/lib/plans";
+import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -120,6 +120,34 @@ async function getEmailTemplate(
   return (data as TemplateRow | null) ?? null;
 }
 
+/** Custom row: Grow wording + grow_message_style; used when standard row is empty (same as immediate send route). */
+async function getCustomInviteTemplateRow(
+  supabase: ReturnType<typeof makeSupabase>,
+  businessId: string
+): Promise<{
+  subject: string | null;
+  body: string | null;
+  grow_message_style: unknown;
+} | null> {
+  const { data } = await supabase
+    .from("review_invite_email_templates")
+    .select("subject, body, grow_message_style")
+    .eq("business_id", businessId)
+    .eq("template_key", "custom")
+    .maybeSingle();
+  return (data as {
+    subject: string | null;
+    body: string | null;
+    grow_message_style: unknown;
+  } | null) ?? null;
+}
+
+function trimOrNull(v: string | null | undefined): string | null {
+  if (v == null) return null;
+  const t = String(v).trim();
+  return t ? t : null;
+}
+
 async function hasReviewForInvite(
   supabase: ReturnType<typeof makeSupabase>,
   inviteId: string
@@ -197,27 +225,39 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [template, planKey] = await Promise.all([
+      const [template, planKey, customRow] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
         getActivePlanKeyForBusiness(invite.business_id, supabase),
+        getCustomInviteTemplateRow(supabase, invite.business_id),
       ]);
       const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
       const signatureBlock = buildSignatureBlock(
         template,
-        canAccessAnalytics(planKey),
+        planKey === "premium" || planKey === "elite",
       );
+
+      const mergedSubject =
+        trimOrNull(settings.custom_subject) ||
+        trimOrNull(template?.subject) ||
+        trimOrNull(customRow?.subject);
+      const mergedBody =
+        trimOrNull(settings.custom_message) ||
+        trimOrNull(template?.body) ||
+        trimOrNull(customRow?.body);
+      const growMessageStyle = customRow?.grow_message_style;
 
       const { subject, html } = renderInviteEmail({
         businessName,
         inviteLink,
-        customSubject:       settings.custom_subject   || template?.subject || null,
-        customMessage:       settings.custom_message   || template?.body    || null,
+        customSubject:       mergedSubject,
+        customMessage:       mergedBody,
         customSignature:     settings.custom_signature ?? null,
         legalFooterEnabled:  settings.legal_footer_enabled,
         signatureBlock,
         layoutStyle: template?.layout_style ?? "standard",
         isReminder: false,
+        growMessageStyle,
       });
 
       const emailRes = await resend.emails.send({
@@ -312,27 +352,39 @@ export async function GET(request: Request) {
       const businessName = (biz as BusinessRow | null)?.name ?? "";
       const inviteLink = buildInviteLink(invite.token);
 
-      const [template, planKey] = await Promise.all([
+      const [template, planKey, customRowRem] = await Promise.all([
         getEmailTemplate(supabase, invite.business_id),
         getActivePlanKeyForBusiness(invite.business_id, supabase),
+        getCustomInviteTemplateRow(supabase, invite.business_id),
       ]);
       const settings = DEFAULT_INVITE_EMAIL_SETTINGS;
 
       const signatureBlock = buildSignatureBlock(
         template,
-        canAccessAnalytics(planKey),
+        planKey === "premium" || planKey === "elite",
       );
+
+      const mergedSubjectRem =
+        trimOrNull(settings.custom_subject) ||
+        trimOrNull(template?.subject) ||
+        trimOrNull(customRowRem?.subject);
+      const mergedBodyRem =
+        trimOrNull(settings.custom_message) ||
+        trimOrNull(template?.body) ||
+        trimOrNull(customRowRem?.body);
+      const growMessageStyleRem = customRowRem?.grow_message_style;
 
       const { subject, html } = renderInviteEmail({
         businessName,
         inviteLink,
-        customSubject:       settings.custom_subject   || template?.subject || null,
-        customMessage:       settings.custom_message   || template?.body    || null,
+        customSubject:       mergedSubjectRem,
+        customMessage:       mergedBodyRem,
         customSignature:     settings.custom_signature ?? null,
         legalFooterEnabled:  settings.legal_footer_enabled,
         signatureBlock,
         layoutStyle: template?.layout_style ?? "standard",
         isReminder: true,
+        growMessageStyle: growMessageStyleRem,
       });
 
       const emailRes = await resend.emails.send({

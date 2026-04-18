@@ -5,7 +5,7 @@ import {
   parseBillingCycleQuery,
   parseBillingPlanQuery,
 } from "@/lib/billingPlanConfirm";
-import BillingCheckoutClient from "./BillingCheckoutClient";
+import UpgradeCheckoutCard from "./UpgradeCheckoutCard";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -27,7 +27,7 @@ export default async function BillingCheckoutPage({ searchParams }: PageProps) {
 
   return (
     <div className="mx-auto flex min-h-[50vh] w-full max-w-lg flex-col justify-center px-4 py-10">
-      <BillingCheckoutClient plan={plan} cycle={cycle} presentation={presentation} />
+      <UpgradeCheckoutCard plan={plan} cycle={cycle} presentation={presentation} />
     </div>
   );
 }

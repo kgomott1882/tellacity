@@ -161,9 +161,22 @@ export default async function AdminOverviewPage(props: {
       </div>
 
       <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
-        <strong>New users today</strong> and <strong>Reviews today</strong> count rows whose{" "}
+        <strong>Reviews today</strong> counts review rows whose{" "}
         <code className="rounded bg-neutral-100 px-1">created_at</code> falls on the{" "}
-        <strong>current UTC calendar date</strong> (not local midnight). Stats refresh each time you load this page.
+        <strong>current UTC calendar date</strong> (not local midnight).
+        <span className="mt-1 block">
+          <strong>New users today</strong> counts distinct <strong>new identities today (UTC)</strong>: brand-new{" "}
+          <code className="rounded bg-neutral-100 px-1">auth.users</code> emails created today, plus{" "}
+          <strong>first-time reviewer emails</strong> seen on a review created today that have{" "}
+          <strong>never appeared on a review before</strong> (still UTC day logic) and are{" "}
+          <strong>not already present</strong> in <code className="rounded bg-neutral-100 px-1">auth.users</code>.
+        </span>
+        <span className="mt-1 block">
+          <strong>Consumer users</strong> counts <code className="rounded bg-neutral-100 px-1">profiles</code> rows that
+          are not <code className="rounded bg-neutral-100 px-1">role=business</code>, excluding admins and Tellacity
+          placeholder emails (<code className="rounded bg-neutral-100 px-1">@tellacity.auth</code>).
+        </span>
+        <span className="mt-1 block">Stats refresh each time you load this page.</span>
         <span className="mt-1 block">
           <strong>Recent activity</strong> lists the newest events first. Large batches of businesses with the same
           timestamp can fill the first page; use <strong>Next</strong> to see older reviews and signups, or open{" "}
