@@ -111,7 +111,7 @@ export default async function AdminCustomerBusinessesPage() {
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
 
       <AdminTableShell
-        title={`Customer Businesses (${customers?.length || 0})`}
+        title={`Business Customers (${customers?.length || 0})`}
       >
         <div className="w-full">
           {customers.length === 0 ? (

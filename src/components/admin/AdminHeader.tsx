@@ -8,8 +8,9 @@ const TITLES: Record<string, { title: string }> = {
   "/admin": { title: "Overview" },
   "/admin/users": { title: "Users" },
   "/admin/businesses": { title: "Businesses" },
-  "/admin/customers": { title: "Customers" },
+  "/admin/customers": { title: "Business Customers" },
   "/admin/reviews": { title: "Reviews" },
+  "/admin/system-status": { title: "System status" },
 };
 
 type AdminHeaderProps = {

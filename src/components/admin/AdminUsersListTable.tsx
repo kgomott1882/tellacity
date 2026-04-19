@@ -64,7 +64,7 @@ export default function AdminUsersListTable({
                   {row.role?.trim() || "-"}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                  {row.is_admin ? "Yes" : "No"}
+                  {row.is_admin ? "Yes" : row.is_admin === false ? "No" : "-"}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                   {formatWhen(row.created_at)}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
@@ -241,6 +242,9 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
   const [reviewOffset, setReviewOffset] = useState(0);
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const reviewsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollReviewsLeft, setCanScrollReviewsLeft] = useState(false);
+  const [canScrollReviewsRight, setCanScrollReviewsRight] = useState(false);
   const [totalReviewCount, setTotalReviewCount] = useState(0);
   const [isTrustScoreOpen, setIsTrustScoreOpen] = useState(false);
   const [trustScoreStep, setTrustScoreStep] = useState(0);
@@ -825,6 +829,42 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
     reviews.length,
   ]);
 
+  const updateReviewsScrollState = useCallback(() => {
+    const el = reviewsScrollRef.current;
+    if (!el) {
+      setCanScrollReviewsLeft(false);
+      setCanScrollReviewsRight(false);
+      return;
+    }
+    const { scrollLeft, clientWidth, scrollWidth } = el;
+    setCanScrollReviewsLeft(scrollLeft > 4);
+    setCanScrollReviewsRight(scrollLeft + clientWidth < scrollWidth - 4);
+  }, []);
+
+  const scrollReviewsBy = useCallback((direction: -1 | 1) => {
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    const firstItem = el.querySelector<HTMLElement>("[data-review-carousel-item]");
+    const w = firstItem?.getBoundingClientRect().width ?? 0;
+    const step = w > 0 ? w + 16 : Math.min(el.clientWidth * 0.88, 380);
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+    window.setTimeout(updateReviewsScrollState, 320);
+  }, [updateReviewsScrollState]);
+
+  useEffect(() => {
+    if (isLoadingReviews) return;
+    updateReviewsScrollState();
+    const el = reviewsScrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => updateReviewsScrollState());
+    ro.observe(el);
+    window.addEventListener("resize", updateReviewsScrollState);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateReviewsScrollState);
+    };
+  }, [isLoadingReviews, reviews.length, updateReviewsScrollState]);
+
   const businessLogoUrl = similarBusinessLogoUrl({
     resolved_logo_url: business?.logoUrl,
     logo_url: null,
@@ -1272,17 +1312,20 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 Reviews are written by customers and moderated for authenticity.
               </p>
               <div className="mt-4 space-y-4">
-                {isLoadingReviews &&
-                  reviewSkeletons.map((_, index) => (
-                    <div
-                      key={`review-skeleton-${index}`}
-                      className="rounded-xl border border-gray-200 p-4"
-                    >
-                      <div className="h-4 w-40 rounded bg-gray-100" />
-                      <div className="mt-3 h-3 w-full rounded bg-gray-100" />
-                      <div className="mt-2 h-3 w-4/5 rounded bg-gray-100" />
-                    </div>
-                  ))}
+                {isLoadingReviews && (
+                  <div className="flex gap-4 overflow-hidden pb-2">
+                    {reviewSkeletons.map((_, index) => (
+                      <div
+                        key={`review-skeleton-${index}`}
+                        className="h-[220px] w-[min(85vw,380px)] shrink-0 rounded-xl border border-gray-200 p-4"
+                      >
+                        <div className="h-4 w-40 rounded bg-gray-100" />
+                        <div className="mt-3 h-3 w-full rounded bg-gray-100" />
+                        <div className="mt-2 h-3 w-4/5 rounded bg-gray-100" />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {!isLoadingReviews && reviews.length === 0 && (
                   <div className="rounded-xl border border-gray-200 p-4">
@@ -1305,32 +1348,62 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 )}
 
                 {!isLoadingReviews && reviews.length > 0 && (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {reviews.map((review) => (
-                      <RecentReviewCard
-                        key={review.id}
-                        review={{
-                          review_id: review.id,
-                          id: review.id,
-                          rating: review.rating,
-                          title: sanitizeText(review.title),
-                          body: sanitizeText(review.body),
-                          reviewer_name: sanitizeText(review.reviewerName),
-                          created_at: review.createdAtRaw ?? undefined,
-                          business_name: sanitizeText(business?.name ?? "Business"),
-                          business_slug: business?.slug ?? null,
-                          website: business?.website ?? "",
-                          resolved_logo_url: businessLogoUrl,
-                          like_count: review.likeCount,
-                        }}
-                        businessReplies={
-                          repliesByReviewId[review.id]?.map((r) => ({
-                            body: r.body,
-                            createdAt: r.createdAt,
-                          })) ?? null
-                        }
-                      />
-                    ))}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-label="Show previous reviews"
+                      onClick={() => scrollReviewsBy(-1)}
+                      disabled={!canScrollReviewsLeft}
+                      className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#124541]/20 bg-white text-[#0E0E0E] shadow-md transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-25 sm:h-11 sm:w-11"
+                    >
+                      <ChevronLeft className="h-5 w-5" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Show more reviews"
+                      onClick={() => scrollReviewsBy(1)}
+                      disabled={!canScrollReviewsRight}
+                      className="absolute right-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#124541]/20 bg-white text-[#0E0E0E] shadow-md transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-25 sm:h-11 sm:w-11"
+                    >
+                      <ChevronRight className="h-5 w-5" aria-hidden />
+                    </button>
+                    <div
+                      ref={reviewsScrollRef}
+                      onScroll={updateReviewsScrollState}
+                      className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 pl-11 pr-11 [-ms-overflow-style:none] [scrollbar-width:none] sm:pl-14 sm:pr-14 [&::-webkit-scrollbar]:hidden"
+                    >
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          data-review-carousel-item
+                          className="w-[min(85vw,380px)] shrink-0 snap-start self-stretch"
+                        >
+                          <RecentReviewCard
+                            className="h-full"
+                            review={{
+                              review_id: review.id,
+                              id: review.id,
+                              rating: review.rating,
+                              title: sanitizeText(review.title),
+                              body: sanitizeText(review.body),
+                              reviewer_name: sanitizeText(review.reviewerName),
+                              created_at: review.createdAtRaw ?? undefined,
+                              business_name: sanitizeText(business?.name ?? "Business"),
+                              business_slug: business?.slug ?? null,
+                              website: business?.website ?? "",
+                              resolved_logo_url: businessLogoUrl,
+                              like_count: review.likeCount,
+                            }}
+                            businessReplies={
+                              repliesByReviewId[review.id]?.map((r) => ({
+                                body: r.body,
+                                createdAt: r.createdAt,
+                              })) ?? null
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {!isLoadingReviews && hasMoreReviews && (

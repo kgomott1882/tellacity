@@ -107,7 +107,7 @@ export default async function AdminUsersPage(props: PageProps) {
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
 
       <AdminTableShell
-        title="Users"
+        title="All Users"
         controls={
           <div className="flex flex-wrap gap-2 opacity-60">
             <input

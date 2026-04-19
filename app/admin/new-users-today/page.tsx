@@ -6,9 +6,9 @@ import { getNewUsersTodayRows } from "@/lib/adminUserLists";
 export const dynamic = "force-dynamic";
 
 export default async function AdminNewUsersTodayPage() {
-  await requireAdminSession();
+  const { supabase } = await requireAdminSession();
 
-  const { data, error } = await getNewUsersTodayRows();
+  const { data, error } = await getNewUsersTodayRows(supabase);
 
   return (
     <div className="space-y-4">

@@ -24,6 +24,8 @@ export type AdminRecentActivityItem = {
   /** Legacy RPC column; prefer `person_name`. */
   name?: string | null;
   created_at: string;
+  /** ISO region code from `businesses.country_code` for review/business rows; null for user signups. */
+  country_code?: string | null;
 };
 
 export type AdminActivityItem = AdminRecentActivityItem;

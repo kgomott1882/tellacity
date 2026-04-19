@@ -7,6 +7,7 @@ import {
   getAdminRecentActivity,
   type AdminRecentActivityItem,
 } from "@/lib/admin";
+import { getAdminPaymentsDashboard } from "@/lib/adminPayments";
 import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -32,6 +33,7 @@ function activityTypeLabel(itemType: string | null | undefined): string {
   const t = String(itemType ?? "").trim().toLowerCase();
   if (t === "review") return "Review submitted";
   if (t === "user") return "User signed up";
+  if (t === "business_claim") return "Business claimed";
   if (t === "business") return "Business created";
   return t ? t : "-";
 }
@@ -47,6 +49,27 @@ function activityBusinessCell(row: AdminRecentActivityItem): string {
   const sub = row.subtitle != null ? String(row.subtitle).trim() : "";
   if (sub && sub !== "-") return sub;
   return "-";
+}
+
+const ACTIVITY_REGION_NAMES: Intl.DisplayNames | null =
+  typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
+
+/** Country of the reviewed / created business (`businesses.country_code`); "—" when not applicable. */
+function activityCountryCell(row: AdminRecentActivityItem): string {
+  const raw = row.country_code != null ? String(row.country_code).trim() : "";
+  if (!raw) return "—";
+  const upper = raw.toUpperCase();
+  try {
+    if (ACTIVITY_REGION_NAMES && (upper.length === 2 || upper.length === 3)) {
+      const label = ACTIVITY_REGION_NAMES.of(upper);
+      if (label) return label;
+    }
+  } catch {
+    /* invalid region codes */
+  }
+  return upper;
 }
 
 function parseActivityPage(raw: string | undefined): number {
@@ -75,13 +98,18 @@ export default async function AdminOverviewPage(props: {
     }
   );
 
-  const [statsRes, activityRes] = await Promise.all([
+  const [statsRes, activityRes, paymentsSnapshot, customerCountRes] = await Promise.all([
     getAdminOverviewStats(supabase),
     getAdminRecentActivity(
       supabase,
       RECENT_ACTIVITY_PAGE_SIZE + 1,
       activityOffset
     ),
+    getAdminPaymentsDashboard(),
+    adminSupabase
+      .from("businesses")
+      .select("id", { count: "exact", head: true })
+      .not("owner_id", "is", null),
   ]);
 
   const recentActivityError = activityRes.error;
@@ -96,37 +124,11 @@ export default async function AdminOverviewPage(props: {
   }
   const hasNewerPage = activityPage > 1;
 
-  const [
-    { data: businessOwners },
-    { data: businessMembers },
-    authUsersPage,
-  ] = await Promise.all([
-    adminSupabase.from("businesses").select("owner_id").not("owner_id", "is", null),
-    adminSupabase.from("business_members").select("user_id").not("user_id", "is", null),
-    adminSupabase.auth.admin.listUsers({ page: 1, perPage: 1 }),
-  ]);
-
-  const businessUserIds = new Set<string>();
-  for (const row of businessOwners ?? []) {
-    const id = String(row.owner_id ?? "").trim();
-    if (id) businessUserIds.add(id);
-  }
-  for (const row of businessMembers ?? []) {
-    const id = String(row.user_id ?? "").trim();
-    if (id) businessUserIds.add(id);
-  }
-  const businessUsersCount = businessUserIds.size;
-
   const s = statsRes.data;
-
-  /** Matches Auth dashboard user count (GoTrue `listUsers` pagination total). Falls back to RPC. */
-  let totalUsersFromAuth = num(s?.total_users);
-  if (!authUsersPage.error && authUsersPage.data) {
-    const t = authUsersPage.data.total;
-    if (typeof t === "number" && !Number.isNaN(t)) {
-      totalUsersFromAuth = t;
-    }
-  }
+  const customerBusinessCount =
+    typeof customerCountRes.count === "number" && !Number.isNaN(customerCountRes.count)
+      ? customerCountRes.count
+      : null;
 
   return (
     <div className="space-y-8">
@@ -137,55 +139,44 @@ export default async function AdminOverviewPage(props: {
         <p className="text-sm text-red-600">Recent activity: {recentActivityError}</p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminStatCard title="Total users" value={totalUsersFromAuth} />
-        <AdminStatCard title="Total businesses" value={num(s?.total_businesses)} />
-        <AdminStatCard title="Total reviews" value={num(s?.total_reviews)} />
+      {/** Exactly two rows: 5 columns × 2 rows for 10 cards */}
+      <div className="grid grid-cols-5 gap-2 sm:gap-3">
+        <AdminStatCard compact title="All users" value={num(s?.total_users)} />
+        <AdminStatCard compact title="Total businesses" value={num(s?.total_businesses)} />
+        <AdminStatCard compact title="Total reviews" value={num(s?.total_reviews)} />
         <AdminStatCard
+          compact
           title="New users today"
           value={num(s?.new_users_today)}
           href="/admin/new-users-today"
         />
-        <AdminStatCard title="Reviews today" value={num(s?.reviews_today)} />
-        <AdminStatCard title="Pending businesses" value={num(s?.pending_businesses)} />
+        <AdminStatCard compact title="Reviews today" value={num(s?.reviews_today)} />
+        <AdminStatCard compact title="Pending businesses" value={num(s?.pending_businesses)} />
         <AdminStatCard
+          compact
           title="Business users"
-          value={businessUsersCount}
+          value={num(s?.business_users)}
           href="/admin/business-users"
         />
         <AdminStatCard
+          compact
           title="Consumer users"
           value={num(s?.consumer_users)}
           href="/admin/consumer-users"
         />
+        <AdminStatCard
+          compact
+          title="Business Customers"
+          value={customerBusinessCount != null ? customerBusinessCount : "—"}
+          href="/admin/customers"
+        />
+        <AdminStatCard
+          compact
+          title="Payments"
+          value={paymentsSnapshot.successCountThisMonth}
+          href="/admin/payments"
+        />
       </div>
-
-      <p className="max-w-3xl text-xs leading-relaxed text-neutral-500">
-        <strong>Reviews today</strong> counts review rows whose{" "}
-        <code className="rounded bg-neutral-100 px-1">created_at</code> falls on the{" "}
-        <strong>current UTC calendar date</strong> (not local midnight).
-        <span className="mt-1 block">
-          <strong>New users today</strong> counts distinct <strong>new identities today (UTC)</strong>: brand-new{" "}
-          <code className="rounded bg-neutral-100 px-1">auth.users</code> emails created today, plus{" "}
-          <strong>first-time reviewer emails</strong> seen on a review created today that have{" "}
-          <strong>never appeared on a review before</strong> (still UTC day logic) and are{" "}
-          <strong>not already present</strong> in <code className="rounded bg-neutral-100 px-1">auth.users</code>.
-        </span>
-        <span className="mt-1 block">
-          <strong>Consumer users</strong> counts <code className="rounded bg-neutral-100 px-1">profiles</code> rows that
-          are not <code className="rounded bg-neutral-100 px-1">role=business</code>, excluding admins and Tellacity
-          placeholder emails (<code className="rounded bg-neutral-100 px-1">@tellacity.auth</code>).
-        </span>
-        <span className="mt-1 block">Stats refresh each time you load this page.</span>
-        <span className="mt-1 block">
-          <strong>Recent activity</strong> lists the newest events first. Large batches of businesses with the same
-          timestamp can fill the first page; use <strong>Next</strong> to see older reviews and signups, or open{" "}
-          <Link href="/admin/business-activity" className="font-medium text-[#1FAF9E] hover:underline">
-            Activity Feed
-          </Link>{" "}
-          for more.
-        </span>
-      </p>
 
       <AdminTableShell title="Recent Activity">
         {activity.length === 0 ? (
@@ -200,6 +191,7 @@ export default async function AdminOverviewPage(props: {
                 <th className="px-4 py-2 font-medium">Type</th>
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium">Business</th>
+                <th className="px-4 py-2 font-medium">Country</th>
                 <th className="px-4 py-2 font-medium">Email</th>
               </tr>
             </thead>
@@ -221,6 +213,9 @@ export default async function AdminOverviewPage(props: {
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
                       <span className="font-medium">{activityBusinessCell(row)}</span>
+                    </td>
+                    <td className="max-w-[140px] truncate px-4 py-2 text-neutral-700" title={activityCountryCell(row)}>
+                      <span className="font-medium">{activityCountryCell(row)}</span>
                     </td>
                     <td className="px-4 py-2 text-neutral-900">
                       <span className="font-medium">

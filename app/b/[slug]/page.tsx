@@ -135,6 +135,12 @@ export default async function BusinessPage({
     return notFound();
   }
 
+  const canonicalSlug =
+    typeof business.canonical_slug === "string" ? business.canonical_slug.trim() : "";
+  if (canonicalSlug && cleanSlug !== canonicalSlug.toLowerCase()) {
+    redirect(`/b/${canonicalSlug}`);
+  }
+
   const finalSlug = business.slug.toLowerCase();
   const currentSlug = normalizedSlug;
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
 import { comparisonLinks } from "@/lib/comparisonLinks";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import { formatBusinessAddress } from "@/lib/address";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
+import { RefreshCw } from "lucide-react";
 import RatingStars from "@/components/RatingStars";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
 
@@ -42,6 +43,14 @@ type CountryOption = {
 };
 
 const PAGE_SIZE = 10;
+
+/** URL uses 1-based `?page=` (omit or 1 = first page). Returns 0-based index for the listing API. */
+function listingPageIndexFromSearch(params: URLSearchParams): number {
+  const raw = params.get("page");
+  const pageNum = Math.max(1, parseInt(String(raw ?? "1"), 10) || 1);
+  return pageNum - 1;
+}
+
 /** How many candidates to pull for “Top rated” before live review aggregation + top 8. */
 const TOP_RATED_CANDIDATE_LIMIT = 40;
 const TOP_RATED_DISPLAY_COUNT = 8;
@@ -163,7 +172,39 @@ export default function CategoryClient({
   const [computedCount, setComputedCount] = useState<number>(companyCount ?? 0);
   const [computedHasNext, setComputedHasNext] = useState<boolean>(hasNextPage ?? false);
 
-  const [page, setPage] = useState(0);
+  /** Listing page from `?page=` so browser back/forward and shared links preserve pagination. */
+  const listingPageIndex = useMemo(
+    () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
+    [searchParams],
+  );
+
+  const pushSearchParams = useCallback(
+    (mutate: (p: URLSearchParams) => void) => {
+      const params = new URLSearchParams(searchParams.toString());
+      mutate(params);
+      const s = params.toString();
+      router.push(s ? `?${s}` : "?", { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  const goToListingPage = useCallback(
+    (nextIndex: number) => {
+      const clamped = Math.max(0, nextIndex);
+      pushSearchParams((p) => {
+        if (clamped <= 0) p.delete("page");
+        else p.set("page", String(clamped + 1));
+      });
+    },
+    [pushSearchParams],
+  );
+
+  const stripListingPageFromUrl = useCallback(() => {
+    pushSearchParams((p) => {
+      p.delete("page");
+    });
+  }, [pushSearchParams]);
+
   const [categoryName, setCategoryName] = useState("");
   const [groupName, setGroupName] = useState("");
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; slug: string }[]>([]);
@@ -304,7 +345,6 @@ export default function CategoryClient({
   // Keep selectedCountry in sync with URL and global country
   useEffect(() => {
     setSelectedCountry(derivedCountry);
-    setPage(0);
   }, [derivedCountry, categorySlug]);
 
   // URL is source of truth; storage only fills missing URL country.
@@ -314,6 +354,7 @@ export default function CategoryClient({
       if (stored) {
         const params = new URLSearchParams(searchParams.toString());
         params.set("country", stored);
+        params.delete("page");
         router.replace(`?${params.toString()}`, { scroll: false });
       }
     }
@@ -438,14 +479,14 @@ export default function CategoryClient({
       setLoading(true);
       setFetchError(null);
 
-      const offset = page * PAGE_SIZE;
+      const offset = listingPageIndex * PAGE_SIZE;
       const countryCode = derivedCountry ?? "US";
       const min = typeof minRating === "number" ? minRating : 0;
 
       const q = new URLSearchParams();
       q.set("slug", categorySlug);
       q.set("country", countryCode);
-      q.set("page", String(page));
+      q.set("page", String(listingPageIndex));
       q.set("minRating", String(min));
       q.set("mode", "page");
       const res = await fetch(`/api/category-listings?${q.toString()}`, {
@@ -499,7 +540,7 @@ export default function CategoryClient({
     return () => {
       isMounted = false;
     };
-  }, [categorySlug, page, minRating, derivedCountry]);
+  }, [categorySlug, listingPageIndex, minRating, derivedCountry]);
 
   // Page title/meta
   useEffect(() => {
@@ -526,13 +567,15 @@ export default function CategoryClient({
 
   const updateCountry = (code: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (code) {
       setStoredCountry(code);
       params.set("country", code);
     } else {
       params.delete("country");
     }
-    router.push(`?${params.toString()}`);
+    const s = params.toString();
+    router.push(s ? `?${s}` : "?", { scroll: false });
   };
 
   const resetFilters = () => {
@@ -721,7 +764,7 @@ export default function CategoryClient({
                         onClick={() => {
                           setMinRating(option.value);
                           setRatingOpen(false);
-                          setPage(0);
+                          stripListingPageFromUrl();
                         }}
                         type="button"
                       >
@@ -765,6 +808,7 @@ export default function CategoryClient({
                     onClick={() => {
                       const params = new URLSearchParams(searchParams.toString());
                       params.delete("sort");
+                      params.delete("page");
                       router.push(`?${params.toString()}`, { scroll: false });
                       setSortOpen(false);
                     }}
@@ -788,6 +832,7 @@ export default function CategoryClient({
                     onClick={() => {
                       const params = new URLSearchParams(searchParams.toString());
                       params.set("sort", "reviews");
+                      params.delete("page");
                       router.push(`?${params.toString()}`, { scroll: false });
                       setSortOpen(false);
                     }}
@@ -806,6 +851,7 @@ export default function CategoryClient({
                     onClick={() => {
                       const params = new URLSearchParams(searchParams.toString());
                       params.set("sort", "recent");
+                      params.delete("page");
                       router.push(`?${params.toString()}`, { scroll: false });
                       setSortOpen(false);
                     }}
@@ -825,7 +871,20 @@ export default function CategoryClient({
 
           {/* Loading / error (minimal) */}
           {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
-          {fetchError && <p className="mt-2 text-sm text-red-600">{fetchError}</p>}
+          {fetchError && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+              <p className="min-w-0 flex-1 leading-snug">{fetchError}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex shrink-0 items-center justify-center rounded-md border border-red-200 bg-white p-1.5 text-red-700 shadow-sm hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                aria-label="Reload page and try again"
+                title="Reload page"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          )}
 
           <h2 className="text-lg font-semibold mt-6 mb-3">
             Best {categoryName} companies in {countryName}
@@ -953,17 +1012,19 @@ export default function CategoryClient({
           {sortedBusinessesList.length > 0 && (
             <div className="mt-6 flex items-center justify-center text-sm text-gray-600">
               <div className="inline-flex overflow-hidden rounded-md border border-gray-300">
-                <button
-                  className="px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                  disabled={page === 0}
+                  <button
+                    className="px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
+                  onClick={() => goToListingPage(listingPageIndex - 1)}
+                  disabled={listingPageIndex === 0}
                 >
                   Previous
                 </button>
-                <span className="border-l border-gray-300 px-4 py-2 font-semibold text-gray-800">Page {page + 1}</span>
+                <span className="border-l border-gray-300 px-4 py-2 font-semibold text-gray-800">
+                  Page {listingPageIndex + 1}
+                </span>
                 <button
                   className="border-l border-gray-300 px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                  onClick={() => setPage((prev) => prev + 1)}
+                  onClick={() => goToListingPage(listingPageIndex + 1)}
                   disabled={!computedHasNext}
                 >
                   Next
@@ -1153,7 +1214,7 @@ export default function CategoryClient({
                           }`}
                           onClick={() => {
                             setMinRating(option.value);
-                            setPage(0);
+                            stripListingPageFromUrl();
                           }}
                           type="button"
                         >
@@ -1199,7 +1260,6 @@ export default function CategoryClient({
                                 updateCountry(country.code);
                                 setCountryOpen(false);
                                 setFiltersOpen(false);
-                                setPage(0);
                               }}
                             >
                               <img src={country.flagUrl} alt="" className="h-4 w-5 rounded-[2px] object-cover" />

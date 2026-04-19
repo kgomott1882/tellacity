@@ -19,7 +19,12 @@ function isPlaceholderPerson(s: string | null | undefined): boolean {
 }
 
 function isBusinessRow(r: AdminRecentActivityItem): boolean {
-  return r.item_type === "business" || r.title === "Business created";
+  return (
+    r.item_type === "business" ||
+    r.item_type === "business_claim" ||
+    r.title === "Business created" ||
+    r.title === "Business claimed"
+  );
 }
 
 /** Business-created rows: empty, placeholder dash, or generic label: replace with real owner when possible. */

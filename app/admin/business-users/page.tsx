@@ -14,7 +14,7 @@ export default async function AdminBusinessUsersPage() {
     <div className="space-y-4">
       {error ? <AdminActionMessage type="error" text={error} /> : null}
       <AdminUsersListTable
-        title="Business Users"
+        title="Business users (team + custom-domain email)"
         rows={data}
         emptyMessage="No business users found."
       />

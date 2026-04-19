@@ -7,13 +7,15 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 const NAV = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/users", label: "Users" },
+  { href: "/admin/users", label: "All Users" },
   { href: "/admin/businesses", label: "Businesses" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/business-activity", label: "Activity Feed" },
   { href: "/admin/business-insights", label: "Business Insights" },
-  { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/customers", label: "Business Customers" },
+  { href: "/admin/payments", label: "Payments" },
   { href: "/admin/reviews", label: "Reviews" },
+  { href: "/admin/system-status", label: "System status" },
 ] as const;
 
 type AdminSidebarProps = {

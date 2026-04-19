@@ -13,10 +13,15 @@ export default async function AdminConsumerUsersPage() {
   return (
     <div className="space-y-4">
       {error ? <AdminActionMessage type="error" text={error} /> : null}
+      <p className="max-w-3xl text-sm text-neutral-600">
+        Everyone in <code className="rounded bg-neutral-100 px-1 text-xs">auth.users</code> who is not in the{" "}
+        <strong>Business users</strong> bucket (workspace team or custom-domain auth email), matching the Consumer count on
+        Overview.
+      </p>
       <AdminUsersListTable
-        title="Consumer Users"
+        title="Consumer users"
         rows={data}
-        emptyMessage="No non-business profiles found."
+        emptyMessage="No consumer accounts found."
       />
     </div>
   );
