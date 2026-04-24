@@ -872,16 +872,16 @@ export default function CategoryClient({
           {/* Loading / error (minimal) */}
           {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
           {fetchError && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
-              <p className="min-w-0 flex-1 leading-snug">{fetchError}</p>
+            <div className="mt-2 flex flex-col items-center gap-3 text-sm text-red-600">
+              <p className="max-w-2xl text-center leading-snug">{fetchError}</p>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="inline-flex shrink-0 items-center justify-center rounded-md border border-red-200 bg-white p-1.5 text-red-700 shadow-sm hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                className="inline-flex items-center justify-center rounded-md border border-red-200 bg-white p-2 text-red-700 shadow-sm hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                 aria-label="Reload page and try again"
                 title="Reload page"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden />
+                <RefreshCw className="h-5 w-5" aria-hidden />
               </button>
             </div>
           )}

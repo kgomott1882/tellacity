@@ -61,9 +61,9 @@ export type PlanConfirmPresentation = {
  * Amounts are always US dollars; ZA Paystack charges convert in `billingPaystack` / `billingUsdZarRate`.
  */
 export const PAID_PLAN_USD = {
-  grow: { monthly: 69, annualPerMonth: 55 },
-  premium: { monthly: 199, annualPerMonth: 159 },
-  elite: { monthly: 499, annualPerMonth: 399 },
+  grow: { monthly: 49, annualPerMonth: 39 },
+  premium: { monthly: 179, annualPerMonth: 143 },
+  elite: { monthly: 349, annualPerMonth: 279 },
 } as const satisfies Record<
   PaidPlanKey,
   { monthly: number; annualPerMonth: number }
@@ -109,7 +109,7 @@ export function getPlanConfirmPresentation(
       "Priority support",
     ],
     elite: [
-      "Up to 3,000 review invites per month",
+      "Up to 2,000 review invites per month",
       "White-label & enterprise integrations",
       "Strategic insights & benchmarking",
       "Dedicated account manager",

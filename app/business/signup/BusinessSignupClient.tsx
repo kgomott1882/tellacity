@@ -10,6 +10,7 @@ import { normalizeSignupWebsiteInput } from "@/lib/extractDomain";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import BusinessSignupOtpModal from "./_components/BusinessSignupOtpModal";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 const COUNTRIES = [
   { code: "AF", name: "Afghanistan" },
@@ -336,11 +337,45 @@ export default function BusinessSignupClient() {
   );
   const [websiteMatchedName, setWebsiteMatchedName] = useState<string | null>(null);
   const autoCompanyFromDomainRef = useRef<{ host: string; label: string } | null>(null);
+  const claimQueryPrefillAppliedRef = useRef(false);
 
   useEffect(() => {
     const em = searchParams.get("email");
     if (em?.trim()) {
       setEmailValue(em.trim().toLowerCase());
+    }
+  }, [searchParams]);
+
+  /** Public profile / claim flow: `businessId`, `businessName`, optional `website`, `businessSlug`. */
+  useEffect(() => {
+    if (claimQueryPrefillAppliedRef.current) return;
+    const bid = searchParams.get("businessId")?.trim();
+    const bname = searchParams.get("businessName")?.trim();
+    const ws = searchParams.get("website")?.trim();
+    if (!bid && !bname && !ws) return;
+    claimQueryPrefillAppliedRef.current = true;
+
+    if (bid) setSelectedBusinessId(bid);
+    if (bname) {
+      setCompanyName(bname);
+      setFieldErrors((prev) => {
+        if (!prev.companyName) return prev;
+        const next = { ...prev };
+        delete next.companyName;
+        return next;
+      });
+    }
+    if (ws) {
+      const normalized = normalizeSignupWebsiteInput(ws);
+      if (normalized) {
+        setWebsite(normalized);
+        setFieldErrors((prev) => {
+          if (!prev.website) return prev;
+          const next = { ...prev };
+          delete next.website;
+          return next;
+        });
+      }
     }
   }, [searchParams]);
 
@@ -930,10 +965,9 @@ export default function BusinessSignupClient() {
                       >
                         Password
                       </label>
-                      <input
+                      <PasswordInput
                         id="signup-password"
                         name="password"
-                        type="password"
                         autoComplete="new-password"
                         value={password}
                         onChange={(e) => {
@@ -959,10 +993,9 @@ export default function BusinessSignupClient() {
                       >
                         Confirm password
                       </label>
-                      <input
+                      <PasswordInput
                         id="signup-confirm-password"
                         name="confirm_password"
-                        type="password"
                         autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => {

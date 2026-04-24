@@ -19,6 +19,13 @@ import { getActiveCountry } from "@/lib/getActiveCountry";
 import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
+import BusinessProfilePhotos from "@/components/business/BusinessProfilePhotos";
+import type { PlanKey } from "@/lib/plans";
+import type {
+  BusinessPhotoPublic,
+  BusinessPhotoSectionConfig,
+} from "@/lib/businessPhotosDisplay";
+import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 
 interface BusinessRow {
   address?: string | null;
@@ -178,9 +185,29 @@ async function resolveBusinessRowBySlug(rawSlug: string) {
 
 type BusinessClientProps = {
   initialBusiness?: BusinessRow | null;
+  initialBusinessPhotos?: BusinessPhotoPublic[];
+  initialPhotoSections?: BusinessPhotoSectionConfig[];
+  /**
+   * Whether this business has a registered owner (i.e. has been claimed).
+   * Derived from `businesses.owner_id` on the server and passed down so the
+   * public profile can hide the "Claim this profile" teaser when not needed.
+   */
+  initialIsClaimed?: boolean;
+  /**
+   * Active billing plan for this business. Used on the public profile to
+   * render empty photo-category placeholders for Free / unclaimed
+   * businesses only (paid plans don't get upsold with empty cards).
+   */
+  initialPlanKey?: PlanKey;
 };
 
-export default function BusinessClient({ initialBusiness = null }: BusinessClientProps) {
+export default function BusinessClient({
+  initialBusiness = null,
+  initialBusinessPhotos,
+  initialPhotoSections,
+  initialIsClaimed = false,
+  initialPlanKey = "free",
+}: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
   const pathname = usePathname();
@@ -263,6 +290,12 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
   const [topRatedInCategoryLoading, setTopRatedInCategoryLoading] =
     useState(false);
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
+  const [businessPhotos, setBusinessPhotos] = useState<BusinessPhotoPublic[]>(
+    () => initialBusinessPhotos ?? []
+  );
+  const [photoSections, setPhotoSections] = useState<BusinessPhotoSectionConfig[]>(
+    () => initialPhotoSections ?? []
+  );
   const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -284,6 +317,75 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
       window.removeEventListener("tellacity-country-change", handleSync);
     };
   }, []);
+
+  useEffect(() => {
+    if (initialBusinessPhotos === undefined) return;
+    setBusinessPhotos(initialBusinessPhotos);
+  }, [initialBusinessPhotos]);
+
+  useEffect(() => {
+    if (!business?.id) return;
+    if (initialBusinessPhotos !== undefined) return;
+
+    let cancelled = false;
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data, error } = await applyBusinessPhotosOrdering(
+        sb
+          .from("business_photos")
+          .select("id, url, section, created_at, is_cover, sort_order")
+          .eq("business_id", business.id)
+          .eq("status", "published")
+          .eq("is_live", true)
+      );
+      if (cancelled || error) return;
+      const rows = (data ?? []) as Array<{
+        id: string;
+        url: string;
+        section?: string | null;
+        sort_order?: number | null;
+        created_at?: string | null;
+        is_cover?: boolean | null;
+      }>;
+      setBusinessPhotos(
+        rows
+          .filter((r) => r.id && r.url)
+          .map((r) => ({
+            id: r.id,
+            url: r.url,
+            section: String(r.section ?? "gallery"),
+            sort_order: typeof r.sort_order === "number" ? r.sort_order : Number(r.sort_order) || 0,
+            created_at: r.created_at ?? null,
+            is_cover: r.is_cover === true,
+          }))
+      );
+
+      if (initialPhotoSections === undefined) {
+        const { data: secData } = await sb
+          .from("business_photo_sections")
+          .select("slug, title, is_enabled, sort_order")
+          .eq("business_id", business.id)
+          .eq("is_enabled", true)
+          .order("sort_order", { ascending: true });
+        if (!cancelled && Array.isArray(secData)) {
+          setPhotoSections(
+            secData
+              .map((r) => ({
+                slug: String((r as { slug?: string }).slug ?? ""),
+                title: String((r as { title?: string }).title ?? ""),
+                is_enabled: (r as { is_enabled?: boolean }).is_enabled !== false,
+                sort_order: Number((r as { sort_order?: unknown }).sort_order) || 0,
+              }))
+              .filter((s) => s.slug && s.title)
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business?.id, initialBusinessPhotos]);
 
   useEffect(() => {
     if (initialBusiness) {
@@ -1218,6 +1320,27 @@ export default function BusinessClient({ initialBusiness = null }: BusinessClien
                 </button>
               </div>
             </div>
+
+            {business ? (
+              <div className="mt-10">
+                <BusinessProfilePhotos
+                  photos={businessPhotos}
+                  sections={photoSections}
+                  isClaimed={initialIsClaimed}
+                  planKey={initialPlanKey}
+                  claimSignupPrefill={
+                    !initialIsClaimed && business
+                      ? {
+                          businessId: business.id,
+                          businessName: business.name,
+                          businessSlug: business.slug || null,
+                          website: business.website || null,
+                        }
+                      : null
+                  }
+                />
+              </div>
+            ) : null}
 
             <div className="mt-10 space-y-6 text-sm text-gray-600">
               {/* Company description - same as Profile page; fallback to category when empty */}

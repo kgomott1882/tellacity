@@ -40,6 +40,58 @@ function EmailWidgetCta({ className = "mt-2.5" }: { className?: string }) {
   );
 }
 
+/**
+ * Review Hunter stats chip: replaces the generic "Leave a Review" CTA with a
+ * trust-signal line ("4.8 Stars | 24 reviews") so the Review Hunter layout
+ * showcases the business' actual aggregate rating. Falls back to a neutral
+ * "No reviews yet" label when the business has no published reviews.
+ */
+function ReviewHunterStatsLine({
+  avgRating,
+  reviewCount,
+  className = "mt-2.5",
+}: {
+  avgRating?: number | null;
+  reviewCount?: number | null;
+  className?: string;
+}) {
+  const safeCount =
+    typeof reviewCount === "number" && Number.isFinite(reviewCount) && reviewCount > 0
+      ? Math.floor(reviewCount)
+      : 0;
+  const safeRating =
+    typeof avgRating === "number" && Number.isFinite(avgRating)
+      ? Math.max(0, Math.min(5, avgRating))
+      : 0;
+  const hasStats = safeCount > 0 && safeRating > 0;
+
+  if (!hasStats) {
+    return (
+      <p className={`text-[11px] font-medium text-gray-500 ${className}`}>
+        No reviews yet
+      </p>
+    );
+  }
+
+  const ratingText = safeRating.toFixed(1);
+  const reviewWord = safeCount === 1 ? "review" : "reviews";
+  const countText = safeCount.toLocaleString("en-US");
+
+  return (
+    <p
+      className={`text-[12px] font-semibold leading-tight text-gray-900 ${className}`}
+    >
+      <span>{ratingText} Stars</span>
+      <span className="mx-1.5 text-gray-400" aria-hidden>
+        |
+      </span>
+      <span className="font-medium text-gray-700">
+        {countText} {reviewWord}
+      </span>
+    </p>
+  );
+}
+
 export type EmailInvitePreviewVariant = "standard" | "review_hunter" | "elite_body";
 
 type InviteBlockProps = {
@@ -52,6 +104,14 @@ type InviteBlockProps = {
   density?: "comfortable" | "compact";
   /** Override outer shell (default matches compose “Preview & send” inset). */
   className?: string;
+  /**
+   * Aggregate rating (0–5). Used by the `review_hunter` variant to render
+   * "X.X Stars | N reviews" in place of the generic "Leave a Review" CTA.
+   * Pass `null` when stats aren't available yet.
+   */
+  avgRating?: number | null;
+  /** Published review count paired with `avgRating` (see above). */
+  reviewCount?: number | null;
 };
 
 /**
@@ -63,6 +123,8 @@ export function EmailWidgetInviteBlock({
   businessName,
   density = "comfortable",
   className,
+  avgRating,
+  reviewCount,
 }: InviteBlockProps) {
   const starSize = density === "comfortable" ? 13 : 11;
   const showHeadline = variant !== "elite_body";
@@ -92,7 +154,15 @@ export function EmailWidgetInviteBlock({
       <div className={`${showHeadline ? "mt-2" : "mt-0"} flex justify-center`}>
         <TellacityStarStrip size={starSize} />
       </div>
-      <EmailWidgetCta className={variant === "elite_body" ? "mt-1.5" : "mt-2.5"} />
+      {variant === "review_hunter" ? (
+        <ReviewHunterStatsLine
+          avgRating={avgRating}
+          reviewCount={reviewCount}
+          className="mt-2.5"
+        />
+      ) : (
+        <EmailWidgetCta className={variant === "elite_body" ? "mt-1.5" : "mt-2.5"} />
+      )}
       {variant === "review_hunter" ? <ReviewHunterBrandingFooter /> : <TellacityBrandingFooter />}
     </div>
   );
@@ -151,6 +221,192 @@ type EliteCardProps = {
   logoUrl?: string | null;
   density?: "comfortable" | "compact";
 };
+
+type ReviewsShowcaseCardProps = {
+  businessName: string;
+  /** Optional override for the subtitle under the website (defaults to the standard phrasing). */
+  tagline?: string | null;
+  logoUrl?: string | null;
+  /**
+   * Business website rendered under the business name. Can be a full URL
+   * (`https://example.com`) or a display host (`example.com`). Pass `null`
+   * to hide the line.
+   */
+  website?: string | null;
+  /** Optional human-friendly display version of the website (e.g. `example.com`). */
+  websiteDisplay?: string | null;
+  /**
+   * Aggregate review count; paired with `avgRating` to render
+   * "4.3 out of 5 based on 4 reviews". Pass `null`/`0` for
+   * new businesses (no stats yet).
+   */
+  reviewCount?: number | null;
+  /**
+   * Average rating (0–5). Paired with `reviewCount`. Pass `null` when
+   * no reviews exist yet.
+   */
+  avgRating?: number | null;
+  density?: "comfortable" | "compact";
+};
+
+/**
+ * Reviews Showcase: business-card-style invite with logo / name / tagline
+ * on the left, trust-signal stack (review count + Tellacity stars +
+ * wordmark) on the right. Modeled after well-known trust badges but
+ * branded end-to-end with Tellacity stars and logo.
+ *
+ * Renders in two densities:
+ *  - `comfortable` matches the "Preview & send" inset.
+ *  - `compact` fits the 280px layout-option tile on the email widgets page.
+ */
+export function EmailWidgetReviewsShowcaseCard({
+  businessName,
+  tagline,
+  logoUrl,
+  website,
+  websiteDisplay,
+  reviewCount,
+  avgRating,
+  density = "comfortable",
+}: ReviewsShowcaseCardProps) {
+  const name = businessName.trim() || "Your Business";
+
+  const rawWebsite = (website ?? "").trim();
+  const rawWebsiteDisplay = (websiteDisplay ?? "").trim();
+  const websiteText =
+    (rawWebsiteDisplay || rawWebsite)
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "") || null;
+  const websiteHref = rawWebsite
+    ? /^https?:\/\//i.test(rawWebsite)
+      ? rawWebsite
+      : `https://${rawWebsite}`
+    : null;
+  const safeCount =
+    typeof reviewCount === "number" && Number.isFinite(reviewCount) && reviewCount > 0
+      ? Math.floor(reviewCount)
+      : 0;
+  const safeRating =
+    typeof avgRating === "number" && Number.isFinite(avgRating)
+      ? Math.max(0, Math.min(5, avgRating))
+      : 0;
+  const hasStats = safeCount > 0 && safeRating > 0;
+  const countText = hasStats ? safeCount.toLocaleString("en-US") : null;
+  const ratingText = hasStats ? safeRating.toFixed(1) : null;
+
+  const starSize = density === "comfortable" ? 16 : 11;
+  const avatarSize = density === "comfortable" ? "h-12 w-12" : "h-9 w-9";
+  const nameClass =
+    density === "comfortable"
+      ? "text-sm font-semibold text-gray-900"
+      : "text-[12px] font-semibold text-gray-900";
+  const taglineClass =
+    density === "comfortable"
+      ? "mt-0.5 text-xs text-gray-500"
+      : "mt-0.5 text-[10px] leading-snug text-gray-500";
+  const countClass =
+    density === "comfortable"
+      ? "text-[9px] font-medium leading-tight text-gray-700"
+      : "text-[6px] font-medium leading-tight text-gray-700";
+
+  return (
+    <div
+      className={`rounded-lg border border-gray-200 bg-white text-left shadow-sm ${
+        density === "comfortable" ? "p-4" : "p-3"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={`${avatarSize} shrink-0 flex items-center justify-center overflow-hidden rounded-md bg-gray-100 ring-1 ring-gray-200`}
+          aria-hidden
+        >
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt=""
+              className="object-contain"
+              style={{ width: "98%", height: "98%" }}
+            />
+          ) : (
+            <div
+              className={`flex h-full w-full items-center justify-center font-semibold uppercase tracking-wide text-gray-500 ${
+                density === "comfortable" ? "text-[10px]" : "text-[8px]"
+              }`}
+            >
+              LOGO
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`${nameClass} truncate`}>{name}</p>
+          {websiteText ? (
+            <p
+              className={`${
+                density === "comfortable"
+                  ? "mt-0.5 text-xs text-gray-700"
+                  : "mt-0.5 text-[10px] leading-snug text-gray-700"
+              } truncate`}
+            >
+              {websiteHref ? (
+                <a
+                  href={websiteHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-700 no-underline hover:underline"
+                >
+                  {websiteText}
+                </a>
+              ) : (
+                websiteText
+              )}
+            </p>
+          ) : null}
+          {tagline && tagline.trim() ? (
+            <p className={`${taglineClass} line-clamp-2`}>{tagline.trim()}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        className={`${density === "comfortable" ? "mt-4 pt-4" : "mt-3 pt-3"} border-t border-gray-100`}
+      >
+        <p className={`${countClass} whitespace-nowrap`}>
+          {hasStats ? (
+            <>
+              <span className="font-semibold text-gray-900">{ratingText}</span>
+              {" out of 5 based on "}
+              <span className="font-semibold text-gray-900">
+                {countText} {safeCount === 1 ? "review" : "reviews"}
+              </span>
+            </>
+          ) : (
+            "Be the first to leave a review"
+          )}
+        </p>
+        <div
+          className={`${density === "comfortable" ? "mt-1" : "mt-0.5"} flex items-center gap-2`}
+        >
+          <TellacityStarStrip size={starSize} />
+        </div>
+        <div className={density === "comfortable" ? "mt-3" : "mt-2"}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={TELLACITY_TRUST_BADGE_LOGO_PATH}
+            alt="Tellacity"
+            className={
+              density === "comfortable"
+                ? "h-3.5 w-auto max-w-[150px] object-contain"
+                : "h-3 w-auto max-w-[120px] object-contain"
+            }
+          />
+        </div>
+      </div>
+
+      <EmailWidgetCta className={density === "comfortable" ? "mt-4" : "mt-3"} />
+    </div>
+  );
+}
 
 /**
  * Elite branded: header band (logo optional) + business name, then invite body (stars + CTA + branding).

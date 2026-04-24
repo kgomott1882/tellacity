@@ -1,27 +1,146 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import type { PaidPlanKey, PlanConfirmPresentation } from "@/lib/billingPlanConfirm";
+import { POST_CHECKOUT_REDIRECT_SESSION_KEY } from "@/lib/upgradeFlow";
+import { paystackCurrencyPublic } from "@/lib/billingPaystack";
 
 type Props = {
   plan: PaidPlanKey;
   cycle: "monthly" | "annual";
   presentation: PlanConfirmPresentation;
+  /**
+   * Dashboard path to send the user back to if they cancel checkout. When
+   * set (e.g. the "Upload more photos" staging flow), `Back` routes here
+   * via Next.js SPA navigation so any in-memory dashboard state (staged
+   * photos, custom categories, active chip) survives intact.
+   */
+  returnTo?: string | null;
 };
 
-export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props) {
+type CreditPreview = {
+  currency: string;
+  list_amount_minor: number;
+  credit_applied_usd_minor: number;
+  credit_applied_amount_minor: number;
+  net_amount_minor: number;
+  previous_plan_code?: string;
+};
+
+function formatCurrencyMinor(minor: number, currency: string): string {
+  const amount = Math.max(0, minor) / 100;
+  try {
+    return amount.toLocaleString("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
+export default function UpgradeCheckoutCard({
+  plan,
+  cycle,
+  presentation,
+  returnTo,
+}: Props) {
+  const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
   const [payBusy, setPayBusy] = useState(false);
+  const [preview, setPreview] = useState<CreditPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const safeReturnTo =
+    returnTo &&
+    returnTo.startsWith("/business/dashboard/") &&
+    !returnTo.includes("..") &&
+    !returnTo.includes("//")
+      ? returnTo
+      : null;
+
+  /**
+   * "Back" always returns to the immediate previous screen so the user
+   * lands in the exact state they left (e.g. the inline pricing panel
+   * still expanded on the billing page, or the in-memory staging queue
+   * on the "Upload more photos" page).
+   *
+   * - If the page was opened directly (no in-app history), router.back()
+   *   would be a no-op; we fall back to an explicit `returnTo` when set,
+   *   otherwise to the billing dashboard.
+   * - We detect "opened directly" by checking window.history.length <= 1
+   *   at click time; this keeps SSR-safe since it runs in the handler.
+   */
+  const handleBack = useCallback(() => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(safeReturnTo ?? "/business/dashboard/billing");
+  }, [router, safeReturnTo]);
+
+  const businessId = selectedBusiness?.id ?? null;
+  const chargeCurrency = useMemo(() => paystackCurrencyPublic(), []);
+
+  useEffect(() => {
+    if (!businessId) return;
+    let cancelled = false;
+    setPreviewLoading(true);
+    (async () => {
+      try {
+        const qs = new URLSearchParams({
+          plan,
+          cycle,
+          businessId,
+        });
+        const res = await fetch(`/api/billing/paystack/preview?${qs.toString()}`, {
+          credentials: "same-origin",
+        });
+        if (!res.ok) {
+          if (!cancelled) setPreview(null);
+          return;
+        }
+        const data = (await res.json()) as CreditPreview;
+        if (!cancelled) setPreview(data);
+      } catch {
+        if (!cancelled) setPreview(null);
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, plan, cycle]);
 
   const openPaystack = useCallback(async () => {
     if (!selectedBusiness?.id) return;
 
     setPayBusy(true);
     try {
+      // Prefer an explicit `returnTo` (prop), then the stashed session value,
+      // then fall back to billing. Anything else could point off-dashboard.
+      let paystackReturnTo: string | undefined;
+      if (safeReturnTo) {
+        paystackReturnTo = safeReturnTo;
+      } else {
+        try {
+          const stored = window.sessionStorage
+            .getItem(POST_CHECKOUT_REDIRECT_SESSION_KEY)
+            ?.trim();
+          if (stored?.startsWith("/business/dashboard/")) {
+            paystackReturnTo = stored;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
       const initRes = await fetch("/api/billing/paystack/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,6 +149,7 @@ export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props
           businessId: selectedBusiness.id,
           plan,
           cycle,
+          ...(paystackReturnTo ? { returnTo: paystackReturnTo } : {}),
         }),
       });
 
@@ -66,12 +186,18 @@ export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props
         return;
       }
 
+      try {
+        window.sessionStorage.removeItem(POST_CHECKOUT_REDIRECT_SESSION_KEY);
+      } catch {
+        /* ignore */
+      }
+
       window.location.assign(url);
     } catch {
       window.alert("Could not start payment. Check your connection and try again.");
       setPayBusy(false);
     }
-  }, [cycle, plan, selectedBusiness?.id]);
+  }, [cycle, plan, safeReturnTo, selectedBusiness?.id]);
 
   if (!selectedBusiness?.id) {
     return (
@@ -83,9 +209,30 @@ export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props
 
   const payerEmail = user?.email?.trim() ?? "";
   const canPay = Boolean(payerEmail);
+  const previewCurrency = preview?.currency ?? chargeCurrency;
+  const hasCredit = !!preview && preview.credit_applied_amount_minor > 0;
+  const listLine = preview
+    ? formatCurrencyMinor(preview.list_amount_minor, previewCurrency)
+    : null;
+  const creditLine = preview
+    ? formatCurrencyMinor(preview.credit_applied_amount_minor, previewCurrency)
+    : null;
+  const netLine = preview
+    ? formatCurrencyMinor(preview.net_amount_minor, previewCurrency)
+    : null;
 
   return (
     <div className="rounded-2xl border border-emerald-100/80 bg-white p-8 shadow-[0_8px_30px_-12px_rgba(18,69,65,0.12)]">
+      <div className="mb-2 flex items-center justify-start">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[#124541]"
+        >
+          <span aria-hidden>←</span>
+          Back
+        </button>
+      </div>
       <p className="text-center text-xs font-medium uppercase tracking-wide text-emerald-800/80">
         Checkout
       </p>
@@ -112,6 +259,37 @@ export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props
           ))}
         </ul>
       </div>
+      {preview ? (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50/80 p-4 text-sm">
+          <div className="flex items-baseline justify-between text-gray-700">
+            <span>Plan list price</span>
+            <span className="font-medium text-gray-900">{listLine}</span>
+          </div>
+          {hasCredit ? (
+            <div className="mt-2 flex items-baseline justify-between text-emerald-700">
+              <span>
+                Credit applied{" "}
+                <span className="text-xs text-emerald-700/70">
+                  (unused days on current plan)
+                </span>
+              </span>
+              <span className="font-medium">−{creditLine}</span>
+            </div>
+          ) : null}
+          <div className="mt-3 flex items-baseline justify-between border-t border-gray-200 pt-3 text-base font-semibold text-[#0E0E0E]">
+            <span>Due today</span>
+            <span>{netLine}</span>
+          </div>
+          {hasCredit ? (
+            <p className="mt-2 text-xs text-gray-500">
+              You&apos;re upgrading mid-cycle — we subtracted the unused portion of
+              your current plan from today&apos;s charge.
+            </p>
+          ) : null}
+        </div>
+      ) : previewLoading ? (
+        <div className="mt-6 h-16 animate-pulse rounded-xl border border-gray-200 bg-gray-100" />
+      ) : null}
       {!canPay ? (
         <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
           Add an email address to your Tellacity account to pay with Paystack.
@@ -120,17 +298,28 @@ export default function UpgradeCheckoutCard({ plan, cycle, presentation }: Props
       <button
         type="button"
         disabled={payBusy || !canPay}
-        className="mt-8 w-full rounded-xl bg-[#124541] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 w-full rounded-xl bg-[#124541] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60"
         onClick={() => void openPaystack()}
       >
-        {payBusy ? "Redirecting…" : "Proceed to payment"}
+        {payBusy
+          ? "Redirecting…"
+          : hasCredit && netLine
+            ? `Pay ${netLine}`
+            : "Proceed to payment"}
       </button>
-      <Link
-        href="/business/dashboard/billing"
-        className="mt-4 block text-center text-sm text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline"
+      <button
+        type="button"
+        onClick={handleBack}
+        className="mt-4 block w-full text-center text-sm text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline"
       >
-        Back to plans
-      </Link>
+        Back
+      </button>
+      {safeReturnTo ? (
+        <p className="mt-2 text-center text-[11px] text-gray-400">
+          Your queued photos and categories are saved — Back returns you to
+          them without losing a thing.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { BUSINESS_LOGIN_NO_ACCOUNT_MESSAGE } from "@/lib/businessLoginMessages";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { handleRedirect } from "@/lib/postLoginRedirect";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function BusinessLoginPage() {
   const [email, setEmail] = useState("");
@@ -162,13 +163,13 @@ export default function BusinessLoginPage() {
               <label className="text-sm font-medium text-[#0E0E0E]">
                 Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(event) => {
                   setPassword(event.target.value);
                   setShowNoAccountSignupCta(false);
                 }}
+                autoComplete="current-password"
                 className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
               />
             </div>

@@ -506,7 +506,10 @@ export default function WriteReviewForm({
     };
   }, [isSuccessReviewPage]);
 
-  // Restore guest info from localStorage (email flow only , never Google)
+  // Restore guest info from localStorage once per session (email flow only).
+  // Do not depend on `guestName` / `guestEmail`: when the user clears a field,
+  // a re-run would see the old value still in storage and repopulate — blocking
+  // normal backspace/delete. Storage is cleared when fields go empty (below).
   useEffect(() => {
     if (isSuccessReviewPage) return;
     if (userId) {
@@ -518,15 +521,15 @@ export default function WriteReviewForm({
     if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY) === "1") {
       return;
     }
-    const storedEmail = window.localStorage.getItem(GUEST_EMAIL_KEY);
-    const storedName = window.localStorage.getItem(GUEST_NAME_KEY);
-    if (storedEmail && !guestEmail) {
-      setGuestEmail(storedEmail);
+    const storedEmail = window.localStorage.getItem(GUEST_EMAIL_KEY)?.trim();
+    const storedName = window.localStorage.getItem(GUEST_NAME_KEY)?.trim();
+    if (storedEmail) {
+      setGuestEmail((prev) => (prev.trim() ? prev : storedEmail));
     }
-    if (storedName && !guestName) {
-      setGuestName(storedName);
+    if (storedName) {
+      setGuestName((prev) => (prev.trim() ? prev : storedName));
     }
-  }, [userId, guestEmail, guestName, isSuccessReviewPage]);
+  }, [userId, isSuccessReviewPage]);
 
   // Persist guest info (email flow only)
   useEffect(() => {
@@ -534,8 +537,11 @@ export default function WriteReviewForm({
     if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY) === "1") {
       return;
     }
-    if (!userId && guestEmail) {
+    if (userId) return;
+    if (guestEmail.trim()) {
       window.localStorage.setItem(GUEST_EMAIL_KEY, guestEmail);
+    } else {
+      window.localStorage.removeItem(GUEST_EMAIL_KEY);
     }
   }, [guestEmail, userId]);
 
@@ -544,8 +550,11 @@ export default function WriteReviewForm({
     if (sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY) === "1") {
       return;
     }
-    if (!userId && guestName) {
+    if (userId) return;
+    if (guestName.trim()) {
       window.localStorage.setItem(GUEST_NAME_KEY, guestName);
+    } else {
+      window.localStorage.removeItem(GUEST_NAME_KEY);
     }
   }, [guestName, userId]);
 
@@ -2027,7 +2036,14 @@ export default function WriteReviewForm({
                   placeholder="Tell us what happened, what worked well, and what could be better."
                   className="mt-2 min-h-[140px] w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                 />
-                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                <p
+                  className={`mt-2 text-[11px] leading-relaxed transition-colors duration-200 ${
+                    body.trim().length > 0
+                      ? "text-emerald-700"
+                      : "text-red-600"
+                  }`}
+                  role="note"
+                >
                   Your review must reflect a genuine personal experience.
                   <br />
                   <br />
@@ -2040,7 +2056,8 @@ export default function WriteReviewForm({
                   • Copy-pasted marketing content
                   <br />
                   <br />
-                  Reviews that violate these guidelines may be removed.
+                  Reviews that violate these guidelines will be removed and may
+                  result in account or business restrictions.
                 </p>
                 {promotionalToneWarning ? (
                   <p

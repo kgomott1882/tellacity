@@ -15,6 +15,7 @@ import {
   useBusinessContext,
   type DashboardBusiness,
 } from "../_context/BusinessContext";
+import { StagedPhotosProvider } from "../_context/StagedPhotosContext";
 import { useBusinesses } from "../_hooks/useBusinesses";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { ensureSessionFresh } from "@/lib/ensureSessionFresh";
@@ -66,6 +67,12 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
     title: "ANALYTICS",
     items: [
       { label: "Performance", path: "/business/dashboard/analytics/performance" },
+    ],
+  },
+  "upload-photos": {
+    title: "UPLOAD PHOTOS",
+    items: [
+      { label: "Profile photos", path: "/business/dashboard/settings/photos" },
     ],
   },
   integrations: {
@@ -471,7 +478,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                       Get started
                     </button>
                   </div>
-                ) : !needsOnboarding ? (
+                ) : !needsOnboarding && selectedBusiness ? (
                   <div key={pathname} className="min-w-0">
                     {children}
                   </div>
@@ -643,7 +650,9 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <BusinessProvider>
-      <InnerShell>{children}</InnerShell>
+      <StagedPhotosProvider>
+        <InnerShell>{children}</InnerShell>
+      </StagedPhotosProvider>
     </BusinessProvider>
   );
 }

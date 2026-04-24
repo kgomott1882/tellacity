@@ -232,13 +232,15 @@ async function executeWriteReviewLoggedInCheck(
   const businessId = process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "";
   const userId = process.env.SYSTEM_CHECK_USER_ID?.trim() ?? "";
 
+  const configErrors: string[] = [];
   if (!isUuid(businessId)) {
-    const err = new Error("SYSTEM_CHECK_BUSINESS_ID must be set to a valid UUID");
-    Object.assign(err, { response_time_ms: 0 });
-    throw err;
+    configErrors.push("SYSTEM_CHECK_BUSINESS_ID must be set to a valid UUID (a row in public.businesses)");
   }
   if (!isUuid(userId)) {
-    const err = new Error("SYSTEM_CHECK_USER_ID must be set to a valid UUID");
+    configErrors.push("SYSTEM_CHECK_USER_ID must be set to a valid UUID (auth.users id for the test reviewer)");
+  }
+  if (configErrors.length > 0) {
+    const err = new Error(configErrors.join(" "));
     Object.assign(err, { response_time_ms: 0 });
     throw err;
   }
@@ -757,6 +759,183 @@ function buildCheckDefinitions(): CheckDef[] {
           response_time_ms: r.response_time_ms,
           message:
             "Paystack initialize route reachable (400 missing fields, or 500 if Paystack secret invalid)",
+        };
+      },
+    },
+    {
+      name: "http_category_listings_page",
+      group: "public_listings",
+      run: async ({ origin }) => {
+        const slug =
+          process.env.SYSTEM_CHECK_CATEGORY_LISTING_SLUG?.trim().toLowerCase() || "banking";
+        const country = process.env.SYSTEM_CHECK_CATEGORY_LISTING_COUNTRY?.trim().toUpperCase() || "US";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/category-listings?slug=${encodeURIComponent(slug)}&country=${encodeURIComponent(country)}&page=0&mode=page`,
+          { method: "GET" },
+          [200],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: `Category listings OK (slug=${slug}, country=${country}; override via SYSTEM_CHECK_CATEGORY_LISTING_*)`,
+        };
+      },
+    },
+    {
+      name: "http_business_verify_domain_unauthorized",
+      group: "business_claim",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/business/verify-domain",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          [401],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "verify-domain route reachable (401 without session)",
+        };
+      },
+    },
+    {
+      name: "http_review_invites_send_validation",
+      group: "review_invites",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/review-invites/send",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "review-invites/send reachable (400 missing fields)",
+        };
+      },
+    },
+    {
+      name: "http_review_invites_validate_token_required",
+      group: "review_invites",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/review-invites/validate",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "review-invites/validate reachable (400 token required)",
+        };
+      },
+    },
+    {
+      name: "http_billing_paystack_verify_missing_reference",
+      group: "payments",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/billing/paystack/verify",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference: "", businessId: "" }),
+          },
+          [400, 500],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message:
+            "Paystack verify route reachable (400 missing reference, or 500 if Paystack secret invalid)",
+        };
+      },
+    },
+    {
+      name: "http_home_feed",
+      group: "public_home",
+      run: async ({ origin }) => {
+        const country = process.env.SYSTEM_CHECK_HOME_COUNTRY?.trim().toUpperCase() || "US";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/home-feed?country=${encodeURIComponent(country)}`,
+          { method: "GET" },
+          [200],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: `home-feed returned 200 (country=${country})`,
+        };
+      },
+    },
+    {
+      name: "http_home_best_in",
+      group: "public_home",
+      run: async ({ origin }) => {
+        const country = process.env.SYSTEM_CHECK_HOME_COUNTRY?.trim().toUpperCase() || "US";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/home-best-in?country=${encodeURIComponent(country)}`,
+          { method: "GET" },
+          [200],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: `home-best-in returned 200 (country=${country})`,
+        };
+      },
+    },
+    {
+      name: "http_dashboard_session_unauthorized",
+      group: "business_dashboard",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(origin, "/api/dashboard/session", { method: "GET" }, [401]);
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "dashboard/session reachable (401 without cookies)",
+        };
+      },
+    },
+    {
+      name: "http_reviews_draft_otp_check_bad_id",
+      group: "reviews",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/reviews/draft-otp-check?draft_id=not-a-uuid",
+          { method: "GET" },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "draft-otp-check reachable (400 invalid draft_id)",
+        };
+      },
+    },
+    {
+      name: "http_reviews_find_draft_bad_invite",
+      group: "reviews",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/reviews/find-draft?invite_id=not-a-uuid",
+          { method: "GET" },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "find-draft reachable (400 invalid invite_id)",
         };
       },
     },

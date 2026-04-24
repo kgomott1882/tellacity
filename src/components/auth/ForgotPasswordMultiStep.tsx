@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 type Variant = "consumer" | "business";
 
@@ -244,8 +245,7 @@ export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtr
           <form className="mt-6 space-y-4" onSubmit={goOtp}>
             <div>
               <label className="text-sm font-medium text-[#0E0E0E]">New password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(ev) => setPassword(ev.target.value)}
                 className={input}
@@ -255,8 +255,7 @@ export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtr
             </div>
             <div>
               <label className="text-sm font-medium text-[#0E0E0E]">Confirm password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(ev) => setConfirmPassword(ev.target.value)}
                 className={input}

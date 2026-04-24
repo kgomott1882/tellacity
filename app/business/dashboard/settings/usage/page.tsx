@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
+import {
+  BILLING_UPGRADE_SESSION_KEY,
+  isUpgradeFlowContext,
+  readUpgradeSourceFromSearchParams,
+} from "@/lib/upgradeFlow";
 import {
   parseBillingCycleQuery,
   parseBillingPlanQuery,
@@ -18,6 +23,10 @@ export default function UsageSettingsPage() {
   const searchParams = useSearchParams();
   const { selectedBusiness } = useBusinessContext();
   const { user } = useBusinessAuth();
+
+  const [pricingHighlightContext, setPricingHighlightContext] = useState<
+    "upload_limit" | "section_locked" | null
+  >(null);
 
   const businessId = selectedBusiness?.id ?? null;
   const currentPlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
@@ -38,6 +47,26 @@ export default function UsageSettingsPage() {
     });
     router.replace(`/business/dashboard/billing/checkout?${qs.toString()}`);
   }, [upgrade, parsedCheckoutPlan, parsedCycle, router]);
+
+  useEffect(() => {
+    const q = readUpgradeSourceFromSearchParams(searchParams);
+    if (isUpgradeFlowContext(q) && (q === "upload_limit" || q === "section_locked")) {
+      setPricingHighlightContext(q);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const s = window.sessionStorage.getItem(BILLING_UPGRADE_SESSION_KEY);
+        if (isUpgradeFlowContext(s) && (s === "upload_limit" || s === "section_locked")) {
+          setPricingHighlightContext(s);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setPricingHighlightContext(null);
+  }, [searchParams]);
 
   if (!businessId) return null;
 
@@ -64,6 +93,7 @@ export default function UsageSettingsPage() {
             dashboardBusinessId={businessId}
             dashboardUserEmail={dashboardEmail}
             dashboardCurrentPlanKey={currentPlanKey}
+            dashboardPricingHighlightContext={pricingHighlightContext}
             embedInDashboard
             dashboardHideMarketingHero
             dashboardInitialBillingMode={parsedCycle}

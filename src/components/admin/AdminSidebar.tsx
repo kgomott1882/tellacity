@@ -2,10 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
-const NAV = [
+// `badgeKey` identifies which live counter drives a notification dot next
+// to the label.
+//   - `photoUploads` fetches /api/admin/photo-uploads/count and shows the
+//     number of photos still waiting on an approve/reject decision.
+//   - `photoExpiry` fetches /api/admin/photo-expiry/count and shows the
+//     number of free-plan photos that are within 24 hours of the 30-day
+//     retention cutoff, prompting the admin to send a reminder email.
+type NavItem = {
+  href: string;
+  label: string;
+  badgeKey?: "photoUploads" | "photoExpiry";
+};
+
+const NAV: readonly NavItem[] = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "All Users" },
   { href: "/admin/businesses", label: "Businesses" },
@@ -15,8 +28,15 @@ const NAV = [
   { href: "/admin/customers", label: "Business Customers" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/reviews", label: "Reviews" },
+  { href: "/admin/photo-uploads", label: "Photo Uploads", badgeKey: "photoUploads" },
+  { href: "/admin/photo-expiry", label: "Photo Expiry", badgeKey: "photoExpiry" },
   { href: "/admin/system-status", label: "System status" },
 ] as const;
+
+/** How often we re-check the pending photo queue count, in ms. */
+const PHOTO_UPLOADS_POLL_MS = 60_000;
+/** How often we re-check the free-plan expiry count, in ms. */
+const PHOTO_EXPIRY_POLL_MS = 60_000;
 
 type AdminSidebarProps = {
   isOpen?: boolean;
@@ -26,6 +46,78 @@ type AdminSidebarProps = {
 export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [pendingPhotoCount, setPendingPhotoCount] = useState<number>(0);
+  const [expiringPhotoCount, setExpiringPhotoCount] = useState<number>(0);
+
+  // Poll the Photo Uploads queue count. The notification must stay on
+  // while any photo is still awaiting a final decision — visiting the
+  // page does NOT clear it, only approving/rejecting every pending photo
+  // does, which will naturally drive this number to 0 on the next poll.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/admin/photo-uploads/count", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as { pendingCount?: number };
+        if (cancelled) return;
+        setPendingPhotoCount(
+          typeof body.pendingCount === "number" && body.pendingCount >= 0
+            ? body.pendingCount
+            : 0
+        );
+      } catch {
+        // Silent — badge just won't update this tick.
+      }
+    };
+    void load();
+    const id = window.setInterval(load, PHOTO_UPLOADS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pathname]);
+
+  // Poll the Photo Expiry warning queue. Driven by
+  // /api/admin/photo-expiry/count, which counts free-plan photos that
+  // have crossed the 29-day retention warning threshold but are not yet
+  // past the 30-day deletion cutoff. The badge clears itself naturally
+  // once the admin notifies owners and the deletion sweep removes the
+  // backlog — visiting the page does not reset it.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/admin/photo-expiry/count", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as { expiringCount?: number };
+        if (cancelled) return;
+        setExpiringPhotoCount(
+          typeof body.expiringCount === "number" && body.expiringCount >= 0
+            ? body.expiringCount
+            : 0
+        );
+      } catch {
+        // Silent — badge just won't update this tick.
+      }
+    };
+    void load();
+    const id = window.setInterval(load, PHOTO_EXPIRY_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pathname]);
+
+  const badgeCountFor = (key: NavItem["badgeKey"]): number => {
+    if (key === "photoUploads") return pendingPhotoCount;
+    if (key === "photoExpiry") return expiringPhotoCount;
+    return 0;
+  };
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -89,18 +181,28 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
               item.href === "/admin"
                 ? pathname === "/admin"
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const badge = badgeCountFor(item.badgeKey);
+            const displayBadge = badge > 99 ? "99+" : String(badge);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-zinc-800 text-white"
                     : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
                 }`}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {badge > 0 ? (
+                  <span
+                    aria-label={`${badge} pending`}
+                    className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-semibold leading-[1.25rem] text-white"
+                  >
+                    {displayBadge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

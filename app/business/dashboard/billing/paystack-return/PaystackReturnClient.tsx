@@ -6,12 +6,19 @@ import { useEffect, useState } from "react";
 
 type Phase = "verifying" | "done" | "missing_params" | "verify_failed";
 
+function isSafeDashboardReturnPath(path: string): boolean {
+  return (
+    path.startsWith("/business/dashboard/") && !path.includes("..") && !path.includes("//")
+  );
+}
+
 export default function PaystackReturnClient() {
   const sp = useSearchParams();
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("verifying");
   const [message, setMessage] = useState<string | null>(null);
   const [successPlan, setSuccessPlan] = useState<string | null>(null);
+  const [redirectsToDashboard, setRedirectsToDashboard] = useState(false);
 
   useEffect(() => {
     const reference =
@@ -56,11 +63,22 @@ export default function PaystackReturnClient() {
         }
         const plan = typeof data.plan === "string" ? data.plan.trim().toLowerCase() : "";
         setSuccessPlan(plan || null);
+        const returnToPreview = (sp.get("return_to") ?? "").trim();
+        setRedirectsToDashboard(isSafeDashboardReturnPath(returnToPreview));
         setPhase("done");
         window.setTimeout(() => {
-          router.replace(
-            `/business/dashboard/billing?success=true&plan=${encodeURIComponent(plan || "grow")}`
-          );
+          const returnTo = (sp.get("return_to") ?? "").trim();
+          const safeReturn = isSafeDashboardReturnPath(returnTo);
+          if (safeReturn) {
+            const next = new URL(returnTo, window.location.origin);
+            next.searchParams.set("upgrade_success", "1");
+            next.searchParams.set("plan", plan || "grow");
+            router.replace(`${next.pathname}${next.search}`);
+          } else {
+            router.replace(
+              `/business/dashboard/billing?success=true&plan=${encodeURIComponent(plan || "grow")}`
+            );
+          }
         }, 1400);
       } catch {
         if (!cancelled) {
@@ -87,7 +105,8 @@ export default function PaystackReturnClient() {
           Payment successful, congratulations for your upgrade.
         </h1>
         <p className="mt-2 text-sm text-gray-600">
-          {successPlan ? `Your ${successPlan} plan is now active. ` : ""}Taking you back to billing…
+          {successPlan ? `Your ${successPlan} plan is now active. ` : ""}
+          {redirectsToDashboard ? "Taking you to your dashboard…" : "Taking you back to billing…"}
         </p>
       </div>
     );

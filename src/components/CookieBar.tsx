@@ -8,14 +8,15 @@ export default function CookieBar() {
   const pathname = usePathname();
   const isWidgetRoute = pathname?.startsWith("/widgets");
   const [mounted, setMounted] = useState(false);
-  const [hasConsent, setHasConsent] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return !!window.localStorage.getItem("tellacity_cookie_consent");
-  });
+  const [hasConsent, setHasConsent] = useState<boolean>(true);
   const [showModal, setShowModal] = useState(false);
-  const visible = !isWidgetRoute && !hasConsent && !showModal;
+  const visible = mounted && !isWidgetRoute && !hasConsent && !showModal;
 
   useEffect(() => {
+    setHasConsent(
+      typeof window !== "undefined" &&
+        !!window.localStorage.getItem("tellacity_cookie_consent")
+    );
     setMounted(true);
   }, []);
 

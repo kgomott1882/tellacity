@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import { handleRedirect } from "@/lib/postLoginRedirect";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function SignupPage() {
   const [step, setStep] = useState<"form" | "otp">("form");
@@ -271,10 +272,10 @@ export default function SignupPage() {
                   <label className="text-sm font-medium text-[#0E0E0E]">
                     Password
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="new-password"
                     className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>
@@ -282,10 +283,10 @@ export default function SignupPage() {
                   <label className="text-sm font-medium text-[#0E0E0E]">
                     Confirm password
                   </label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
+                    autoComplete="new-password"
                     className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </div>

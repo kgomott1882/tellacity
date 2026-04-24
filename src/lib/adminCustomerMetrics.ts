@@ -35,10 +35,40 @@ const OWNER_DASHBOARD_ENGAGEMENT_ACTIONS = new Set([
   "settings_viewed",
 ]);
 
+/** Max `created_at` for "Last active" — real dashboard work only (no recipient-only noise). */
+const LAST_SEEN_DASHBOARD_ACTIONS = new Set<string>([
+  ...OWNER_DASHBOARD_ENGAGEMENT_ACTIONS,
+  "widget_generated",
+  "feature_locked_clicked",
+  "profile_link_copied",
+  "integration_connected",
+  "mark_one_read",
+  "mark_all_read",
+  "review_replied",
+  "invite_sent",
+]);
+
+const ACTIVITY_FETCH_PER_BUSINESS = 25_000;
+
+async function mapInChunks<T, R>(
+  items: readonly T[],
+  chunkSize: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const part = await Promise.all(chunk.map((item) => fn(item)));
+    out.push(...part);
+  }
+  return out;
+}
+
 export type AdminCustomerMetrics = {
   logins24h: number;
   logins7d: number;
-  lastOwnerActivityAt: string | null;
+  /** Latest dashboard activity from any user with access (owner, co-owner, member). */
+  lastDashboardActivityAt: string | null;
   dashboardEvents7d: number;
   widgetUsed: boolean;
   widgetGeneratedCount: number;
@@ -54,7 +84,7 @@ export function emptyAdminCustomerMetrics(): AdminCustomerMetrics {
   return {
     logins24h: 0,
     logins7d: 0,
-    lastOwnerActivityAt: null,
+    lastDashboardActivityAt: null,
     dashboardEvents7d: 0,
     widgetUsed: false,
     widgetGeneratedCount: 0,
@@ -91,11 +121,6 @@ export async function loadAdminCustomerMetricsMap(
   const businessIds = rows.map((r) => r.id).filter(Boolean);
   if (businessIds.length === 0) return out;
 
-  const ownerByBusiness = new Map<string, string>();
-  for (const r of rows) {
-    if (r.owner_id) ownerByBusiness.set(r.id, r.owner_id);
-  }
-
   const since120d = isoDaysAgo(120, now);
   const since24h = isoHoursAgo(24, now);
   const since7d = isoDaysAgo(7, now);
@@ -106,7 +131,7 @@ export async function loadAdminCustomerMetricsMap(
   }
 
   const [
-    { data: activityRows, error: activityErr },
+    activityChunks,
     { data: widgetRows, error: widgetErr },
     { data: emailSendRows, error: emailSendErr },
     { data: emailInviteRows, error: emailInviteErr },
@@ -114,12 +139,19 @@ export async function loadAdminCustomerMetricsMap(
     { data: sentInviteRows, error: sentInviteErr },
     limitResults,
   ] = await Promise.all([
-    db
-      .from("business_activity_logs")
-      .select("business_id, user_id, action_type, created_at")
-      .in("business_id", businessIds)
-      .gte("created_at", since120d)
-      .limit(200_000),
+    mapInChunks(businessIds, 12, async (bid) => {
+      const { data, error } = await db
+        .from("business_activity_logs")
+        .select("business_id, user_id, action_type, created_at")
+        .eq("business_id", bid)
+        .gte("created_at", since120d)
+        .order("created_at", { ascending: false })
+        .limit(ACTIVITY_FETCH_PER_BUSINESS);
+      if (error && !isMissingRelationError(error)) {
+        console.warn("[admin customers] activity logs:", bid, error.message);
+      }
+      return { bid, rows: (data ?? []) as Array<Record<string, unknown>> };
+    }),
     db
       .from("business_activity_logs")
       .select("business_id")
@@ -159,52 +191,48 @@ export async function loadAdminCustomerMetricsMap(
     ),
   ]);
 
-  if (activityErr && !isMissingRelationError(activityErr)) {
-    console.warn("[admin customers] activity logs:", activityErr.message);
-  }
-
   const parseTime = (iso: string | null | undefined) => {
     if (!iso) return Number.NaN;
     const t = new Date(iso).getTime();
     return Number.isFinite(t) ? t : Number.NaN;
   };
 
-  for (const raw of activityRows ?? []) {
-    const row = raw as {
-      business_id?: string;
-      user_id?: string | null;
-      action_type?: string;
-      created_at?: string;
-    };
-    const bid = String(row.business_id ?? "");
-    if (!bid || !out.has(bid)) continue;
+  // Activity rows are scoped per business (ordered newest-first). Count
+  // **any** authenticated dashboard user: `canAccessBusiness` already
+  // restricts who can POST /api/business/activity-log, but only
+  // `businesses.owner_id` matched before — co-owners / members never
+  // advanced "Last active" or login counts.
+  for (const { bid, rows } of activityChunks) {
+    if (!out.has(bid)) continue;
     const m = out.get(bid)!;
-    const ownerId = ownerByBusiness.get(bid);
-    const uid = row.user_id ? String(row.user_id) : "";
-    const isOwner = ownerId && uid === ownerId;
-    const at = row.created_at ?? "";
-    const action = String(row.action_type ?? "");
-
-    if (isOwner && action === "dashboard_login") {
+    for (const raw of rows) {
+      const row = raw as {
+        business_id?: string;
+        user_id?: string | null;
+        action_type?: string;
+        created_at?: string;
+      };
+      const at = row.created_at ?? "";
+      const action = String(row.action_type ?? "");
       const t = parseTime(at);
-      if (Number.isFinite(t) && t >= parseTime(since24h)) m.logins24h += 1;
-      if (Number.isFinite(t) && t >= parseTime(since7d)) m.logins7d += 1;
-    }
 
-    if (isOwner) {
-      const t = parseTime(at);
-      if (Number.isFinite(t)) {
-        const prev = m.lastOwnerActivityAt ? parseTime(m.lastOwnerActivityAt) : 0;
-        if (t > prev) m.lastOwnerActivityAt = at;
+      if (action === "dashboard_login") {
+        if (Number.isFinite(t) && t >= parseTime(since24h)) m.logins24h += 1;
+        if (Number.isFinite(t) && t >= parseTime(since7d)) m.logins7d += 1;
       }
-    }
 
-    if (
-      isOwner &&
-      OWNER_DASHBOARD_ENGAGEMENT_ACTIONS.has(action) &&
-      parseTime(at) >= parseTime(since7d)
-    ) {
-      m.dashboardEvents7d += 1;
+      if (LAST_SEEN_DASHBOARD_ACTIONS.has(action) && Number.isFinite(t)) {
+        const prev = m.lastDashboardActivityAt ? parseTime(m.lastDashboardActivityAt) : 0;
+        if (t > prev) m.lastDashboardActivityAt = at;
+      }
+
+      if (
+        OWNER_DASHBOARD_ENGAGEMENT_ACTIONS.has(action) &&
+        Number.isFinite(t) &&
+        t >= parseTime(since7d)
+      ) {
+        m.dashboardEvents7d += 1;
+      }
     }
   }
 

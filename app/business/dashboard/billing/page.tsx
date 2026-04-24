@@ -11,9 +11,34 @@ import {
   parseBillingPlanQuery,
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
-import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import {
+  BILLING_UPGRADE_SESSION_KEY,
+  clearBillingUpgradeContext,
+  clearUpgradeFlowLocalStorage,
+  consumeUpgradeFlowFromLocalStorage,
+  isUpgradeFlowContext,
+  readUpgradeSourceFromSearchParams,
+  type UpgradeFlowContext,
+  UPGRADE_FLOW_QUERY_PARAM,
+  UPGRADE_SOURCE_QUERY_PARAM,
+} from "@/lib/upgradeFlow";
+import {
+  BILLING_PLAN_ORDER,
+  BILLING_PLAN_PHOTOS_LABEL,
+  BILLING_PLAN_SECTIONS_LABEL,
+  conversionHighlightPlanForContext,
+  highlightedPlanForBilling,
+} from "@/lib/billingPlanPhotoSummary";
+import {
+  PLAN_PHOTO_LIMITS,
+  normalizePlanCodeToKey,
+  type PlanKey,
+} from "@/lib/plans";
+import { cn } from "@/lib/utils";
 import type { BillingOverviewHistoryRow, BillingOverviewResponse } from "@/lib/billingOverview";
 import PaymentHistory from "./_components/PaymentHistory";
+import { PricingPageContent } from "@/components/pricing/PricingPageContent";
+import { ChevronDown } from "lucide-react";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   free: "Free",
@@ -81,6 +106,16 @@ export default function BillingPage() {
   const [billingOverviewLoading, setBillingOverviewLoading] = useState(false);
   const [billingOverviewError, setBillingOverviewError] = useState<string | null>(null);
   const [cancelDowngradeBusy, setCancelDowngradeBusy] = useState(false);
+  const [billingUpgradeContext, setBillingUpgradeContext] = useState<UpgradeFlowContext | null>(null);
+  /**
+   * Inline pricing disclosure. We intentionally avoid navigating to the
+   * standalone pricing page (`/business/dashboard/settings/usage`) from
+   * here — a full route change unmounts dashboard-scoped contexts like
+   * the "Upload more photos" staging queue, which would lose queued files.
+   * Rendering <PricingPageContent /> inline keeps every dashboard context
+   * mounted while still giving the user the full comparison + checkout UX.
+   */
+  const [pricingOpen, setPricingOpen] = useState(false);
 
   const businessId = selectedBusiness?.id ?? null;
   const planKey = billingOverview?.current?.plan_code
@@ -196,6 +231,48 @@ export default function BillingPage() {
     };
   }, [authLoading, businessId, showSuccess, navRefreshKey, user?.id]);
 
+  useEffect(() => {
+    if (!businessId || showSuccess) return;
+
+    const fromQuery = readUpgradeSourceFromSearchParams(searchParams);
+    if (fromQuery) {
+      try {
+        window.sessionStorage.setItem(BILLING_UPGRADE_SESSION_KEY, fromQuery);
+        clearUpgradeFlowLocalStorage();
+      } catch {
+        // ignore
+      }
+      setBillingUpgradeContext(fromQuery);
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete(UPGRADE_SOURCE_QUERY_PARAM);
+      next.delete(UPGRADE_FLOW_QUERY_PARAM);
+      const path =
+        next.toString().length > 0
+          ? `/business/dashboard/billing?${next.toString()}`
+          : "/business/dashboard/billing";
+      router.replace(path, { scroll: false });
+      return;
+    }
+
+    try {
+      const fromSession = window.sessionStorage.getItem(BILLING_UPGRADE_SESSION_KEY);
+      if (isUpgradeFlowContext(fromSession)) {
+        setBillingUpgradeContext(fromSession);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    const fromLocal = consumeUpgradeFlowFromLocalStorage();
+    if (fromLocal) {
+      setBillingUpgradeContext(fromLocal);
+      return;
+    }
+
+    setBillingUpgradeContext(null);
+  }, [businessId, showSuccess, searchParams, router]);
+
   if (!businessId || !selectedBusiness) return null;
 
   if (upgrade && parsedCheckoutPlan && isPaidPlanForConfirm(parsedCheckoutPlan)) {
@@ -224,9 +301,52 @@ export default function BillingPage() {
 
   const paymentHistoryRows: BillingOverviewHistoryRow[] = billingOverview?.history ?? [];
 
-  const goToPricingPlans = () => {
-    router.push("/business/dashboard/settings/usage");
+  const highlightedPlan =
+    conversionHighlightPlanForContext(billingUpgradeContext) ??
+    highlightedPlanForBilling(planKey, billingUpgradeContext);
+  const highlightColIndex = BILLING_PLAN_ORDER.indexOf(highlightedPlan);
+
+  const billingHeaderTitle =
+    billingUpgradeContext === "upload_limit"
+      ? "Need more profile photos?"
+      : billingUpgradeContext === "section_locked"
+        ? "Unlock every photo section"
+        : billingUpgradeContext === "general"
+          ? "Upgrade your plan"
+          : "Payment History";
+
+  const billingHeaderSubtitle =
+    billingUpgradeContext === "upload_limit"
+      ? `Free includes ${PLAN_PHOTO_LIMITS.free} photos. Grow raises it to ${PLAN_PHOTO_LIMITS.grow}, Premium to ${PLAN_PHOTO_LIMITS.premium}, and Elite to ${PLAN_PHOTO_LIMITS.elite} — spread across any category you like.`
+      : billingUpgradeContext === "section_locked"
+        ? "Every plan can upload to any section (and add custom ones). Higher tiers simply give you more photo slots to fill them with."
+        : billingUpgradeContext === "general"
+          ? "Compare photo limits below, then open Pricing plans to change subscription."
+          : "Review billing activity now and prepare for invoices and downloadable documents later. When you are ready, compare plans to unlock more features.";
+
+  /**
+   * Reveal the inline pricing panel on this same page and scroll it into
+   * view. The previous implementation routed to the dedicated pricing
+   * page; doing that from billing risks unmounting dashboard contexts
+   * (e.g. the staged-photos queue on the staging page). Staying inline
+   * preserves every in-memory dashboard state.
+   */
+  const openInlinePricing = () => {
+    setPricingOpen(true);
+    // Let the panel render first, then scroll it into view.
+    window.setTimeout(() => {
+      const el = document.getElementById("inline-pricing-panel");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 30);
   };
+
+  const pricingHighlightContext =
+    billingUpgradeContext === "upload_limit" ||
+    billingUpgradeContext === "section_locked"
+      ? billingUpgradeContext
+      : null;
+
+  const dashboardEmail = user?.email?.trim() ?? "";
 
   const handleCancelDowngrade = async () => {
     if (!businessId) return;
@@ -293,11 +413,182 @@ export default function BillingPage() {
         ) : null
       ) : (
         <>
-          <div className="max-w-2xl space-y-4">
-            <SimplePage
-              title="Payment History"
-              subtitle="Review billing activity now and prepare for invoices and downloadable documents later."
-            />
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <SimplePage title={billingHeaderTitle} subtitle={billingHeaderSubtitle} />
+              {billingUpgradeContext ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearBillingUpgradeContext();
+                    setBillingUpgradeContext(null);
+                  }}
+                  className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Dismiss
+                </button>
+              ) : null}
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+              <table className="w-full min-w-[560px] table-fixed border-collapse text-left text-sm">
+                <caption className="border-b border-gray-100 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Photos &amp; sections by plan
+                </caption>
+                {/*
+                  table-fixed + explicit column widths force Free / Grow /
+                  Premium / Elite to render at identical widths regardless
+                  of which one carries the RECOMMENDED / Suggested badge
+                  or a long CTA label like "Current plan".
+                */}
+                <colgroup>
+                  <col style={{ width: "28%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "18%" }} />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th scope="col" className="px-4 py-3 font-medium text-gray-500" />
+                    {BILLING_PLAN_ORDER.map((p, colIdx) => (
+                      <th
+                        key={p}
+                        scope="col"
+                        className={cn(
+                          "px-3 py-3 text-center font-semibold text-[#0E0E0E]",
+                          colIdx === highlightColIndex &&
+                            "bg-[#1FAF9E]/10 ring-1 ring-inset ring-[#1FAF9E]/35"
+                        )}
+                      >
+                        {PLAN_LABELS[p]}
+                        {p === highlightedPlan ? (
+                          <span className="mt-1 block text-[10px] font-normal uppercase tracking-wide text-[#1FAF9E]">
+                            Suggested
+                          </span>
+                        ) : null}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="text-gray-800">
+                  <tr className="border-b border-gray-100">
+                    <th scope="row" className="px-4 py-3 font-medium text-gray-700">
+                      Profile photos
+                    </th>
+                    {BILLING_PLAN_ORDER.map((p, colIdx) => (
+                      <td
+                        key={p}
+                        className={cn(
+                          "px-3 py-3 text-center text-gray-800",
+                          colIdx === highlightColIndex && "bg-[#1FAF9E]/8"
+                        )}
+                      >
+                        {BILLING_PLAN_PHOTOS_LABEL[p]}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <th scope="row" className="px-4 py-3 font-medium text-gray-700">
+                      Photo sections (uploads)
+                    </th>
+                    {BILLING_PLAN_ORDER.map((p, colIdx) => (
+                      <td
+                        key={p}
+                        className={cn(
+                          "px-3 py-3 text-center text-gray-800",
+                          colIdx === highlightColIndex && "bg-[#1FAF9E]/8"
+                        )}
+                      >
+                        {BILLING_PLAN_SECTIONS_LABEL[p]}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-t border-gray-100 bg-gray-50/60">
+                    <th scope="row" className="px-4 py-3 font-medium text-gray-700">
+                      Choose plan
+                    </th>
+                    {BILLING_PLAN_ORDER.map((p, colIdx) => {
+                      const tierRank: Record<PlanKey, number> = {
+                        free: 0,
+                        grow: 1,
+                        premium: 2,
+                        elite: 3,
+                      };
+                      const isCurrent = p === planKey;
+                      const isUpgrade = tierRank[p] > tierRank[planKey];
+                      const isFree = p === "free";
+                      return (
+                        <td
+                          key={p}
+                          className={cn(
+                            "px-3 py-3 text-center align-middle",
+                            colIdx === highlightColIndex && "bg-[#1FAF9E]/8"
+                          )}
+                        >
+                          {isCurrent ? (
+                            <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                              Current plan
+                            </span>
+                          ) : isFree ? (
+                            <span className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-white px-3 py-1 text-[11px] font-medium text-gray-500">
+                              —
+                            </span>
+                          ) : (
+                            <Link
+                              href={`/business/dashboard/billing/checkout?plan=${p}&cycle=monthly`}
+                              className={cn(
+                                "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                                isUpgrade
+                                  ? "bg-[#124541] text-white hover:bg-[#0f3a35]"
+                                  : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                              )}
+                            >
+                              {isUpgrade ? "Upgrade" : "Switch"}
+                            </Link>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {planKey !== "free" ? (
+              <p className="text-xs text-gray-500">
+                Upgrading mid-cycle? We credit the unused days on your current plan
+                against today&apos;s charge — you only pay the difference.
+              </p>
+            ) : null}
+
+            <p className="text-xs text-gray-500">
+              You are on <span className="font-semibold text-[#0E0E0E]">{currentPlanLabel}</span>. Limits
+              apply per business; paid plans use the same five sections with no upload cap in the app.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (pricingOpen) {
+                  setPricingOpen(false);
+                } else {
+                  openInlinePricing();
+                }
+              }}
+              aria-expanded={pricingOpen}
+              aria-controls="inline-pricing-panel"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#124541] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0f3a35]"
+            >
+              {pricingOpen ? "Hide pricing" : "View pricing & checkout"}
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition",
+                  pricingOpen ? "rotate-180" : ""
+                )}
+                aria-hidden
+              />
+            </button>
 
             {reasonMessage ? (
               <div
@@ -334,11 +625,59 @@ export default function BillingPage() {
             {shouldPromotePlanChange ? (
               <button
                 type="button"
-                onClick={goToPricingPlans}
+                onClick={openInlinePricing}
+                aria-expanded={pricingOpen}
+                aria-controls="inline-pricing-panel"
                 className="inline-flex items-center justify-center rounded-xl border border-[#124541] bg-white px-4 py-2.5 text-sm font-semibold text-[#124541] transition hover:bg-[#124541]/5"
               >
                 Review available plans
               </button>
+            ) : null}
+
+            {pricingOpen ? (
+              <section
+                id="inline-pricing-panel"
+                aria-label="Pricing plans"
+                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-6"
+              >
+                <header className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="max-w-2xl">
+                    <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                      Pricing plans
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Compare plans, switch billing cadence, and choose the best
+                      fit for your workspace — anything you&apos;re working on
+                      elsewhere stays saved.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPricingOpen(false)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    aria-expanded={pricingOpen}
+                    aria-controls="inline-pricing-panel"
+                  >
+                    <ChevronDown
+                      className="h-3.5 w-3.5 rotate-180"
+                      aria-hidden
+                    />
+                    Hide pricing
+                  </button>
+                </header>
+                <div className="mt-5">
+                  <PricingPageContent
+                    variant="dashboard"
+                    dashboardBusinessId={businessId}
+                    dashboardUserEmail={dashboardEmail}
+                    dashboardCurrentPlanKey={planKey}
+                    dashboardPricingHighlightContext={pricingHighlightContext}
+                    embedInDashboard
+                    dashboardHideMarketingHero
+                    dashboardInitialBillingMode={parsedCycle}
+                  />
+                </div>
+              </section>
             ) : null}
           </div>
 

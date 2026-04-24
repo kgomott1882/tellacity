@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import { handleRedirect } from "@/lib/postLoginRedirect";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -137,10 +138,10 @@ export default function LoginPage() {
               <label className="text-sm font-medium text-[#0E0E0E]">
                 Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
                 className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-black focus:outline-none focus:ring-2 focus:ring-black/15"
               />
             </div>

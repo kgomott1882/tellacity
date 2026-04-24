@@ -12,6 +12,7 @@ import {
   syncBusinessPlanColumn,
   upsertActiveSubscriptionForBusiness,
 } from "@/lib/subscriptionWrite";
+import { markCreditsConsumed } from "@/lib/billingCredits";
 
 type PaystackVerifyResponse = {
   status?: boolean;
@@ -20,9 +21,24 @@ type PaystackVerifyResponse = {
     status?: string;
     amount?: number;
     currency?: string;
-    metadata?: { business_id?: string; plan_code?: string; billing_cycle?: string };
+    metadata?: {
+      business_id?: string;
+      plan_code?: string;
+      billing_cycle?: string;
+      credit_applied_amount_minor?: string | number;
+      credit_applied_usd_minor?: string | number;
+    };
   };
 };
+
+function parseIntegerMeta(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.round(raw);
+  if (typeof raw === "string") {
+    const n = Number.parseInt(raw.trim(), 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 
 function normalizeCurrency(code: unknown): string {
   const s = typeof code === "string" ? code.trim().toUpperCase() : "";
@@ -137,9 +153,17 @@ export async function POST(req: Request) {
         : NaN;
     const paidCurrency = normalizeCurrency(payload.data?.currency);
 
+    // Mid-cycle upgrades applied a credit at /initialize; the paid amount equals
+    // (list - credit). Metadata is authoritative for the credit amount.
+    const creditAppliedAmountMinor = Math.max(
+      0,
+      parseIntegerMeta(meta.credit_applied_amount_minor)
+    );
+    const expectedNetMinor = Math.max(100, expected.amountMinor - creditAppliedAmountMinor);
+
     if (
       !Number.isFinite(paidMinor) ||
-      paidMinor !== expected.amountMinor ||
+      paidMinor !== expectedNetMinor ||
       paidCurrency !== expected.currency
     ) {
       console.warn("[billing/paystack/verify] charge mismatch", {
@@ -148,6 +172,8 @@ export async function POST(req: Request) {
         plan,
         cycle,
         expectedAmountMinor: expected.amountMinor,
+        expectedNetMinor,
+        creditAppliedAmountMinor,
         expectedCurrency: expected.currency,
         paidMinor,
         paidCurrency,
@@ -226,6 +252,7 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
+      await markCreditsConsumed(supabase, reference);
       return NextResponse.json({
         success: true,
         plan: existingPlan as PaidPlanKey,
@@ -253,6 +280,8 @@ export async function POST(req: Request) {
     });
 
     await syncBusinessPlanColumn(supabase, businessId, plan);
+
+    await markCreditsConsumed(supabase, reference);
 
     const { error: auditError } = await supabase.from("subscription_changes").insert({
       business_id: businessId,

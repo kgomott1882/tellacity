@@ -227,7 +227,11 @@ export default function RecentReviewCard({
           <span className="min-w-0 truncate font-semibold text-slate-900">
             {reviewerName}
           </span>
-          <span className="shrink-0">{dateText}</span>
+          {/* Homepage "Recent reviews" carousel hides the review date on the card
+              itself; it's still visible on the full `/review/[id]` page users
+              reach via the "More" link. Other surfaces (business profile) keep
+              the date inline. */}
+          {!isLanding && <span className="shrink-0">{dateText}</span>}
         </div>
 
         {!isLanding && title && (

@@ -151,7 +151,8 @@ export default function ForBusinessPage() {
               },
               {
                 title: "Business Profile Infrastructure",
-                copy: "Maintain a structured public business profile that supports long-term trust.",
+                copy:
+                  "Maintain a structured public business profile that supports long-term trust. Upload and organize business photos from your dashboard—then showcase them on your public profile so customers see the real you.",
               },
             ].map((item) => (
               <div
@@ -233,6 +234,9 @@ export default function ForBusinessPage() {
                 <li>Build trust with verified reviews</li>
                 <li>Improve conversions with visible social proof</li>
                 <li>Show responsiveness through public replies</li>
+                <li>
+                  Upload business photos in your dashboard and showcase them on your public profile
+                </li>
                 <li>Strengthen credibility across every touchpoint</li>
               </ul>
             </div>

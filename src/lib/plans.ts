@@ -6,8 +6,24 @@ export const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
   free: 20,
   grow: 150,
   premium: 500,
-  elite: 3000,
+  elite: 2000,
 };
+
+/**
+ * Maximum TOTAL number of profile photos allowed per plan, across ALL sections.
+ * Users can freely distribute photos across categories — we only enforce the total.
+ */
+export const PLAN_PHOTO_LIMITS: Record<PlanKey, number> = {
+  free: 4,
+  grow: 25,
+  premium: 100,
+  elite: 200,
+};
+
+export function getPhotoLimitForPlan(plan: PlanKey | null | undefined): number {
+  const key = plan ?? "free";
+  return PLAN_PHOTO_LIMITS[key] ?? PLAN_PHOTO_LIMITS.free;
+}
 
 /** Normalize subscription `plan_code` (e.g. business_grow_monthly) to a PlanKey. */
 export function normalizePlanCodeToKey(raw: string | null | undefined): PlanKey {
@@ -300,9 +316,11 @@ export function canAccessEmailWidget(
   if (widget === "tellacity_trust_badge") {
     return plan === "premium" || plan === "elite";
   }
+  if (widget === "review_showcase") {
+    return plan === "premium" || plan === "elite";
+  }
   if (plan === "free") return widget === "premium_layout";
-  if (plan === "grow")
-    return widget === "premium_layout" || widget === "review_showcase";
+  if (plan === "grow") return widget === "premium_layout";
   return true;
 }
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { dashboardApiPost } from "@/lib/dashboardApiFetch";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function ConnectWooCommercePage() {
   const router = useRouter();
@@ -94,9 +95,8 @@ export default function ConnectWooCommercePage() {
             <label htmlFor="consumer_secret" className="block text-sm font-medium text-gray-700">
               Consumer secret
             </label>
-            <input
+            <PasswordInput
               id="consumer_secret"
-              type="password"
               value={consumerSecret}
               onChange={(e) => setConsumerSecret(e.target.value)}
               placeholder="cs_..."

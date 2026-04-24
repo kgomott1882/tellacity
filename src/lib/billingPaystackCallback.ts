@@ -16,10 +16,23 @@ export function resolveAppOriginForPaystackCallback(req: Request): string {
   return `${proto}://${host}`.replace(/\/$/, "");
 }
 
+function isSafeDashboardReturnPath(path: string): boolean {
+  const p = path.trim();
+  return p.startsWith("/business/dashboard/") && !p.includes("..") && !p.includes("//");
+}
+
 /** Return URL for billing Paystack redirect; Paystack adds `&reference=…` (or `?reference` if no query). */
-export function buildPaystackBillingReturnCallbackUrl(req: Request, businessId: string): string {
+export function buildPaystackBillingReturnCallbackUrl(
+  req: Request,
+  businessId: string,
+  options?: { returnPath?: string | null }
+): string {
   const origin = resolveAppOriginForPaystackCallback(req);
   const u = new URL("/business/dashboard/billing/paystack-return", origin);
   u.searchParams.set("business_id", businessId);
+  const ret = typeof options?.returnPath === "string" ? options.returnPath.trim() : "";
+  if (ret && isSafeDashboardReturnPath(ret)) {
+    u.searchParams.set("return_to", ret);
+  }
   return u.toString();
 }

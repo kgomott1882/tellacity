@@ -11,6 +11,7 @@ import {
   Settings,
   ChevronRight,
   LayoutTemplate,
+  ImagePlus,
 } from "lucide-react";
 
 import NavItem from "./NavItem";
@@ -56,6 +57,15 @@ export const NAV_ITEMS = [
     items: [
       { label: "Website widgets", path: "/business/dashboard/share/widgets" },
       { label: "Email widgets", path: "/business/dashboard/share/email" },
+    ],
+  },
+  {
+    label: "Upload Photos",
+    icon: ImagePlus,
+    key: "upload-photos",
+    path: null,
+    items: [
+      { label: "Profile photos", path: "/business/dashboard/settings/photos" },
     ],
   },
   {
@@ -118,6 +128,11 @@ function sectionKeyFromPath(pathname: string) {
   if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets";
   if (pathname.includes("/share")) return "share";
   if (pathname.includes("/integrations")) return "integrations";
+  // The photos page lives under /settings/photos for legacy reasons, but
+  // is now exposed in the UI under the "Upload Photos" tab. Match it
+  // before the generic /settings branch so the Upload Photos sub-panel
+  // opens instead of Settings.
+  if (pathname.startsWith("/business/dashboard/settings/photos")) return "upload-photos";
   if (pathname.includes("/settings")) return "settings";
   return "";
 }

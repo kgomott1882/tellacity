@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 async function lookupInvite(
   token: string
@@ -296,8 +297,7 @@ function AcceptInviteInner() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-300">Create a password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
@@ -309,8 +309,7 @@ function AcceptInviteInner() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-300">Confirm password</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     autoComplete="new-password"

@@ -3,6 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
+import { canAccessBusiness } from "@/lib/canAccessBusinessShared";
+
+export { canAccessBusiness };
 
 export function createSupabaseWithJwt(accessToken: string): SupabaseClient {
   return createClient(
@@ -14,42 +17,6 @@ export function createSupabaseWithJwt(accessToken: string): SupabaseClient {
       },
     }
   );
-}
-
-export async function canAccessBusiness(
-  supabase: SupabaseClient,
-  userId: string,
-  businessId: string
-): Promise<boolean> {
-  const { data: owned } = await supabase
-    .from("businesses")
-    .select("id")
-    .eq("id", businessId)
-    .eq("owner_id", userId)
-    .maybeSingle();
-
-  if (owned) return true;
-
-  const { data: link, error } = await supabase
-    .from("business_owners")
-    .select("business_id")
-    .eq("business_id", businessId)
-    .eq("owner_user_id", userId)
-    .maybeSingle();
-
-  if (error && error.code !== "PGRST205") return false;
-  if (link) return true;
-
-  const { data: member, error: memErr } = await supabase
-    .from("business_members")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (memErr && memErr.code !== "PGRST205") return false;
-  return !!member;
 }
 
 export type DashboardDbContext =

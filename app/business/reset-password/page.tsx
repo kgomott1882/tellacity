@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { clearPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 import { parseAccountKind } from "@/lib/accountKind";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 export default function BusinessResetPasswordPage() {
   const router = useRouter();
@@ -153,10 +154,10 @@ export default function BusinessResetPasswordPage() {
                 <label className="text-sm font-medium text-[#0E0E0E]">
                   New password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="new-password"
                   className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                 />
               </div>
@@ -164,12 +165,12 @@ export default function BusinessResetPasswordPage() {
                 <label className="text-sm font-medium text-[#0E0E0E]">
                   Confirm password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(event) =>
                     setConfirmPassword(event.target.value)
                   }
+                  autoComplete="new-password"
                   className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
                 />
               </div>

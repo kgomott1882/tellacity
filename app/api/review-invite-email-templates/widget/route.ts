@@ -119,6 +119,7 @@ const VALID_LAYOUT_STYLES = new Set([
   "review_card",
   "rating_ladder",
   "tellacity_branded",
+  "reviews_showcase",
 ]);
 
 /**
@@ -226,6 +227,14 @@ export async function POST(req: Request) {
           effectiveLayout = "standard";
         }
       } else {
+        effectiveLayout = "standard";
+      }
+
+      if (
+        layoutStyle === "reviews_showcase" &&
+        normalizedPlan !== "premium" &&
+        normalizedPlan !== "elite"
+      ) {
         effectiveLayout = "standard";
       }
     } else {

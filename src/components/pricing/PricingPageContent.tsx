@@ -7,11 +7,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";
 import { isPlanDowngrade, isPlanUpgrade } from "@/lib/billingPlanRank";
 import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
+import type { UpgradeFlowContext } from "@/lib/upgradeFlow";
 import {
   PAID_PLAN_USD,
   getAnnualTotalDueUsd,
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
+import { cn } from "@/lib/utils";
 
 type Plan = {
   name: string;
@@ -19,7 +21,8 @@ type Plan = {
   priceSub?: string;
   description: string;
   features: string[];
-  connectors?: string[];
+  /** Paid plans show a simple "Supports integrations" line; Free plan omits it. */
+  supportsIntegrations?: boolean;
   highlight?: boolean;
 };
 
@@ -27,67 +30,68 @@ const plans: Plan[] = [
   {
     name: "Free",
     price: "$0",
-    description: "Basic tools for getting started with reputation management.",
+    description: "Everything you need to get your first reviews.",
     features: [
       "Claim your business profile",
       "Verified Business Dashboard access",
       "Receive unlimited consumer reviews",
+      "Photo upload",
       "20 review invites per month",
       "Basic Email review invitations",
     ],
   },
   {
     name: "Grow",
-    price: "$69",
+    price: "$49",
     priceSub: "/ month",
-    description: "Essential tools to actively build trust and collect reviews.",
+    description: "Start collecting reviews consistently and build trust.",
     features: [
       "150 review invites per month",
       "Email review invitations",
       "Customisable email invite templates",
       "QR code reviews",
-      "Standard on-site widget library",
-      "Review & invite performance analytics",
+      "Photo upload",
+      "On-site widget library & performance analytics",
     ],
-    connectors: ["Shopify", "WooCommerce", "WordPress"],
+    supportsIntegrations: true,
   },
   {
     name: "Premium",
-    price: "$199",
+    price: "$179",
     priceSub: "/ month",
-    description: "Advanced features to scale visibility and automate growth.",
+    description: "Best for growing businesses ready to scale.",
     features: [
       "Everything in Grow",
       "500 review invites per month",
       "Automated review invitation flows",
       "Expanded widget library (customisable)",
       "Advanced analytics & sentiment analysis",
-      "Multi-location review management",
       "Team alerts & notifications",
       "Premium Credibility Badge",
       "Multi-user logins (10 users)",
+      "Photo upload",
     ],
-    connectors: ["Twilio", "Klaviyo", "Magento", "HubSpot", "Slack", "Zendesk"],
+    supportsIntegrations: true,
     highlight: true,
   },
   {
     name: "Elite",
-    price: "$499",
+    price: "$349",
     priceSub: "/ month",
-    description: "Enterprise-grade brand management & strategic insights.",
+    description: "Advanced tools for high-growth and enterprise teams.",
     features: [
       "Everything in Premium",
-      "3,000 review invites per month",
+      "2,000 review invites per month",
       "Bulk upload & automation rules",
       "White-label solution options",
       "Strategic insights & benchmarking",
       'Priority placement ("Featured")',
-      "Role-based team access (Unlimited)",
       "Custom enterprise integrations",
       "Scheduled auto-exports",
       "Dedicated account manager",
+      "Photo upload",
     ],
-    connectors: ["Zapier", "SAP", "Salesforce", "NetSuite", "Marketo"],
+    supportsIntegrations: true,
   },
 ];
 
@@ -99,14 +103,14 @@ type FeatureRow = [string, string, string, string, string];
 
 const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "feature"; row: FeatureRow }> = [
   { type: "section", label: "COLLECT" },
-  { type: "feature", row: ["Review invitations / month", "20", "150", "500", "3,000"] },
+  { type: "feature", row: ["Review invitations / month", "20", "150", "500", "2,000"] },
   { type: "feature", row: ["Email invites", "✓", "✓", "✓", "✓"] },
   { type: "feature", row: ["Customisable email templates", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["QR code reviews", "–", "✓", "✓", "✓"] },
   { type: "section", label: "VERIFY" },
   { type: "feature", row: ["Credibility & visibility", "Profile", "Verified Badge", "Premium Badge", "Featured placement"] },
   { type: "section", label: "MANAGE" },
-  { type: "feature", row: ["Multi-location management", "–", "–", "✓", "✓"] },
+  { type: "feature", row: ["Multi-location management", "–", "–", "–", "✓"] },
   { type: "feature", row: ["Notifications & alerts", "Basic", "Standard", "Team alerts", "Custom enterprise"] },
   { type: "feature", row: ["Team access", "1 User", "3 Users", "10 Users", "Unlimited (SSO)"] },
   { type: "section", label: "SHOWCASE" },
@@ -117,26 +121,9 @@ const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "f
   { type: "feature", row: ["Strategic insights", "–", "–", "Sentiment", "Sentiment + Benchmarks"] },
   { type: "feature", row: ["Data exports", "–", "CSV", "CSV + JSON", "Scheduled auto-exports"] },
   { type: "section", label: "INTEGRATE" },
-  { type: "feature", row: ["Integration connectors", "–", "Available integrations", "Unlimited", "Unlimited"] },
+  { type: "feature", row: ["Supports integrations", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["Custom enterprise integrations", "–", "–", "–", "✓"] },
 ];
-
-const integrationLogos: Record<string, string> = {
-  Shopify: "shopify.jpg",
-  WooCommerce: "woocommerce.jpg",
-  WordPress: "WordPress.jpg",
-  Twilio: "Twilio.jpg",
-  Klaviyo: "Klaviyo.jpg",
-  Magento: "Magento.jpg",
-  HubSpot: "HubSpot.jpg",
-  Slack: "Slack.jpg",
-  Zendesk: "Zendesk.jpg",
-  Zapier: "Zapier.jpg",
-  SAP: "sap.jpg",
-  Salesforce: "Salesforce.jpg",
-  NetSuite: "netsuite.jpg",
-  Marketo: "marketo.jpg",
-};
 
 const faqs = [
   {
@@ -147,7 +134,7 @@ const faqs = [
   {
     question: "Do you charge extra fees for integrations?",
     answer:
-      "Tellacity only charges for access to connectors within your plan. Any third‑party platform fees (for example Shopify, Twilio, or Salesforce) are billed separately by those providers.",
+      "Paid plans support integrations at no additional cost from Tellacity. Any third‑party platform fees are billed separately by those providers.",
   },
   {
     question: "Is there a long‑term contract?",
@@ -165,6 +152,8 @@ export type PricingPageContentProps = {
   dashboardCurrentPlanKey?: PlanKey;
   /** Stronger Premium card emphasis (e.g. billing deep-link with upgrade reason). */
   emphasizePremiumAnchor?: boolean;
+  /** Dashboard: smart card highlight from upgrade flow (photos vs sections). */
+  dashboardPricingHighlightContext?: Extract<UpgradeFlowContext, "upload_limit" | "section_locked"> | null;
   /** Use a div root when embedding inside the dashboard (avoids nested main landmark). */
   embedInDashboard?: boolean;
   /** When opening checkout from billing, match monthly vs annual from URL. */
@@ -195,6 +184,7 @@ export function PricingPageContent({
   dashboardUserEmail,
   dashboardCurrentPlanKey,
   emphasizePremiumAnchor = false,
+  dashboardPricingHighlightContext = null,
   embedInDashboard = false,
   dashboardInitialBillingMode,
   dashboardHideMarketingHero = false,
@@ -243,6 +233,13 @@ export function PricingPageContent({
     variant === "dashboard" && dashboardCurrentPlanKey
       ? recommendedPlanNameForDashboard(dashboardCurrentPlanKey)
       : null;
+
+  const smartHighlightPlanKey: PlanKey | null =
+    variant === "dashboard" && dashboardPricingHighlightContext === "upload_limit"
+      ? "grow"
+      : variant === "dashboard" && dashboardPricingHighlightContext === "section_locked"
+        ? "premium"
+        : null;
 
   const sparkles = Array.from({ length: 20 }).map((_, index) => ({
     id: index,
@@ -449,6 +446,49 @@ export function PricingPageContent({
             const premiumAnchorBoost =
               emphasizePremiumAnchor && plan.name === "Premium" && plan.highlight;
 
+            const isSmartRecommended =
+              Boolean(smartHighlightPlanKey && cardPlanKey) &&
+              smartHighlightPlanKey === cardPlanKey &&
+              !isWorkspaceOnThisPlan;
+            const isLegacyPopular =
+              !smartHighlightPlanKey && Boolean(plan.highlight) && !isWorkspaceOnThisPlan;
+            const showHighlightGlow = isSmartRecommended || isLegacyPopular;
+            const isVisualPremiumAnchor =
+              isLegacyPopular && Boolean(premiumAnchorBoost) && plan.name === "Premium";
+
+            /**
+             * Dashboard embed renders the pricing cards inside a narrow
+             * billing column. The public page uses `scale-*` and thicker
+             * borders to visually pop the recommended card, but those
+             * transforms break grid alignment in the embed — neighbours
+             * look shorter/narrower even though the grid cells are equal.
+             * When embedded we keep highlights via border/glow only and
+             * normalise border widths so every card occupies its grid
+             * cell identically.
+             */
+            const cardBaseLayoutClass =
+              "relative flex h-full flex-col rounded-3xl p-6 transition-all duration-300";
+
+            const cardVariantClass = embedInDashboard
+              ? isWorkspaceOnThisPlan
+                ? "border border-neutral-950 bg-neutral-50/95 text-neutral-800 shadow-sm"
+                : isSmartRecommended
+                  ? "border-2 border-[#1FAF9E] bg-white shadow-xl shadow-[#1FAF9E]/20 ring-2 ring-[#1FAF9E]/25"
+                  : isLegacyPopular
+                    ? isVisualPremiumAnchor
+                      ? "border-2 border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30"
+                      : "border-2 border-[#1FAF9E] bg-white shadow-xl"
+                    : "border border-neutral-950 bg-white shadow-sm hover:shadow-md"
+              : isWorkspaceOnThisPlan
+                ? "border border-neutral-950 bg-neutral-50/95 text-neutral-800 shadow-sm hover:translate-y-0"
+                : isSmartRecommended
+                  ? "border-2 border-[#1FAF9E] bg-white shadow-xl shadow-[#1FAF9E]/20 ring-2 ring-[#1FAF9E]/25 scale-[1.04]"
+                  : isLegacyPopular
+                    ? isVisualPremiumAnchor
+                      ? "border-[3px] border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30 scale-[1.03]"
+                      : "border-[3px] border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
+                    : "border border-neutral-950 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1";
+
             return (
             <motion.div
               key={plan.name}
@@ -457,26 +497,19 @@ export function PricingPageContent({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.08 }}
-              className="relative"
+              className={cn(
+                "relative h-full",
+                isSmartRecommended && !embedInDashboard && "z-[1]"
+              )}
             >
-              {plan.highlight && !isWorkspaceOnThisPlan ? (
+              {showHighlightGlow ? (
                 <motion.div
                   className="absolute -inset-1 rounded-3xl bg-[#1FAF9E]/10 blur-xl"
                   animate={{ opacity: [0.4, 0.8, 0.4] }}
                   transition={{ duration: 2.5, repeat: Infinity }}
                 />
               ) : null}
-              <div
-                className={`relative flex h-full flex-col rounded-3xl p-6 transition-all duration-300 ${
-                  isWorkspaceOnThisPlan
-                    ? "border border-neutral-950 bg-neutral-50/95 text-neutral-800 shadow-sm hover:translate-y-0"
-                    : plan.highlight
-                    ? premiumAnchorBoost
-                      ? "border-[3px] border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30 scale-[1.03]"
-                      : "border-[3px] border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
-                    : "border border-neutral-950 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1"
-                }`}
-              >
+              <div className={cn(cardBaseLayoutClass, cardVariantClass)}>
                 {isWorkspaceOnThisPlan ? (
                   <div className="mb-3 rounded-lg border border-neutral-200/80 bg-neutral-100/80 px-3 py-2 text-center">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
@@ -489,7 +522,13 @@ export function PricingPageContent({
                     </p>
                   </div>
                 ) : null}
-                {plan.highlight && !isWorkspaceOnThisPlan ? (
+                {isSmartRecommended ? (
+                  <div className="absolute inset-x-0 -top-4 flex flex-col items-center gap-1.5">
+                    <span className="rounded-full bg-gradient-to-r from-[#1FAF9E] to-[#0E3B36] px-4 py-1 text-[10px] font-semibold text-white shadow-sm">
+                      Recommended
+                    </span>
+                  </div>
+                ) : isLegacyPopular ? (
                   <div className="absolute inset-x-0 -top-4 flex flex-col items-center gap-1.5">
                     <span className="rounded-full bg-gradient-to-r from-[#1FAF9E] to-[#0E3B36] px-4 py-1 text-[10px] font-semibold text-white shadow-sm">
                       Most Popular
@@ -565,7 +604,7 @@ export function PricingPageContent({
                   )}
                 </div>
                 <ul
-                  className={`mt-5 space-y-3 text-xs ${
+                  className={`mt-5 flex-1 space-y-3 text-xs ${
                     isWorkspaceOnThisPlan ? "text-neutral-600" : "text-gray-600"
                   }`}
                 >
@@ -591,21 +630,11 @@ export function PricingPageContent({
                     </motion.li>
                   ))}
                 </ul>
-                {plan.name !== "Free" && plan.connectors && plan.connectors.length > 0 && (
+                {plan.name !== "Free" && plan.supportsIntegrations && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">
-                      Connectors supported
+                    <p className="text-xs font-medium text-[#0E0E0E]">
+                      Supports integrations
                     </p>
-                    <div className="flex flex-wrap gap-x-2 gap-y-1">
-                      {plan.connectors.map((connector) => (
-                        <span
-                          key={connector}
-                          className="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap"
-                        >
-                          {connector}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 )}
                 {variant === "dashboard" && !isDashboardCheckout ? (
@@ -698,7 +727,11 @@ export function PricingPageContent({
                     Choose This Plan
                   </button>
                 )}
-                {plan.name === "Premium" && !isWorkspaceOnThisPlan ? (
+                {isSmartRecommended ? (
+                  <p className="mt-2 text-xs text-gray-500 text-center opacity-80">
+                    Most businesses choose this plan to showcase more
+                  </p>
+                ) : plan.name === "Premium" && !isWorkspaceOnThisPlan && isLegacyPopular ? (
                   <p className="mt-2 text-xs text-gray-500 text-center opacity-70">
                     Most businesses choose this plan.
                   </p>
@@ -730,85 +763,6 @@ export function PricingPageContent({
           </div>
         </div>
 
-        {variant !== "dashboard" ? (
-          <div className="mt-8 max-w-6xl mx-auto rounded-2xl border border-gray-200 bg-white px-8 py-8 text-xs text-gray-600 shadow-sm">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h3 className="text-sm font-semibold text-[#0E0E0E]">
-                  Integrations &amp; Add-Ons
-                </h3>
-                <p className="mt-1 text-xs text-gray-600">
-                  Connect Tellacity with your existing tools. Enterprise systems available on request.
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-2 text-[11px] font-semibold text-gray-500">
-                  Core Integrations
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    "Shopify",
-                    "WooCommerce",
-                    "WordPress",
-                    "Twilio",
-                    "Klaviyo",
-                    "Magento",
-                    "HubSpot",
-                    "Slack",
-                    "Zendesk",
-                    "Zapier",
-                  ].map((name) => {
-                    const logoFile = integrationLogos[name];
-                    return (
-                      <span
-                        key={name}
-                        className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {logoFile && (
-                          <img
-                            src={`/brand/${logoFile}`}
-                            alt={`${name} logo`}
-                            className="mr-2 h-8 w-8 object-contain opacity-90"
-                          />
-                        )}
-                        <span>{name}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-gray-200 pt-6">
-                <p className="mb-2 text-[11px] font-semibold text-gray-500">
-                  Enterprise Add-Ons
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {["SAP", "Salesforce", "NetSuite", "Marketo"].map((name) => {
-                    const logoFile = integrationLogos[name];
-                    return (
-                      <span
-                        key={name}
-                        className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:shadow-sm transition-all"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {logoFile && (
-                          <img
-                            src={`/brand/${logoFile}`}
-                            alt={`${name} logo`}
-                            className="mr-2 h-8 w-8 object-contain opacity-90"
-                          />
-                        )}
-                        <span>{name}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {/* FEATURE COMPARISON */}
@@ -1198,7 +1152,7 @@ export function PricingPageContent({
               {selectedPlan === "premium" && (
                 <ul className="space-y-2 text-sm text-black">
                   <li>✓ 500 review invites/month</li>
-                  <li>✓ Multi-location management</li>
+                  <li>✓ Automated review invitation flows</li>
                   <li>✓ Advanced analytics</li>
                   <li>✓ Premium credibility badge</li>
                 </ul>
@@ -1206,7 +1160,7 @@ export function PricingPageContent({
 
               {selectedPlan === "elite" && (
                 <ul className="space-y-2 text-sm text-black">
-                  <li>✓ 3,000 review invites/month</li>
+                  <li>✓ 2,000 review invites/month</li>
                   <li>✓ White-label options</li>
                   <li>✓ Dedicated account manager</li>
                 </ul>

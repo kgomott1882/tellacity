@@ -7,7 +7,12 @@ import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
 import { adminCountryDisplay } from "@/lib/adminCountries";
+import { createClient } from "@supabase/supabase-js";
+import { getServerEnv } from "@/lib/serverEnv";
 import BusinessDetailTabs from "./BusinessDetailTabs";
+import BusinessDetailPhotos, {
+  type AdminPhotoRow,
+} from "./BusinessDetailPhotos";
 import {
   adminDetailActivateAction,
   adminDetailApproveAction,
@@ -200,6 +205,34 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
     business?.profiles?.email ||
     null;
 
+  // Preload photos + owner for the Photos tab using the service role so RLS
+  // on business_photos (scoped to owners) doesn't hide anything from admins.
+  let initialPhotos: AdminPhotoRow[] = [];
+  let pendingPhotoCount = 0;
+  if (business?.id) {
+    try {
+      const { supabaseUrl, serviceRoleKey } = getServerEnv();
+      const admin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false },
+      });
+      const { data: photoRows } = await admin
+        .from("business_photos")
+        .select(
+          "id, business_id, url, section, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, collage_score, moderated_at, moderated_by"
+        )
+        .eq("business_id", business.id)
+        .order("moderation_status", { ascending: true })
+        .order("created_at", { ascending: false });
+      initialPhotos = (photoRows ?? []) as AdminPhotoRow[];
+      pendingPhotoCount = initialPhotos.filter(
+        (p) =>
+          p.moderation_status === "pending" || p.moderation_status === "flagged"
+      ).length;
+    } catch (e) {
+      console.error("[admin business detail] preload photos", e);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Link
@@ -219,6 +252,24 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
       ) : (
         <AdminTableShell title="Business Details">
           <BusinessDetailTabs
+            pendingPhotoCount={pendingPhotoCount}
+            photos={
+              business?.id ? (
+                <BusinessDetailPhotos
+                  initial={{
+                    businessId: String(business.id),
+                    businessName: business?.name ?? null,
+                    ownerEmail: business?.profiles?.email ?? null,
+                    ownerName,
+                    photos: initialPhotos,
+                  }}
+                />
+              ) : (
+                <div className="text-sm text-neutral-500">
+                  Photos unavailable for this record.
+                </div>
+              )
+            }
             details={
               <div className="w-full space-y-8">
             <p className="border-b border-neutral-100 pb-3 text-sm text-neutral-600">

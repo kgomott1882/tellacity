@@ -25,6 +25,10 @@ function planAllowsEmailWidgetLayout(plan: PlanKey, layoutStyle: string): boolea
   if (ls === "rating_ladder") {
     return canUseCustomEmail(plan);
   }
+  if (ls === "reviews_showcase") {
+    // Business-card trust-signal layout: Premium and Elite plans only.
+    return canAccessEmailWidget(plan, "review_showcase");
+  }
   return canAccessEmailWidget(plan, "premium_layout");
 }
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
@@ -33,6 +37,7 @@ import {
   EmailWidgetEliteBrandedCard,
   EmailWidgetInviteBlock,
   EmailWidgetRatingLadderPreview,
+  EmailWidgetReviewsShowcaseCard,
 } from "@/components/email/EmailWidgetLayoutPreviewBlocks";
 
 const DEFAULT_WIDGET_SUBJECT = "Share your experience with us";
@@ -59,14 +64,21 @@ type WidgetTemplate = {
   signature_name: string | null;
 };
 
-function requiredPlanForEmailLayout(
-  layout: "standard" | "review_hunter" | "elite_branded" | "rating_ladder",
-): PlanKey {
+type EmailLayoutKey =
+  | "standard"
+  | "review_hunter"
+  | "elite_branded"
+  | "rating_ladder"
+  | "reviews_showcase";
+
+function requiredPlanForEmailLayout(layout: EmailLayoutKey): PlanKey {
   switch (layout) {
     case "standard":
       return "free";
     case "rating_ladder":
       return "grow";
+    case "reviews_showcase":
+      return "premium";
     case "review_hunter":
       return "premium";
     case "elite_branded":
@@ -89,6 +101,13 @@ function upgradeLabelForPlan(plan: PlanKey): string {
   }
 }
 
+/**
+ * Small corner chip shown on locked email layout cards. The card preview
+ * itself stays fully visible so owners can see what each layout looks like
+ * before upgrading; the chip carries both the lock affordance and the CTA
+ * into the pricing flow. Stops propagation so clicks don't also try to
+ * select the (disabled) underlying layout button.
+ */
 function EmailLayoutLockOverlay({
   onUnlockClick,
   ctaLabel,
@@ -99,15 +118,29 @@ function EmailLayoutLockOverlay({
   return (
     <button
       type="button"
-      onClick={onUnlockClick}
-      className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-0 bg-white/75 px-4 text-center shadow-inner backdrop-blur-sm"
+      onClick={(event) => {
+        event.stopPropagation();
+        onUnlockClick();
+      }}
+      title={ctaLabel}
+      aria-label={ctaLabel}
+      className="absolute right-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-full border border-[#124541]/15 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-[#124541] shadow-sm backdrop-blur-sm transition hover:bg-[#124541] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/40"
     >
-      <span className="text-sm font-medium text-gray-900">
-        Unlock this layout to increase response rates and showcase more customer feedback.
-      </span>
-      <span className="rounded-lg bg-[#124541] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0f3a35]">
-        {ctaLabel}
-      </span>
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <rect x="4" y="11" width="16" height="10" rx="2" />
+        <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+      </svg>
+      <span>{ctaLabel}</span>
     </button>
   );
 }
@@ -120,6 +153,10 @@ export default function EmailWidgetsPage() {
 
   const [template, setTemplate] = useState<WidgetTemplate | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string | null>(null);
+  const [reviewsShowcaseStats, setReviewsShowcaseStats] = useState<{
+    avg_rating: number;
+    review_count: number;
+  } | null>(null);
   const [recipients, setRecipients] = useState("");
   const [sending, setSending] = useState(false);
   const [layoutSaving, setLayoutSaving] = useState(false);
@@ -258,6 +295,45 @@ export default function EmailWidgetsPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Fetch real review stats (avg rating + count) used by both the Reviews
+  // Showcase preview and the Review Hunter stats line ("4.8 Stars | 24
+  // reviews"). Mirrors what the "Tellacity Trust Strip (Icon)" website
+  // widget renders on the business' public profile.
+  useEffect(() => {
+    if (!businessId) {
+      setReviewsShowcaseStats(null);
+      return;
+    }
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/business/${businessId}/social-widget-stats`,
+          { credentials: "include", signal: ac.signal },
+        );
+        if (!res.ok) {
+          setReviewsShowcaseStats(null);
+          return;
+        }
+        const data = (await res.json().catch(() => null)) as {
+          stats?: { avg_rating?: number; review_count?: number } | null;
+        } | null;
+        const stats = data?.stats ?? null;
+        if (!stats) {
+          setReviewsShowcaseStats(null);
+          return;
+        }
+        setReviewsShowcaseStats({
+          avg_rating: Number(stats.avg_rating) || 0,
+          review_count: Number(stats.review_count) || 0,
+        });
+      } catch {
+        setReviewsShowcaseStats(null);
+      }
+    })();
+    return () => ac.abort();
+  }, [businessId]);
+
   const business = selectedBusiness;
 
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
@@ -269,6 +345,10 @@ export default function EmailWidgetsPage() {
   const canEliteBrandedLayout =
     normalizedPlan === "elite" &&
     canAccessEmailWidget(normalizedPlan, "elite_layout");
+  const canReviewsShowcaseLayout = canAccessEmailWidget(
+    normalizedPlan,
+    "review_showcase",
+  );
 
   const displaySubject = widgetSubject.trim() || DEFAULT_WIDGET_SUBJECT;
   const displayIntro = widgetIntro.trim() || DEFAULT_WIDGET_INTRO;
@@ -282,19 +362,19 @@ export default function EmailWidgetsPage() {
   const isReviewHunter = widgetLayoutStyle === "review_hunter";
   const isEliteBranded =
     normalizedPlan === "elite" && widgetLayoutStyle === "elite_branded";
+  const isReviewsShowcase = widgetLayoutStyle === "reviews_showcase";
   const canSend = planAllowsEmailWidgetLayout(
     normalizedPlan,
     widgetLayoutStyle,
   );
 
   const persistWidgetLayout = useCallback(
-    async (
-      layout: "standard" | "review_hunter" | "elite_branded" | "rating_ladder",
-    ) => {
+    async (layout: EmailLayoutKey) => {
       if (!businessId || layoutSaving) return;
       if (layout === "standard" && !canStandardLayout) return;
       if (layout === "review_hunter" && !canReviewHunterLayout) return;
       if (layout === "rating_ladder" && !canRatingLadderLayout) return;
+      if (layout === "reviews_showcase" && !canReviewsShowcaseLayout) return;
       if (
         layout === "elite_branded" &&
         (!canEliteBrandedLayout || normalizedPlan !== "elite")
@@ -328,9 +408,11 @@ export default function EmailWidgetsPage() {
               ? "Elite branded layout selected."
               : layout === "review_hunter"
                 ? "Review Hunter layout selected."
-              : layout === "rating_ladder"
-                ? "Rating ladder layout selected."
-                : "Standard layout selected.",
+                : layout === "rating_ladder"
+                  ? "Rating ladder layout selected."
+                  : layout === "reviews_showcase"
+                    ? "Reviews Showcase layout selected."
+                    : "Standard layout selected.",
         });
       } catch (e) {
         const fromApi =
@@ -353,6 +435,7 @@ export default function EmailWidgetsPage() {
       canStandardLayout,
       canReviewHunterLayout,
       canRatingLadderLayout,
+      canReviewsShowcaseLayout,
       canEliteBrandedLayout,
     ],
   );
@@ -550,7 +633,7 @@ export default function EmailWidgetsPage() {
 
               {/* Premium Widget Layout: standard email (selectable layout) */}
               <div className="relative w-[280px] shrink-0">
-                <div className={!canStandardLayout ? "opacity-50" : ""}>
+                <div>
                   <button
                     type="button"
                     disabled={layoutSaving || !canStandardLayout}
@@ -596,9 +679,54 @@ export default function EmailWidgetsPage() {
                 ) : null}
               </div>
 
+              {/* Rating ladder: Grow & above */}
+              <div className="relative w-[280px] shrink-0">
+                <div>
+                  <button
+                    type="button"
+                    disabled={layoutSaving || !canRatingLadderLayout}
+                    onClick={() => void persistWidgetLayout("rating_ladder")}
+                    aria-pressed={isRatingLadder}
+                    className={`h-[270px] w-full rounded-xl border bg-white p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isRatingLadder
+                        ? "border-[#124541] ring-1 ring-[#124541] shadow-sm"
+                        : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                    }`}
+                  >
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
+                    Rating ladder
+                    {canRatingLadderLayout ? <AvailableToUseLabel /> : null}
+                  </p>
+                  {isRatingLadder && (
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <p className="mb-2 min-h-[30px] text-xs text-gray-500">
+                  &quot;How did we do?&quot; rows with Tellacity stars; each row opens the invite-style review form with that rating (Grow+).
+                </p>
+                <div className="pointer-events-none">
+                  <EmailWidgetRatingLadderPreview density="compact" />
+                </div>
+                  </button>
+                </div>
+                {!canRatingLadderLayout ? (
+                  <EmailLayoutLockOverlay
+                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("rating_ladder"))}
+                    ctaLabel={upgradeLabelForPlan(
+                      requiredPlanForEmailLayout("rating_ladder"),
+                    )}
+                  />
+                ) : null}
+              </div>
+
               {/* Review Hunter: same as Premium, logo footer instead of text branding */}
               <div className="relative w-[280px] shrink-0">
-                <div className={!canReviewHunterLayout ? "opacity-50" : ""}>
+                <div>
                   <button
                     type="button"
                     disabled={layoutSaving || !canReviewHunterLayout}
@@ -632,6 +760,8 @@ export default function EmailWidgetsPage() {
                         businessName={selectedBusiness?.name ?? "Your Business"}
                         density="compact"
                         className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-4 text-center"
+                        avgRating={reviewsShowcaseStats?.avg_rating ?? null}
+                        reviewCount={reviewsShowcaseStats?.review_count ?? null}
                       />
                     </div>
                   </button>
@@ -646,46 +776,55 @@ export default function EmailWidgetsPage() {
                 ) : null}
               </div>
 
-              {/* Rating ladder: Premium & Elite */}
+              {/* Reviews Showcase: business-card trust badge (Premium+) */}
               <div className="relative w-[280px] shrink-0">
-                <div className={!canRatingLadderLayout ? "opacity-50" : ""}>
+                <div>
                   <button
                     type="button"
-                    disabled={layoutSaving || !canRatingLadderLayout}
-                    onClick={() => void persistWidgetLayout("rating_ladder")}
-                    aria-pressed={isRatingLadder}
+                    disabled={layoutSaving || !canReviewsShowcaseLayout}
+                    onClick={() => void persistWidgetLayout("reviews_showcase")}
+                    aria-pressed={isReviewsShowcase}
                     className={`h-[270px] w-full rounded-xl border bg-white p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
-                      isRatingLadder
+                      isReviewsShowcase
                         ? "border-[#124541] ring-1 ring-[#124541] shadow-sm"
                         : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
                     }`}
                   >
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
-                    Rating ladder
-                    {canRatingLadderLayout ? <AvailableToUseLabel /> : null}
-                  </p>
-                  {isRatingLadder && (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
-                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                  )}
-                </div>
-                <p className="mb-2 min-h-[30px] text-xs text-gray-500">
-                  &quot;How did we do?&quot; rows with Tellacity stars; each row opens the invite-style review form with that rating (Premium+).
-                </p>
-                <div className="pointer-events-none">
-                  <EmailWidgetRatingLadderPreview density="compact" />
-                </div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-gray-800">
+                        Reviews Showcase
+                        {canReviewsShowcaseLayout ? <AvailableToUseLabel /> : null}
+                      </p>
+                      {isReviewsShowcase && (
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#124541]">
+                          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                            <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                    <p className="mb-2 min-h-[30px] text-xs text-gray-500">
+                      Business-card invite with Tellacity stars &amp; trust badge (Premium+).
+                    </p>
+                    <div className="pointer-events-none">
+                      <EmailWidgetReviewsShowcaseCard
+                        businessName={selectedBusiness?.name ?? "Your Business"}
+                        logoUrl={businessLogoUrl}
+                        website={selectedBusiness?.website ?? null}
+                        reviewCount={reviewsShowcaseStats?.review_count ?? null}
+                        avgRating={reviewsShowcaseStats?.avg_rating ?? null}
+                        density="compact"
+                      />
+                    </div>
                   </button>
                 </div>
-                {!canRatingLadderLayout ? (
+                {!canReviewsShowcaseLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("rating_ladder"))}
+                    onUnlockClick={() =>
+                      goToPricingPlans(requiredPlanForEmailLayout("reviews_showcase"))
+                    }
                     ctaLabel={upgradeLabelForPlan(
-                      requiredPlanForEmailLayout("rating_ladder"),
+                      requiredPlanForEmailLayout("reviews_showcase"),
                     )}
                   />
                 ) : null}
@@ -693,7 +832,7 @@ export default function EmailWidgetsPage() {
 
               {/* Elite Branded Layout */}
               <div className="relative w-[280px] shrink-0">
-                <div className={!canEliteBrandedLayout ? "opacity-50" : ""}>
+                <div>
                   <button
                     type="button"
                     disabled={layoutSaving || !canEliteBrandedLayout}
@@ -880,6 +1019,17 @@ export default function EmailWidgetsPage() {
 
                   {isRatingLadder ? (
                     <EmailWidgetRatingLadderPreview density="comfortable" />
+                  ) : isReviewsShowcase ? (
+                    <div className="my-4">
+                      <EmailWidgetReviewsShowcaseCard
+                        businessName={selectedBusiness?.name ?? "Your Business"}
+                        logoUrl={businessLogoUrl}
+                        website={selectedBusiness?.website ?? null}
+                        reviewCount={reviewsShowcaseStats?.review_count ?? null}
+                        avgRating={reviewsShowcaseStats?.avg_rating ?? null}
+                        density="comfortable"
+                      />
+                    </div>
                   ) : (
                     <EmailWidgetInviteBlock
                       variant={
@@ -891,6 +1041,8 @@ export default function EmailWidgetsPage() {
                       }
                       businessName={selectedBusiness?.name ?? "Your Business"}
                       density="comfortable"
+                      avgRating={reviewsShowcaseStats?.avg_rating ?? null}
+                      reviewCount={reviewsShowcaseStats?.review_count ?? null}
                     />
                   )}
 

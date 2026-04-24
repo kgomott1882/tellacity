@@ -27,7 +27,7 @@ export default function ComparePage() {
     },
     {
       feature: "Entry pricing:",
-      tellacity: "$69/mo (clear, fixed tiers)",
+      tellacity: "$49/mo (clear, fixed tiers)",
       trustpilot: "From $299/mo",
       yelp: "From $150/mo",
       feefo: "£149–£299/mo",
@@ -382,7 +382,7 @@ export default function ComparePage() {
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
               <p className="mb-1 font-medium text-white">Pricing philosophy</p>
               <p className="text-sm text-white">
-                Tellacity offers clear, fixed pricing starting at $69/month with no hidden tiers. Other platforms like
+                Tellacity offers clear, fixed pricing starting at $49/month with no hidden tiers. Other platforms like
                 Trustpilot and Feefo typically start at higher entry prices (around $299/month) with additional costs
                 based on features and volume.
               </p>

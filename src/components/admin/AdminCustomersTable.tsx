@@ -76,10 +76,13 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
           aria-label="Filter customers"
         />
         <p className="mt-2 max-w-4xl text-xs text-neutral-500">
-          Activity matches the business dashboard bell: owner logins, page views, widget usage, and
-          review invite sends (monthly cap). There is no session timer — “Events 7d” is the count of
-          owner dashboard actions logged in the last 7 days. Reviews counts published, visible
-          reviews (same as the public profile), not the cached column on businesses.
+          Activity comes from <span className="font-medium">business_activity_logs</span> (same
+          source as the dashboard bell): logins and page views from anyone with dashboard access
+          (owner, co-owner, or active member), widget usage, and review invite sends (monthly cap).
+          There is no session timer — “Events 7d” counts navigation engagement in the last 7 days.
+          “Last active” is the latest of those dashboard actions (not Supabase Auth last sign-in).
+          Reviews counts published, visible reviews (same as the public profile), not the cached
+          column on businesses.
         </p>
       </div>
       {filtered.length === 0 ? (
@@ -143,7 +146,7 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
                       <div className="text-xs text-neutral-500">24h · 7d</div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                      {formatShortDate(m.lastOwnerActivityAt)}
+                      {formatShortDate(m.lastDashboardActivityAt)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                       {m.dashboardEvents7d}

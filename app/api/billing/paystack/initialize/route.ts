@@ -8,6 +8,17 @@ import { buildPaystackBillingReturnCallbackUrl } from "@/lib/billingPaystackCall
 import { getValidatedPaystackSecret, resolvePaystackChargeDetails } from "@/lib/billingPaystack";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
+import {
+  availableCreditsUsdMinor,
+  computeProrationCreditUsdMinor,
+  ensureProrationCredit,
+  isUpgrade,
+  MIN_CHARGE_USD_MINOR,
+  fetchActiveSubscriptionMeta,
+  releasePendingCredits,
+  reserveCreditSelection,
+  selectCreditsForCharge,
+} from "@/lib/billingCredits";
 
 function parsePlan(raw: unknown): PaidPlanKey | null {
   if (typeof raw !== "string") return null;
@@ -139,14 +150,75 @@ export async function POST(req: Request) {
     }
 
     const charge = await resolvePaystackChargeDetails(plan, cycle);
-    const amount = charge.amountMinor;
-    if (!Number.isFinite(amount) || amount < 100) {
+    const listAmountMinor = charge.amountMinor;
+    const listUsdMinor = Math.max(0, Math.round(charge.listUsdMajor * 100));
+    if (!Number.isFinite(listAmountMinor) || listAmountMinor < 100 || listUsdMinor <= 0) {
       return NextResponse.json({ error: "Invalid charge amount." }, { status: 400 });
     }
 
     const currencyCode = charge.currency;
     const reference = `tellacity_${businessId.slice(0, 8)}_${Date.now()}`;
-    const callbackUrl = buildPaystackBillingReturnCallbackUrl(req, businessId);
+
+    // Compute proration + apply any available credits for mid-cycle upgrades.
+    const { supabaseUrl: creditSupabaseUrl, serviceRoleKey: creditServiceRoleKey } =
+      getServerEnv();
+    const creditDb = createClient(creditSupabaseUrl, creditServiceRoleKey);
+
+    const currentSub = await fetchActiveSubscriptionMeta(creditDb, businessId);
+    const currentPlanKey = currentSub?.planKey ?? "free";
+    const currentPeriodEndIso = currentSub?.currentPeriodEnd ?? null;
+
+    if (
+      currentSub &&
+      currentPeriodEndIso &&
+      isUpgrade(currentPlanKey, plan) &&
+      currentPlanKey !== "free"
+    ) {
+      const prorationUsdMinor = computeProrationCreditUsdMinor({
+        currentPlan: currentPlanKey,
+        currentCycle: cycle,
+        currentPeriodEndIso,
+      });
+      if (prorationUsdMinor > 0) {
+        await ensureProrationCredit(creditDb, {
+          businessId,
+          previousPlan: currentPlanKey,
+          newPlan: plan,
+          currentCycle: cycle,
+          currentPeriodEndIso,
+          amountUsdMinor: prorationUsdMinor,
+        });
+      }
+    }
+
+    // Cap credit usage so the final Paystack charge stays above its minimum.
+    const maxApplicableUsdMinor = Math.max(0, listUsdMinor - MIN_CHARGE_USD_MINOR);
+    const { rows: availableRows } = await availableCreditsUsdMinor(creditDb, businessId);
+    const selection = selectCreditsForCharge(availableRows, maxApplicableUsdMinor);
+
+    if (selection.totalAppliedUsdMinor > 0) {
+      const reserved = await reserveCreditSelection(creditDb, selection, reference);
+      if (!reserved.ok) {
+        console.warn("[billing/paystack/initialize] reserve credits:", reserved.error);
+      }
+    }
+
+    // Translate USD credit to the Paystack charge currency using the same FX
+    // as the list price (keeps the ratio exact so verify can reconstruct).
+    const creditRatio =
+      listUsdMinor > 0 ? selection.totalAppliedUsdMinor / listUsdMinor : 0;
+    const chargeCurrencyCreditMinor = Math.round(listAmountMinor * creditRatio);
+    const amount = Math.max(100, listAmountMinor - chargeCurrencyCreditMinor);
+
+    const returnToRaw = typeof body.returnTo === "string" ? body.returnTo.trim() : "";
+    const returnTo =
+      returnToRaw.startsWith("/business/dashboard/") && !returnToRaw.includes("..") && !returnToRaw.includes("//")
+        ? returnToRaw
+        : null;
+
+    const callbackUrl = buildPaystackBillingReturnCallbackUrl(req, businessId, {
+      returnPath: returnTo,
+    });
 
     // Paystack verify reconciles charge amount using metadata.billing_cycle — always send explicit "monthly" | "annual".
     const billingCycleMetadata: "monthly" | "annual" = cycle;
@@ -162,6 +234,10 @@ export async function POST(req: Request) {
         plan_code: plan,
         billing_cycle: billingCycleMetadata,
         list_price_usd: String(charge.listUsdMajor),
+        list_amount_minor: String(listAmountMinor),
+        credit_applied_usd_minor: String(selection.totalAppliedUsdMinor),
+        credit_applied_amount_minor: String(chargeCurrencyCreditMinor),
+        previous_plan_code: currentPlanKey,
         ...(charge.fxUsdZar != null
           ? { fx_usd_zar: String(Math.round(charge.fxUsdZar * 10000) / 10000) }
           : {}),
@@ -193,7 +269,17 @@ export async function POST(req: Request) {
         list_usd: charge.listUsdMajor,
         approx_settle_major: charge.settleMajor,
         fx_usd_zar: charge.fxUsdZar,
+        net_amount_minor: amount,
+        list_amount_minor: listAmountMinor,
+        credit_applied_usd_minor: selection.totalAppliedUsdMinor,
+        credit_applied_amount_minor: chargeCurrencyCreditMinor,
       });
+    }
+
+    // Paystack refused the charge — release any credits we reserved so the
+    // user can retry without losing their pro-ration.
+    if (selection.totalAppliedUsdMinor > 0) {
+      await releasePendingCredits(creditDb, reference);
     }
 
     const message =

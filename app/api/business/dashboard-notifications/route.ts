@@ -4,6 +4,23 @@ import {
   canAccessBusiness,
   resolveDashboardDb,
 } from "@/lib/supabase/businessDashboardServer";
+import {
+  PLAN_PHOTO_LIMITS,
+  getActivePlanKeyForBusinessResult,
+} from "@/lib/plans";
+import {
+  FREE_PLAN_PHOTO_RETENTION_DAYS,
+  finalWarningCutoffIso,
+  photoExpiresAtIso,
+} from "@/lib/businessPhotoExpiry";
+
+/**
+ * Minimum lifetime `dashboard_login` events before the
+ * `photos_free_limit_upgrade` nudge kicks in. Matches the product
+ * description: the upgrade nudge only fires once the owner has "logged
+ * in and out of the dashboard a few times" and clearly returns to use it.
+ */
+const PHOTOS_UPGRADE_NUDGE_MIN_LOGINS = 3;
 
 export const runtime = "nodejs";
 
@@ -106,8 +123,21 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const [{ data: business, error: businessErr }, { count: publishedReviewCount }, { count: sentThisMonthCount }, { count: loginCount24h }, unrepliedSummary, latestInviteRow, widgetGeneratedCount, emailWidgetSendsCount, emailWidgetInviteCount] =
-      await Promise.all([
+    const [
+      { data: business, error: businessErr },
+      { count: publishedReviewCount },
+      { count: sentThisMonthCount },
+      { count: loginCount24h },
+      unrepliedSummary,
+      latestInviteRow,
+      widgetGeneratedCount,
+      emailWidgetSendsCount,
+      emailWidgetInviteCount,
+      photoCountResult,
+      loginLifetimeCount,
+      planResolution,
+      expiringPhotosResult,
+    ] = await Promise.all([
         auth.db
           .from("businesses")
           .select("id, logo_url, description, category_slug, address, city, country_code, created_at")
@@ -160,6 +190,36 @@ export async function GET(req: Request) {
           .select("id", { count: "exact", head: true })
           .eq("business_id", businessId)
           .eq("source", "email_widget"),
+        // Total photos uploaded to `business_photos` for this business — matches
+        // the upload API's plan-cap check (`status`-agnostic). Drives both the
+        // "no photos yet" nudge and the Free-plan "upgrade for more photos" nudge.
+        auth.db
+          .from("business_photos")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId),
+        // Lifetime `dashboard_login` events for this owner + business. Used
+        // to gate the upgrade nudge until the owner has returned a few times.
+        auth.db
+          .from("business_activity_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId)
+          .eq("user_id", auth.userId)
+          .eq("action_type", "dashboard_login"),
+        // Current plan key (free / grow / premium / elite).
+        getActivePlanKeyForBusinessResult(businessId, auth.db),
+        // Photos already past the 29-day retention warning cutoff. Free-plan
+        // photos become eligible for automatic removal at 30 days from
+        // `created_at`, so anything that clears the warning cutoff drives
+        // the "photos will be removed within 24 hours" urgent notice. The
+        // free plan cap is tiny (≤4), so limit(100) is well over any real
+        // per-business volume.
+        auth.db
+          .from("business_photos")
+          .select("id, created_at")
+          .eq("business_id", businessId)
+          .lte("created_at", finalWarningCutoffIso())
+          .order("created_at", { ascending: true })
+          .limit(100),
       ]);
 
     if (businessErr) {
@@ -289,6 +349,117 @@ export async function GET(req: Request) {
         description: "Use your widgets to maximize your online backlinks SEO.",
         href: "/business/dashboard/share/widgets",
         priority: 84,
+        created_at: new Date().toISOString(),
+        always_show: true,
+      });
+    }
+
+    // Photo-upload nudges:
+    //  1) "No photos uploaded yet" — any plan, no rows in `business_photos`.
+    //  2) "Upgrade for more photos" — Free plan, hit the free cap, AND the
+    //     owner has logged in a few times (engaged, not a drive-by signup).
+    // `photoCountResult` / `loginLifetimeCount` already handle their own
+    // errors below via `parseIntCount` + explicit `.error` checks so a
+    // missing / restricted table never breaks the rest of the feed.
+    const photoCount = photoCountResult.error
+      ? 0
+      : parseIntCount(photoCountResult.count);
+    const photoTableAvailable = !photoCountResult.error;
+    const lifetimeLogins = loginLifetimeCount.error
+      ? 0
+      : parseIntCount(loginLifetimeCount.count);
+    const activePlanKey = planResolution.ok ? planResolution.plan : "free";
+    const freePhotoCap = PLAN_PHOTO_LIMITS.free;
+
+    if (photoTableAvailable && photoCount === 0) {
+      notifications.push({
+        key: "photos_none_uploaded",
+        title: "Showcase your business with photos",
+        description:
+          "Businesses with photos look more trustworthy. Upload a few — your team, workspace, or products — to stand out on your public profile.",
+        href: "/business/dashboard/settings/photos",
+        priority: 75,
+        created_at: createdAt,
+      });
+    }
+
+    if (
+      photoTableAvailable &&
+      activePlanKey === "free" &&
+      photoCount >= freePhotoCap &&
+      lifetimeLogins >= PHOTOS_UPGRADE_NUDGE_MIN_LOGINS
+    ) {
+      notifications.push({
+        key: "photos_free_limit_upgrade",
+        title: "Unlock more photos — your profile is getting noticed",
+        description:
+          "You've used all of your free photo slots. Visitors are viewing your business page — upgrade your plan to upload more photos and keep them engaged.",
+        href: "/business/dashboard/billing?source=upload_limit",
+        priority: 78,
+        created_at: new Date().toISOString(),
+        always_show: true,
+      });
+    }
+
+    // Free-plan 30-day photo retention notices:
+    //   1) `photos_free_retention_policy` — informational nudge shown to
+    //      any free-plan business that has uploaded at least one photo but
+    //      nothing is in the final warning window yet. Dismissible.
+    //   2) `photos_free_expiring_24h` — urgent, always-visible warning
+    //      once any photo crosses the 29-day threshold. Copy names the
+    //      count and the earliest cutoff so the owner can decide before
+    //      the deletion sweep runs.
+    // Photo retention is re-evaluated at query time from `created_at` +
+    // the resolved plan — upgrading to any paid plan instantly hides both
+    // nudges on the next refresh.
+    const expiringPhotoRows = expiringPhotosResult.error
+      ? []
+      : ((expiringPhotosResult.data ?? []) as Array<{
+          id?: string;
+          created_at?: string | null;
+        }>);
+    const expiringPhotoCount = expiringPhotoRows.length;
+    const earliestExpiringCreatedAt =
+      expiringPhotoRows[0]?.created_at ?? null;
+    const earliestExpiresAtIso = photoExpiresAtIso(
+      earliestExpiringCreatedAt,
+    );
+
+    if (
+      photoTableAvailable &&
+      activePlanKey === "free" &&
+      photoCount > 0 &&
+      expiringPhotoCount === 0
+    ) {
+      notifications.push({
+        key: "photos_free_retention_policy",
+        title: `Free-plan photos are removed after ${FREE_PLAN_PHOTO_RETENTION_DAYS} days`,
+        description: `Photos uploaded on the Free plan are automatically removed ${FREE_PLAN_PHOTO_RETENTION_DAYS} calendar days after upload. Upgrade to any paid plan to keep them live for good.`,
+        href: "/business/dashboard/billing?source=upload_limit",
+        priority: 55,
+        created_at: createdAt,
+      });
+    }
+
+    if (
+      photoTableAvailable &&
+      activePlanKey === "free" &&
+      expiringPhotoCount > 0
+    ) {
+      const photosLabel = expiringPhotoCount === 1 ? "photo" : "photos";
+      const cutoffLabel = formatDateShort(earliestExpiresAtIso);
+      notifications.push({
+        key: "photos_free_expiring_24h",
+        title: `${expiringPhotoCount} ${photosLabel} will be removed within 24 hours`,
+        description: `Your Free-plan ${photosLabel} on this profile ${
+          expiringPhotoCount === 1 ? "is" : "are"
+        } about to hit the ${FREE_PLAN_PHOTO_RETENTION_DAYS}-day retention cutoff (earliest on ${cutoffLabel}). Upgrade now to keep ${
+          expiringPhotoCount === 1 ? "it" : "them"
+        } live — otherwise the photo${
+          expiringPhotoCount === 1 ? "" : "s"
+        } will be removed and you'll need to re-upload after the window rolls over.`,
+        href: "/business/dashboard/billing?source=upload_limit",
+        priority: 96,
         created_at: new Date().toISOString(),
         always_show: true,
       });

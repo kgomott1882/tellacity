@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl } from "@/lib/logo";
 import BusinessSearchInput from "@/components/search/BusinessSearchInput";
+import { buildBusinessSignupClaimPrefillUrl } from "@/lib/businessSignupClaimPrefill";
 
 type BusinessRow = {
   id: string;
@@ -88,13 +89,13 @@ export default function BusinessClaimPage() {
     setIsSearching(false);
   };
 
-  const signupUrl = (business: BusinessRow) => {
-    const params = new URLSearchParams();
-    params.set("businessId", business.id);
-    if (business.slug) params.set("businessSlug", business.slug);
-    params.set("businessName", business.name);
-    return `/business/signup?${params.toString()}`;
-  };
+  const signupUrl = (business: BusinessRow) =>
+    buildBusinessSignupClaimPrefillUrl({
+      businessId: business.id,
+      businessName: business.name,
+      businessSlug: business.slug || null,
+      website: business.domain || null,
+    });
 
   return (
     <main className="bg-white">

@@ -938,15 +938,35 @@ export default function WebsiteWidgetsPage() {
                   {cat.widgets.map((widget) => {
                     const isActive = selected === widget.id;
                     const cardLocked = !canAccessWebsiteWidget(planKey, widget.planWidget);
+                    const openCard = () => {
+                      setSelected(widget.id);
+                      setWidgetConfigureOpen(true);
+                    };
+                    // Mini live preview for each card so owners can see what each
+                    // widget looks like before clicking in — including locked ones.
+                    // We use the same `/widgets/embed` route as the main preview,
+                    // but with `pointer-events: none` so clicks still select the
+                    // card. `loading="lazy"` keeps off-screen iframes idle.
+                    const galleryPreviewSrc = slug
+                      ? `${previewBaseUrl}/widgets/embed?business=${encodeURIComponent(
+                          slug,
+                        )}&type=${encodeURIComponent(
+                          widget.id,
+                        )}&dashboard_demo=1&theme=minimal&show_business_name=1${previewExtraParams}`
+                      : "";
                     return (
-                      <button
+                      <div
                         key={widget.id}
-                        type="button"
-                        onClick={() => {
-                          setSelected(widget.id);
-                          setWidgetConfigureOpen(true);
+                        role="button"
+                        tabIndex={0}
+                        onClick={openCard}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openCard();
+                          }
                         }}
-                        className={`text-left rounded-xl border-2 p-4 transition-all ${
+                        className={`cursor-pointer text-left rounded-xl border-2 p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2fb2a8] ${
                           isActive
                             ? "border-[#2fb2a8] bg-[#2fb2a8]/5 shadow-sm"
                             : "border-gray-200 hover:border-[#2fb2a8]/50 bg-white shadow-sm"
@@ -973,9 +993,43 @@ export default function WebsiteWidgetsPage() {
                             ) : null}
                           </div>
                         </div>
-                        <p className="mt-2 line-clamp-3 text-xs leading-snug text-gray-500">{widget.description}</p>
+                        <p className="mt-2 line-clamp-2 text-xs leading-snug text-gray-500">{widget.description}</p>
+                        {galleryPreviewSrc ? (
+                          <div
+                            className="relative mt-3 overflow-hidden rounded-md border border-gray-100 bg-white"
+                            style={{ height: 140 }}
+                            aria-hidden
+                          >
+                            {/*
+                              The gallery card is tiny, so rendering the widget at
+                              native size produces the "clustered / unreadable"
+                              look. We give the iframe twice the available
+                              width/height and scale it down to 50% so the widget
+                              has a normal desktop-width canvas internally and
+                              simply appears thumbnail-sized. Readability of
+                              small text isn't a requirement here — owners open
+                              the full preview modal for that.
+                            */}
+                            <iframe
+                              src={galleryPreviewSrc}
+                              title={`${widget.name} preview`}
+                              className="pointer-events-none absolute left-0 top-0"
+                              style={{
+                                border: 0,
+                                backgroundColor: "transparent",
+                                width: "200%",
+                                height: "200%",
+                                transform: "scale(0.5)",
+                                transformOrigin: "top left",
+                              }}
+                              scrolling="no"
+                              loading="lazy"
+                              tabIndex={-1}
+                            />
+                          </div>
+                        ) : null}
                         <p className="mt-3 text-[11px] font-medium text-[#124541]">Preview &amp; configure →</p>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
