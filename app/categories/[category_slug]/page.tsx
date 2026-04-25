@@ -1,11 +1,12 @@
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
-import { notFound } from "next/navigation";
 import CategoryClient from "./CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
-import { normalizeBusinessTags } from "@/lib/businessTags";
+import { normalizeBusinessTags, mergeTagsForDisplay } from "@/lib/businessTags";
 import { getCachedCategoryListingPage } from "@/lib/cachedCategoryListing";
+import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
 
 type PageProps = {
   params: Promise<{ category_slug: string }>;
@@ -13,12 +14,14 @@ type PageProps = {
 };
 const TAG_FETCH_LIMIT = 2000;
 const GLOBAL_TAG_FALLBACK_LIMIT = 1000;
+const LISTING_PAGE_SIZE = 10;
 
-function getSupabase() {
+function getSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
-    throw new Error("Supabase env missing for category page");
+    console.error("[category page] Supabase env missing");
+    return null;
   }
   return createClient(url, key);
 }
@@ -74,10 +77,11 @@ function countryNameFromCode(code: string): string {
 }
 
 async function loadPopularTagsForCategory(
-  supabase: ReturnType<typeof getSupabase>,
+  supabase: SupabaseClient | null,
   safeCategorySlug: string,
   requestedCountry: string | undefined,
 ): Promise<Array<{ label: string; slug: string }>> {
+  if (!supabase) return [];
   let popularTags: Array<{ label: string; slug: string }> = [];
   try {
     const countryFilter = requestedCountry
@@ -147,60 +151,130 @@ function countryAliasesForQuery(countryCode: string | null): string[] | null {
 }
 
 async function loadCategoryCountsForMetadata(
-  supabase: ReturnType<typeof getSupabase>,
+  supabase: SupabaseClient | null,
   safeCategorySlug: string,
   requestedCountry: string | undefined,
 ): Promise<{ businessCount: number; reviewCount: number }> {
-  const normalizedCountry = requestedCountry
-    ? normalizeCountryCode(requestedCountry)
-    : null;
-  const aliases = countryAliasesForQuery(normalizedCountry);
+  if (!supabase) return { businessCount: 0, reviewCount: 0 };
+  try {
+    const normalizedCountry = requestedCountry
+      ? normalizeCountryCode(requestedCountry)
+      : null;
+    const aliases = countryAliasesForQuery(normalizedCountry);
 
-  let countQuery = supabase
-    .from("businesses")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "active")
-    .eq("category_slug", safeCategorySlug);
-  if (aliases && aliases.length > 0) {
-    countQuery = countQuery.in("country_code", aliases);
-  }
+    let countQuery = supabase
+      .from("businesses")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("category_slug", safeCategorySlug);
+    if (aliases && aliases.length > 0) {
+      countQuery = countQuery.in("country_code", aliases);
+    }
 
-  const { count } = await countQuery;
-  const businessCount = count ?? 0;
-  if (businessCount <= 0) {
+    const { count } = await countQuery;
+    const businessCount = count ?? 0;
+    if (businessCount <= 0) {
+      return { businessCount: 0, reviewCount: 0 };
+    }
+
+    const PAGE = 1000;
+    let reviewCount = 0;
+    let offset = 0;
+    while (true) {
+      let reviewsQuery = supabase
+        .from("businesses")
+        .select("review_count")
+        .eq("status", "active")
+        .eq("category_slug", safeCategorySlug)
+        .range(offset, offset + PAGE - 1);
+      if (aliases && aliases.length > 0) {
+        reviewsQuery = reviewsQuery.in("country_code", aliases);
+      }
+
+      const { data, error } = await reviewsQuery;
+      if (error || !Array.isArray(data) || data.length === 0) {
+        break;
+      }
+
+      for (const row of data as Array<{ review_count?: number | null }>) {
+        reviewCount += Number(row.review_count ?? 0) || 0;
+      }
+
+      if (data.length < PAGE) {
+        break;
+      }
+      offset += PAGE;
+    }
+
+    return { businessCount, reviewCount };
+  } catch (e) {
+    console.error("[category page] loadCategoryCountsForMetadata:", e);
     return { businessCount: 0, reviewCount: 0 };
   }
+}
 
-  const PAGE = 1000;
-  let reviewCount = 0;
-  let offset = 0;
-  while (true) {
-    let reviewsQuery = supabase
+/** When country-filtered listing is empty, load same category across all countries (no country filter). */
+async function loadBusinessesWithoutCountryFilter(
+  supabase: SupabaseClient,
+  safeCategorySlug: string,
+  pageIndex0: number,
+): Promise<{ rows: CategoryBusinessRow[]; totalCount: number; hasNext: boolean }> {
+  const offset = pageIndex0 * LISTING_PAGE_SIZE;
+  const categories =
+    safeCategorySlug === "banking"
+      ? ["banking", "banking-and-money"]
+      : [safeCategorySlug];
+  try {
+    const { data, error } = await supabase
       .from("businesses")
-      .select("review_count")
+      .select(
+        "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags,secondary_category_slugs",
+      )
+      .in("category_slug", categories)
       .eq("status", "active")
-      .eq("category_slug", safeCategorySlug)
-      .range(offset, offset + PAGE - 1);
-    if (aliases && aliases.length > 0) {
-      reviewsQuery = reviewsQuery.in("country_code", aliases);
+      .order("trust_score", { ascending: false })
+      .order("review_count", { ascending: false })
+      .order("name", { ascending: true })
+      .range(offset, offset + LISTING_PAGE_SIZE);
+
+    if (error || !Array.isArray(data)) {
+      return { rows: [], totalCount: 0, hasNext: false };
     }
 
-    const { data, error } = await reviewsQuery;
-    if (error || !Array.isArray(data) || data.length === 0) {
-      break;
+    const rows = data as CategoryBusinessRow[];
+    for (const row of rows) {
+      row.tags = mergeTagsForDisplay(
+        row.tags,
+        row.secondary_category_slugs,
+        row.category_slug,
+      );
+    }
+    const hasNext = rows.length > LISTING_PAGE_SIZE;
+    const sliced = hasNext ? rows.slice(0, LISTING_PAGE_SIZE) : rows;
+
+    const { count, error: countError } = await supabase
+      .from("businesses")
+      .select("id", { count: "exact", head: true })
+      .in("category_slug", categories)
+      .eq("status", "active");
+
+    if (countError) {
+      return {
+        rows: sliced,
+        totalCount: offset + sliced.length + (hasNext ? 1 : 0),
+        hasNext,
+      };
     }
 
-    for (const row of data as Array<{ review_count?: number | null }>) {
-      reviewCount += Number(row.review_count ?? 0) || 0;
-    }
-
-    if (data.length < PAGE) {
-      break;
-    }
-    offset += PAGE;
+    return {
+      rows: sliced,
+      totalCount: count ?? sliced.length,
+      hasNext,
+    };
+  } catch (e) {
+    console.error("[category page] fallback listing (no country):", e);
+    return { rows: [], totalCount: 0, hasNext: false };
   }
-
-  return { businessCount, reviewCount };
 }
 
 // ----------------------------
@@ -210,8 +284,13 @@ export async function generateMetadata(props: {
   params: Promise<{ category_slug: string }>;
   searchParams?: Promise<{ page?: string }>;
 }) {
-  const { category_slug } = await props.params;
-  const safeCategorySlug = category_slug.trim().toLowerCase();
+  let safeCategorySlug = "category";
+  try {
+    const { category_slug } = await props.params;
+    safeCategorySlug = (category_slug ?? "category").trim().toLowerCase() || "category";
+  } catch {
+    safeCategorySlug = "category";
+  }
 
   try {
     const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
@@ -226,17 +305,39 @@ export async function generateMetadata(props: {
     const countryCode = normalizeCountryCode(searchParams?.country);
     const countryName = countryNameFromCode(countryCode);
     const supabase = getSupabase();
+    if (!supabase) {
+      const fallbackTitle =
+        safeCategorySlug
+          .split("-")
+          .filter(Boolean)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ") || "Category";
+      return {
+        title: `Best ${fallbackTitle} Companies | Tellacity`,
+        alternates: {
+          canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
+        },
+        robots: {
+          index: true,
+          follow: true,
+        },
+      };
+    }
 
     let categoryName: string | null = null;
 
     if (safeCategorySlug) {
-      const { data } = await supabase
-        .from("categories")
-        .select("name")
-        .eq("slug", safeCategorySlug)
-        .maybeSingle();
+      try {
+        const { data } = await supabase
+          .from("categories")
+          .select("name")
+          .eq("slug", safeCategorySlug)
+          .maybeSingle();
 
-      categoryName = data?.name ?? null;
+        categoryName = data?.name ?? null;
+      } catch (e) {
+        console.error("[category page] generateMetadata category lookup:", e);
+      }
     }
 
     const fallbackTitle = safeCategorySlug
@@ -305,101 +406,182 @@ export async function generateMetadata(props: {
 // PAGE (Next 16 compliant)
 // ----------------------------
 export default async function Page(props: PageProps) {
-  const { category_slug } = await props.params;
-  const safeCategorySlug = category_slug.trim().toLowerCase();
-  const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
-    page?: string;
-    country?: string;
-  };
-  const pageNum = Math.max(
-    1,
-    parseInt(String(searchParams.page ?? "1"), 10) || 1
-  );
-  const supabase = getSupabase();
-
-  const { data: category } = await supabase
-    .from("categories")
-    .select("slug,name,group_slug")
-    .eq("slug", safeCategorySlug)
-    .maybeSingle();
-
-  if (!category) {
-    notFound();
-  }
-
-  const categoryName =
-    (category.name ?? "").trim() ||
-    safeCategorySlug
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  const countryCode = normalizeCountryCode(searchParams?.country);
-  const countryName = countryNameFromCode(countryCode);
-
-  let businesses: unknown[] = [];
-  let companyCount = 0;
-  let hasNextPage = false;
   try {
-    const pack = await getCachedCategoryListingPage(
-      safeCategorySlug,
-      countryCode,
-      pageNum - 1,
-      0,
+    let safeCategorySlug = "category";
+    try {
+      const { category_slug } = await props.params;
+      safeCategorySlug =
+        (category_slug ?? "category").trim().toLowerCase() || "category";
+    } catch (e) {
+      console.error("[category page] params:", e);
+    }
+
+    let searchParams: { page?: string; country?: string } = {};
+    try {
+      searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
+        page?: string;
+        country?: string;
+      };
+    } catch (e) {
+      console.error("[category page] searchParams:", e);
+    }
+
+    const pageNum = Math.max(
+      1,
+      parseInt(String(searchParams.page ?? "1"), 10) || 1,
     );
-    businesses = pack.rows as unknown[];
-    companyCount = pack.totalCount;
-    hasNextPage = pack.hasNext;
-  } catch (e) {
-    console.error("[category page] prefetch:", e);
+
+    const safeCountry =
+      typeof searchParams?.country === "string"
+        ? searchParams.country.toUpperCase()
+        : null;
+    const countryCode = normalizeCountryCode(safeCountry ?? undefined);
+    const countryName = countryNameFromCode(countryCode);
+
+    const supabase = getSupabase();
+
+    let categoryRow: {
+      slug: string;
+      name: string | null;
+      group_slug: string | null;
+    } | null = null;
+
+    if (supabase && safeCategorySlug) {
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("slug,name,group_slug")
+          .eq("slug", safeCategorySlug)
+          .maybeSingle();
+        if (!error && data) {
+          categoryRow = data as {
+            slug: string;
+            name: string | null;
+            group_slug: string | null;
+          };
+        }
+      } catch (e) {
+        console.error("[category page] category fetch:", e);
+      }
+    }
+
+    const categoryName =
+      (categoryRow?.name ?? "").trim() ||
+      safeCategorySlug
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+
+    let businesses: unknown[] = [];
+    let companyCount = 0;
+    let hasNextPage = false;
+
+    try {
+      const pack = await getCachedCategoryListingPage(
+        safeCategorySlug,
+        countryCode,
+        pageNum - 1,
+        0,
+      );
+      businesses = (pack.rows ?? []) as unknown[];
+      companyCount = pack.totalCount;
+      hasNextPage = pack.hasNext;
+    } catch (e) {
+      console.error("[category page] prefetch:", e);
+      businesses = [];
+      companyCount = 0;
+      hasNextPage = false;
+    }
+
+    const hadExplicitCountryParam =
+      typeof searchParams.country === "string" &&
+      searchParams.country.trim() !== "";
+
+    if (
+      businesses.length === 0 &&
+      hadExplicitCountryParam &&
+      supabase
+    ) {
+      try {
+        const fallback = await loadBusinessesWithoutCountryFilter(
+          supabase,
+          safeCategorySlug,
+          pageNum - 1,
+        );
+        businesses = fallback.rows as unknown[];
+        companyCount = fallback.totalCount;
+        hasNextPage = fallback.hasNext;
+      } catch (e) {
+        console.error("[category page] fallback no-country:", e);
+      }
+    }
+
+    let popularTags: Array<{ label: string; slug: string }> = [];
+    try {
+      popularTags = await loadPopularTagsForCategory(
+        supabase,
+        safeCategorySlug,
+        searchParams?.country,
+      );
+    } catch (e) {
+      console.error("[category page] popularTags:", e);
+    }
+
+    return (
+      <>
+        <section className="mx-auto w-full max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs text-[#1FAF9E]">
+              Categories <span className="mx-1">›</span> Business Services{" "}
+              <span className="mx-1">›</span> {categoryName}
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
+              Best {categoryName} companies in {countryName}
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+              Find the best {categoryName} companies in {countryName}. Compare
+              ratings, read real customer reviews, and choose trusted providers
+              based on real experiences.
+            </p>
+            <div style={{ marginTop: "10px" }}>
+              <a
+                href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
+                style={{
+                  fontSize: "13px",
+                  color: "#1FAF9E",
+                  textDecoration: "none",
+                }}
+              >
+                View best {categoryName} companies in {countryName} →
+              </a>
+            </div>
+            <div className="text-sm text-gray-500 flex flex-wrap gap-4 mt-2">
+              <span>• Ranked by TrustScore</span>
+              <span>• Filter by rating &amp; country</span>
+              <span>• Read &amp; share experiences</span>
+            </div>
+          </div>
+        </section>
+
+        <CategoryClient
+          categorySlug={safeCategorySlug}
+          initialCountryCode={countryCode}
+          businesses={businesses}
+          companyCount={companyCount}
+          hasNextPage={hasNextPage}
+          popularTags={popularTags}
+        />
+      </>
+    );
+  } catch (error) {
+    console.error("[category page] render failed:", error);
+    return (
+      <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <p className="text-sm text-gray-600">
+          Category listings are temporarily unavailable. Please try again
+          shortly.
+        </p>
+      </div>
+    );
   }
-
-  const popularTags = await loadPopularTagsForCategory(
-    supabase,
-    safeCategorySlug,
-    searchParams?.country,
-  );
-
-  return (
-    <>
-      <section className="mx-auto w-full max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
-        <div className="max-w-3xl">
-          <p className="text-xs text-[#1FAF9E]">
-            Categories <span className="mx-1">›</span> Business Services <span className="mx-1">›</span> {categoryName}
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
-            Best {categoryName} companies in {countryName}
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-gray-600">
-            Find the best {categoryName} companies in {countryName}. Compare ratings, read real customer reviews, and choose trusted providers based on real experiences.
-          </p>
-          <div style={{ marginTop: "10px" }}>
-            <a
-              href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
-              style={{
-                fontSize: "13px",
-                color: "#1FAF9E",
-                textDecoration: "none",
-              }}
-            >
-              View best {categoryName} companies in {countryName} →
-            </a>
-          </div>
-          <div className="text-sm text-gray-500 flex flex-wrap gap-4 mt-2">
-            <span>• Ranked by TrustScore</span>
-            <span>• Filter by rating &amp; country</span>
-            <span>• Read &amp; share experiences</span>
-          </div>
-        </div>
-      </section>
-
-      <CategoryClient
-        categorySlug={safeCategorySlug}
-        initialCountryCode={countryCode}
-        businesses={businesses}
-        companyCount={companyCount}
-        hasNextPage={hasNextPage}
-        popularTags={popularTags}
-      />
-    </>
-  );
 }
