@@ -1,15 +1,14 @@
-"use client";
-
-import { Suspense } from "react";
-import SearchPageInner from "./SearchPageInner";
+import SearchPageClient from "./SearchPageClient";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function SearchPage() {
-  return (
-    <Suspense fallback={null}>
-      <SearchPageInner />
-    </Suspense>
-  );
+  return <SearchPageClient />;
 }
 

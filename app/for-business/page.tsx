@@ -5,6 +5,29 @@ import DashboardMock from "@/components/for-business/DashboardMock";
 import ReviewFlowGraphic from "@/components/for-business/ReviewFlowGraphic";
 import ReviewFlowSteps from "@/components/for-business/ReviewFlowSteps";
 
+export const metadata = {
+  title: "For Business | Grow with Customer Reviews | Tellacity",
+  description:
+    "Collect reviews, build trust, and grow your business with Tellacity. Manage feedback, improve reputation, and attract more customers.",
+  alternates: {
+    canonical: "https://tellacity.com/for-business",
+  },
+  openGraph: {
+    title: "For Business | Tellacity",
+    description:
+      "Collect reviews and grow your business with Tellacity.",
+    url: "https://tellacity.com/for-business",
+    siteName: "Tellacity",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tellacity for Business",
+    description:
+      "Grow your business with customer reviews on Tellacity.",
+  },
+};
+
 export default function ForBusinessPage() {
   return (
     <main className="bg-white">

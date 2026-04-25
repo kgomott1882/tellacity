@@ -1,6 +1,27 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
+export const metadata = {
+  title: "Tellacity Reviews | Customer Reviews & Trusted Business Feedback",
+  description:
+    "Discover and share real customer reviews across 200,000+ businesses worldwide. Tellacity helps you make informed decisions with trusted feedback and ratings.",
+  alternates: {
+    canonical: "https://tellacity.com",
+  },
+  openGraph: {
+    title: "Tellacity Reviews | Customer Reviews & Trusted Business Feedback",
+    description:
+      "Discover and share real customer reviews across 200,000+ businesses worldwide.",
+    url: "https://tellacity.com",
+    siteName: "Tellacity",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tellacity Reviews",
+    description: "Read and write real customer reviews on Tellacity.",
+  },
+};
 
 import { Suspense } from "react";
 import HomePageClient from "./HomePageClient";
@@ -84,6 +105,25 @@ function buildHomeCategoryRows(
 }
 
 export default async function HomePage(props: PageProps) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Tellacity",
+    url: "https://tellacity.com",
+    sameAs: [],
+  };
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Tellacity",
+    url: "https://tellacity.com",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://tellacity.com/search?q={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   let country = "US";
   let bestInByCategory: Record<string, unknown[]> = {};
   let homeFeedRows: Record<string, unknown>[] = [];
@@ -163,25 +203,53 @@ export default async function HomePage(props: PageProps) {
   const safeRotatingSlugs = [...HOME_ROTATING_BEST_IN_SLUGS];
   try {
     return (
-      <Suspense fallback={<HomePageShellFallback />}>
-        <HomePageClient
-          key={country}
-          initialSelectedCountry={country ?? "US"}
-          rotatingCategorySlugs={safeRotatingSlugs}
-          bestInByCategory={safeBestInByCategory}
-          bestInCategoryLabels={safeLabels}
-          marqueeCategories={marqueeCategories}
-          initialHomeFeedRows={homeFeedRows}
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
         />
-      </Suspense>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd),
+          }}
+        />
+        <Suspense fallback={<HomePageShellFallback />}>
+          <HomePageClient
+            key={country}
+            initialSelectedCountry={country ?? "US"}
+            rotatingCategorySlugs={safeRotatingSlugs}
+            bestInByCategory={safeBestInByCategory}
+            bestInCategoryLabels={safeLabels}
+            marqueeCategories={marqueeCategories}
+            initialHomeFeedRows={homeFeedRows}
+          />
+        </Suspense>
+      </>
     );
   } catch (renderError) {
     console.error("Homepage render failed:", renderError);
     return (
-      <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Tellacity</h1>
-        <p className="mt-2 text-gray-600">Customer Reviews &amp; Feedback</p>
-      </main>
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd),
+          }}
+        />
+        <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Tellacity</h1>
+          <p className="mt-2 text-gray-600">Customer Reviews &amp; Feedback</p>
+        </main>
+      </>
     );
   }
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
@@ -117,6 +117,10 @@ const cleanDomain = (value: string | null | undefined) => {
 
   return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 };
+
+function toTagSlug(tagName: string): string {
+  return tagName.trim().toLowerCase().replace(/\s+/g, "-");
+}
 
 const formatDate = (value: string | null | undefined) => {
   if (!value) {
@@ -269,9 +273,6 @@ export default function BusinessClient({
   const [reviewOffset, setReviewOffset] = useState(0);
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const reviewsScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollReviewsLeft, setCanScrollReviewsLeft] = useState(false);
-  const [canScrollReviewsRight, setCanScrollReviewsRight] = useState(false);
   const [totalReviewCount, setTotalReviewCount] = useState(0);
   const [isTrustScoreOpen, setIsTrustScoreOpen] = useState(false);
   const [trustScoreStep, setTrustScoreStep] = useState(0);
@@ -289,6 +290,16 @@ export default function BusinessClient({
   >([]);
   const [topRatedInCategoryLoading, setTopRatedInCategoryLoading] =
     useState(false);
+
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollReviewsRowLeft = () => {
+    scrollContainerRef.current?.scrollBy({ left: -300, behavior: "smooth" });
+  };
+
+  const scrollReviewsRowRight = () => {
+    scrollContainerRef.current?.scrollBy({ left: 300, behavior: "smooth" });
+  };
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [businessPhotos, setBusinessPhotos] = useState<BusinessPhotoPublic[]>(
     () => initialBusinessPhotos ?? []
@@ -477,23 +488,7 @@ export default function BusinessClient({
       return;
     }
 
-    const pageTitle = `${business.name} Reviews | Customer Reviews & Ratings | Tellacity`;
-    const description = `Read verified customer reviews of ${business.name}. See ratings, feedback and real experiences from customers on Tellacity.`;
-
-    if (typeof document !== "undefined") {
-      document.title = pageTitle;
-      const metaDescription = document.querySelector(
-        'meta[name="description"]'
-      );
-      if (metaDescription) {
-        metaDescription.setAttribute("content", description);
-      } else {
-        const meta = document.createElement("meta");
-        meta.name = "description";
-        meta.content = description;
-        document.head.appendChild(meta);
-      }
-    }
+    // Server metadata is the source of truth for title/description.
   }, [business, siteUrl]);
 
   useEffect(() => {
@@ -931,42 +926,6 @@ export default function BusinessClient({
     reviews.length,
   ]);
 
-  const updateReviewsScrollState = useCallback(() => {
-    const el = reviewsScrollRef.current;
-    if (!el) {
-      setCanScrollReviewsLeft(false);
-      setCanScrollReviewsRight(false);
-      return;
-    }
-    const { scrollLeft, clientWidth, scrollWidth } = el;
-    setCanScrollReviewsLeft(scrollLeft > 4);
-    setCanScrollReviewsRight(scrollLeft + clientWidth < scrollWidth - 4);
-  }, []);
-
-  const scrollReviewsBy = useCallback((direction: -1 | 1) => {
-    const el = reviewsScrollRef.current;
-    if (!el) return;
-    const firstItem = el.querySelector<HTMLElement>("[data-review-carousel-item]");
-    const w = firstItem?.getBoundingClientRect().width ?? 0;
-    const step = w > 0 ? w + 16 : Math.min(el.clientWidth * 0.88, 380);
-    el.scrollBy({ left: direction * step, behavior: "smooth" });
-    window.setTimeout(updateReviewsScrollState, 320);
-  }, [updateReviewsScrollState]);
-
-  useEffect(() => {
-    if (isLoadingReviews) return;
-    updateReviewsScrollState();
-    const el = reviewsScrollRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => updateReviewsScrollState());
-    ro.observe(el);
-    window.addEventListener("resize", updateReviewsScrollState);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", updateReviewsScrollState);
-    };
-  }, [isLoadingReviews, reviews.length, updateReviewsScrollState]);
-
   const businessLogoUrl = similarBusinessLogoUrl({
     resolved_logo_url: business?.logoUrl,
     logo_url: null,
@@ -989,52 +948,8 @@ export default function BusinessClient({
     );
   }
 
-  const businessJsonLd =
-    business
-      ? {
-          "@context": "https://schema.org",
-          "@type": "LocalBusiness",
-          name: business.name,
-          ...(siteUrl && business.slug
-            ? { url: `${siteUrl}/b/${business.slug}` }
-            : {}),
-          ...(business.logoUrl ? { image: business.logoUrl } : {}),
-          ...(business.city || business.countryCode
-            ? {
-                address: {
-                  "@type": "PostalAddress",
-                  ...(business.city ? { addressLocality: business.city } : {}),
-                  ...(business.countryCode
-                    ? { addressCountry: getCountryName(business.countryCode) }
-                    : {}),
-                },
-              }
-            : {}),
-          ...(derivedReviewCount > 0 && derivedAverageRating > 0
-            ? {
-                aggregateRating: {
-                  "@type": "AggregateRating",
-                  ratingValue: derivedAverageRating,
-                  reviewCount: derivedReviewCount,
-                },
-              }
-            : {}),
-          ...(business.categoryName
-            ? { category: business.categoryName }
-            : {}),
-        }
-      : null;
-
   return (
     <>
-      {businessJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(businessJsonLd),
-          }}
-        />
-      )}
       <main className="bg-white">
       {duplicateNoticeOpen && (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
@@ -1167,7 +1082,15 @@ export default function BusinessClient({
                                 : 0),
                           )}
                         >
-                          {formatBusinessTagLabel(tag)}
+                          <a
+                            href={`/tags/${toTagSlug(formatBusinessTagLabel(tag))}`}
+                            style={{
+                              marginRight: "6px",
+                              textDecoration: "none",
+                            }}
+                          >
+                            {formatBusinessTagLabel(tag)}
+                          </a>
                         </span>
                       ))}
                     </div>
@@ -1213,226 +1136,123 @@ export default function BusinessClient({
           </div>
           {business && (
             <p className="mt-4 mb-6 max-w-2xl text-sm text-gray-600">
-              Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews, see customer ratings, and share your experience with {sanitizeText(business.name)} on Tellacity.
+              Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews or share your experience.
             </p>
-          )}
-          {business && (
-            <div className="mt-6 max-w-2xl text-sm text-gray-600 space-y-3">
-              <h2 className="text-base font-semibold text-[#0E0E0E]">
-                Customer reviews of {sanitizeText(business.name)}
-              </h2>
-
-              <p>
-                Looking for honest customer reviews of {sanitizeText(business.name)}? Tellacity
-                collects real feedback, ratings, and complaints from customers who
-                have interacted with {sanitizeText(business.name)}.
-              </p>
-
-              <p>
-                Before choosing a company, many people search for experiences from
-                other customers. Explore verified reviews, ratings, and service
-                feedback about {sanitizeText(business.name)} to help you make an informed decision.
-              </p>
-
-              <p>
-                Have you used {sanitizeText(business.name)}? Share your experience and help other
-                customers understand the service quality, reliability, and reputation
-                of {sanitizeText(business.name)}.
-              </p>
-            </div>
           )}
         </div>
 
         <div className="mt-10 space-y-10">
           <div>
-            <h2 className="text-lg font-semibold text-[#0E0E0E]">
-              Review summary
-            </h2>
-            <p className="mt-3 text-sm text-gray-600">
-              {business?.description ||
-                "Reviews are written by real customers and moderated for authenticity."}
-            </p>
-
-            <div className="mt-8 rounded-2xl border border-gray-200 p-5">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="text-4xl font-semibold text-[#0E0E0E]">
-                    {business ? derivedAverageRating.toFixed(1) : "0.0"}
-                  </div>
-                  <p className="mt-1 text-sm font-semibold text-[#0E0E0E]">
-                    {derivedAverageRating >= 4.5
-                      ? "Excellent"
-                      : derivedAverageRating >= 3.5
-                      ? "Great"
-                      : derivedAverageRating >= 2.5
-                      ? "Average"
-                      : derivedAverageRating > 0
-                      ? "Poor"
-                      : "No reviews yet"}
-                  </p>
-                  <div className="mt-2">
-                    <RatingStars rating={derivedAverageRating} size={16} />
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {derivedReviewCount.toLocaleString()} reviews
-                  </p>
-                </div>
-                <div className="w-full max-w-sm space-y-2 text-xs text-gray-500">
-                  {[
-                    { label: "5-star", count: ratingCounts[5] ?? 0, color: "bg-[#1FAF9E]" },
-                    { label: "4-star", count: ratingCounts[4] ?? 0, color: "bg-[#78C850]" },
-                    { label: "3-star", count: ratingCounts[3] ?? 0, color: "bg-[#F4C542]" },
-                    { label: "2-star", count: ratingCounts[2] ?? 0, color: "bg-[#F59E0B]" },
-                    { label: "1-star", count: ratingCounts[1] ?? 0, color: "bg-[#EF4444]" },
-                  ].map((row) => {
-                    const total =
-                      ratingCounts.total ||
-                      derivedReviewCount ||
-                      1;
-                    return (
-                      <div key={row.label} className="flex items-center gap-3">
-                        <span className="w-12 text-right text-gray-600">
-                          {row.label}
-                        </span>
-                        <div className="h-2 flex-1 rounded-full bg-gray-100">
-                          <div
-                            className={`h-2 rounded-full ${row.color}`}
-                            style={{
-                              width: `${Math.round((row.count / total) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-600">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTrustScoreStep(0);
-                    setIsTrustScoreOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 text-[#0E0E0E] underline underline-offset-4 hover:text-[#1FAF9E]"
-                >
-                  How is the TrustScore calculated?
-                </button>
-              </div>
-            </div>
-
-            {business ? (
               <div className="mt-10">
-                <BusinessProfilePhotos
-                  photos={businessPhotos}
-                  sections={photoSections}
-                  isClaimed={initialIsClaimed}
-                  planKey={initialPlanKey}
-                  claimSignupPrefill={
-                    !initialIsClaimed && business
-                      ? {
-                          businessId: business.id,
-                          businessName: business.name,
-                          businessSlug: business.slug || null,
-                          website: business.website || null,
-                        }
-                      : null
-                  }
-                />
-              </div>
-            ) : null}
-
-            <div className="mt-10 space-y-6 text-sm text-gray-600">
-              {/* Company description - same as Profile page; fallback to category when empty */}
-              <div className="border-b border-gray-200 pb-6">
-                <h3 className="text-base font-semibold text-[#0E0E0E]">
-                  Company description
-                </h3>
-                <p className="mt-3 whitespace-pre-wrap">
-                  {sanitizeText(business?.description?.trim()) ||
-                    (categoryTrail?.categoryName || categoryTrail?.groupName
-                      ? `This business is in the ${sanitizeText(categoryTrail?.categoryName ?? categoryTrail?.groupName)} category.`
-                      : "No description provided.")}
+                <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                  Review summary
+                </h2>
+                <p className="mt-3 text-sm text-gray-600">
+                  {business?.description ||
+                    "Reviews are written by real customers and moderated for authenticity."}
                 </p>
-              </div>
 
-              {/* Address - full address + country name, else city + country name, else country name (never code) */}
-              <div className="border-b border-gray-200 pb-6">
-                <h3 className="text-base font-semibold text-[#0E0E0E]">
-                  Address
-                </h3>
-                <p className="mt-3">
-                  {sanitizeText(formatBusinessAddress(
-                    business?.address,
-                    business?.city,
-                    business?.countryCode
-                  )) || "Not provided."}
-                </p>
-              </div>
-
-              {/* Contact info - Email and Phone as separate fields, same as Profile page */}
-              <div className="border-b border-gray-200 pb-6">
-                <h3 className="text-base font-semibold text-[#0E0E0E]">
-                  Contact info
-                </h3>
-                <p className="mt-2 text-gray-500">Tell your customers how to get in touch.</p>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Email</span>
-                    {business?.email?.trim() ? (
-                      <a
-                        href={`mailto:${business.email.trim()}`}
-                        className="mt-1 block text-[#1FAF9E] hover:underline"
-                      >
-                        {sanitizeText(business.email.trim())}
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-gray-500">Not provided.</p>
-                    )}
+                <div className="mt-8 rounded-2xl border border-gray-200 p-5">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="text-4xl font-semibold text-[#0E0E0E]">
+                        {business ? derivedAverageRating.toFixed(1) : "0.0"}
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-[#0E0E0E]">
+                        {derivedAverageRating >= 4.5
+                          ? "Excellent"
+                          : derivedAverageRating >= 3.5
+                          ? "Great"
+                          : derivedAverageRating >= 2.5
+                          ? "Average"
+                          : derivedAverageRating > 0
+                          ? "Poor"
+                          : "No reviews yet"}
+                      </p>
+                      <div className="mt-2">
+                        <RatingStars rating={derivedAverageRating} size={16} />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {derivedReviewCount.toLocaleString()} reviews
+                      </p>
+                    </div>
+                    <div className="w-full max-w-sm space-y-2 text-xs text-gray-500">
+                      {[
+                        { label: "5-star", count: ratingCounts[5] ?? 0, color: "bg-[#1FAF9E]" },
+                        { label: "4-star", count: ratingCounts[4] ?? 0, color: "bg-[#78C850]" },
+                        { label: "3-star", count: ratingCounts[3] ?? 0, color: "bg-[#F4C542]" },
+                        { label: "2-star", count: ratingCounts[2] ?? 0, color: "bg-[#F59E0B]" },
+                        { label: "1-star", count: ratingCounts[1] ?? 0, color: "bg-[#EF4444]" },
+                      ].map((row) => {
+                        const total =
+                          ratingCounts.total ||
+                          derivedReviewCount ||
+                          1;
+                        return (
+                          <div key={row.label} className="flex items-center gap-3">
+                            <span className="w-12 text-right text-gray-600">
+                              {row.label}
+                            </span>
+                            <div className="h-2 flex-1 rounded-full bg-gray-100">
+                              <div
+                                className={`h-2 rounded-full ${row.color}`}
+                                style={{
+                                  width: `${Math.round((row.count / total) * 100)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Phone number</span>
-                    {business?.phone?.trim() ? (
-                      <a
-                        href={`tel:${business.phone.trim().replace(/\s/g, "")}`}
-                        className="mt-1 block text-[#1FAF9E] hover:underline"
-                      >
-                        {sanitizeText(business.phone.trim())}
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-gray-500">Not provided.</p>
-                    )}
-                  </div>
-                  <div>
-                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Website</span>
-                    {business?.website?.trim() ? (
-                      <a
-                        href={buildWebsiteHref(business.website)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 block text-[#1FAF9E] hover:underline"
-                      >
-                        {sanitizeText(business.website)}
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-gray-500">Not provided.</p>
-                    )}
+                  <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTrustScoreStep(0);
+                        setIsTrustScoreOpen(true);
+                      }}
+                      className="inline-flex items-center gap-2 text-[#0E0E0E] underline underline-offset-4 hover:text-[#1FAF9E]"
+                    >
+                      How is the TrustScore calculated?
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
+
+              {business ? (
+                <div className="mt-10">
+                  <BusinessProfilePhotos
+                    photos={businessPhotos}
+                    sections={photoSections}
+                    isClaimed={initialIsClaimed}
+                    planKey={initialPlanKey}
+                    claimSignupPrefill={
+                      !initialIsClaimed && business
+                        ? {
+                            businessId: business.id,
+                            businessName: business.name,
+                            businessSlug: business.slug || null,
+                            website: business.website || null,
+                          }
+                        : null
+                    }
+                  />
+                </div>
+              ) : null}
 
             <div className="mt-10">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[#0E0E0E]">
-                  All reviews
-                </h3>
+                <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                  Customer reviews of {sanitizeText(business?.name ?? "Business")}
+                </h2>
                 <span className="text-xs text-gray-500">
                   {derivedReviewCount.toLocaleString()} total
                 </span>
               </div>
               <p className="mt-2 text-sm text-gray-600">
-                Reviews are written by customers and moderated for authenticity.
+                Read real experiences from customers who have interacted with {sanitizeText(business?.name ?? "this business")}.
               </p>
               <div className="mt-4 space-y-4">
                 {isLoadingReviews && (
@@ -1453,7 +1273,7 @@ export default function BusinessClient({
                 {!isLoadingReviews && reviews.length === 0 && (
                   <div className="rounded-xl border border-gray-200 p-4">
                     <p className="text-sm text-gray-500">
-                      This business has no published reviews yet.
+                      Be the first to review {sanitizeText(business?.name ?? "this business")}
                     </p>
                     <Link
                       href={
@@ -1465,68 +1285,97 @@ export default function BusinessClient({
                       }
                       className="mt-3 inline-flex rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                     >
-                      Be the first to write a review
+                      Write a review
                     </Link>
                   </div>
                 )}
 
                 {!isLoadingReviews && reviews.length > 0 && (
-                  <div className="relative">
+                  <div style={{ position: "relative" }}>
                     <button
                       type="button"
-                      aria-label="Show previous reviews"
-                      onClick={() => scrollReviewsBy(-1)}
-                      disabled={!canScrollReviewsLeft}
-                      className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#124541]/20 bg-white text-[#0E0E0E] shadow-md transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-25 sm:h-11 sm:w-11"
+                      aria-label="Scroll reviews left"
+                      onClick={scrollReviewsRowLeft}
+                      onMouseEnter={(event) => {
+                        event.currentTarget.style.opacity = "1";
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.opacity = "0.9";
+                      }}
+                      style={{
+                        position: "absolute",
+                        left: "-10px",
+                        top: "40%",
+                        zIndex: 10,
+                        cursor: "pointer",
+                        pointerEvents: "auto",
+                        opacity: 0.9,
+                      }}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50"
                     >
-                      <ChevronLeft className="h-5 w-5" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Show more reviews"
-                      onClick={() => scrollReviewsBy(1)}
-                      disabled={!canScrollReviewsRight}
-                      className="absolute right-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#124541]/20 bg-white text-[#0E0E0E] shadow-md transition hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-25 sm:h-11 sm:w-11"
-                    >
-                      <ChevronRight className="h-5 w-5" aria-hidden />
+                      <ChevronLeft size={18} aria-hidden />
                     </button>
                     <div
-                      ref={reviewsScrollRef}
-                      onScroll={updateReviewsScrollState}
-                      className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 pl-11 pr-11 [-ms-overflow-style:none] [scrollbar-width:none] sm:pl-14 sm:pr-14 [&::-webkit-scrollbar]:hidden"
+                      ref={scrollContainerRef}
+                      style={{
+                        display: "flex",
+                        overflowX: "auto",
+                        gap: "16px",
+                        scrollBehavior: "smooth",
+                        padding: "0 40px",
+                      }}
                     >
                       {reviews.map((review) => (
                         <div
                           key={review.id}
-                          data-review-carousel-item
-                          className="w-[min(85vw,380px)] shrink-0 snap-start self-stretch"
+                          className="w-[min(85vw,380px)] shrink-0 self-stretch"
                         >
                           <RecentReviewCard
                             className="h-full"
                             review={{
-                              review_id: review.id,
                               id: review.id,
                               rating: review.rating,
-                              title: sanitizeText(review.title),
-                              body: sanitizeText(review.body),
-                              reviewer_name: sanitizeText(review.reviewerName),
-                              created_at: review.createdAtRaw ?? undefined,
-                              business_name: sanitizeText(business?.name ?? "Business"),
-                              business_slug: business?.slug ?? null,
-                              website: business?.website ?? "",
-                              resolved_logo_url: businessLogoUrl,
+                              title: review.title,
+                              body: review.body,
+                              reviewer_name: review.reviewerName,
+                              created_at:
+                                review.createdAtRaw ?? undefined,
                               like_count: review.likeCount,
+                              business_slug: business?.slug ?? undefined,
+                              business_name: business?.name,
+                              website: business?.website,
+                              logo_url: business?.logoUrl ?? undefined,
                             }}
                             businessReplies={
-                              repliesByReviewId[review.id]?.map((r) => ({
-                                body: r.body,
-                                createdAt: r.createdAt,
-                              })) ?? null
+                              repliesByReviewId[review.id] ?? []
                             }
                           />
                         </div>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      aria-label="Scroll reviews right"
+                      onClick={scrollReviewsRowRight}
+                      onMouseEnter={(event) => {
+                        event.currentTarget.style.opacity = "1";
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.opacity = "0.9";
+                      }}
+                      style={{
+                        position: "absolute",
+                        right: "-10px",
+                        top: "40%",
+                        zIndex: 10,
+                        cursor: "pointer",
+                        pointerEvents: "auto",
+                        opacity: 0.9,
+                      }}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50"
+                    >
+                      <ChevronRight size={18} aria-hidden />
+                    </button>
                   </div>
                 )}
                 {!isLoadingReviews && hasMoreReviews && (
@@ -1620,6 +1469,87 @@ export default function BusinessClient({
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+
+              <div className="mt-10 space-y-6 text-sm text-gray-600">
+                {/* Company description - same as Profile page; fallback to category when empty */}
+                <div className="border-b border-gray-200 pb-6">
+                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                    Company description
+                  </h3>
+                  <p className="mt-3 whitespace-pre-wrap">
+                    {sanitizeText(business?.description?.trim()) ||
+                      (categoryTrail?.categoryName || categoryTrail?.groupName
+                        ? `This business is in the ${sanitizeText(categoryTrail?.categoryName ?? categoryTrail?.groupName)} category.`
+                        : "No description provided.")}
+                  </p>
+                </div>
+
+                {/* Address - full address + country name, else city + country name, else country name (never code) */}
+                <div className="border-b border-gray-200 pb-6">
+                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                    Address
+                  </h3>
+                  <p className="mt-3">
+                    {sanitizeText(formatBusinessAddress(
+                      business?.address,
+                      business?.city,
+                      business?.countryCode
+                    )) || "Not provided."}
+                  </p>
+                </div>
+
+                {/* Contact info - Email and Phone as separate fields, same as Profile page */}
+                <div className="border-b border-gray-200 pb-6">
+                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                    Contact info
+                  </h3>
+                  <p className="mt-2 text-gray-500">Tell your customers how to get in touch.</p>
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Email</span>
+                      {business?.email?.trim() ? (
+                        <a
+                          href={`mailto:${business.email.trim()}`}
+                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                        >
+                          {sanitizeText(business.email.trim())}
+                        </a>
+                      ) : (
+                        <p className="mt-1 text-gray-500">Not provided.</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Phone number</span>
+                      {business?.phone?.trim() ? (
+                        <a
+                          href={`tel:${business.phone.trim().replace(/\s/g, "")}`}
+                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                        >
+                          {sanitizeText(business.phone.trim())}
+                        </a>
+                      ) : (
+                        <p className="mt-1 text-gray-500">Not provided.</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Website</span>
+                      {business?.website?.trim() ? (
+                        <a
+                          href={buildWebsiteHref(business.website)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                        >
+                          {sanitizeText(business.website)}
+                        </a>
+                      ) : (
+                        <p className="mt-1 text-gray-500">Not provided.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {business?.categorySlug?.trim() && (
@@ -1767,9 +1697,31 @@ export default function BusinessClient({
                   </div>
                 </div>
               )}
+
+              {business?.categorySlug && (
+                <div style={{ marginTop: "24px", fontSize: "14px" }}>
+                  <a href="/" style={{ marginRight: "12px" }}>Tellacity Home</a>
+                  <a href="/reviews" style={{ marginRight: "12px" }}>Customer Reviews</a>
+                  <a href={`/categories/${business.categorySlug}`}>
+                    More in {business.categorySlug}
+                  </a>
+                </div>
+              )}
+              {business?.categorySlug && business?.countryCode && (
+                <div style={{ marginTop: "16px", fontSize: "13px" }}>
+                  <a
+                    href={`/best/${business.countryCode.toLowerCase()}/${business.categorySlug}`}
+                    style={{
+                      color: "#1FAF9E",
+                      textDecoration: "none",
+                    }}
+                  >
+                    See top companies in this category →
+                  </a>
+                </div>
+              )}
             </div>
           </div>
-        </div>
       </section>
       </main>
       {isTrustScoreOpen && (

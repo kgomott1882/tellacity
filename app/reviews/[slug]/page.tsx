@@ -46,10 +46,11 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     return { title: "Review guide not found | Tellacity" };
   }
   const url = `${SITE_URL}/b/${safeSlug}`;
+  const canonicalUrl = `${SITE_URL}/reviews/${safeSlug}`;
   return {
     title: page.metaTitle,
     description: page.metaDescription,
-    alternates: { canonical: url },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: page.metaTitle,
       description: page.metaDescription,

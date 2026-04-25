@@ -61,6 +61,24 @@ function isValidSlug(slug: string) {
   return /^[a-z0-9-]+$/.test(clean);
 }
 
+function toTagSlug(tagName: string): string {
+  return tagName.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function buildPopularTagsFromCounts(
+  counts: Map<string, number>,
+  minCount: number,
+): Array<{ label: string; slug: string }> {
+  return Array.from(counts.entries())
+    .filter(([, count]) => count >= minCount)
+    .sort((a, b) => (b[1] !== a[1] ? b[1] - a[1] : a[0].localeCompare(b[0])))
+    .slice(0, 20)
+    .map(([tag]) => ({
+      label: formatBusinessTagLabel(tag),
+      slug: toTagSlug(tag),
+    }));
+}
+
 function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
   const trust =
     (Number(row.trust_score ?? 0) || 0) ||
@@ -153,6 +171,7 @@ export type CategoryClientProps = {
   companyCount: number;
   hasNextPage: boolean;
   initialCountryCode: string;
+  popularTags?: Array<{ label: string; slug: string }>;
 };
 
 export default function CategoryClient({
@@ -161,6 +180,7 @@ export default function CategoryClient({
   companyCount = 0,
   hasNextPage = false,
   initialCountryCode,
+  popularTags: serverPopularTags = [],
 }: CategoryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -374,6 +394,27 @@ export default function CategoryClient({
   const recentHasPrev = recentPage > 0;
   const recentHasNext =
     (recentPage + 1) * RECENT_PAGE_SIZE < sortedBusinessesList.length;
+
+  const visiblePopularTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const business of sortedBusinessesList) {
+      const tags = mergeTagsForDisplay(
+        business.tags,
+        business.secondary_category_slugs,
+        business.category_slug,
+      );
+      for (const tag of tags) {
+        const normalized = String(tag ?? "").trim().toLowerCase();
+        if (!normalized) continue;
+        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      }
+    }
+
+    return buildPopularTagsFromCounts(counts, 2);
+  }, [sortedBusinessesList]);
+
+  const popularTags =
+    serverPopularTags.length > 0 ? serverPopularTags : visiblePopularTags;
 
   const title = useMemo(() => {
     if (categoryName) return categoryName;
@@ -614,12 +655,6 @@ export default function CategoryClient({
           {(topRatedLoading || topRatedItems.length > 0) && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              <p className="mt-2 text-sm text-gray-600 max-w-2xl">
-                Discover trusted {categoryName || title} companies in {countryName}. Read real customer reviews, compare ratings, and find the best businesses based on real experiences from people like you.
-              </p>
-              <p className="mt-2 text-sm text-gray-600 max-w-2xl">
-                Top-rated {categoryName} companies in {countryName} based on real customer reviews, trust scores, and verified feedback from customers.
-              </p>
               {topRatedLoading ? (
                 <p className="mt-4 text-sm text-gray-500">Loading ratings…</p>
               ) : (
@@ -686,35 +721,6 @@ export default function CategoryClient({
               )}
             </section>
           )}
-
-          {/* How this page works (desktop / tablet only) */}
-          <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Ranked by trust
-              </h2>
-              <p>
-                Listings are ordered using a combination of TrustScore, review volume, and recent activity in this
-                category.
-              </p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Filter by rating & location
-              </h2>
-              <p>
-                Use rating and country filters to focus on the businesses most relevant to your needs and region.
-              </p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Read & share experiences
-              </h2>
-              <p>
-                Click into a business to read detailed reviews or share your own experience to help others decide.
-              </p>
-            </div>
-          </section>
 
           <div className="mt-6 flex flex-wrap gap-2">
             <button
@@ -1171,6 +1177,75 @@ export default function CategoryClient({
               </div>
             </section>
           )}
+
+          {popularTags.length > 0 && (
+            <div style={{ marginTop: "40px" }}>
+              <h2>Popular searches</h2>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                  marginTop: "12px",
+                }}
+              >
+                {popularTags.map((tag) => (
+                  <a
+                    key={tag.slug}
+                    href={`/tags/${tag.slug}`}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "20px",
+                      border: "1px solid #ddd",
+                      textDecoration: "none",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {tag.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* How this page works (desktop / tablet only) */}
+          <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                Ranked by trust
+              </h2>
+              <p>
+                Listings are ordered using a combination of TrustScore, review volume, and recent activity in this
+                category.
+              </p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                Filter by rating & location
+              </h2>
+              <p>
+                Use rating and country filters to focus on the businesses most relevant to your needs and region.
+              </p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                Read & share experiences
+              </h2>
+              <p>
+                Click into a business to read detailed reviews or share your own experience to help others decide.
+              </p>
+            </div>
+          </section>
+
+          <div style={{ marginTop: "40px", fontSize: "14px", lineHeight: "1.6" }}>
+            <h2>About {categoryName} businesses</h2>
+            <p>
+              Explore trusted {categoryName} businesses on Tellacity. Read real customer reviews, compare services, and find the best companies based on authentic feedback.
+            </p>
+            <p>
+              Whether you're looking for reliable providers or sharing your experience, Tellacity helps you make informed decisions across {categoryName} services worldwide.
+            </p>
+          </div>
 
           <div className="mt-10 border-t pt-6 text-sm">
             <a
