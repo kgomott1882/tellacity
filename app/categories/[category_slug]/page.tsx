@@ -213,69 +213,92 @@ export async function generateMetadata(props: {
   const { category_slug } = await props.params;
   const safeCategorySlug = category_slug.trim().toLowerCase();
 
-  const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
-    page?: string;
-    country?: string;
-  };
+  try {
+    const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
+      page?: string;
+      country?: string;
+    };
 
-  const pageNum = Math.max(
-    1,
-    parseInt(String(searchParams.page ?? "1"), 10) || 1
-  );
-  const countryCode = normalizeCountryCode(searchParams?.country);
-  const countryName = countryNameFromCode(countryCode);
-  const supabase = getSupabase();
+    const pageNum = Math.max(
+      1,
+      parseInt(String(searchParams.page ?? "1"), 10) || 1
+    );
+    const countryCode = normalizeCountryCode(searchParams?.country);
+    const countryName = countryNameFromCode(countryCode);
+    const supabase = getSupabase();
 
-  let categoryName: string | null = null;
+    let categoryName: string | null = null;
 
-  if (safeCategorySlug) {
-    const { data } = await supabase
-      .from("categories")
-      .select("name")
-      .eq("slug", safeCategorySlug)
-      .maybeSingle();
+    if (safeCategorySlug) {
+      const { data } = await supabase
+        .from("categories")
+        .select("name")
+        .eq("slug", safeCategorySlug)
+        .maybeSingle();
 
-    categoryName = data?.name ?? null;
+      categoryName = data?.name ?? null;
+    }
+
+    const fallbackTitle = safeCategorySlug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+
+    const categoryNameFinal = categoryName ?? fallbackTitle;
+    const popularTags = await loadPopularTagsForCategory(
+      supabase,
+      safeCategorySlug,
+      searchParams?.country,
+    );
+    const { reviewCount, businessCount } = await loadCategoryCountsForMetadata(
+      supabase,
+      safeCategorySlug,
+      searchParams?.country,
+    );
+    const topTags = popularTags
+      .slice(0, 5)
+      .map((item) => item.label.toLowerCase())
+      .join(", ");
+
+    const countLabel =
+      reviewCount > 0
+        ? `${reviewCount.toLocaleString()} Reviews`
+        : `${businessCount.toLocaleString()} Companies`;
+    const baseTitle = `Best ${categoryNameFinal} Companies in ${countryName} (${countLabel})`;
+    const metaTitle = pageNum > 1 ? `${baseTitle} – Page ${pageNum}` : baseTitle;
+    const description = topTags
+      ? `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Explore top providers including ${topTags}. Compare ratings, read real experiences, and find trusted businesses.`
+      : `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Compare ratings, read real experiences, and find trusted businesses.`;
+
+    return {
+      title: metaTitle,
+      description,
+      alternates: {
+        canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
+      },
+      robots: {
+        index: true,
+        follow: true,
+      },
+    };
+  } catch {
+    const fallbackTitle =
+      safeCategorySlug
+        .split("-")
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ") || "Category";
+    return {
+      title: `Best ${fallbackTitle} Companies | Tellacity`,
+      alternates: {
+        canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
+      },
+      robots: {
+        index: true,
+        follow: true,
+      },
+    };
   }
-
-  const fallbackTitle = safeCategorySlug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-
-  const categoryNameFinal = categoryName ?? fallbackTitle;
-  const popularTags = await loadPopularTagsForCategory(
-    supabase,
-    safeCategorySlug,
-    searchParams?.country,
-  );
-  const { reviewCount, businessCount } = await loadCategoryCountsForMetadata(
-    supabase,
-    safeCategorySlug,
-    searchParams?.country,
-  );
-  const topTags = popularTags
-    .slice(0, 5)
-    .map((item) => item.label.toLowerCase())
-    .join(", ");
-
-  const countLabel =
-    reviewCount > 0
-      ? `${reviewCount.toLocaleString()} Reviews`
-      : `${businessCount.toLocaleString()} Companies`;
-  const baseTitle = `Best ${categoryNameFinal} Companies in ${countryName} (${countLabel})`;
-  const metaTitle = pageNum > 1 ? `${baseTitle} – Page ${pageNum}` : baseTitle;
-  const description = topTags
-    ? `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Explore top providers including ${topTags}. Compare ratings, read real experiences, and find trusted businesses.`
-    : `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Compare ratings, read real experiences, and find trusted businesses.`;
-
-  return {
-    title: metaTitle,
-    description,
-    alternates: {
-      canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
-    },
-  };
 }
 
 // ----------------------------

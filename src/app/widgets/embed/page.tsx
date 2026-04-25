@@ -25,7 +25,12 @@ import {
   resolveWidgetReviewStarRatings,
 } from "@/lib/widgetReviewStarFilter";
 
-export const metadata: Metadata = { robots: "noindex" };
+export const metadata: Metadata = {
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 export const dynamic = "force-dynamic";
 
 const VALID_TYPES: WidgetType[] = [

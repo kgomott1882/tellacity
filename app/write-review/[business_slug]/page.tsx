@@ -3,8 +3,8 @@ import WriteReviewSlugClient from "./WriteReviewSlugClient";
 
 export const metadata = {
   robots: {
-    index: false,
-    follow: false,
+    index: true,
+    follow: true,
   },
 };
 
