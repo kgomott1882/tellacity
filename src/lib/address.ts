@@ -26,12 +26,62 @@ function treatAsEmpty(s: string): string {
   return (s ?? "").trim();
 }
 
+function splitCommaSegments(s: string): string[] {
+  return s
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** Drop comma-separated fragments already present (stops repeated country/city). */
+function appendLocationSegments(
+  segments: string[],
+  raw: string | null | undefined,
+): void {
+  const t = treatAsEmpty((raw ?? "").toString());
+  if (!t) return;
+  for (const part of splitCommaSegments(t)) {
+    const pl = part.toLowerCase();
+    if (segments.some((s) => s.toLowerCase() === pl)) continue;
+    segments.push(part);
+  }
+}
+
+function buildLocationSegments(
+  address: string | null | undefined,
+  city: string | null | undefined,
+  countryCode: string | null | undefined,
+  getCountry: (code: string | null | undefined) => string,
+): string[] {
+  const segments: string[] = [];
+  appendLocationSegments(segments, (address ?? "").toString());
+  appendLocationSegments(segments, (city ?? "").toString());
+  const countryName = treatAsEmpty(getCountry(countryCode));
+  if (countryName) {
+    appendLocationSegments(segments, countryName);
+  }
+  return segments;
+}
+
+function locationSegmentsToDisplayLines(segments: string[]): string[] {
+  if (segments.length === 0) return [];
+  if (segments.length === 1) return [segments[0]!];
+  if (segments.length === 2) return [segments[0]!, segments[1]!];
+  if (segments.length === 3) return [segments[0]!, segments[1]!, segments[2]!];
+  return [
+    segments[0]!,
+    segments.slice(1, -1).join(", "),
+    segments[segments.length - 1]!,
+  ];
+}
+
 /**
  * Format business location for display.
  * 1) Full address with city and country name
  * 2) City with country name
  * 3) Country name only (never country code)
  * Placeholders like "[unknown]" are treated as empty.
+ * Duplicate segments (e.g. repeated country in source data) are removed.
  */
 export function formatBusinessAddress(
   address: string | null | undefined,
@@ -39,21 +89,26 @@ export function formatBusinessAddress(
   countryCode: string | null | undefined,
   getCountry: (code: string | null | undefined) => string = getCountryName
 ): string {
-  const addr = treatAsEmpty((address ?? "").toString());
-  const c = treatAsEmpty((city ?? "").toString());
-  const countryName = getCountry(countryCode);
+  return buildLocationSegments(address, city, countryCode, getCountry).join(", ");
+}
 
-  if (addr && countryName) {
-    return c ? `${addr}, ${c}, ${countryName}` : `${addr}, ${countryName}`;
-  }
-  if (addr) {
-    return countryName ? `${addr}, ${countryName}` : addr;
-  }
-  if (c && countryName) {
-    return `${c}, ${countryName}`;
-  }
-  if (countryName) {
-    return countryName;
-  }
-  return "";
+/**
+ * Multi-line location for directory cards (street / middle / country style).
+ */
+export function formatBusinessAddressLines(
+  address: string | null | undefined,
+  city: string | null | undefined,
+  countryCode: string | null | undefined,
+  getCountry: (code: string | null | undefined) => string = getCountryName,
+): string[] {
+  return locationSegmentsToDisplayLines(
+    buildLocationSegments(address, city, countryCode, getCountry),
+  );
+}
+
+/** Single stored display string → deduped lines (fallback when address/city/country columns are empty). */
+export function formatDisplayLocationLines(raw: string | null | undefined): string[] {
+  const segments: string[] = [];
+  appendLocationSegments(segments, raw);
+  return locationSegmentsToDisplayLines(segments);
 }

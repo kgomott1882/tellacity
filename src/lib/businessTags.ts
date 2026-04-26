@@ -88,6 +88,13 @@ export function businessTagPillClassName(index: number): string {
   ]!;
 }
 
+/** Category / tag directory: compact tab-style navigation pills. */
+export const CATEGORY_DIRECTORY_TAB_LINK_CLASS =
+  "inline-flex max-w-full items-center truncate rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium leading-tight text-gray-700 transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40";
+
+export const CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS =
+  "inline-flex max-w-full items-center truncate rounded-full border border-[#1FAF9E] bg-[#E8F7F5] px-2 py-0.5 text-[10px] font-semibold leading-tight text-[#0E4A42]";
+
 export function formatBusinessTagLabel(tagSlug: string): string {
   return tagSlug
     .trim()

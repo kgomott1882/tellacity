@@ -7,10 +7,13 @@ import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
-import { formatBusinessAddress } from "@/lib/address";
 import {
-  businessCategoryPillClassName,
-  businessTagPillClassName,
+  formatBusinessAddressLines,
+  formatDisplayLocationLines,
+} from "@/lib/address";
+import {
+  CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS,
+  CATEGORY_DIRECTORY_TAB_LINK_CLASS,
   formatBusinessTagLabel,
   mergeTagsForDisplay,
 } from "@/lib/businessTags";
@@ -54,8 +57,28 @@ function listingPageIndexFromSearch(params: URLSearchParams): number {
   return pageNum - 1;
 }
 
-/** How many candidates to pull for “Top rated” before live review aggregation + top 8. */
-const TOP_RATED_CANDIDATE_LIMIT = 40;
+type CategoryPaginationItem = number | "ellipsis";
+
+/** 1-based current page; returns compact page + ellipsis sequence (directory-style). */
+function buildCategoryPaginationItems(
+  current1Based: number,
+  totalPages: number,
+): CategoryPaginationItem[] {
+  const t = Math.max(1, totalPages);
+  const c = Math.min(Math.max(current1Based, 1), t);
+  if (t <= 9) {
+    return Array.from({ length: t }, (_, i) => i + 1);
+  }
+  if (c <= 4) {
+    return [1, 2, 3, 4, 5, "ellipsis", t];
+  }
+  if (c >= t - 3) {
+    return [1, "ellipsis", t - 3, t - 2, t - 1, t];
+  }
+  return [1, "ellipsis", c - 1, c, c + 1, "ellipsis", t];
+}
+
+/** Top “rated” strip: built only from page-1 listing rows (no extra API scan). */
 const TOP_RATED_DISPLAY_COUNT = 8;
 
 function isValidSlug(slug: string) {
@@ -66,6 +89,55 @@ function isValidSlug(slug: string) {
 
 function toTagSlug(tagName: string): string {
   return tagName.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function slugForTagChip(raw: string): string | null {
+  const s = toTagSlug(raw);
+  return isValidSlug(s) ? s : null;
+}
+
+function tagBrowseHref(tagSlug: string, country: string): string {
+  return `/tags/${encodeURIComponent(tagSlug)}?country=${encodeURIComponent(country)}`;
+}
+
+function categoryBrowseHref(catSlug: string, country: string): string {
+  return `/categories/${encodeURIComponent(catSlug)}?country=${encodeURIComponent(country)}`;
+}
+
+/** Normalize primary `category_slug` for comparisons with URL slug. */
+function normalizedCategorySlug(primary: string | null | undefined): string | null {
+  const raw = (primary ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  const hyphenated = toTagSlug(raw);
+  return slugForTagChip(hyphenated) ?? slugForTagChip(raw) ?? hyphenated;
+}
+
+/** On a category directory page, omit the primary chip when it matches the page (redundant). */
+function shouldShowPrimaryCategoryChip(
+  listingKind: "category" | "tag",
+  pageCategorySlug: string,
+  businessPrimary: string | null | undefined,
+): boolean {
+  const n = normalizedCategorySlug(businessPrimary);
+  if (!n || !isValidSlug(n)) return false;
+  if (listingKind === "category" && n === pageCategorySlug.trim().toLowerCase()) {
+    return false;
+  }
+  return true;
+}
+
+/** Drop keyword chips that duplicate the current category slug on category pages. */
+function filterKeywordTagsForPage(
+  mergedTags: string[],
+  listingKind: "category" | "tag",
+  pageSlug: string,
+): string[] {
+  const pageNorm = pageSlug.trim().toLowerCase();
+  if (listingKind !== "category") return mergedTags;
+  return mergedTags.filter((tag) => {
+    const s = slugForTagChip(tag) ?? toTagSlug(tag.trim().toLowerCase());
+    return s !== pageNorm;
+  });
 }
 
 function buildPopularTagsFromCounts(
@@ -241,20 +313,12 @@ export default function CategoryClient({
   const currentSort: "rating" | "reviews" | "recent" =
     sortParam === "reviews" ? "reviews" : sortParam === "recent" ? "recent" : "rating";
   const [sortOpen, setSortOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [ratingOpen, setRatingOpen] = useState(false);
-  const [minRating, setMinRating] = useState<number | null>(null);
 
   const queryCountry = searchParams.get("country");
   // URL + server-provided country only during render to avoid hydration mismatch.
   const derivedCountry = normalizeCountryCode(
     queryCountry ?? initialCountryCode ?? undefined
   );
-
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(
-    derivedCountry
-  );
-  const [countryOpen, setCountryOpen] = useState(false);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
   const RECENT_PAGE_SIZE = 3;
@@ -294,87 +358,50 @@ export default function CategoryClient({
     return list;
   }, [businessesList, currentSort]);
 
-  const [topRatedItems, setTopRatedItems] = useState<TopRatedDisplayItem[]>([]);
-  const [topRatedLoading, setTopRatedLoading] = useState(true);
+  const listingTotalPages = useMemo(() => {
+    const fromCount = Math.ceil((Number(computedCount) || 0) / PAGE_SIZE);
+    if (fromCount >= 1) return Math.max(1, fromCount);
+    return Math.max(1, listingPageIndex + 1 + (computedHasNext ? 1 : 0));
+  }, [computedCount, listingPageIndex, computedHasNext]);
+
+  const listingPaginationItems = useMemo(
+    () => buildCategoryPaginationItems(listingPageIndex + 1, listingTotalPages),
+    [listingPageIndex, listingTotalPages],
+  );
+
+  /** Page-1 listing rows (leaderboard order from API) — used for “Top rated” only, no extra fetch. */
+  const [page1ListingSnapshot, setPage1ListingSnapshot] = useState<BusinessRow[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    setPage1ListingSnapshot([]);
+  }, [categorySlug, listingKind, derivedCountry]);
 
-    const loadTopRated = async () => {
-      if (!categorySlug) {
-        setTopRatedItems([]);
-        setTopRatedLoading(false);
-        return;
-      }
-
-      setTopRatedLoading(true);
-      const countryCode = derivedCountry ?? "US";
-      const min = typeof minRating === "number" ? minRating : 0;
-
-      const q = new URLSearchParams();
-      q.set("slug", categorySlug);
-      q.set("country", countryCode);
-      q.set("minRating", String(min));
-      q.set("mode", "top");
-      q.set("candidateLimit", String(TOP_RATED_CANDIDATE_LIMIT));
-      if (listingKind === "tag") q.set("kind", "tag");
-      const res = await fetch(`/api/category-listings?${q.toString()}`, {
-        cache: "no-store",
-        signal: AbortSignal.timeout(28_000),
-      });
-      const data = (await res.json()) as {
-        rows?: BusinessRow[];
-        error?: string | null;
-      };
-
-      if (cancelled) return;
-
-      const topRows = Array.isArray(data.rows) ? data.rows : [];
-      if (!res.ok && topRows.length === 0) {
-        setTopRatedItems([]);
-        setTopRatedLoading(false);
-        return;
-      }
-
-      if (data.error && topRows.length === 0) {
-        setTopRatedItems([]);
-        setTopRatedLoading(false);
-        return;
-      }
-
-      const list = topRows.map((r) => ({ ...r }));
-
-      list.sort((a, b) => {
-        const ar = Number(a.trust_score ?? 0);
-        const br = Number(b.trust_score ?? 0);
-        const ac = Number(a.review_count ?? 0);
-        const bc = Number(b.review_count ?? 0);
-        if (br !== ar) return br - ar;
-        if (bc !== ac) return bc - ac;
-        return (a.name || "").localeCompare(b.name || "");
-      });
-
-      const items = list
-        .filter((r) => (Number(r.review_count ?? 0) || 0) > 0)
-        .slice(0, TOP_RATED_DISPLAY_COUNT)
-        .map((r, i) => mapRowToTopRatedItem(r, i))
-        .filter((x): x is TopRatedDisplayItem => Boolean(x));
-
-      setTopRatedItems(items);
-      setTopRatedLoading(false);
-    };
-
-    void loadTopRated();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [categorySlug, derivedCountry, minRating, listingKind]);
-
-  // Keep selectedCountry in sync with URL and global country
   useEffect(() => {
-    setSelectedCountry(derivedCountry);
-  }, [derivedCountry, categorySlug]);
+    if (!loading && listingPageIndex === 0) {
+      setPage1ListingSnapshot(rows.map((r) => ({ ...r })));
+    }
+  }, [loading, listingPageIndex, rows]);
+
+  const topRatedItems = useMemo(() => {
+    if (page1ListingSnapshot.length === 0) return [];
+    const list = [...page1ListingSnapshot].sort((a, b) => {
+      const ar = Number(a.trust_score ?? 0) || 0;
+      const br = Number(b.trust_score ?? 0) || 0;
+      const ac = Number(a.review_count ?? 0) || 0;
+      const bc = Number(b.review_count ?? 0) || 0;
+      if (br !== ar) return br - ar;
+      if (bc !== ac) return bc - ac;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+    return list
+      .filter((r) => (Number(r.review_count ?? 0) || 0) > 0)
+      .slice(0, TOP_RATED_DISPLAY_COUNT)
+      .map((r, i) => mapRowToTopRatedItem(r, i))
+      .filter((x): x is TopRatedDisplayItem => Boolean(x));
+  }, [page1ListingSnapshot]);
+
+  const showTopRatedSection =
+    topRatedItems.length > 0 || (listingPageIndex === 0 && loading);
 
   // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
@@ -540,13 +567,11 @@ export default function CategoryClient({
 
       const offset = listingPageIndex * PAGE_SIZE;
       const countryCode = derivedCountry ?? "US";
-      const min = typeof minRating === "number" ? minRating : 0;
-
       const q = new URLSearchParams();
       q.set("slug", categorySlug);
       q.set("country", countryCode);
       q.set("page", String(listingPageIndex));
-      q.set("minRating", String(min));
+      q.set("minRating", "0");
       q.set("mode", "page");
       if (listingKind === "tag") q.set("kind", "tag");
       const res = await fetch(`/api/category-listings?${q.toString()}`, {
@@ -602,7 +627,7 @@ export default function CategoryClient({
     return () => {
       isMounted = false;
     };
-  }, [categorySlug, listingPageIndex, minRating, derivedCountry, listingKind]);
+  }, [categorySlug, listingPageIndex, derivedCountry, listingKind]);
 
   // Page title/meta
   useEffect(() => {
@@ -626,24 +651,6 @@ export default function CategoryClient({
   useEffect(() => {
     setRecentPage(0);
   }, [categorySlug]);
-
-  const updateCountry = (code: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("page");
-    if (code) {
-      setStoredCountry(code);
-      params.set("country", code);
-    } else {
-      params.delete("country");
-    }
-    const s = params.toString();
-    router.push(s ? `?${s}` : "?", { scroll: false });
-  };
-
-  const resetFilters = () => {
-    setMinRating(null);
-    updateCountry(null);
-  };
 
   const collectionJsonLd = {
     "@context": "https://schema.org",
@@ -680,136 +687,119 @@ export default function CategoryClient({
       />
       <main className="bg-white">
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          {(topRatedLoading || topRatedItems.length > 0) && (
+          {showTopRatedSection && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              {topRatedLoading ? (
-                <p className="mt-4 text-sm text-gray-500">Loading ratings…</p>
+              {listingPageIndex === 0 && loading && topRatedItems.length === 0 ? (
+                <p className="mt-4 text-sm text-gray-500">Loading listings…</p>
               ) : (
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  {topRatedItems.map((business) => (
-                    <Link
-                      key={business.id}
-                      href={`/b/${business.slug}`}
-                      className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
-                        {business.logoUrl ? (
-                          <img
-                            src={business.logoUrl}
-                            alt={`${sanitizeText(business.name)} logo`}
-                            className="h-full w-full object-contain"
-                            referrerPolicy="no-referrer"
-                            loading="lazy"
-                            decoding="async"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate">{sanitizeText(business.name)}</div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                          <RatingStars
-                            rating={business.trustScore}
-                            reviewCount={business.reviewCount}
-                            size={11}
-                          />
-                          <span className="font-medium text-[#0E0E0E]">
-                            {business.trustScore.toFixed(1)}
-                          </span>
-                          <span>
-                            • {business.reviewCount.toLocaleString("en-US")} reviews
-                          </span>
-                        </div>
-                        {(business.categorySlug || business.tags.length > 0) && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {business.categorySlug && (
-                              <span className={businessCategoryPillClassName()}>
-                                {formatBusinessTagLabel(business.categorySlug)}
-                              </span>
-                            )}
-                            {business.tags.map((tag, idx) => (
-                              <span
-                                key={`${business.id}-${tag}`}
-                                className={businessTagPillClassName(
-                                  idx + (business.categorySlug ? 1 : 0),
-                                )}
-                              >
-                                {formatBusinessTagLabel(tag)}
-                              </span>
-                            ))}
+                  {topRatedItems.map((business) => {
+                    const pageCatNormTop = categorySlug.trim().toLowerCase();
+                    return (
+                      <div
+                        key={business.id}
+                        className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                      >
+                        <Link
+                          href={`/b/${business.slug}`}
+                          className="flex items-center gap-3 font-medium text-[#0E0E0E] no-underline"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                            {business.logoUrl ? (
+                              <img
+                                src={business.logoUrl}
+                                alt={`${sanitizeText(business.name)} logo`}
+                                className="h-full w-full object-contain"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : null}
                           </div>
-                        )}
+                          <div className="min-w-0">
+                            <div className="truncate">{sanitizeText(business.name)}</div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              <RatingStars
+                                rating={business.trustScore}
+                                reviewCount={business.reviewCount}
+                                size={11}
+                              />
+                              <span className="font-medium text-[#0E0E0E]">
+                                {business.trustScore.toFixed(1)}
+                              </span>
+                              <span>
+                                • {business.reviewCount.toLocaleString("en-US")} reviews
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        {(() => {
+                          const kwTop = filterKeywordTagsForPage(
+                            business.tags,
+                            listingKind,
+                            categorySlug,
+                          );
+                          const showPrimaryTop = shouldShowPrimaryCategoryChip(
+                            listingKind,
+                            categorySlug,
+                            business.categorySlug,
+                          );
+                          if (!showPrimaryTop && kwTop.length === 0) return null;
+                          return (
+                            <div className="mt-2 flex flex-wrap gap-1.5 pl-11">
+                              {showPrimaryTop &&
+                                business.categorySlug &&
+                                (() => {
+                                  const slug =
+                                    slugForTagChip(business.categorySlug) ??
+                                    business.categorySlug.trim().toLowerCase();
+                                  if (!isValidSlug(slug)) return null;
+                                  return (
+                                    <Link
+                                      href={categoryBrowseHref(slug, countryCode)}
+                                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                                    >
+                                      {formatBusinessTagLabel(business.categorySlug)}
+                                    </Link>
+                                  );
+                                })()}
+                              {kwTop.map((tag) => {
+                                const slug = slugForTagChip(tag);
+                                if (!slug) return null;
+                                const activeTag =
+                                  listingKind === "tag" && slug === pageCatNormTop;
+                                return activeTag ? (
+                                  <span
+                                    key={`${business.id}-${tag}`}
+                                    className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
+                                    aria-current="page"
+                                  >
+                                    {formatBusinessTagLabel(tag)}
+                                  </span>
+                                ) : (
+                                  <Link
+                                    key={`${business.id}-${tag}`}
+                                    href={tagBrowseHref(slug, countryCode)}
+                                    className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                                  >
+                                    {formatBusinessTagLabel(tag)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
-                    </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
           )}
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            <button
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700"
-              onClick={() => setFiltersOpen(true)}
-              type="button"
-            >
-              All filters
-            </button>
-
-            <button
-              className="relative inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700"
-              onClick={() => setRatingOpen((prev) => !prev)}
-              type="button"
-            >
-              Rating
-            </button>
-
-            {ratingOpen && (
-              <div className="relative">
-                <div className="absolute left-0 top-2 z-10 w-72 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-semibold text-gray-600">Rating</div>
-                    <button
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-600"
-                      onClick={() => setRatingOpen(false)}
-                      type="button"
-                      aria-label="Close rating"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    {[
-                      { label: "All", value: null },
-                      { label: "3+", value: 3 },
-                      { label: "4+", value: 4 },
-                      { label: "4.5+", value: 4.5 },
-                    ].map((option) => (
-                      <button
-                        key={option.label}
-                        className={`rounded-md border px-2 py-1 text-xs font-semibold ${
-                          minRating === option.value
-                            ? "border-[#1FAF9E] bg-[#E8F7F5] text-[#0E0E0E]"
-                            : "border-gray-300 text-gray-700"
-                        }`}
-                        onClick={() => {
-                          setMinRating(option.value);
-                          setRatingOpen(false);
-                          stripListingPageFromUrl();
-                        }}
-                        type="button"
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
 
           <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
             <span>
@@ -951,125 +941,214 @@ export default function CategoryClient({
                 if (!isValidSlug(safeSlug)) return null;
                 const reviewCount = (Number(business.review_count ?? 0)) || 0;
                 const ratingValue = snapshotRpcRating(business).trust;
-                const locationText =
-                  formatBusinessAddress(business.address, business.city, business.country_code) ||
-                  business.display_location;
+                const locationLines = (() => {
+                  const lines = formatBusinessAddressLines(
+                    business.address,
+                    business.city,
+                    business.country_code,
+                  );
+                  if (lines.length > 0) return lines;
+                  return formatDisplayLocationLines(business.display_location ?? "");
+                })();
                 const businessTags = mergeTagsForDisplay(
                   business.tags,
                   business.secondary_category_slugs,
                   business.category_slug,
                 );
+                const keywordTags = filterKeywordTagsForPage(
+                  businessTags,
+                  listingKind,
+                  categorySlug,
+                );
+                const showPrimaryChip = shouldShowPrimaryCategoryChip(
+                  listingKind,
+                  categorySlug,
+                  business.category_slug,
+                );
 
                 const logoUrl = categoryListLogoUrl(business);
+                const pageCatNorm = categorySlug.trim().toLowerCase();
 
                 return (
-                  <Link key={business.id} href={`/b/${safeSlug}`} className="block w-full">
-                      <div className="flex flex-col gap-3 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
-                          {logoUrl ? (
-                            <img
-                              src={logoUrl}
-                              alt={`${sanitizeText(business.name)} logo`}
-                              className="h-full w-full object-contain"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                              decoding="async"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-[#0E0E0E]">
-                              {(sanitizeText(business.name)?.trim()?.charAt(0) || "B").toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1">
-                            <div className="text-base font-semibold text-[#0E0E0E] truncate">{sanitizeText(business.name)}</div>
-                            {reviewCount > 0 && (
+                  <div key={business.id} className="block w-full">
+                    <div className="px-4 py-5 transition-colors hover:bg-gray-50 sm:grid sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-start sm:gap-x-8">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/b/${safeSlug}`}
+                          className="flex gap-4 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1FAF9E]/40"
+                        >
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
+                            {logoUrl ? (
                               <img
-                                src="/brand/Tellacity%20Vefication%20Batch.png"
-                                alt="Tellacity verified reviews"
-                                className="h-5 w-5 shrink-0"
+                                src={logoUrl}
+                                alt={`${sanitizeText(business.name)} logo`}
+                                className="h-full w-full object-contain"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
                               />
+                            ) : (
+                              <span className="text-sm font-semibold text-[#0E0E0E]">
+                                {(sanitizeText(business.name)?.trim()?.charAt(0) || "B").toUpperCase()}
+                              </span>
                             )}
                           </div>
-                          {business.website && <div className="text-sm text-gray-500 truncate">{sanitizeText(business.website)}</div>}
-                          <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                            <RatingStars
-                              rating={ratingValue}
-                              reviewCount={reviewCount}
-                              size={12}
-                            />
-                            <span className="font-medium text-[#0E0E0E]">
-                              {ratingValue.toFixed(1)}
-                            </span>
-                            <span className="text-gray-500">
-                              • {reviewCount.toLocaleString("en-US")} reviews
-                            </span>
-                          </div>
-                          {(business.category_slug || businessTags.length > 0) && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {business.category_slug && (
-                                <span className={businessCategoryPillClassName()}>
-                                  {formatBusinessTagLabel(business.category_slug)}
-                                </span>
+
+                          <div className="min-w-0 flex-1 text-[#0E0E0E]">
+                            <div className="flex items-center gap-1">
+                              <div className="truncate text-base font-semibold">{sanitizeText(business.name)}</div>
+                              {reviewCount > 0 && (
+                                <img
+                                  src="/brand/Tellacity%20Vefication%20Batch.png"
+                                  alt="Tellacity verified reviews"
+                                  className="h-5 w-5 shrink-0"
+                                />
                               )}
-                              {businessTags.map((tag, idx) => (
+                            </div>
+                            {business.website && (
+                              <div className="truncate text-sm text-gray-500">{sanitizeText(business.website)}</div>
+                            )}
+                            <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                              <RatingStars
+                                rating={ratingValue}
+                                reviewCount={reviewCount}
+                                size={12}
+                              />
+                              <span className="font-medium text-[#0E0E0E]">{ratingValue.toFixed(1)}</span>
+                              <span className="text-gray-500">
+                                • {reviewCount.toLocaleString("en-US")} reviews
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        {(showPrimaryChip || keywordTags.length > 0) && (
+                          <div className="mt-3 flex max-w-full flex-wrap gap-1.5 border-t border-gray-50 pt-3 sm:pl-[4.75rem]">
+                            {showPrimaryChip &&
+                              business.category_slug &&
+                              (() => {
+                                const slug =
+                                  slugForTagChip(business.category_slug) ??
+                                  business.category_slug.trim().toLowerCase();
+                                if (!isValidSlug(slug)) return null;
+                                return (
+                                  <Link
+                                    href={categoryBrowseHref(slug, countryCode)}
+                                    className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                                  >
+                                    {formatBusinessTagLabel(business.category_slug)}
+                                  </Link>
+                                );
+                              })()}
+                            {keywordTags.map((tag) => {
+                              const slug = slugForTagChip(tag);
+                              if (!slug) return null;
+                              const activeTag = listingKind === "tag" && slug === pageCatNorm;
+                              return activeTag ? (
                                 <span
                                   key={`${business.id}-${tag}`}
-                                  className={businessTagPillClassName(
-                                    idx + (business.category_slug ? 1 : 0),
-                                  )}
+                                  className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
+                                  aria-current="page"
                                 >
                                   {formatBusinessTagLabel(tag)}
                                 </span>
-                              ))}
-                            </div>
-                          )}
-                          {locationText && (
-                            <div className="mt-1 text-xs text-gray-500 sm:hidden">
-                              {sanitizeText(locationText)}
-                            </div>
-                          )}
-                        </div>
+                              ) : (
+                                <Link
+                                  key={`${business.id}-${tag}`}
+                                  href={tagBrowseHref(slug, countryCode)}
+                                  className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                                >
+                                  {formatBusinessTagLabel(tag)}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
-                      {locationText && (
-                        <div className="hidden text-sm text-gray-500 sm:block sm:text-right sm:min-w-[180px]">
-                          {sanitizeText(locationText)}
-                        </div>
+                      {locationLines.length > 0 && (
+                        <aside className="mt-3 shrink-0 text-sm text-gray-500 sm:mt-0 sm:w-full sm:max-w-[12rem] sm:justify-self-end">
+                          <div className="flex flex-col gap-1 sm:items-end sm:text-right">
+                            {locationLines.map((line, idx) => (
+                              <div
+                                key={`${business.id}-loc-${idx}`}
+                                className="max-w-full break-words leading-snug"
+                              >
+                                {sanitizeText(line)}
+                              </div>
+                            ))}
+                          </div>
+                        </aside>
                       )}
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
           </div>
 
           {sortedBusinessesList.length > 0 && (
-            <div className="mt-6 flex items-center justify-center text-sm text-gray-600">
-              <div className="inline-flex overflow-hidden rounded-md border border-gray-300">
+            <div className="mt-6 flex justify-center">
+              <nav
+                className="max-w-full overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+                aria-label="Listing pagination"
+              >
+                <div className="inline-flex min-h-[2.5rem] items-stretch rounded-md border border-neutral-700 bg-white text-sm shadow-sm">
                   <button
-                    className="px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                  onClick={() => goToListingPage(listingPageIndex - 1)}
-                  disabled={listingPageIndex === 0}
-                >
-                  Previous
-                </button>
-                <span className="border-l border-gray-300 px-4 py-2 font-semibold text-gray-800">
-                  Page {listingPageIndex + 1}
-                </span>
-                <button
-                  className="border-l border-gray-300 px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                  onClick={() => goToListingPage(listingPageIndex + 1)}
-                  disabled={!computedHasNext}
-                >
-                  Next
-                </button>
-              </div>
+                    type="button"
+                    className="shrink-0 border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
+                    onClick={() => goToListingPage(listingPageIndex - 1)}
+                    disabled={listingPageIndex === 0}
+                  >
+                    Previous
+                  </button>
+                  {listingPaginationItems.map((item, idx) => {
+                    const divider = "border-l border-neutral-300";
+                    if (item === "ellipsis") {
+                      return (
+                        <span
+                          key={`e-${idx}`}
+                          className={`${divider} flex min-w-[2.25rem] select-none items-center justify-center px-2 py-2 text-neutral-500`}
+                          aria-hidden
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    const isActive = item === listingPageIndex + 1;
+                    if (isActive) {
+                      return (
+                        <span
+                          key={item}
+                          aria-current="page"
+                          className={`${divider} relative z-[1] inline-flex min-w-[2.5rem] items-center justify-center bg-sky-50 px-3 py-2 font-semibold text-sky-700 ring-1 ring-inset ring-sky-600`}
+                        >
+                          {item}
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
+                        onClick={() => goToListingPage(item - 1)}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className={`shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50`}
+                    onClick={() => goToListingPage(listingPageIndex + 1)}
+                    disabled={!computedHasNext}
+                  >
+                    Next page
+                  </button>
+                </div>
+              </nav>
             </div>
           )}
 
@@ -1128,20 +1207,14 @@ export default function CategoryClient({
                   const reviewCount = (Number(company.review_count ?? 0)) || 0;
                   const ratingValue = snapshotRpcRating(company).trust;
                   const logoUrl = categoryListLogoUrl(company);
-                  const companyTags = mergeTagsForDisplay(
-                    company.tags,
-                    company.secondary_category_slugs,
-                    company.category_slug,
-                  );
-
                   return (
                     <Link
                       key={company.id}
                       href={`/b/${safeSlug}`}
-                      className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                      className="block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md no-underline text-inherit"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
                           {logoUrl ? (
                             <img
                               src={logoUrl}
@@ -1172,7 +1245,9 @@ export default function CategoryClient({
                               />
                             )}
                           </div>
-                          {company.website && <div className="text-xs text-gray-500">{sanitizeText(company.website)}</div>}
+                          {company.website && (
+                            <div className="text-xs text-gray-500">{sanitizeText(company.website)}</div>
+                          )}
                           <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
                             <RatingStars
                               rating={ratingValue}
@@ -1184,25 +1259,6 @@ export default function CategoryClient({
                               ({reviewCount.toLocaleString("en-US")})
                             </span>
                           </div>
-                          {(company.category_slug || companyTags.length > 0) && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {company.category_slug && (
-                                <span className={businessCategoryPillClassName()}>
-                                  {formatBusinessTagLabel(company.category_slug)}
-                                </span>
-                              )}
-                              {companyTags.map((tag, idx) => (
-                                <span
-                                  key={`${company.id}-${tag}`}
-                                  className={businessTagPillClassName(
-                                    idx + (company.category_slug ? 1 : 0),
-                                  )}
-                                >
-                                  {formatBusinessTagLabel(tag)}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </Link>
@@ -1213,35 +1269,40 @@ export default function CategoryClient({
           )}
 
           {popularTags.length > 0 && (
-            <div style={{ marginTop: "40px" }}>
-              <h2>Popular searches</h2>
+            <section className="mt-10" aria-label="Popular searches">
+              <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
               <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "10px",
-                  marginTop: "12px",
-                }}
+                className="mt-3 flex flex-wrap gap-1.5"
+                role="tablist"
+                aria-label="Popular tag filters"
               >
-                {popularTags.map((tag) => (
-                  <a
-                    key={tag.slug}
-                    href={`/tags/${tag.slug}${
-                      countryCode ? `?country=${encodeURIComponent(countryCode)}` : ""
-                    }`}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "20px",
-                      border: "1px solid #ddd",
-                      textDecoration: "none",
-                      fontSize: "13px",
-                    }}
-                  >
-                    {tag.label}
-                  </a>
-                ))}
+                {popularTags.map((tag) => {
+                  const safe = (tag.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safe)) return null;
+                  const active = listingKind === "tag" && safe === categorySlug.trim().toLowerCase();
+                  return active ? (
+                    <span
+                      key={tag.slug}
+                      role="tab"
+                      aria-selected="true"
+                      className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
+                    >
+                      {tag.label}
+                    </span>
+                  ) : (
+                    <Link
+                      key={tag.slug}
+                      role="tab"
+                      aria-selected="false"
+                      href={tagBrowseHref(safe, countryCode)}
+                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                    >
+                      {tag.label}
+                    </Link>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           )}
 
           {/* How this page works (desktop / tablet only) */}
@@ -1292,134 +1353,6 @@ export default function CategoryClient({
             </a>
           </div>
 
-          {filtersOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-              <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-                  <h2 className="text-base font-semibold text-[#0E0E0E]">All filters</h2>
-                  <button
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-600"
-                    onClick={() => setFiltersOpen(false)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div className="space-y-6 px-5 py-5 text-sm text-gray-700">
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600">Rating</div>
-                    <div className="mt-3 grid grid-cols-4 gap-2">
-                      {[
-                        { label: "All", value: null },
-                        { label: "3+", value: 3 },
-                        { label: "4+", value: 4 },
-                        { label: "4.5+", value: 4.5 },
-                      ].map((option) => (
-                        <button
-                          key={option.label}
-                          className={`rounded-md border px-2 py-1 text-xs font-semibold ${
-                            minRating === option.value
-                              ? "border-[#1FAF9E] bg-[#E8F7F5] text-[#0E0E0E]"
-                              : "border-gray-300 text-gray-700"
-                          }`}
-                          onClick={() => {
-                            setMinRating(option.value);
-                            stripListingPageFromUrl();
-                          }}
-                          type="button"
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600">Location</div>
-                    <div className="relative mt-3">
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
-                        onClick={() => setCountryOpen((prev) => !prev)}
-                      >
-                        <span className="flex items-center gap-2">
-                          {selectedCountry ? (
-                            <>
-                              <img
-                                src={COUNTRIES.find((c) => c.code === selectedCountry)?.flagUrl}
-                                alt=""
-                                className="h-4 w-5 rounded-[2px] object-cover"
-                              />
-                              {COUNTRIES.find((c) => c.code === selectedCountry)?.name}
-                            </>
-                          ) : (
-                            "Select country"
-                          )}
-                        </span>
-                        <span className="text-gray-400">▼</span>
-                      </button>
-
-                      {countryOpen && (
-                        <div className="absolute z-10 mt-2 w-full rounded-md border border-gray-200 bg-white shadow-lg">
-                          {COUNTRIES.map((country) => (
-                            <button
-                              key={country.code}
-                              type="button"
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                              onClick={() => {
-                                updateCountry(country.code);
-                                setCountryOpen(false);
-                                setFiltersOpen(false);
-                              }}
-                            >
-                              <img src={country.flagUrl} alt="" className="h-4 w-5 rounded-[2px] object-cover" />
-                              {sanitizeText(country.name)}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {subcategories.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold text-gray-600">Subcategories</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {subcategories.map((category) => {
-                          const safeSlug = (category.slug ?? "").trim().toLowerCase();
-                          if (!isValidSlug(safeSlug)) return null;
-                          return (
-                            <Link
-                              key={category.id}
-                              href={`/categories/${safeSlug}`}
-                              className="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:border-[#1FAF9E]"
-                              onClick={() => setFiltersOpen(false)}
-                            >
-                              {sanitizeText(category.name)}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between border-t border-gray-200 px-5 py-4">
-                  <button className="text-sm font-semibold text-[#1FAF9E]" onClick={resetFilters} type="button">
-                    Reset
-                  </button>
-                  <button
-                    className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white"
-                    onClick={() => setFiltersOpen(false)}
-                    type="button"
-                  >
-                    Show Results
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </section>
       </main>
     </>
