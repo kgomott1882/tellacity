@@ -3,10 +3,13 @@ import {
   fetchAndApplyLiveReviewMetrics,
   fetchCategoryCount,
   fetchCategoryRowsWithFallback,
+  fetchTagListingCount,
+  fetchTagListingRows,
   type CategoryBusinessRow,
 } from "@/lib/categoryListingQueries";
+import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
 
 export type CategoryListingPagePayload = {
   rows: CategoryBusinessRow[];
@@ -46,12 +49,10 @@ async function loadCategoryListingPageUncached(
   const hasNext = list.length > PAGE_SIZE;
   const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
   const rowsCopy = sliced.map((r) => ({ ...r }));
-  await fetchAndApplyLiveReviewMetrics(supabase, rowsCopy);
-  const realCount = await fetchCategoryCount(
-    supabase,
-    categorySlug,
-    countryCode,
-  );
+  const [_, realCount] = await Promise.all([
+    fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
+    fetchCategoryCount(supabase, categorySlug, countryCode),
+  ]);
 
   return {
     rows: rowsCopy,
@@ -91,6 +92,77 @@ async function loadCategoryTopCandidatesUncached(
   return { rows: list, error: result.error };
 }
 
+async function loadTagListingPageUncached(
+  tagSlug: string,
+  countryCode: string,
+  page: number,
+  minRatingRpc: number | null,
+): Promise<CategoryListingPagePayload> {
+  const supabase = createSupabaseServerClient();
+  const offset = page * PAGE_SIZE;
+  const minForRpc = minRatingRpc ?? 0;
+  const result = await fetchTagListingRows(
+    supabase,
+    tagSlug,
+    countryCode,
+    minForRpc,
+    PAGE_SIZE + 1,
+    offset,
+  );
+
+  if (result.error && result.rows.length === 0) {
+    return {
+      rows: [],
+      totalCount: 0,
+      hasNext: false,
+      error: result.error,
+    };
+  }
+
+  const list = result.rows;
+  const hasNext = list.length > PAGE_SIZE;
+  const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
+  const rowsCopy = sliced.map((r) => ({ ...r }));
+  const [_, realCount] = await Promise.all([
+    fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
+    fetchTagListingCount(supabase, tagSlug, countryCode),
+  ]);
+
+  return {
+    rows: rowsCopy,
+    totalCount:
+      typeof realCount === "number"
+        ? realCount
+        : offset + rowsCopy.length + (hasNext ? 1 : 0),
+    hasNext,
+    error: result.error,
+  };
+}
+
+async function loadTagTopCandidatesUncached(
+  tagSlug: string,
+  countryCode: string,
+  minRatingRpc: number | null,
+  candidateLimit: number,
+): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const minForRpc = minRatingRpc ?? 0;
+  const result = await fetchTagListingRows(
+    supabase,
+    tagSlug,
+    countryCode,
+    minForRpc,
+    candidateLimit,
+    0,
+  );
+  if (result.error && result.rows.length === 0) {
+    return { rows: [], error: result.error };
+  }
+  const list = result.rows.map((r) => ({ ...r }));
+  await fetchAndApplyLiveReviewMetrics(supabase, list);
+  return { rows: list, error: result.error };
+}
+
 /** Server-side category listing (SSR + `/api/category-listings`). */
 export function getCachedCategoryListingPage(
   categorySlug: string,
@@ -114,6 +186,30 @@ export function getCachedCategoryTopCandidates(
 ): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
   return loadCategoryTopCandidatesUncached(
     categorySlug,
+    countryCode,
+    minRatingRpc,
+    candidateLimit,
+  );
+}
+
+/** Server-side tag listing (SSR + `/api/category-listings?kind=tag`). */
+export function getCachedTagListingPage(
+  tagSlug: string,
+  countryCode: string,
+  page: number,
+  minRatingRpc: number | null,
+): Promise<CategoryListingPagePayload> {
+  return loadTagListingPageUncached(tagSlug, countryCode, page, minRatingRpc);
+}
+
+export function getCachedTagTopCandidates(
+  tagSlug: string,
+  countryCode: string,
+  minRatingRpc: number | null,
+  candidateLimit: number,
+): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
+  return loadTagTopCandidatesUncached(
+    tagSlug,
     countryCode,
     minRatingRpc,
     candidateLimit,

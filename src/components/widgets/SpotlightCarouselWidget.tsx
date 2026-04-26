@@ -192,21 +192,21 @@ function CarouselArrow({
         ...(dir === "left" ? { left: 0 } : { right: 0 }),
         transform: "translateY(-50%)",
         zIndex: 2,
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
+        width: 28,
+        height: 28,
+        borderRadius: 6,
         border: `1px solid ${accent}`,
         backgroundColor: "rgba(255,255,255,0.96)",
-        boxShadow: "0 1px 4px rgba(15,23,42,0.12)",
+        boxShadow: "0 1px 2px 0 rgba(15,23,42,0.06)",
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.38 : 1,
+        opacity: disabled ? 0.4 : 1,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
       }}
     >
-      <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
         <path
           d={dir === "left" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"}
           stroke={ink}

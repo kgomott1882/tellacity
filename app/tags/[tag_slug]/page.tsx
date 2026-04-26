@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getCachedTagListingPage } from "@/lib/cachedCategoryListing";
 import CategoryClient from "../../categories/[category_slug]/CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
 import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
@@ -10,7 +11,6 @@ type PageProps = {
   searchParams?: Promise<{ country?: string }>;
 };
 
-const PAGE_SIZE = 10;
 const GLOBAL_TAG_FALLBACK_LIMIT = 1000;
 const COUNTRY_NAME_BY_CODE: Record<string, string> = {
   US: "United States",
@@ -99,73 +99,12 @@ async function fetchGlobalRelatedTagFallback(
 
     return Array.from(counts.entries())
       .filter(([, count]) => count >= 1)
-    .sort((a, b) => (b[1] !== a[1] ? b[1] - a[1] : a[0].localeCompare(b[0])))
+      .sort((a, b) => (b[1] !== a[1] ? b[1] - a[1] : a[0].localeCompare(b[0])))
       .slice(0, 10)
       .map(([slug]) => ({
         slug,
         name: toTitleCase(toReadableTag(slug)),
       }));
-  } catch {
-    return [];
-  }
-}
-
-async function fetchBusinessesByTag(
-  tagSlug: string,
-  countryCode: string | null,
-): Promise<CategoryBusinessRow[]> {
-  const normalizedSlug = sanitizeTagSlug(tagSlug);
-  const readableTag = toReadableTag(normalizedSlug);
-  const countryAliases = countryCode
-    ? countryCode === "GB"
-      ? ["GB", "UK", "GBR"]
-      : [countryCode]
-    : null;
-
-  const tagNeedles = new Set<string>([
-    normalizedSlug,
-    readableTag.trim().toLowerCase(),
-    readableTag.trim().toLowerCase().replace(/\s+/g, "-"),
-  ]);
-
-  try {
-    let query = supabaseServer
-      .from("businesses")
-      .select(
-        "id,name,slug,website,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,tags",
-      )
-      .eq("status", "active")
-      .not("slug", "is", null)
-      .order("trust_score", { ascending: false })
-      .order("review_count", { ascending: false })
-      .order("name", { ascending: true })
-      .limit(5000);
-
-    if (countryAliases && countryAliases.length > 0) {
-      query = query.in("country_code", countryAliases);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      throw error;
-    }
-
-    const rows = (data ?? []) as CategoryBusinessRow[];
-    const matchedRows = rows.filter((row) => {
-      const normalizedTags = normalizeBusinessTags((row as { tags?: unknown }).tags);
-      return normalizedTags.some((tag) => {
-        const normalizedTag = tag.trim().toLowerCase();
-        if (!normalizedTag) {
-          return false;
-        }
-        return (
-          tagNeedles.has(normalizedTag) ||
-          tagNeedles.has(normalizedTag.replace(/\s+/g, "-"))
-        );
-      });
-    });
-
-    return matchedRows.slice(0, PAGE_SIZE + 1);
   } catch {
     return [];
   }
@@ -197,23 +136,41 @@ export default async function TagBusinessesPage(props: PageProps) {
   const normalizedCountryCode = searchParams.country
     ? normalizeCountryCode(searchParams.country)
     : null;
+  const countryCodeForQuery = normalizedCountryCode ?? "US";
   const countryName = normalizedCountryCode
     ? (COUNTRY_NAME_BY_CODE[normalizedCountryCode] ?? normalizedCountryCode)
     : "";
-  const fetchedRows = await fetchBusinessesByTag(
+
+  const listing = await getCachedTagListingPage(
     safeTagSlug,
-    normalizedCountryCode,
+    countryCodeForQuery,
+    0,
+    0,
   );
-  const hasNextPage = fetchedRows.length > PAGE_SIZE;
-  const businesses = hasNextPage ? fetchedRows.slice(0, PAGE_SIZE) : fetchedRows;
-  const categorySlug =
-    businesses
-      .map((row) => String(row.category_slug ?? "").trim().toLowerCase())
-      .find(Boolean) ?? safeTagSlug;
+
+  const businesses = listing.rows ?? [];
+  const hasNextPage = Boolean(listing.hasNext);
+  const companyCount =
+    typeof listing.totalCount === "number"
+      ? listing.totalCount
+      : businesses.length;
+
+  const categorySlugForBestLink =
+    businesses.length > 0
+      ? String(businesses[0]?.category_slug ?? "")
+          .trim()
+          .toLowerCase()
+      : "";
+
   let relatedTags = buildRelatedTags(businesses, safeTagSlug);
   if (relatedTags.length === 0) {
     relatedTags = await fetchGlobalRelatedTagFallback(safeTagSlug);
   }
+
+  const countryQuery =
+    normalizedCountryCode != null
+      ? `?country=${encodeURIComponent(normalizedCountryCode)}`
+      : "";
 
   return (
     <>
@@ -228,10 +185,12 @@ export default async function TagBusinessesPage(props: PageProps) {
             businesses, read real customer reviews, and find top-rated providers
             based on authentic feedback.
           </p>
-          {normalizedCountryCode && categorySlug && (
+          {normalizedCountryCode &&
+            businesses.length > 0 &&
+            categorySlugForBestLink && (
             <div style={{ marginTop: "10px" }}>
               <a
-                href={`/best/${normalizedCountryCode.toLowerCase()}/${categorySlug}`}
+                href={`/best/${normalizedCountryCode.toLowerCase()}/${categorySlugForBestLink}`}
                 style={{
                   fontSize: "13px",
                   color: "#1FAF9E",
@@ -244,16 +203,17 @@ export default async function TagBusinessesPage(props: PageProps) {
           )}
           {businesses.length === 0 && (
             <p className="mt-3 text-sm text-gray-500">
-              No businesses found under this category yet.
+              No businesses with this tag yet.
             </p>
           )}
         </div>
       </section>
       <CategoryClient
+        listingKind="tag"
         categorySlug={safeTagSlug}
-        initialCountryCode={normalizedCountryCode ?? "US"}
+        initialCountryCode={countryCodeForQuery}
         businesses={businesses}
-        companyCount={businesses.length}
+        companyCount={companyCount}
         hasNextPage={hasNextPage}
       />
       {relatedTags.length > 0 && (
@@ -266,7 +226,7 @@ export default async function TagBusinessesPage(props: PageProps) {
             {relatedTags.map((tagItem) => (
               <a
                 key={tagItem.slug}
-                href={`/tags/${tagItem.slug}`}
+                href={`/tags/${tagItem.slug}${countryQuery}`}
                 style={{
                   padding: "6px 10px",
                   border: "1px solid #ddd",

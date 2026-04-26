@@ -224,20 +224,18 @@ export default function ReviewSliderWidget({
     top: "50%",
     transform: "translateY(-50%)",
     zIndex: 2,
-    width: 36,
-    height: 36,
-    borderRadius: 9999,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
     border: "1px solid #E5E7EB",
     background: "#ffffff",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+    boxShadow: "0 1px 2px 0 rgba(15,23,42,0.06)",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 18,
-    lineHeight: 1,
-    color: text,
     padding: 0,
+    color: text,
   };
 
   const hasReviews = reviews.length > 0;
@@ -257,24 +255,50 @@ export default function ReviewSliderWidget({
       </p>
 
       {hasReviews ? (
-        <div style={{ position: "relative", paddingLeft: 44, paddingRight: 44 }}>
+        <div style={{ position: "relative", paddingLeft: 40, paddingRight: 40 }}>
           <button
             type="button"
             aria-label="Previous reviews"
-            style={{ ...arrowBtn, left: 0, opacity: offset <= 0 ? 0.4 : 1 }}
+            style={{
+              ...arrowBtn,
+              left: 0,
+              opacity: offset <= 0 ? 0.4 : 1,
+              cursor: offset <= 0 ? "not-allowed" : "pointer",
+            }}
             disabled={offset <= 0}
             onClick={goPrev}
           >
-            ‹
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
           <button
             type="button"
             aria-label="Next reviews"
-            style={{ ...arrowBtn, right: 0, opacity: offset >= maxOffset ? 0.4 : 1 }}
+            style={{
+              ...arrowBtn,
+              right: 0,
+              opacity: offset >= maxOffset ? 0.4 : 1,
+              cursor: offset >= maxOffset ? "not-allowed" : "pointer",
+            }}
             disabled={offset >= maxOffset}
             onClick={goNext}
           >
-            ›
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M9 18l6-6-6-6"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
 
           <div

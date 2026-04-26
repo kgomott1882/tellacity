@@ -2,6 +2,8 @@ import { useRef } from "react";
 import Link from "next/link";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
+import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 
 const cleanDomain = (value) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
@@ -37,21 +39,17 @@ export default function RotatingBestCategorySection({
               type="button"
               onClick={() => onPrevious?.()}
               aria-label="Previous Best in category"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <CarouselNavChevron dir="left" />
             </button>
             <button
               type="button"
               onClick={() => onNext?.()}
               aria-label="Next Best in category"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <CarouselNavChevron dir="right" />
             </button>
             <Link
               href={

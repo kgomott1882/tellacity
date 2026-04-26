@@ -19,6 +19,9 @@ import { sanitizeText } from "@/lib/sanitizeText";
 import { RefreshCw } from "lucide-react";
 import RatingStars from "@/components/RatingStars";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
+import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
+import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
 type BusinessRow = CategoryBusinessRow;
 
@@ -42,7 +45,7 @@ type CountryOption = {
   flagUrl: string;
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
 
 /** URL uses 1-based `?page=` (omit or 1 = first page). Returns 0-based index for the listing API. */
 function listingPageIndexFromSearch(params: URLSearchParams): number {
@@ -172,6 +175,8 @@ export type CategoryClientProps = {
   hasNextPage: boolean;
   initialCountryCode: string;
   popularTags?: Array<{ label: string; slug: string }>;
+  /** When `tag`, `categorySlug` is a tag slug and listings use `/api/category-listings?kind=tag`. */
+  listingKind?: "category" | "tag";
 };
 
 export default function CategoryClient({
@@ -181,6 +186,7 @@ export default function CategoryClient({
   hasNextPage = false,
   initialCountryCode,
   popularTags: serverPopularTags = [],
+  listingKind = "category",
 }: CategoryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -225,7 +231,9 @@ export default function CategoryClient({
     });
   }, [pushSearchParams]);
 
-  const [categoryName, setCategoryName] = useState("");
+  const [categoryName, setCategoryName] = useState(() =>
+    listingKind === "tag" ? formatBusinessTagLabel(categorySlug) : "",
+  );
   const [groupName, setGroupName] = useState("");
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; slug: string }[]>([]);
 
@@ -309,6 +317,7 @@ export default function CategoryClient({
       q.set("minRating", String(min));
       q.set("mode", "top");
       q.set("candidateLimit", String(TOP_RATED_CANDIDATE_LIMIT));
+      if (listingKind === "tag") q.set("kind", "tag");
       const res = await fetch(`/api/category-listings?${q.toString()}`, {
         cache: "no-store",
         signal: AbortSignal.timeout(28_000),
@@ -360,7 +369,7 @@ export default function CategoryClient({
     return () => {
       cancelled = true;
     };
-  }, [categorySlug, derivedCountry, minRating]);
+  }, [categorySlug, derivedCountry, minRating, listingKind]);
 
   // Keep selectedCountry in sync with URL and global country
   useEffect(() => {
@@ -444,6 +453,15 @@ export default function CategoryClient({
         return;
       }
 
+      if (listingKind === "tag") {
+        if (isMounted) {
+          setCategoryName(formatBusinessTagLabel(categorySlug));
+          setGroupName("");
+          setSubcategories([]);
+        }
+        return;
+      }
+
       const supabase = supabaseBrowser();
       // categories: slug, name, group_slug
       const { data: categoryData } = await supabase
@@ -508,7 +526,7 @@ export default function CategoryClient({
     return () => {
       isMounted = false;
     };
-  }, [categorySlug]);
+  }, [categorySlug, listingKind]);
 
   // ---------- THE REAL FIX: FETCH BUSINESSES ----------
   useEffect(() => {
@@ -530,6 +548,7 @@ export default function CategoryClient({
       q.set("page", String(listingPageIndex));
       q.set("minRating", String(min));
       q.set("mode", "page");
+      if (listingKind === "tag") q.set("kind", "tag");
       const res = await fetch(`/api/category-listings?${q.toString()}`, {
         cache: "no-store",
         signal: AbortSignal.timeout(28_000),
@@ -572,7 +591,9 @@ export default function CategoryClient({
           : offset + sliced.length + (hasNext ? 1 : 0)
       );
       setComputedHasNext(hasNext);
-      setFetchError(data.error ?? null);
+      setFetchError(
+        sliced.length > 0 ? null : (data.error ?? null),
+      );
       setLoading(false);
     };
 
@@ -581,7 +602,7 @@ export default function CategoryClient({
     return () => {
       isMounted = false;
     };
-  }, [categorySlug, listingPageIndex, minRating, derivedCountry]);
+  }, [categorySlug, listingPageIndex, minRating, derivedCountry, listingKind]);
 
   // Page title/meta
   useEffect(() => {
@@ -628,7 +649,14 @@ export default function CategoryClient({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: `${title} Reviews & Ratings`,
-    ...(siteUrl && categorySlug ? { url: `${siteUrl}/categories/${categorySlug}` } : {}),
+    ...(siteUrl && categorySlug
+      ? {
+          url:
+            listingKind === "tag"
+              ? `${siteUrl}/tags/${categorySlug}`
+              : `${siteUrl}/categories/${categorySlug}`,
+        }
+      : {}),
     ...(sortedBusinessesList.length > 0
       ? {
           mainEntity: {
@@ -877,7 +905,7 @@ export default function CategoryClient({
 
           {/* Loading / error (minimal) */}
           {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
-          {fetchError && (
+          {fetchError && sortedBusinessesList.length === 0 && (
             <div className="mt-2 flex flex-col items-center gap-3 text-sm text-red-600">
               <p className="max-w-2xl text-center leading-snug">{fetchError}</p>
               <button
@@ -895,13 +923,19 @@ export default function CategoryClient({
           <h2 className="text-lg font-semibold mt-6 mb-3">
             Best {categoryName} companies in {countryName}
           </h2>
-          <div className="mb-4">
-            <CategoryInfoTooltip categorySlug={categorySlug} />
-          </div>
+          {listingKind === "category" && (
+            <div className="mb-4">
+              <CategoryInfoTooltip categorySlug={categorySlug} />
+            </div>
+          )}
           <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
             {sortedBusinessesList.length === 0 && !loading && (
               <div className="px-4 py-6 text-sm text-gray-500">
-                <p>No businesses listed in this category yet.</p>
+                <p>
+                  {listingKind === "tag"
+                    ? "No businesses with this tag yet."
+                    : "No businesses listed in this category yet."}
+                </p>
                 <Link
                   href="/categories"
                   className="mt-3 inline-flex rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
@@ -1065,24 +1099,24 @@ export default function CategoryClient({
             <section className="mt-10">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-[#0E0E0E]">Recently reviewed companies</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 text-gray-600 disabled:cursor-not-allowed disabled:text-gray-300"
+                    className={CAROUSEL_NAV_BUTTON_CLASS}
                     onClick={() => setRecentPage((prev) => Math.max(0, prev - 1))}
                     disabled={!recentHasPrev}
                     aria-label="Previous companies"
                   >
-                    ‹
+                    <CarouselNavChevron dir="left" />
                   </button>
                   <button
                     type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1FAF9E] text-[#1FAF9E] disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300"
+                    className={CAROUSEL_NAV_BUTTON_CLASS}
                     onClick={() => setRecentPage((prev) => prev + 1)}
                     disabled={!recentHasNext}
                     aria-label="Next companies"
                   >
-                    ›
+                    <CarouselNavChevron dir="right" />
                   </button>
                 </div>
               </div>
@@ -1192,7 +1226,9 @@ export default function CategoryClient({
                 {popularTags.map((tag) => (
                   <a
                     key={tag.slug}
-                    href={`/tags/${tag.slug}`}
+                    href={`/tags/${tag.slug}${
+                      countryCode ? `?country=${encodeURIComponent(countryCode)}` : ""
+                    }`}
                     style={{
                       padding: "6px 12px",
                       borderRadius: "20px",

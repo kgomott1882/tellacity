@@ -6,6 +6,17 @@ import {
   normalizeCountryParam,
   toStorageCountryCode,
 } from "@/lib/seoCountries";
+import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
+import RatingStars from "@/components/RatingStars";
+import { formatBusinessAddress } from "@/lib/address";
+import {
+  businessCategoryPillClassName,
+  businessTagPillClassName,
+  formatBusinessTagLabel,
+  mergeTagsForDisplay,
+} from "@/lib/businessTags";
+import { similarBusinessLogoUrl } from "@/lib/logo";
+import { sanitizeText } from "@/lib/sanitizeText";
 
 type PageProps = {
   params: Promise<{ country: string; category: string }>;
@@ -18,7 +29,18 @@ type BusinessRow = {
   trust_score: number | null;
   review_count: number | null;
   website: string | null;
+  category_slug: string | null;
+  country_code: string | null;
+  address: string | null;
+  city: string | null;
+  logo_url?: string | null;
+  average_rating?: number | null;
+  tags?: unknown;
+  secondary_category_slugs?: unknown;
 };
+
+const BUSINESS_LIST_SELECT =
+  "id, name, slug, trust_score, review_count, website, category_slug, country_code, address, city, logo_url, average_rating, tags, secondary_category_slugs";
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
@@ -32,6 +54,13 @@ function toLabel(slug: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function snapshotRating(row: BusinessRow): number {
+  return (
+    (Number(row.trust_score ?? 0) || 0) ||
+    (Number(row.average_rating ?? 0) || 0)
+  );
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -65,7 +94,7 @@ export default async function BestInCategoryPage(props: PageProps) {
   const baseQuery = () =>
     supabase
       .from("businesses")
-      .select("id, name, slug, trust_score, review_count, website")
+      .select(BUSINESS_LIST_SELECT)
       .eq("status", "active")
       .eq("category_slug", categorySlug);
 
@@ -97,7 +126,7 @@ export default async function BestInCategoryPage(props: PageProps) {
   if (businesses.length === 0) {
     const finalFallback = await supabase
       .from("businesses")
-      .select("id, name, slug, trust_score, review_count, website")
+      .select(BUSINESS_LIST_SELECT)
       .eq("status", "active")
       .eq("category_slug", categorySlug)
       .limit(20);
@@ -107,51 +136,161 @@ export default async function BestInCategoryPage(props: PageProps) {
       : []) as BusinessRow[];
   }
 
+  const categoryDirectoryHref = `/categories/${categorySlug}?country=${encodeURIComponent(
+    storageCountry,
+  )}`;
+
   return (
     <main className="bg-white">
-      <section className="mx-auto w-full max-w-5xl px-6 py-16">
+      <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
           Best {categoryName} companies in {countryName}
         </h1>
 
-        <p className="mt-4 max-w-3xl text-sm text-gray-600">
+        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-gray-600">
           Compare top-rated {categoryName} businesses in {countryName}. Read
           verified reviews and find trusted providers.
         </p>
 
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <Link
+            href={categoryDirectoryHref}
+            className="font-medium text-[#1FAF9E] hover:underline"
+          >
+            Open full category directory (filters and sort) →
+          </Link>
+        </div>
+
         {businesses.length === 0 ? (
-          <p className="mt-6 text-sm text-gray-500">
+          <p className="mt-8 text-sm text-gray-500">
             No businesses found for this category and country yet.
           </p>
         ) : (
-          <ul className="mt-8 space-y-4">
-            {businesses.map((business) => {
-              const slug = (business.slug ?? "").trim().toLowerCase();
-              if (!isValidSlug(slug)) {
-                return null;
-              }
+          <>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500">
+              <span>
+                Companies ({businesses.length.toLocaleString("en-US")})
+              </span>
+              <span className="text-gray-400">Leaderboard (highest rated)</span>
+            </div>
 
-              const name = (business.name ?? "").trim() || "Business";
-              const rating = Number(business.trust_score ?? 0) || 0;
-              const reviewCount = Number(business.review_count ?? 0) || 0;
+            <h2 className="mb-3 mt-6 text-lg font-semibold text-[#0E0E0E]">
+              Best {categoryName} companies in {countryName}
+            </h2>
+            <div className="mb-4">
+              <CategoryInfoTooltip categorySlug={categorySlug} />
+            </div>
 
-              return (
-                <li key={business.id}>
-                  <Link
-                    href={`/b/${slug}`}
-                    className="block rounded-lg border border-gray-200 bg-white p-5 transition hover:border-emerald-500"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="font-semibold text-[#0E0E0E]">{name}</span>
-                      <div className="text-sm text-gray-700">
-                        ⭐ {rating ? rating.toFixed(1) : "—"} ({reviewCount || 0} reviews)
+            <div className="mt-2 divide-y divide-gray-200 rounded-2xl border border-gray-200">
+              {businesses.map((business) => {
+                const safeSlug = (business.slug ?? "").trim().toLowerCase();
+                if (!isValidSlug(safeSlug)) return null;
+
+                const reviewCount = Number(business.review_count ?? 0) || 0;
+                const ratingValue = snapshotRating(business);
+                const locationText =
+                  formatBusinessAddress(
+                    business.address,
+                    business.city,
+                    business.country_code,
+                  ) || "";
+                const businessTags = mergeTagsForDisplay(
+                  business.tags,
+                  business.secondary_category_slugs,
+                  business.category_slug,
+                );
+                const logoUrl = similarBusinessLogoUrl(business);
+
+                return (
+                  <Link key={business.id} href={`/b/${safeSlug}`} className="block w-full">
+                    <div className="flex flex-col gap-3 px-4 py-5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
+                          {logoUrl ? (
+                            <img
+                              src={logoUrl}
+                              alt={`${sanitizeText(business.name)} logo`}
+                              className="h-full w-full object-contain"
+                              referrerPolicy="no-referrer"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <span className="text-sm font-semibold text-[#0E0E0E]">
+                              {(sanitizeText(business.name)?.trim()?.charAt(0) || "B").toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <div className="truncate text-base font-semibold text-[#0E0E0E]">
+                              {sanitizeText(business.name)}
+                            </div>
+                            {reviewCount > 0 && (
+                              <img
+                                src="/brand/Tellacity%20Vefication%20Batch.png"
+                                alt="Tellacity verified reviews"
+                                className="h-5 w-5 shrink-0"
+                              />
+                            )}
+                          </div>
+                          {business.website && (
+                            <div className="truncate text-sm text-gray-500">
+                              {sanitizeText(business.website)}
+                            </div>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                            <RatingStars
+                              rating={ratingValue}
+                              reviewCount={reviewCount}
+                              size={12}
+                            />
+                            <span className="font-medium text-[#0E0E0E]">
+                              {ratingValue.toFixed(1)}
+                            </span>
+                            <span className="text-gray-500">
+                              • {reviewCount.toLocaleString("en-US")} reviews
+                            </span>
+                          </div>
+                          {(business.category_slug || businessTags.length > 0) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {business.category_slug && (
+                                <span className={businessCategoryPillClassName()}>
+                                  {formatBusinessTagLabel(business.category_slug)}
+                                </span>
+                              )}
+                              {businessTags.map((tag, idx) => (
+                                <span
+                                  key={`${business.id}-${tag}`}
+                                  className={businessTagPillClassName(
+                                    idx + (business.category_slug ? 1 : 0),
+                                  )}
+                                >
+                                  {formatBusinessTagLabel(tag)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {locationText ? (
+                            <div className="mt-1 text-xs text-gray-500 sm:hidden">
+                              {sanitizeText(locationText)}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
+
+                      {locationText ? (
+                        <div className="hidden min-w-[180px] text-right text-sm text-gray-500 sm:block">
+                          {sanitizeText(locationText)}
+                        </div>
+                      ) : null}
                     </div>
                   </Link>
-                </li>
-              );
-            })}
-          </ul>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
     </main>

@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
+import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
-import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import {
   businessCategoryPillClassName,
-  businessTagPillClassName,
   formatBusinessTagLabel,
   mergeTagsForDisplay,
 } from "@/lib/businessTags";
@@ -93,13 +92,6 @@ type CategoryTrail = {
   categorySlug: string | null;
 };
 
-type RelatedBusiness = {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-};
-
 /** Top slice from get_top_businesses_for_category_global , same source as category page. */
 type TopRatedInCategory = {
   id: string;
@@ -117,10 +109,6 @@ const cleanDomain = (value: string | null | undefined) => {
 
   return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 };
-
-function toTagSlug(tagName: string): string {
-  return tagName.trim().toLowerCase().replace(/\s+/g, "-");
-}
 
 const formatDate = (value: string | null | undefined) => {
   if (!value) {
@@ -282,13 +270,15 @@ export default function BusinessClient({
     average: number;
     counts: RatingCounts;
   } | null>(null);
-  const [relatedBusinesses, setRelatedBusinesses] = useState<RelatedBusiness[]>(
-    []
-  );
   const [topRatedInCategory, setTopRatedInCategory] = useState<
     TopRatedInCategory[]
   >([]);
   const [topRatedInCategoryLoading, setTopRatedInCategoryLoading] =
+    useState(false);
+  const [relatedBusinesses, setRelatedBusinesses] = useState<
+    TopRatedInCategory[]
+  >([]);
+  const [relatedBusinessesLoading, setRelatedBusinessesLoading] =
     useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -537,41 +527,6 @@ export default function BusinessClient({
   }, [business?.categorySlug, business?.categoryGroupName, business?.categoryName]);
 
   useEffect(() => {
-    if (!business?.categorySlug || !business?.countryCode) return;
-
-    const fetchRelated = async () => {
-      const { data, error } = await supabaseBrowser()
-        .from("businesses")
-        .select(
-          "id, name, slug, logo_url, resolved_logo_url, website, website_display"
-        )
-        .eq("category_slug", business.categorySlug)
-        .eq("country_code", business.countryCode)
-        .neq("id", business.id)
-        .eq("status", "active")
-        .limit(6);
-
-      if (!error && data) {
-        const mapped: RelatedBusiness[] = data
-          .map((row) => {
-            const slug = String(row.slug ?? "").trim();
-            if (!slug) return null;
-            return {
-              id: String(row.id ?? slug),
-              name: String(row.name ?? "").trim() || "Business",
-              slug,
-              logoUrl: similarBusinessLogoUrl(row),
-            };
-          })
-          .filter((row): row is RelatedBusiness => row !== null);
-        setRelatedBusinesses(mapped);
-      }
-    };
-
-    fetchRelated();
-  }, [business?.id, business?.categorySlug, business?.countryCode]);
-
-  useEffect(() => {
     const cat = business?.categorySlug?.trim();
     if (!cat || !business?.id) {
       setTopRatedInCategory([]);
@@ -644,6 +599,82 @@ export default function BusinessClient({
       isMounted = false;
     };
   }, [business?.id, business?.categorySlug, business?.countryCode]);
+
+  useEffect(() => {
+    const cat = business?.categorySlug?.trim();
+    const country = business?.countryCode
+      ? normalizeCountryCode(business.countryCode)
+      : null;
+    const bid = business?.id;
+    if (!cat || !country || !bid) {
+      setRelatedBusinesses([]);
+      setRelatedBusinessesLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setRelatedBusinessesLoading(true);
+
+    const run = async () => {
+      const { data, error } = await supabaseBrowser()
+        .from("businesses")
+        .select(
+          "id, name, slug, logo_url, website, website_display, trust_score, review_count",
+        )
+        .eq("category_slug", cat)
+        .eq("country_code", country)
+        .neq("id", bid)
+        .eq("status", "active")
+        .order("trust_score", { ascending: false, nullsFirst: false })
+        .order("review_count", { ascending: false })
+        .limit(14);
+
+      if (!isMounted) return;
+      setRelatedBusinessesLoading(false);
+
+      if (error || !Array.isArray(data)) {
+        setRelatedBusinesses([]);
+        return;
+      }
+
+      const topIds = new Set(topRatedInCategory.map((t) => t.id));
+      const mapped = (data as Array<Record<string, unknown>>)
+        .map((row, index) => {
+          const slug = String(row.slug ?? "").trim().toLowerCase();
+          if (!/^[a-z0-9-]+$/.test(slug)) return null;
+          const id = String(row.id ?? `rel-${index}-${slug}`);
+          if (topIds.has(id)) return null;
+          return {
+            id,
+            slug,
+            name: String(row.name ?? "").trim() || "Business",
+            logoUrl: similarBusinessLogoUrl({
+              logo_url: row.logo_url as string | null,
+              website:
+                (row.website_display as string | null) ??
+                (row.website as string | null),
+            }),
+            trustScore: Number(row.trust_score ?? 0),
+            reviewCount: Number(row.review_count ?? 0),
+          };
+        })
+        .filter((row): row is TopRatedInCategory => row !== null)
+        .slice(0, 6);
+
+      setRelatedBusinesses(mapped);
+    };
+
+    void run();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    business?.id,
+    business?.categorySlug,
+    business?.countryCode,
+    topRatedInCategory,
+  ]);
 
   useEffect(() => {
     if (!business?.id) {
@@ -926,13 +957,28 @@ export default function BusinessClient({
     reviews.length,
   ]);
 
+  const categoryPublicLabel = useMemo(() => {
+    const slug = business?.categorySlug?.trim();
+    if (!slug) return "";
+    const fromBusiness = business?.categoryName?.trim();
+    if (fromBusiness) return sanitizeText(fromBusiness);
+    const fromTrail = categoryTrail?.categoryName?.trim();
+    if (fromTrail) return sanitizeText(fromTrail);
+    return formatBusinessTagLabel(slug);
+  }, [
+    business?.categorySlug,
+    business?.categoryName,
+    categoryTrail?.categoryName,
+  ]);
+
+  const rankingsCountryCode =
+    (business?.countryCode || "US").trim().toUpperCase() || "US";
+
   const businessLogoUrl = similarBusinessLogoUrl({
     resolved_logo_url: business?.logoUrl,
     logo_url: null,
     website: business?.website,
   });
-  const businessTags = business?.tags ?? [];
-
   if (notFound && !isLoadingBusiness) {
     return (
       <main className="bg-white">
@@ -1058,43 +1104,24 @@ export default function BusinessClient({
                       </span>
                     </div>
                   </div>
-                  {((categoryTrail?.categoryName || categoryTrail?.groupName) ||
-                    businessTags.length > 0) && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {(categoryTrail?.categoryName ||
-                        categoryTrail?.groupName) && (
+                  {(() => {
+                    const primaryLabel =
+                      (categoryTrail?.categoryName &&
+                        sanitizeText(categoryTrail.categoryName)) ||
+                      (categoryTrail?.groupName &&
+                        sanitizeText(categoryTrail.groupName)) ||
+                      (business?.categorySlug?.trim()
+                        ? formatBusinessTagLabel(business.categorySlug)
+                        : "");
+                    if (!primaryLabel) return null;
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <span className={businessCategoryPillClassName()}>
-                          {sanitizeText(
-                            categoryTrail?.categoryName ??
-                              categoryTrail?.groupName ??
-                              "",
-                          )}
+                          {primaryLabel}
                         </span>
-                      )}
-                      {businessTags.map((tag, idx) => (
-                        <span
-                          key={tag}
-                          className={businessTagPillClassName(
-                            idx +
-                              (categoryTrail?.categoryName ||
-                              categoryTrail?.groupName
-                                ? 1
-                                : 0),
-                          )}
-                        >
-                          <a
-                            href={`/tags/${toTagSlug(formatBusinessTagLabel(tag))}`}
-                            style={{
-                              marginRight: "6px",
-                              textDecoration: "none",
-                            }}
-                          >
-                            {formatBusinessTagLabel(tag)}
-                          </a>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
               <div className="mt-4 flex flex-wrap gap-3">
@@ -1296,24 +1323,16 @@ export default function BusinessClient({
                       type="button"
                       aria-label="Scroll reviews left"
                       onClick={scrollReviewsRowLeft}
-                      onMouseEnter={(event) => {
-                        event.currentTarget.style.opacity = "1";
-                      }}
-                      onMouseLeave={(event) => {
-                        event.currentTarget.style.opacity = "0.9";
-                      }}
                       style={{
                         position: "absolute",
                         left: "-10px",
                         top: "40%",
                         zIndex: 10,
-                        cursor: "pointer",
                         pointerEvents: "auto",
-                        opacity: 0.9,
                       }}
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50"
+                      className={`${CAROUSEL_NAV_BUTTON_CLASS} opacity-90 transition-opacity hover:opacity-100`}
                     >
-                      <ChevronLeft size={18} aria-hidden />
+                      <CarouselNavChevron dir="left" />
                     </button>
                     <div
                       ref={scrollContainerRef}
@@ -1357,24 +1376,16 @@ export default function BusinessClient({
                       type="button"
                       aria-label="Scroll reviews right"
                       onClick={scrollReviewsRowRight}
-                      onMouseEnter={(event) => {
-                        event.currentTarget.style.opacity = "1";
-                      }}
-                      onMouseLeave={(event) => {
-                        event.currentTarget.style.opacity = "0.9";
-                      }}
                       style={{
                         position: "absolute",
                         right: "-10px",
                         top: "40%",
                         zIndex: 10,
-                        cursor: "pointer",
                         pointerEvents: "auto",
-                        opacity: 0.9,
                       }}
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50"
+                      className={`${CAROUSEL_NAV_BUTTON_CLASS} opacity-90 transition-opacity hover:opacity-100`}
                     >
-                      <ChevronRight size={18} aria-hidden />
+                      <CarouselNavChevron dir="right" />
                     </button>
                   </div>
                 )}
@@ -1557,33 +1568,21 @@ export default function BusinessClient({
                   <h3 className="text-lg font-semibold text-[#0E0E0E]">
                     Explore Rankings
                   </h3>
-                  <div className="mt-4">
-                    <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5">
+                  <div className="mt-4 rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h4 className="font-semibold text-[#0E0E0E]">
+                          <h4 className="text-xl font-semibold text-[#0E0E0E]">
                             Top rated companies
                           </h4>
                           <p className="mt-1 text-xs text-gray-500">
-                            {sanitizeText(
-                              business.categoryName ??
-                                categoryTrail?.categoryName ??
-                                business.categorySlug.replace(/-/g, " ")
-                            )}{" "}
-                            ·{" "}
-                            {(business.countryCode || "US")
-                              .trim()
-                              .toUpperCase() || "US"}
+                            {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)}{" "}
+                            · {rankingsCountryCode}
                           </p>
                         </div>
                         <Link
                           href={`/categories/${encodeURIComponent(
                             business.categorySlug.trim()
-                          )}?country=${encodeURIComponent(
-                            (business.countryCode || "US")
-                              .trim()
-                              .toUpperCase() || "US"
-                          )}`}
+                          )}?country=${encodeURIComponent(rankingsCountryCode)}`}
                           className="shrink-0 text-sm font-medium text-[#1FAF9E] hover:underline"
                         >
                           View category rankings →
@@ -1657,67 +1656,139 @@ export default function BusinessClient({
                           <Link
                             href={`/categories/${encodeURIComponent(
                               business.categorySlug.trim()
-                            )}?country=${encodeURIComponent(
-                              (business.countryCode || "US")
-                                .trim()
-                                .toUpperCase() || "US"
-                            )}`}
+                            )}?country=${encodeURIComponent(rankingsCountryCode)}`}
                             className="font-medium text-[#1FAF9E] hover:underline"
                           >
                             Browse rankings on the category page
                           </Link>
                         </p>
                       )}
+                  </div>
+                </div>
+              )}
+
+              {business?.categorySlug?.trim() &&
+                business?.countryCode &&
+                (relatedBusinessesLoading || relatedBusinesses.length > 0) && (
+                  <div className="mt-10">
+                    <h3 className="text-lg font-semibold text-[#0E0E0E]">
+                      More businesses like this
+                    </h3>
+                    <div className="mt-4 rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h4 className="text-xl font-semibold text-[#0E0E0E]">
+                            Same category and country
+                          </h4>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {categoryPublicLabel ||
+                              formatBusinessTagLabel(business.categorySlug)}{" "}
+                            · {rankingsCountryCode}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/categories/${encodeURIComponent(
+                            business.categorySlug.trim(),
+                          )}?country=${encodeURIComponent(rankingsCountryCode)}`}
+                          className="shrink-0 text-sm font-medium text-[#1FAF9E] hover:underline"
+                        >
+                          View full directory →
+                        </Link>
+                      </div>
+
+                      {relatedBusinessesLoading ? (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={`related-sk-${i}`}
+                              className="flex animate-pulse gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
+                            >
+                              <div className="h-8 w-8 shrink-0 rounded-md bg-gray-200" />
+                              <div className="min-w-0 flex-1 space-y-2 py-0.5">
+                                <div className="h-4 w-3/4 rounded bg-gray-200" />
+                                <div className="h-3 w-1/2 rounded bg-gray-200" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {relatedBusinesses.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`/b/${item.slug}`}
+                              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                                {item.logoUrl ? (
+                                  <img
+                                    src={
+                                      normalizeLogoUrl(item.logoUrl) ??
+                                      item.logoUrl
+                                    }
+                                    alt={`${sanitizeText(item.name)} logo`}
+                                    className="h-full w-full object-contain"
+                                    referrerPolicy="no-referrer"
+                                    crossOrigin="anonymous"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate">
+                                  {sanitizeText(item.name)}
+                                </div>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                  <RatingStars
+                                    rating={item.trustScore}
+                                    size={11}
+                                  />
+                                  <span className="font-medium text-[#0E0E0E]">
+                                    {item.trustScore.toFixed(1)}
+                                  </span>
+                                  <span>
+                                    ·{" "}
+                                    {item.reviewCount.toLocaleString("en-US")}{" "}
+                                    reviews
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-
-              {relatedBusinesses.length > 0 && (
-                <div className="mt-10 border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    More businesses like this
-                  </h3>
-
-                  <div className="space-y-2">
-                    {relatedBusinesses.map((b) => (
-                      <Link
-                        key={b.id}
-                        href={`/b/${b.slug}`}
-                        className="flex items-center gap-2.5 text-sm text-[#2563EB] transition hover:text-[#1d4ed8] hover:underline"
-                      >
-                        <SimilarBusinessLogo
-                          variant="mini"
-                          logoUrl={b.logoUrl}
-                          nameForAlt={sanitizeText(b.name)}
-                        />
-                        <span className="min-w-0">{sanitizeText(b.name)}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
 
               {business?.categorySlug && (
-                <div style={{ marginTop: "24px", fontSize: "14px" }}>
-                  <a href="/" style={{ marginRight: "12px" }}>Tellacity Home</a>
-                  <a href="/reviews" style={{ marginRight: "12px" }}>Customer Reviews</a>
-                  <a href={`/categories/${business.categorySlug}`}>
-                    More in {business.categorySlug}
-                  </a>
-                </div>
-              )}
-              {business?.categorySlug && business?.countryCode && (
-                <div style={{ marginTop: "16px", fontSize: "13px" }}>
-                  <a
-                    href={`/best/${business.countryCode.toLowerCase()}/${business.categorySlug}`}
-                    style={{
-                      color: "#1FAF9E",
-                      textDecoration: "none",
-                    }}
+                <div className="mt-8 flex flex-col gap-3 border-t border-gray-200 pt-6 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+                  <Link href="/" className="text-gray-600 hover:text-[#0E0E0E]">
+                    Tellacity Home
+                  </Link>
+                  <Link href="/reviews" className="text-gray-600 hover:text-[#0E0E0E]">
+                    Customer Reviews
+                  </Link>
+                  <Link
+                    href={`/categories/${encodeURIComponent(
+                      business.categorySlug.trim(),
+                    )}?country=${encodeURIComponent(rankingsCountryCode)}`}
+                    className="text-gray-600 hover:text-[#0E0E0E]"
                   >
-                    See top companies in this category →
-                  </a>
+                    More in {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)}
+                  </Link>
+                  {business.countryCode ? (
+                    <Link
+                      href={`/best/${business.countryCode.toLowerCase()}/${encodeURIComponent(
+                        business.categorySlug.trim(),
+                      )}`}
+                      className="font-medium text-[#1FAF9E] hover:underline sm:ml-auto"
+                    >
+                      See top companies in this category →
+                    </Link>
+                  ) : null}
                 </div>
               )}
             </div>

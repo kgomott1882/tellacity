@@ -3,6 +3,8 @@ import { normalizeCountryCode } from "@/lib/country";
 import {
   getCachedCategoryListingPage,
   getCachedCategoryTopCandidates,
+  getCachedTagListingPage,
+  getCachedTagTopCandidates,
 } from "@/lib/cachedCategoryListing";
 
 const CACHE_HEADER =
@@ -26,6 +28,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const slug = (url.searchParams.get("slug") ?? "").trim().toLowerCase();
     const country = normalizeCountryCode(url.searchParams.get("country"));
+    const kind = (url.searchParams.get("kind") ?? "category").trim().toLowerCase();
     const mode = (url.searchParams.get("mode") ?? "page").trim().toLowerCase();
     const minParsed = parseMinRatingRpc(url.searchParams.get("minRating"));
     const minRpc = minParsed ?? 0;
@@ -46,14 +49,12 @@ export async function GET(req: Request) {
             40,
         ),
       );
-      const { rows, error } = await getCachedCategoryTopCandidates(
-        slug,
-        country,
-        minRpc,
-        lim,
-      );
+      const { rows, error } =
+        kind === "tag"
+          ? await getCachedTagTopCandidates(slug, country, minRpc, lim)
+          : await getCachedCategoryTopCandidates(slug, country, minRpc, lim);
       return NextResponse.json(
-        { mode: "top", rows, error },
+        { mode: "top", kind, rows, error },
         { headers: { "Cache-Control": CACHE_HEADER } },
       );
     }
@@ -62,15 +63,13 @@ export async function GET(req: Request) {
       0,
       parseInt(String(url.searchParams.get("page") ?? "0"), 10) || 0,
     );
-    const payload = await getCachedCategoryListingPage(
-      slug,
-      country,
-      page,
-      minRpc,
-    );
+    const payload =
+      kind === "tag"
+        ? await getCachedTagListingPage(slug, country, page, minRpc)
+        : await getCachedCategoryListingPage(slug, country, page, minRpc);
 
     return NextResponse.json(
-      { mode: "page", ...payload },
+      { mode: "page", kind, ...payload },
       { headers: { "Cache-Control": CACHE_HEADER } },
     );
   } catch (e) {

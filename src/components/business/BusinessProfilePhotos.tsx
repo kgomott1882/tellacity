@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
+import { ImageIcon, X } from "lucide-react";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
+import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 import {
   getBusinessPhotoSectionsOrdered,
   groupBusinessPhotosWithConfig,
@@ -205,9 +207,9 @@ function HeroPhotoGallery({
               onClick={slidePrev}
               disabled={!canSlidePrev}
               aria-label="Previous thumbnails"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
             >
-              <ChevronLeft size={18} aria-hidden />
+              <CarouselNavChevron dir="left" />
             </button>
           ) : null}
 
@@ -267,9 +269,9 @@ function HeroPhotoGallery({
               onClick={slideNext}
               disabled={!canSlideNext}
               aria-label="More thumbnails"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
             >
-              <ChevronRight size={18} aria-hidden />
+              <CarouselNavChevron dir="right" />
             </button>
           ) : null}
         </div>

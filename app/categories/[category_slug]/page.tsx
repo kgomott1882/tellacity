@@ -7,14 +7,16 @@ import { normalizeCountryCode } from "@/lib/country";
 import { normalizeBusinessTags, mergeTagsForDisplay } from "@/lib/businessTags";
 import { getCachedCategoryListingPage } from "@/lib/cachedCategoryListing";
 import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
+import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
 type PageProps = {
   params: Promise<{ category_slug: string }>;
   searchParams?: Promise<{ page?: string; country?: string }>;
 };
-const TAG_FETCH_LIMIT = 2000;
-const GLOBAL_TAG_FALLBACK_LIMIT = 1000;
-const LISTING_PAGE_SIZE = 10;
+/** Cap tag scan per request — avoids heavy reads on huge categories. */
+const TAG_FETCH_LIMIT = 500;
+const GLOBAL_TAG_FALLBACK_LIMIT = 400;
+const LISTING_PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
 
 function getSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -171,42 +173,15 @@ async function loadCategoryCountsForMetadata(
       countQuery = countQuery.in("country_code", aliases);
     }
 
-    const { count } = await countQuery;
+    const { count, error: countErr } = await countQuery;
+    if (countErr) {
+      console.warn("[category page] business count (metadata):", countErr.message);
+    }
     const businessCount = count ?? 0;
-    if (businessCount <= 0) {
-      return { businessCount: 0, reviewCount: 0 };
-    }
-
-    const PAGE = 1000;
-    let reviewCount = 0;
-    let offset = 0;
-    while (true) {
-      let reviewsQuery = supabase
-        .from("businesses")
-        .select("review_count")
-        .eq("status", "active")
-        .eq("category_slug", safeCategorySlug)
-        .range(offset, offset + PAGE - 1);
-      if (aliases && aliases.length > 0) {
-        reviewsQuery = reviewsQuery.in("country_code", aliases);
-      }
-
-      const { data, error } = await reviewsQuery;
-      if (error || !Array.isArray(data) || data.length === 0) {
-        break;
-      }
-
-      for (const row of data as Array<{ review_count?: number | null }>) {
-        reviewCount += Number(row.review_count ?? 0) || 0;
-      }
-
-      if (data.length < PAGE) {
-        break;
-      }
-      offset += PAGE;
-    }
-
-    return { businessCount, reviewCount };
+    // Summing review_count row-by-row across thousands of businesses caused
+    // statement timeouts and slow metadata. Title uses company count; true
+    // review totals stay on business pages.
+    return { businessCount, reviewCount: 0 };
   } catch (e) {
     console.error("[category page] loadCategoryCountsForMetadata:", e);
     return { businessCount: 0, reviewCount: 0 };
@@ -228,7 +203,7 @@ async function loadBusinessesWithoutCountryFilter(
     const { data, error } = await supabase
       .from("businesses")
       .select(
-        "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags,secondary_category_slugs",
+        "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,logo_url,status,tags,secondary_category_slugs",
       )
       .in("category_slug", categories)
       .eq("status", "active")

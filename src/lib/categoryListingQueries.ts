@@ -16,7 +16,8 @@ export type CategoryBusinessRow = {
   country_code: string | null;
   address: string | null;
   city: string | null;
-  display_location: string | null;
+  /** Optional: only present when DB exposes it; otherwise derive from address/city/country. */
+  display_location?: string | null;
   logo_url?: string | null;
   resolved_logo_url?: string | null;
   average_rating?: number | null;
@@ -88,7 +89,7 @@ export async function fetchCategoryRowsWithFallback(
   const direct = await supabase
     .from("businesses")
     .select(
-      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,display_location,logo_url,resolved_logo_url,status,tags,secondary_category_slugs",
+      "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,logo_url,status,tags,secondary_category_slugs",
     )
     .in("category_slug", categories)
     .in("country_code", countries)
@@ -119,10 +120,87 @@ export async function fetchCategoryRowsWithFallback(
       row.category_slug,
     );
   }
+  // RPC can hit statement_timeout while the direct slice still succeeds; do not
+  // surface that to users when we have rows to show.
   return {
     rows,
-    error: rpc.error.message ?? null,
+    error: rows.length > 0 ? null : rpc.error.message ?? null,
   };
+}
+
+const TAG_LISTING_SELECT =
+  "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,logo_url,status,tags,secondary_category_slugs";
+
+/**
+ * Businesses whose primary category, tags array, or secondary slugs match the
+ * given tag slug (hyphenated, lowercased in URLs). Uses the same PostgREST
+ * `cs` (contains) semantics as array membership for text[] columns.
+ */
+export async function fetchTagListingRows(
+  supabase: SupabaseClient,
+  tagSlug: string,
+  countryCode: string,
+  minRating: number | null,
+  limit: number,
+  offset: number,
+): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
+  const tag = tagSlug.trim().toLowerCase();
+  if (!tag) {
+    return { rows: [], error: null };
+  }
+  const countries = countryAliases(countryCode);
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select(TAG_LISTING_SELECT)
+    .eq("status", "active")
+    .in("country_code", countries)
+    .or(
+      `tags.cs.{${tag}},secondary_category_slugs.cs.{${tag}},category_slug.eq.${tag}`,
+    )
+    .order("trust_score", { ascending: false, nullsFirst: false })
+    .order("review_count", { ascending: false })
+    .order("name", { ascending: true })
+    .range(offset, Math.max(offset + limit - 1, offset));
+
+  if (error) {
+    return { rows: [], error: error.message ?? "Failed to load tag listings." };
+  }
+
+  let rows = (data ?? []) as CategoryBusinessRow[];
+  if (typeof minRating === "number") {
+    rows = rows.filter((r) => (Number(r.trust_score ?? 0) || 0) >= minRating);
+  }
+  for (const row of rows) {
+    row.tags = mergeTagsForDisplay(
+      row.tags,
+      row.secondary_category_slugs,
+      row.category_slug,
+    );
+  }
+  return { rows, error: null };
+}
+
+export async function fetchTagListingCount(
+  supabase: SupabaseClient,
+  tagSlug: string,
+  countryCode: string,
+): Promise<number | null> {
+  const tag = tagSlug.trim().toLowerCase();
+  if (!tag) return 0;
+  const countries = countryAliases(countryCode);
+
+  const { count, error } = await supabase
+    .from("businesses")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .in("country_code", countries)
+    .or(
+      `tags.cs.{${tag}},secondary_category_slugs.cs.{${tag}},category_slug.eq.${tag}`,
+    );
+
+  if (error) return null;
+  return count ?? 0;
 }
 
 export async function fetchCategoryCount(

@@ -28,6 +28,8 @@ import {
 } from "@/lib/homeMarqueeCategories";
 import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
 import type { HomeBestInBusiness } from "@/lib/homeBestInBundle";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
+import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 
 type HomeReview = {
   review_id: string;
@@ -1097,21 +1099,17 @@ export default function HomePageClient({
                 type="button"
                 onClick={() => scrollCategories("left")}
                 aria-label="Scroll categories left"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className={CAROUSEL_NAV_BUTTON_CLASS}
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
+                <CarouselNavChevron dir="left" />
               </button>
               <button
                 type="button"
                 onClick={() => scrollCategories("right")}
                 aria-label="Scroll categories right"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                className={CAROUSEL_NAV_BUTTON_CLASS}
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+                <CarouselNavChevron dir="right" />
               </button>
               <Link
                 href="/categories"
@@ -1245,39 +1243,19 @@ export default function HomePageClient({
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
               aria-label="Previous reviews"
               onClick={() => navigateRecentReviews("prev")}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <CarouselNavChevron dir="left" />
             </button>
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-700 hover:border-gray-300 sm:rounded-md"
+              className={CAROUSEL_NAV_BUTTON_CLASS}
               aria-label="Next reviews"
               onClick={() => navigateRecentReviews("next")}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 6l6 6-6 6" />
-              </svg>
+              <CarouselNavChevron dir="right" />
             </button>
           </div>
         </div>
