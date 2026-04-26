@@ -205,21 +205,21 @@ export default async function BusinessPage({
     initialPlanKey = "free";
   }
 
-  const averageRating = Number(
-    (business as { average_rating?: number | null }).average_rating ?? 0
-  );
-  const reviewCount = Number(
-    (business as { review_count?: number | null }).review_count ?? 0
-  );
-  const hasValidRating = averageRating > 0 && reviewCount > 0;
-  let jsonLdReviews: Array<{
-    "@type": "Review";
-    author: { "@type": "Person"; name: string };
-    reviewRating: { "@type": "Rating"; ratingValue: string };
-    reviewBody: string;
-  }> = [];
+  const averageRating = (business as { average_rating?: number | null })
+    .average_rating;
+  const reviewCount = (business as { review_count?: number | null })
+    .review_count;
 
-  if (reviewCount > 0) {
+  type JsonLdReviewRow = {
+    rating?: number | null;
+    title?: string | null;
+    body?: string | null;
+    guest_name?: string | null;
+  };
+
+  let jsonLdReviewRows: JsonLdReviewRow[] = [];
+
+  if (Number(reviewCount ?? 0) > 0) {
     const { data: reviewRows } = await supabase
       .from("reviews")
       .select("rating, title, body, guest_name, status")
@@ -228,50 +228,49 @@ export default async function BusinessPage({
       .order("created_at", { ascending: false })
       .limit(3);
 
-    jsonLdReviews = (Array.isArray(reviewRows) ? reviewRows : [])
-      .map((row) => {
-        const ratingValue = Number(
-          (row as { rating?: number | null }).rating ?? 0
-        );
-        const body =
-          String((row as { title?: string | null }).title ?? "").trim() ||
-          String((row as { body?: string | null }).body ?? "").trim();
-        if (!body) return null;
-        return {
-          "@type": "Review" as const,
-          author: {
-            "@type": "Person" as const,
-            name:
-              String((row as { guest_name?: string | null }).guest_name ?? "")
-                .trim() || "Customer",
-          },
-          reviewRating: {
-            "@type": "Rating" as const,
-            ratingValue: String(
-              ratingValue > 0 ? Math.min(5, Math.max(1, ratingValue)) : 5,
-            ),
-          },
-          reviewBody: body,
-        };
-      })
-      .filter((review): review is NonNullable<typeof review> => Boolean(review))
-      .slice(0, 3);
+    jsonLdReviewRows = Array.isArray(reviewRows) ? reviewRows : [];
   }
+
+  const jsonLdReviews = jsonLdReviewRows
+    .map((r) => {
+      const reviewBody =
+        String(r.body ?? "").trim() ||
+        String(r.title ?? "").trim() ||
+        "";
+      if (!reviewBody) return null;
+      const ratingValue = Number(r.rating ?? 0);
+      const reviewerName =
+        String(r.guest_name ?? "").trim() || "Customer";
+      return {
+        "@type": "Review" as const,
+        author: {
+          "@type": "Person" as const,
+          name: reviewerName,
+        },
+        reviewRating: {
+          "@type": "Rating" as const,
+          ratingValue: Number(
+            ratingValue > 0 ? Math.min(5, Math.max(1, ratingValue)) : 5,
+          ),
+        },
+        reviewBody,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .slice(0, 3);
 
   const businessJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    name: (business as { name?: string | null }).name ?? "",
-    url: `https://tellacity.com/b/${(business as { slug?: string | null }).slug ?? cleanSlug}`,
-    ...(hasValidRating
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: averageRating,
-            reviewCount: reviewCount,
-          },
-        }
-      : {}),
+    name: String((business as { name?: string | null }).name ?? ""),
+    url: `https://tellacity.com/b/${String(
+      (business as { slug?: string | null }).slug ?? cleanSlug,
+    )}`,
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: Number(averageRating ?? 0),
+      reviewCount: Number(reviewCount ?? 0),
+    },
     ...(jsonLdReviews.length > 0 ? { review: jsonLdReviews } : {}),
   };
 

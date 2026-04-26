@@ -5,19 +5,20 @@
    Base CSS Variables
    ========================= */
 @layer base {
+  /*
+   * Tellacity UI is authored as a light theme (explicit surfaces + grays).
+   * System dark mode used to flip only --foreground/--background, which left
+   * white cards and beige sections with inherited light text (unreadable) and
+   * dark hero text on a dark page background. We keep light tokens always and
+   * opt the page out of browser "dark canvas" heuristics via color-scheme.
+   */
   :root {
     --background: #f5f1eb;
     --foreground: #171717;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: #0a0a0a;
-      --foreground: #ededed;
-    }
-  }
-
   html {
+    color-scheme: light;
     background-color: var(--background);
   }
 
