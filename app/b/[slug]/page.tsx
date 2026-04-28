@@ -235,43 +235,47 @@ export default async function BusinessPage({
     .map((r) => {
       const reviewBody =
         String(r.body ?? "").trim() ||
-        String(r.title ?? "").trim() ||
-        "";
+        String(r.title ?? "").trim();
       if (!reviewBody) return null;
-      const ratingValue = Number(r.rating ?? 0);
-      const reviewerName =
-        String(r.guest_name ?? "").trim() || "Customer";
+      if (!r.rating || Number(r.rating) <= 0) return null;
       return {
         "@type": "Review" as const,
         author: {
           "@type": "Person" as const,
-          name: reviewerName,
+          name: String(r.guest_name ?? "").trim() || "Customer",
         },
         reviewRating: {
           "@type": "Rating" as const,
-          ratingValue: Number(
-            ratingValue > 0 ? Math.min(5, Math.max(1, ratingValue)) : 5,
-          ),
+          ratingValue: Math.min(5, Math.max(1, Number(r.rating))),
         },
         reviewBody,
       };
     })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .filter(Boolean)
     .slice(0, 3);
+
+  const normalizedReviewCount = Number(reviewCount ?? 0);
+  const normalizedAverageRating = Number(averageRating ?? 0);
+  const shouldIncludeReviewData =
+    jsonLdReviews.length > 0 &&
+    normalizedReviewCount > 0 &&
+    normalizedAverageRating > 0;
 
   const businessJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: String((business as { name?: string | null }).name ?? ""),
-    url: `https://tellacity.com/b/${String(
-      (business as { slug?: string | null }).slug ?? cleanSlug,
-    )}`,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: Number(averageRating ?? 0),
-      reviewCount: Number(reviewCount ?? 0),
-    },
-    ...(jsonLdReviews.length > 0 ? { review: jsonLdReviews } : {}),
+    url: `https://tellacity.com/b/${(business as { slug?: string | null }).slug ?? cleanSlug}`,
+    ...(shouldIncludeReviewData
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: normalizedAverageRating,
+            reviewCount: normalizedReviewCount,
+          },
+          review: jsonLdReviews,
+        }
+      : {}),
   };
 
   const renderBusinessClient = () => (

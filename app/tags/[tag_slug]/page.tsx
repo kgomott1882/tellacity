@@ -123,6 +123,10 @@ export async function generateMetadata(
     alternates: {
       canonical: `https://tellacity.com/tags/${safeTagSlug}`,
     },
+    robots: {
+      index: false,
+      follow: true,
+    },
   };
 }
 
