@@ -115,8 +115,8 @@ export default async function DomainReviewPage({
       preview_frame:
         String((row as { preview_frame?: string | null }).preview_frame ?? "landscape") ===
         "portrait"
-          ? "portrait"
-          : "landscape",
+          ? ("portrait" as const)
+          : ("landscape" as const),
     }))
     .filter((photo) => photo.id && photo.url);
 

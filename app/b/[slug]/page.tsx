@@ -151,8 +151,8 @@ export default async function BusinessPage({
     preview_frame:
       String((row as { preview_frame?: string | null }).preview_frame ?? "landscape") ===
       "portrait"
-        ? "portrait"
-        : "landscape",
+        ? ("portrait" as const)
+        : ("landscape" as const),
   })).filter((p) => p.id && p.url);
 
   const { data: sectionRows } = await supabase
