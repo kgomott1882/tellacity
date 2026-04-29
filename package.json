@@ -1,5 +1,6 @@
 {
   "name": "tellacity",
+  "type": "module",
   "engines": {
     "node": "24.x"
   },

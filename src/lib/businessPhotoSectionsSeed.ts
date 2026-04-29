@@ -1,15 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanKey } from "@/lib/plans";
 
-/** Default built-ins seeded for Free plans (full grid on the public profile). */
-const FULL_BUILTIN_SECTIONS = [
+/** Active built-ins shown by default in dashboard/public profile. */
+const BUILTIN_SECTIONS = [
   { slug: "gallery", title: "Gallery", sort_order: 10 },
-  { slug: "team", title: "Team", sort_order: 20 },
-  { slug: "workspace", title: "Workspace", sort_order: 30 },
-  { slug: "products", title: "Products", sort_order: 40 },
-  { slug: "services", title: "Services", sort_order: 50 },
-  { slug: "fleet-logistics", title: "Fleet & Logistics", sort_order: 60 },
+  { slug: "products", title: "Products", sort_order: 20 },
+  { slug: "services", title: "Services", sort_order: 30 },
 ] as const;
+
+/** Legacy built-ins we no longer expose by default. */
+const LEGACY_BUILTIN_SLUGS = ["team", "workspace", "fleet-logistics"] as const;
 
 async function insertGalleryIfMissing(db: SupabaseClient, businessId: string): Promise<void> {
   const { data: row, error: selErr } = await db
@@ -44,6 +44,45 @@ export async function ensureGallerySectionExists(
   await insertGalleryIfMissing(db, businessId);
 }
 
+async function removeLegacyBuiltInSections(
+  db: SupabaseClient,
+  businessId: string
+): Promise<void> {
+  await insertGalleryIfMissing(db, businessId);
+
+  const { data: rows, error: selErr } = await db
+    .from("business_photo_sections")
+    .select("id, slug, is_builtin")
+    .eq("business_id", businessId)
+    .in("slug", [...LEGACY_BUILTIN_SLUGS]);
+  if (selErr) {
+    console.error("[removeLegacyBuiltInSections] select", selErr);
+    return;
+  }
+
+  const sectionIdsToDelete = (rows ?? [])
+    .filter((r: { is_builtin?: boolean | null }) => r.is_builtin === true)
+    .map((r: { id: string }) => r.id);
+  if (sectionIdsToDelete.length === 0) return;
+
+  const { error: moveErr } = await db
+    .from("business_photos")
+    .update({ section: "gallery" })
+    .eq("business_id", businessId)
+    .in("section", [...LEGACY_BUILTIN_SLUGS]);
+  if (moveErr) {
+    console.error("[removeLegacyBuiltInSections] move photos", moveErr);
+    return;
+  }
+
+  const { error: delErr } = await db
+    .from("business_photo_sections")
+    .delete()
+    .eq("business_id", businessId)
+    .in("id", sectionIdsToDelete);
+  if (delErr) console.error("[removeLegacyBuiltInSections] delete", delErr);
+}
+
 /**
  * Ensures `business_photo_sections` rows exist for dashboard + uploads.
  * - **Free**: inserts every missing built-in (owner cannot permanently remove them).
@@ -55,6 +94,8 @@ export async function seedMissingBusinessPhotoSections(
   businessId: string,
   planKey: PlanKey
 ): Promise<void> {
+  await removeLegacyBuiltInSections(db, businessId);
+
   if (planKey !== "free") {
     await insertGalleryIfMissing(db, businessId);
     return;
@@ -70,7 +111,7 @@ export async function seedMissingBusinessPhotoSections(
   }
 
   const have = new Set((existing ?? []).map((r: { slug: string }) => r.slug));
-  const missing = FULL_BUILTIN_SECTIONS.filter((b) => !have.has(b.slug)).map((b) => ({
+  const missing = BUILTIN_SECTIONS.filter((b) => !have.has(b.slug)).map((b) => ({
     business_id: businessId,
     slug: b.slug,
     title: b.title,

@@ -331,14 +331,24 @@ export default function BusinessClient({
     let cancelled = false;
     (async () => {
       const sb = supabaseBrowser();
-      const { data, error } = await applyBusinessPhotosOrdering(
+      const primaryPhotosRes = await applyBusinessPhotosOrdering(
         sb
           .from("business_photos")
-          .select("id, url, section, created_at, is_cover, sort_order")
+          .select("id, url, section, created_at, is_cover, sort_order, preview_zoom, preview_x, preview_y, preview_frame")
           .eq("business_id", business.id)
           .eq("status", "published")
           .eq("is_live", true)
       );
+      const { data, error } = primaryPhotosRes.error
+        ? await applyBusinessPhotosOrdering(
+            sb
+              .from("business_photos")
+              .select("id, url, section, created_at, is_cover, sort_order")
+              .eq("business_id", business.id)
+              .eq("status", "published")
+              .eq("is_live", true)
+          )
+        : primaryPhotosRes;
       if (cancelled || error) return;
       const rows = (data ?? []) as Array<{
         id: string;
@@ -347,6 +357,10 @@ export default function BusinessClient({
         sort_order?: number | null;
         created_at?: string | null;
         is_cover?: boolean | null;
+        preview_zoom?: number | null;
+        preview_x?: number | null;
+        preview_y?: number | null;
+        preview_frame?: string | null;
       }>;
       setBusinessPhotos(
         rows
@@ -358,6 +372,13 @@ export default function BusinessClient({
             sort_order: typeof r.sort_order === "number" ? r.sort_order : Number(r.sort_order) || 0,
             created_at: r.created_at ?? null,
             is_cover: r.is_cover === true,
+            preview_zoom: Math.max(1, Math.min(2.5, Number(r.preview_zoom) || 1)),
+            preview_x: Math.max(0, Math.min(100, Number(r.preview_x) || 50)),
+            preview_y: Math.max(0, Math.min(100, Number(r.preview_y) || 50)),
+            preview_frame:
+              String(r.preview_frame ?? "landscape").toLowerCase() === "portrait"
+                ? "portrait"
+                : "landscape",
           }))
       );
 

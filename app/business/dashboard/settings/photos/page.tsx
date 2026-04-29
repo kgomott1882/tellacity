@@ -45,12 +45,12 @@ const MAX_BULK_DRAFT_SELECTION = 5;
 
 const BUILTIN_SECTION_HINTS: Record<string, string> = {
   gallery: "Your main image strip on your public profile.",
-  team: "Faces and roles behind your business.",
-  workspace: "Where you work and how it feels.",
   products: "What you sell at a glance.",
   services: "How you help customers.",
-  "fleet-logistics": "Vehicles, trucks, and logistics assets you operate.",
 };
+
+const ACTIVE_BUILTIN_SECTION_SLUGS = new Set(["gallery", "products", "services"]);
+const LEGACY_BUILTIN_SECTION_SLUGS = new Set(["team", "workspace", "fleet-logistics"]);
 
 type ModerationStatus = "pending" | "approved" | "rejected" | "flagged";
 
@@ -68,6 +68,10 @@ type PhotoRow = {
   is_suspected_collage: boolean;
   upload_batch_id: string | null;
   upload_batch_label: string | null;
+  preview_zoom: number;
+  preview_x: number;
+  preview_y: number;
+  preview_frame: "landscape" | "portrait";
 };
 
 type SectionRow = {
@@ -127,19 +131,40 @@ export default function BusinessPhotosSettingsPage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  const normalizePhotoSectionSlug = (raw: string | null | undefined): string => {
+    const normalized = String(raw ?? "gallery").trim().toLowerCase() || "gallery";
+    if (LEGACY_BUILTIN_SECTION_SLUGS.has(normalized)) return "gallery";
+    return normalized;
+  };
+
   const loadAll = useCallback(async () => {
     if (!businessId) return;
     const sb = supabaseBrowser();
 
-    const [photosRes, sectionsRes] = await Promise.all([
-      applyBusinessPhotosOrdering(
+    const getPhotos = async () => {
+      const primary = await applyBusinessPhotosOrdering(
+        sb
+          .from("business_photos")
+          .select(
+            "id, url, section, is_cover, sort_order, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, upload_batch_id, upload_batch_label, preview_zoom, preview_x, preview_y, preview_frame"
+          )
+          .eq("business_id", businessId)
+      );
+      if (!primary.error) return primary;
+      // Backward-compat fallback if preview_* columns are not yet migrated.
+      const fallback = await applyBusinessPhotosOrdering(
         sb
           .from("business_photos")
           .select(
             "id, url, section, is_cover, sort_order, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, upload_batch_id, upload_batch_label"
           )
           .eq("business_id", businessId)
-      ),
+      );
+      return fallback;
+    };
+
+    const [photosRes, sectionsRes] = await Promise.all([
+      getPhotos(),
       sb
         .from("business_photo_sections")
         .select("id, slug, title, is_enabled, is_builtin, sort_order")
@@ -162,6 +187,10 @@ export default function BusinessPhotosSettingsPage() {
       is_suspected_collage?: boolean | null;
       upload_batch_id?: string | null;
       upload_batch_label?: string | null;
+      preview_zoom?: number | null;
+      preview_x?: number | null;
+      preview_y?: number | null;
+      preview_frame?: string | null;
     }>;
     setPhotos(
       photoRows
@@ -175,7 +204,7 @@ export default function BusinessPhotosSettingsPage() {
           return {
             id: r.id,
             url: r.url,
-            section: String(r.section ?? "gallery"),
+            section: normalizePhotoSectionSlug(r.section),
             sort_order:
               typeof r.sort_order === "number" ? r.sort_order : Number(r.sort_order) || 0,
             is_cover: r.is_cover === true,
@@ -187,6 +216,13 @@ export default function BusinessPhotosSettingsPage() {
             is_suspected_collage: r.is_suspected_collage === true,
             upload_batch_id: r.upload_batch_id ? String(r.upload_batch_id) : null,
             upload_batch_label: r.upload_batch_label ? String(r.upload_batch_label) : null,
+            preview_zoom: Math.max(1, Math.min(2.5, Number(r.preview_zoom) || 1)),
+            preview_x: Math.max(0, Math.min(100, Number(r.preview_x) || 50)),
+            preview_y: Math.max(0, Math.min(100, Number(r.preview_y) || 50)),
+            preview_frame:
+              String(r.preview_frame ?? "landscape").toLowerCase() === "portrait"
+                ? "portrait"
+                : "landscape",
           };
         })
     );
@@ -201,12 +237,21 @@ export default function BusinessPhotosSettingsPage() {
     }>;
     let mappedSections = sectionRows.map((r) => ({
       id: String(r.id),
-      slug: String(r.slug),
+      slug: String(r.slug).trim().toLowerCase(),
       title: String(r.title),
       is_enabled: r.is_enabled !== false,
       is_builtin: r.is_builtin === true,
       sort_order: typeof r.sort_order === "number" ? r.sort_order : 0,
     }));
+
+    // Hide retired built-ins from the dashboard UI. Only Gallery/Products/Services
+    // remain built-in; custom paid sections continue to show.
+    mappedSections = mappedSections.filter((section) => {
+      if (section.is_builtin) {
+        return ACTIVE_BUILTIN_SECTION_SLUGS.has(section.slug);
+      }
+      return !LEGACY_BUILTIN_SECTION_SLUGS.has(section.slug);
+    });
 
     // If no sections exist yet, ask the API which seeds built-ins server-side.
     if (mappedSections.length === 0) {
@@ -379,6 +424,8 @@ export default function BusinessPhotosSettingsPage() {
   const [previewSectionSlug, setPreviewSectionSlug] = useState<string | null>(null);
   const [previewPhotoId, setPreviewPhotoId] = useState<string | null>(null);
   const [previewThumbStart, setPreviewThumbStart] = useState(0);
+  const [fitModeByPhotoId, setFitModeByPhotoId] = useState<Record<string, boolean>>({});
+  const [fitSavingByPhotoId, setFitSavingByPhotoId] = useState<Record<string, boolean>>({});
 
   // Pick a sensible default section for the preview. Priority:
   //   1. Keep the user's current choice if it still exists and is enabled.
@@ -402,7 +449,7 @@ export default function BusinessPhotosSettingsPage() {
   }, [sections]);
 
   // Reset the "which photo is in the hero" + thumb window whenever the
-  // active section changes, so switching to Team doesn't leave a Gallery
+  // active section changes, so switching sections doesn't leave a Gallery
   // photo showing big (or the thumb strip scrolled mid-way).
   useEffect(() => {
     setPreviewPhotoId(null);
@@ -430,6 +477,7 @@ export default function BusinessPhotosSettingsPage() {
     const cover = previewPhotos.find((p) => p.is_cover);
     return cover ?? previewPhotos[0];
   }, [previewPhotos, previewPhotoId]);
+
 
   // Clamp the thumb-strip scroll window to valid bounds whenever the
   // list shrinks (e.g. after a delete).
@@ -962,6 +1010,58 @@ export default function BusinessPhotosSettingsPage() {
     }
   };
 
+  const setDraftPhotoFitMode = (photoId: string, fit: boolean) => {
+    setFitModeByPhotoId((cur) => ({ ...cur, [photoId]: fit }));
+  };
+  const anyFitSaving = Object.values(fitSavingByPhotoId).some(Boolean);
+
+  const savePhotoFitMode = async (photo: PhotoRow, fit: boolean) => {
+    if (!businessId) return;
+    setFitSavingByPhotoId((cur) => ({ ...cur, [photo.id]: true }));
+    try {
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/photos/${encodeURIComponent(photo.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            preview: {
+              zoom: 1,
+              x: 50,
+              y: 50,
+              frame: fit ? "portrait" : "landscape",
+            },
+          }),
+        }
+      );
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setMessage({ type: "error", text: body?.error ?? "Could not save photo fit mode." });
+        return;
+      }
+      setDraftPhotoFitMode(photo.id, fit);
+      setPhotos((cur) =>
+        cur.map((p) =>
+          p.id === photo.id
+            ? {
+                ...p,
+                preview_zoom: 1,
+                preview_x: 50,
+                preview_y: 50,
+                preview_frame: fit ? "portrait" : "landscape",
+              }
+            : p
+        )
+      );
+      setMessage({ type: "success", text: `Saved ${fit ? "Fit" : "Fill"} for this draft photo.` });
+    } catch {
+      setMessage({ type: "error", text: "Network error while saving fit mode." });
+    } finally {
+      setFitSavingByPhotoId((cur) => ({ ...cur, [photo.id]: false }));
+    }
+  };
+
   /** ---- Publish ---- */
   const publishDrafts = async (sectionSlug?: string | null) => {
     if (!businessId) return;
@@ -1041,7 +1141,16 @@ export default function BusinessPhotosSettingsPage() {
         }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <img
+          src={p.url}
+          alt=""
+          className={`h-full w-full object-center ${
+            (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+              ? "object-contain bg-gray-100"
+              : "object-cover"
+          }`}
+          loading="lazy"
+        />
 
         {bulkSelectDrafts && isDraft ? (
           <div className="absolute left-2 bottom-12 z-[2]">
@@ -1128,6 +1237,34 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
 
         <div className="absolute right-2 top-2 flex items-center gap-1">
+          {isDraft ? (
+            <div className="inline-flex rounded-md border border-gray-200 bg-white/95 p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => void savePhotoFitMode(p, false)}
+                disabled={fitSavingByPhotoId[p.id] === true}
+                className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
+                  (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+                    ? "text-gray-600 hover:bg-gray-100"
+                    : "bg-[#124541] text-white"
+                }`}
+              >
+                Fill
+              </button>
+              <button
+                type="button"
+                onClick={() => void savePhotoFitMode(p, true)}
+                disabled={fitSavingByPhotoId[p.id] === true}
+                className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
+                  (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+                    ? "bg-[#124541] text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Fit
+              </button>
+            </div>
+          ) : null}
           {!p.is_cover ? (
             <button
               type="button"
@@ -1192,11 +1329,13 @@ export default function BusinessPhotosSettingsPage() {
     // "Active / available" = enabled AND the current plan can actually upload
     // to this section. Paid plans → every enabled section. Free → only Gallery.
     const isAvailable = !disabledRow && !uploadPlanLocked;
+    const showUpgradeForMore =
+      atPhotoLimit && canUpgrade && isSelected && isAvailable;
     const uploadDisabled =
       isUploading ||
       anyUploading ||
       disabledRow ||
-      atPhotoLimit ||
+      (!showUpgradeForMore && atPhotoLimit) ||
       (isAvailable && !isSelected);
     const hint =
       BUILTIN_SECTION_HINTS[s.slug] ??
@@ -1387,10 +1526,16 @@ export default function BusinessPhotosSettingsPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => fileInputRefs.current[s.slug]?.click()}
+                  onClick={() =>
+                    showUpgradeForMore
+                      ? openUpgradeFlow("upload_limit")
+                      : fileInputRefs.current[s.slug]?.click()
+                  }
                   disabled={uploadDisabled}
                   title={
-                    atPhotoLimit
+                    showUpgradeForMore
+                      ? "Upgrade to add more photos beyond your current limit"
+                      : atPhotoLimit
                       ? "You've reached your plan's photo limit"
                       : !s.is_enabled
                         ? "This section is hidden from your public profile — set it to Public to upload"
@@ -1401,6 +1546,8 @@ export default function BusinessPhotosSettingsPage() {
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition focus-visible:outline-none sm:text-sm ${
                     uploadDisabled
                       ? "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-500 shadow-none"
+                      : showUpgradeForMore
+                        ? "border border-[#4B5563] bg-[#4B5563] text-white hover:bg-[#374151] focus-visible:ring-2 focus-visible:ring-[#4B5563]/40"
                       : uploadButtonPrimary
                         ? "border border-[#86EFAC] bg-[#DCFCE7] text-[#166534] hover:border-[#4ADE80] hover:bg-[#BBF7D0] focus-visible:ring-2 focus-visible:ring-[#86EFAC]/50"
                         : "border border-gray-200 bg-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-gray-300/60"
@@ -1410,6 +1557,11 @@ export default function BusinessPhotosSettingsPage() {
                     <>
                       <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#166534]/60 border-t-transparent" />
                       Uploading…
+                    </>
+                  ) : showUpgradeForMore ? (
+                    <>
+                      <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
+                      Upgrade for more
                     </>
                   ) : (
                     <>
@@ -1516,8 +1668,8 @@ export default function BusinessPhotosSettingsPage() {
                   ? "You can still upload new photos up to your plan limit. "
                   : ""}
               Upgrade to edit published photos now, add more photos, upload to every
-              section (Team, Workspace, Products, Services), hide categories you don&apos;t
-              use, and create custom ones. Your built-in categories stay visible on your
+              section (Gallery, Products, Services, and custom categories), hide categories you
+              don&apos;t use, and create custom ones. Your built-in categories stay visible on your
               public page even when empty.
             </p>
             {canUpgrade ? (
@@ -1563,6 +1715,10 @@ export default function BusinessPhotosSettingsPage() {
             {nearPhotoLimit && !atPhotoLimit ? (
               <span className="ml-2 text-amber-900/75">You&apos;re close to your limit</span>
             ) : null}
+          </p>
+          <p className="text-xs text-gray-500">
+            Best results: upload landscape photos around 1600x900 (16:9). Also supported:
+            1200x900 (4:3) and 1080x1350 (portrait).
           </p>
         </div>
 
@@ -1716,6 +1872,7 @@ export default function BusinessPhotosSettingsPage() {
                 disabled={
                   publishBusy ||
                   bulkDeleteBusy ||
+                  anyFitSaving ||
                   draftPhotosForActiveSection.length === 0
                 }
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#124541] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1781,7 +1938,7 @@ export default function BusinessPhotosSettingsPage() {
 
       {/* ---- Published photos — category-driven hero preview ----
           Mirrors the public /b/[slug] gallery: pick a section (Gallery,
-          Team, Workspace, …) at the top, see a large cover photo with
+          Products, Services, or custom) at the top, see a large cover photo with
           up to 4 thumbnails beneath, click any thumb to swap what's big,
           and page through extra photos with the left/right arrows.
           Owner controls (set-as-cover, delete, lock/moderation badges)
@@ -1859,13 +2016,19 @@ export default function BusinessPhotosSettingsPage() {
             <div className="mt-5 space-y-3">
               {previewPhoto ? (
                 <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
-                  <div className="relative block aspect-[16/9] w-full">
+                  <div
+                    className="relative block w-full aspect-[16/9]"
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       key={previewPhoto.id}
                       src={previewPhoto.url}
                       alt=""
-                      className="absolute inset-0 h-full w-full object-cover object-center photos-hero-fade"
+                      className={`absolute inset-0 h-full w-full object-center photos-hero-fade ${
+                        previewPhoto.preview_frame === "portrait"
+                          ? "object-contain bg-gray-100"
+                          : "object-cover"
+                      }`}
                       loading="eager"
                       decoding="async"
                     />
@@ -1914,6 +2077,8 @@ export default function BusinessPhotosSettingsPage() {
                   </p>
                 </div>
               )}
+
+              
 
               {/* Thumbnail strip + pagination arrows. We only render the
                   strip at all if there's something worth scrolling to —
@@ -1976,7 +2141,11 @@ export default function BusinessPhotosSettingsPage() {
                                 alt=""
                                 loading="lazy"
                                 decoding="async"
-                                className="h-full w-full object-cover"
+                                className={`h-full w-full object-center ${
+                                  p.preview_frame === "portrait"
+                                    ? "object-contain bg-gray-100"
+                                    : "object-cover"
+                                }`}
                               />
 
                               {p.is_cover ? (

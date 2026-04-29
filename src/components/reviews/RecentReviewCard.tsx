@@ -108,6 +108,7 @@ export default function RecentReviewCard({
 
   let displayWebsite = "";
   let websiteUrl = "";
+  let normalizedWebsiteDomain = "";
 
   if (rawWebsite) {
     try {
@@ -117,21 +118,26 @@ export default function RecentReviewCard({
           : `https://${rawWebsite}`
       );
       displayWebsite = url.hostname.replace(/^www\./, "");
+      normalizedWebsiteDomain = displayWebsite.toLowerCase();
       websiteUrl = url.href;
     } catch {
       displayWebsite = rawWebsite;
       websiteUrl = rawWebsite;
+      normalizedWebsiteDomain = rawWebsite
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .split("/")[0]
+        .trim()
+        .toLowerCase();
     }
   }
 
-  const goToBusiness = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (businessSlug) {
-      router.push(`/b/${businessSlug}`);
-    }
-  };
-
   const isLanding = variant === "landing";
+  const businessHref = businessSlug
+    ? `/b/${businessSlug}`
+    : normalizedWebsiteDomain
+      ? `/review/${encodeURIComponent(normalizedWebsiteDomain)}`
+      : "/";
 
   return (
     <div
@@ -147,22 +153,60 @@ export default function RecentReviewCard({
         className
       )}
     >
-      <div
-        className={cn("flex gap-3", isLanding ? "cursor-pointer shrink-0 px-3 py-3" : "p-4")}
-        onClick={isLanding ? goToBusiness : undefined}
-        role={isLanding ? "link" : undefined}
-        tabIndex={isLanding ? 0 : undefined}
-        onKeyDown={
-          isLanding
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  businessSlug && router.push(`/b/${businessSlug}`);
-                }
-              }
-            : undefined
-        }
-      >
+      {businessHref ? (
+        <Link
+          href={businessHref}
+          className={cn("flex gap-3", isLanding ? "cursor-pointer shrink-0 px-3 py-3" : "p-4")}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`View ${businessName} profile`}
+        >
+          <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
+            {logoUrl && !logoImageError ? (
+              <img
+                src={logoUrl}
+                alt={businessName}
+                className="h-full w-full object-contain"
+                referrerPolicy="no-referrer"
+                onError={() => setLogoImageError(true)}
+              />
+            ) : (
+              <span className="text-sm font-semibold uppercase text-slate-500">
+                {(businessName?.trim()?.[0] ?? "?").toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <h3 className="font-bold text-slate-900 truncate text-base">
+                {businessName}
+              </h3>
+              {(() => {
+                const count = Number(review.review_count ?? review.business?.review_count ?? 0) || 0;
+                const hasAtLeastOneReview = count > 0 || !!businessName;
+                return hasAtLeastOneReview;
+              })() && (
+                <img
+                  src="/brand/Tellacity%20Vefication%20Batch.png"
+                  alt="Tellacity verified reviews"
+                  className="h-5 w-5 shrink-0"
+                />
+              )}
+            </div>
+
+            {displayWebsite && (
+              <span className="block text-xs text-slate-500 truncate">
+                {displayWebsite}
+              </span>
+            )}
+
+            <div className="mt-2">
+              <RatingStars rating={rating} size={12} editable={false} />
+            </div>
+          </div>
+        </Link>
+      ) : (
+        <div className={cn("flex gap-3", isLanding ? "shrink-0 px-3 py-3" : "p-4")}>
         <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
           {logoUrl && !logoImageError ? (
             <img
@@ -198,22 +242,23 @@ export default function RecentReviewCard({
           </div>
 
           {displayWebsite && (
-            <a
-              href={websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="block text-xs text-slate-500 truncate hover:underline"
-            >
-              {displayWebsite}
-            </a>
+              <a
+                href={websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block text-xs text-slate-500 truncate hover:underline"
+              >
+                {displayWebsite}
+              </a>
           )}
 
           <div className="mt-2">
             <RatingStars rating={rating} size={12} editable={false} />
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       <div className="h-px shrink-0 bg-slate-200" />
 
@@ -228,7 +273,7 @@ export default function RecentReviewCard({
             {reviewerName}
           </span>
           {/* Homepage "Recent reviews" carousel hides the review date on the card
-              itself; it's still visible on the full `/review/[id]` page users
+              itself; it's still visible on the full `/review/id/[id]` page users
               reach via the "More" link. Other surfaces (business profile) keep
               the date inline. */}
           {!isLanding && <span className="shrink-0">{dateText}</span>}
@@ -257,7 +302,7 @@ export default function RecentReviewCard({
         {isLanding && reviewId && (
           <div className="mt-auto shrink-0 pt-1.5" onClick={(e) => e.stopPropagation()}>
             <Link
-              href={`/review/${reviewId}`}
+              href={`/review/id/${reviewId}`}
               className="inline-flex items-center gap-0.5 text-xs font-medium text-[#1FAF9E] hover:underline"
             >
               More
@@ -289,7 +334,7 @@ export default function RecentReviewCard({
                 )}
                 {reviewId && (
                   <Link
-                    href={`/review/${reviewId}`}
+                    href={`/review/id/${reviewId}`}
                     className="inline-block text-xs font-medium text-[#1FAF9E] hover:underline"
                   >
                     View full review →

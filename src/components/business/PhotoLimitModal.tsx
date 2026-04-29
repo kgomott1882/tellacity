@@ -59,9 +59,8 @@ export default function PhotoLimitModal({
         </h2>
         <p className="mt-3 text-sm text-gray-600">
           You&apos;ve used all the photo slots on your current plan. Upgrade to add more images
-          across any category — team, workspace, products, services, gallery, or your own custom
-          sections. More photos help visitors recognize your business and build trust before they
-          get in touch.
+          across gallery, products, services, and your own custom sections. More photos help
+          visitors recognize your business and build trust before they get in touch.
         </p>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button

@@ -36,12 +36,22 @@ type PhotoRow = {
   is_cover: boolean | null;
   status: string | null;
   published_at: string | null;
+  preview_zoom?: number | null;
+  preview_x?: number | null;
+  preview_y?: number | null;
+  preview_frame?: string | null;
   url?: string | null;
 };
 
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
 /**
  * PATCH — update a single photo: set cover, move to a different section.
- * Body: { isCover?: boolean; section?: string }
+ * Body: { isCover?: boolean; section?: string, preview?: { zoom?: number; x?: number; y?: number; frame?: "landscape" | "portrait" } }
  *
  * On Free, a published photo is locked for 30 days after it was published.
  * While locked, both cover changes and section moves return 423. Drafts
@@ -57,15 +67,29 @@ export async function PATCH(
     if (!ctx.ok) return ctx.response;
 
     const body = (await req.json().catch(() => null)) as
-      | { isCover?: unknown; section?: unknown }
+      | {
+          isCover?: unknown;
+          section?: unknown;
+          preview?: {
+            zoom?: unknown;
+            x?: unknown;
+            y?: unknown;
+            frame?: unknown;
+          };
+        }
       | null;
-    if (!body || (body.isCover === undefined && body.section === undefined)) {
+    if (
+      !body ||
+      (body.isCover === undefined &&
+        body.section === undefined &&
+        body.preview === undefined)
+    ) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
     const { data: photoRaw, error: photoErr } = await ctx.db
       .from("business_photos")
-      .select("id, business_id, section, is_cover, status, published_at")
+      .select("id, business_id, section, is_cover, status, published_at, preview_zoom, preview_x, preview_y, preview_frame")
       .eq("id", photoId)
       .eq("business_id", businessId)
       .maybeSingle();
@@ -79,7 +103,9 @@ export async function PATCH(
 
     const planByBiz = await getActivePlanKeysByBusinessIds([businessId], ctx.db);
     const planKey = planByBiz.get(businessId) ?? "free";
-    if (isPhotoEditLocked(planKey, photo.status, photo.published_at)) {
+    const touchesLockedFields =
+      body.isCover !== undefined || typeof body.section === "string";
+    if (touchesLockedFields && isPhotoEditLocked(planKey, photo.status, photo.published_at)) {
       return publishLockResponse(photo.published_at);
     }
 
@@ -139,9 +165,42 @@ export async function PATCH(
       }
     }
 
+    if (body.preview && typeof body.preview === "object") {
+      const frameRaw = String(body.preview.frame ?? "").trim().toLowerCase();
+      const frame =
+        frameRaw === "portrait" || frameRaw === "landscape"
+          ? frameRaw
+          : (photo.preview_frame ?? "landscape");
+      const zoom = clampNumber(body.preview.zoom, 1, 2.5, photo.preview_zoom ?? 1);
+      const x = clampNumber(body.preview.x, 0, 100, photo.preview_x ?? 50);
+      const y = clampNumber(body.preview.y, 0, 100, photo.preview_y ?? 50);
+      const { error } = await ctx.db
+        .from("business_photos")
+        .update({
+          preview_zoom: zoom,
+          preview_x: x,
+          preview_y: y,
+          preview_frame: frame,
+        })
+        .eq("id", photoId);
+      if (error) {
+        if (error.code === "42703") {
+          return NextResponse.json(
+            {
+              error:
+                "Preview controls are not enabled yet. Run the latest Supabase migration for business_photos preview columns.",
+              code: "PREVIEW_COLUMNS_MISSING",
+            },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    }
+
     const { data: refreshed } = await ctx.db
       .from("business_photos")
-      .select("id, business_id, url, section, status, is_cover, sort_order, created_at, published_at")
+      .select("id, business_id, url, section, status, is_cover, sort_order, created_at, published_at, preview_zoom, preview_x, preview_y, preview_frame")
       .eq("id", photoId)
       .maybeSingle();
 

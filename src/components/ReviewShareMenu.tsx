@@ -17,7 +17,7 @@ export default function ReviewShareMenu({
   onClose,
 }: ReviewShareMenuProps) {
   const sharePath =
-    reviewId ? `/review/${reviewId}` : businessSlug && businessSlug !== "#" ? `/b/${businessSlug}` : "/b";
+    reviewId ? `/review/id/${reviewId}` : businessSlug && businessSlug !== "#" ? `/b/${businessSlug}` : "/b";
   const absoluteUrl =
     typeof window !== "undefined" ? `${window.location.origin}${sharePath}` : "";
   const encoded = encodeURIComponent(absoluteUrl || sharePath);

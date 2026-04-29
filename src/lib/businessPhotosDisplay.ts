@@ -6,6 +6,10 @@ export type BusinessPhotoPublic = {
   sort_order?: number | null;
   created_at?: string | null;
   is_cover?: boolean | null;
+  preview_zoom?: number | null;
+  preview_x?: number | null;
+  preview_y?: number | null;
+  preview_frame?: "landscape" | "portrait" | null;
 };
 
 /** Prefer `is_cover === true`; otherwise first photo in list order. */
@@ -25,22 +29,16 @@ export function photosExcludingBanner(
 }
 
 export const BUSINESS_PHOTO_SECTION_ORDER = [
-  "team",
-  "workspace",
   "products",
   "services",
-  "fleet-logistics",
   "gallery",
 ] as const;
 
 export type BusinessPhotoSectionKey = (typeof BUSINESS_PHOTO_SECTION_ORDER)[number];
 
 const BUILTIN_SECTION_LABEL: Record<BusinessPhotoSectionKey, string> = {
-  team: "Team",
-  workspace: "Workspace",
   products: "Products",
   services: "Services",
-  "fleet-logistics": "Fleet & Logistics",
   gallery: "Gallery",
 };
 
@@ -83,7 +81,7 @@ export function groupBusinessPhotosBySection(
 }
 
 /**
- * Same bucketing as {@link groupBusinessPhotosBySection}, but always returns all five sections.
+ * Same bucketing as {@link groupBusinessPhotosBySection}, but always returns all built-in sections.
  * Within each section, photo order matches iteration order over `photos` (use query ordering from
  * `applyBusinessPhotosOrdering`).
  */

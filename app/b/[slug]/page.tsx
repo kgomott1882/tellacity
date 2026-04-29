@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic";
 type BusinessMetaRow = {
   name?: string | null;
   slug?: string | null;
-  canonical_slug?: string | null;
 };
 
 export async function generateMetadata(
@@ -24,7 +23,7 @@ export async function generateMetadata(
 
   const { data: businessBySlug } = await supabase
     .from("businesses")
-    .select("name, slug, canonical_slug")
+    .select("name, slug")
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
@@ -32,25 +31,12 @@ export async function generateMetadata(
   let business: BusinessMetaRow | null = businessBySlug;
 
   if (!business) {
-    const { data: businessByCanonical } = await supabase
-      .from("businesses")
-      .select("name, slug, canonical_slug")
-      .eq("canonical_slug", slug.trim())
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (businessByCanonical) {
-      business = businessByCanonical;
-    }
-  }
-
-  if (!business) {
     const normalized = slug.trim().toLowerCase();
     const cleanSlug = cleanSlugForRedirect(slug);
     if (cleanSlug && cleanSlug !== normalized) {
       const { data: fallbackRow } = await supabase
         .from("businesses")
-        .select("name, slug, canonical_slug")
+        .select("name, slug")
         .eq("slug", cleanSlug)
         .eq("status", "active")
         .maybeSingle();
@@ -64,14 +50,13 @@ export async function generateMetadata(
     };
   }
 
-  const finalSlug = business.canonical_slug || business.slug || slug;
   const name = String(business.name ?? "").trim() || slug;
 
   return {
     title: `${name} Reviews | Tellacity`,
     description: `Read verified customer reviews of ${name}. See ratings, feedback and real experiences from customers on Tellacity.`,
     alternates: {
-      canonical: `https://tellacity.com/b/${finalSlug}`,
+      canonical: `https://tellacity.com/b/${business.slug}`,
     },
   };
 }
@@ -103,15 +88,12 @@ export default async function BusinessPage({
   // Always use normalized slug
   const cleanSlug = normalizedSlug;
 
-  // Full row for BusinessClient (includes `tags` and rating aggregates on `businesses`).
-  // Single lookup that matches either `slug` or `canonical_slug`. Previously
-  // we only queried by `slug`, which caused valid canonical-slug URLs to 404
-  // and Next.js to inject <meta name="robots" content="noindex">, which was
-  // de-indexing otherwise-live business pages from Google.
+  // Full row for BusinessClient (includes `tags` and rating aggregates on
+  // `businesses`).
   let { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .or(`slug.eq.${cleanSlug},canonical_slug.eq.${cleanSlug}`)
+    .eq("slug", cleanSlug)
     .maybeSingle();
 
   // Final fallback: remove "unitedstates" style suffix if needed
@@ -121,7 +103,7 @@ export default async function BusinessPage({
     const { data: fallbackBusiness } = await supabase
       .from("businesses")
       .select("*")
-      .or(`slug.eq.${stripped},canonical_slug.eq.${stripped}`)
+      .eq("slug", stripped)
       .maybeSingle();
 
     business = fallbackBusiness;
@@ -132,16 +114,10 @@ export default async function BusinessPage({
     return notFound();
   }
 
-  const canonicalSlug =
-    typeof business.canonical_slug === "string" ? business.canonical_slug.trim() : "";
-  if (canonicalSlug && cleanSlug !== canonicalSlug.toLowerCase()) {
-    redirect(`/b/${canonicalSlug}`);
-  }
-
-  const { data: businessPhotosRows } = await applyBusinessPhotosOrdering(
+  const primaryPhotosRes = await applyBusinessPhotosOrdering(
     supabase
       .from("business_photos")
-      .select("id, url, section, created_at, is_cover, sort_order, status")
+      .select("id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame")
       .eq("business_id", String(business.id))
       .eq("status", "published")
       // Publish-first visibility: rows are live as soon as the owner
@@ -151,6 +127,16 @@ export default async function BusinessPage({
       // `business_photos_public_live_idx` and documents the intent.
       .eq("is_live", true)
   );
+  const { data: businessPhotosRows } = primaryPhotosRes.error
+    ? await applyBusinessPhotosOrdering(
+        supabase
+          .from("business_photos")
+          .select("id, url, section, created_at, is_cover, sort_order, status")
+          .eq("business_id", String(business.id))
+          .eq("status", "published")
+          .eq("is_live", true)
+      )
+    : primaryPhotosRes;
 
   const initialBusinessPhotos: BusinessPhotoPublic[] = (businessPhotosRows ?? []).map((row) => ({
     id: String((row as { id?: string }).id ?? ""),
@@ -159,6 +145,14 @@ export default async function BusinessPage({
     sort_order: Number((row as { sort_order?: unknown }).sort_order) || 0,
     created_at: (row as { created_at?: string | null }).created_at ?? null,
     is_cover: (row as { is_cover?: boolean | null }).is_cover === true,
+    preview_zoom: Number((row as { preview_zoom?: unknown }).preview_zoom) || 1,
+    preview_x: Number((row as { preview_x?: unknown }).preview_x) || 50,
+    preview_y: Number((row as { preview_y?: unknown }).preview_y) || 50,
+    preview_frame:
+      String((row as { preview_frame?: string | null }).preview_frame ?? "landscape") ===
+      "portrait"
+        ? "portrait"
+        : "landscape",
   })).filter((p) => p.id && p.url);
 
   const { data: sectionRows } = await supabase
@@ -265,7 +259,7 @@ export default async function BusinessPage({
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: String((business as { name?: string | null }).name ?? ""),
-    url: `https://tellacity.com/b/${(business as { slug?: string | null }).slug ?? cleanSlug}`,
+    url: `https://tellacity.com/b/${business.slug}`,
     ...(shouldIncludeReviewData
       ? {
           aggregateRating: {

@@ -17,25 +17,15 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 const BUILTIN_SECTION_HINTS: Record<string, string> = {
   gallery: "Your main image strip on your public profile.",
-  team: "Faces and roles behind your business.",
-  workspace: "Where you work and how it feels.",
   products: "What you sell at a glance.",
   services: "How you help customers.",
-  "fleet-logistics": "Vehicles, trucks, and logistics assets you operate.",
 };
 
 /** Default (fallback) rendering when no dynamic section list is passed. */
 const DEFAULT_SECTION_OPTIONS = [
   { value: "gallery", label: "Gallery", hint: BUILTIN_SECTION_HINTS.gallery },
-  { value: "team", label: "Team", hint: BUILTIN_SECTION_HINTS.team },
-  { value: "workspace", label: "Workspace", hint: BUILTIN_SECTION_HINTS.workspace },
   { value: "products", label: "Products", hint: BUILTIN_SECTION_HINTS.products },
   { value: "services", label: "Services", hint: BUILTIN_SECTION_HINTS.services },
-  {
-    value: "fleet-logistics",
-    label: "Fleet & Logistics",
-    hint: BUILTIN_SECTION_HINTS["fleet-logistics"],
-  },
 ] as const;
 
 export type PhotoUploaderSection = {
@@ -49,9 +39,9 @@ export type PhotoUploaderProps = {
   businessId: string;
   /** Used to lock non-Gallery sections on Free while keeping all sections visible. */
   planKey: PlanKey;
-  /** Increment after upgrade when `planKey` is paid to briefly emphasize Team–Services rows. */
+  /** Increment after upgrade when `planKey` is paid to briefly emphasize non-Gallery rows. */
   paidSectionSpotlightToken?: number;
-  /** Per-business section configuration. When omitted, falls back to the 5 built-ins. */
+  /** Per-business section configuration. When omitted, falls back to the 3 built-ins. */
   sections?: PhotoUploaderSection[];
   /** When true, disables the whole uploader (30-day Free lock, etc.). */
   locked?: boolean;

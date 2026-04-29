@@ -19,7 +19,7 @@ import {
 
 type Props = {
   photos: BusinessPhotoPublic[];
-  /** Per-business section config. When absent, falls back to the 5 built-ins. */
+  /** Per-business section config. When absent, falls back to the built-ins. */
   sections?: BusinessPhotoSectionConfig[];
   /**
    * When set on an unclaimed profile, "Claim this profile" links to business
@@ -154,6 +154,7 @@ function HeroPhotoGallery({
 
   const categoryLabel = selectedPhoto.sectionTitle?.trim() || "Photos";
   const isCoverShot = selectedPhoto.is_cover === true;
+  const isFitMode = selectedPhoto.preview_frame === "portrait";
 
   return (
     <div className="w-full">
@@ -172,16 +173,18 @@ function HeroPhotoGallery({
             key={selectedPhoto.id}
             src={selectedPhoto.url}
             alt={isCoverShot ? "Cover photo" : "Business photo"}
-            className="absolute inset-0 h-full w-full object-cover object-center"
-            style={{ animation: "heroFade 260ms ease-out both" }}
+            className={`absolute inset-0 h-full w-full object-center ${
+              isFitMode ? "object-contain bg-gray-100" : "object-cover"
+            }`}
             loading="eager"
             decoding="async"
+            style={{
+              animation: "heroFade 260ms ease-out both",
+            }}
           />
         </button>
 
-        {/* Category chip — top-right — reflects the current photo's section
-            so viewers always know which part of the business they're looking
-            at (Gallery, Team, Workspace, Products, etc.). */}
+        {/* Category chip — top-right — reflects the current photo's section. */}
         <span
           className="pointer-events-none absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#0E0E0E] shadow-sm ring-1 ring-black/5 backdrop-blur"
           aria-live="polite"
@@ -199,7 +202,7 @@ function HeroPhotoGallery({
         ) : null}
       </div>
 
-      {totalCount > 1 ? (
+      {totalCount > 0 ? (
         <div className="mt-3 flex items-center gap-2">
           {showArrows ? (
             <button
@@ -247,7 +250,11 @@ function HeroPhotoGallery({
                         src={p.url}
                         alt=""
                         loading="lazy"
-                        className={`h-full w-full object-cover transition-transform duration-300 ${
+                        className={`h-full w-full object-center transition-transform duration-300 ${
+                          p.preview_frame === "portrait"
+                            ? "object-contain bg-gray-100"
+                            : "object-cover"
+                        } ${
                           isActive
                             ? "scale-100"
                             : "scale-[1.02] group-hover:scale-105"
@@ -303,11 +310,8 @@ function HeroPhotoGallery({
  * (e.g. custom sections) fall back to centered.
  */
 const SECTION_IMAGE_POSITIONS: Record<string, string> = {
-  team: "20% 25%",
-  workspace: "80% 30%",
   products: "50% 15%",
   services: "25% 75%",
-  "fleet-logistics": "75% 80%",
   gallery: "50% 50%",
 };
 
@@ -322,8 +326,7 @@ function EmptyCategoryCard({
   sectionKey,
 }: {
   title: string;
-  /** Built-in section slug (team / workspace / products / services /
-   *  fleet-logistics / gallery) or any custom slug. Drives which crop of
+  /** Built-in section slug (products / services / gallery) or any custom slug. Drives which crop of
    *  the shared blurred teaser image is shown so cards don't look
    *  identical. */
   sectionKey: string;
@@ -396,7 +399,10 @@ function EmptyCategoryGrid({
   forceAllEmpty = false,
 }: EmptyCategoryGridProps) {
   const emptySections = useMemo(
-    () => (forceAllEmpty ? sections : sections.filter((s) => s.photos.length === 0)),
+    // Even in Free-plan "force" mode, keep this grid to genuinely empty
+    // sections so categories that already have photos (e.g. Gallery) don't
+    // render as fake-empty placeholders.
+    () => sections.filter((s) => s.photos.length === 0),
     [sections, forceAllEmpty]
   );
 
@@ -417,6 +423,18 @@ function EmptyCategoryGrid({
     ? "More photo sections"
     : "More photo categories";
 
+  // Layout rules:
+  // - When a business already has photos above (hero is visible), show the
+  //   remaining empty categories as 2-up cards so there is no "missing third"
+  //   gap on wide screens.
+  // - When there are no uploaded photos yet, show all categories equally in
+  //   a 3-up row on >= sm screens.
+  const useTwoUpLayout = hasPhotosAbove && emptySections.length <= 2;
+  const gridClass = useTwoUpLayout
+    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"
+    : "grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4";
+  const widthClass = useTwoUpLayout ? "max-w-5xl" : "max-w-6xl";
+
   return (
     <section aria-label="More photo categories" className="space-y-4">
       {hasPhotosAbove ? (
@@ -428,7 +446,7 @@ function EmptyCategoryGrid({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className={`mx-auto w-full ${widthClass} ${gridClass}`}>
         {emptySections.map((s) => (
           <EmptyCategoryCard key={s.key} title={s.title} sectionKey={s.key} />
         ))}
@@ -485,9 +503,9 @@ export default function BusinessProfilePhotos({
   // would show up as an empty slot, which is misleading.
   //
   // Free plan note: custom per-business sections are intentionally ignored
-  // for Free profiles — the public page always renders the 6 pre-built
-  // categories (Team / Workspace / Products / Services / Fleet & Logistics
-  // / Gallery). That keeps the "incomplete page" look consistent across
+  // for Free profiles — the public page always renders the built-in
+  // categories (Products / Services / Gallery). That keeps the visual
+  // structure consistent across
   // every Free business and signals that full section customization is a
   // paid-plan feature. Paid plans keep their custom section config.
   const sectionsForEmptyGrid = useMemo(() => {
@@ -640,7 +658,7 @@ export default function BusinessProfilePhotos({
               </div>
             </div>
             <p className="mt-3 text-center text-sm text-gray-400 sm:mt-4">
-              Products • Services • Team • Workspace • Gallery
+              Products • Services • Gallery
             </p>
           </>
         )
@@ -694,7 +712,7 @@ export default function BusinessProfilePhotos({
 
       {/* Empty-category placeholders — rendered for Free plans or unclaimed
           profiles. They turn missing content into a soft conversion prompt:
-          Products / Services / Team / Workspace / Gallery / Fleet & Logistics
+          Products / Services / Gallery
           each appear as a clean empty photo slot, so the page feels complete
           and subtly encourages uploads (or claiming, when the business has no
           owner yet).
