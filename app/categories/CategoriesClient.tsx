@@ -33,6 +33,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { getActiveCountry } from "@/lib/getActiveCountry";
 
 type Category = {
   id: string;
@@ -202,6 +203,25 @@ export default function CategoriesPage() {
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [dataCount, setDataCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [countryQuerySuffix, setCountryQuerySuffix] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const c = getActiveCountry();
+    return c ? `?country=${encodeURIComponent(c)}` : "";
+  });
+
+  useEffect(() => {
+    const syncCountryQuery = () => {
+      const c = getActiveCountry();
+      setCountryQuerySuffix(c ? `?country=${encodeURIComponent(c)}` : "");
+    };
+    syncCountryQuery();
+    window.addEventListener("tellacity-country-change", syncCountryQuery);
+    window.addEventListener("storage", syncCountryQuery);
+    return () => {
+      window.removeEventListener("tellacity-country-change", syncCountryQuery);
+      window.removeEventListener("storage", syncCountryQuery);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -355,7 +375,7 @@ export default function CategoriesPage() {
                         <Link
                           href={
                             safeCategorySlug
-                              ? `/categories/${encodeURIComponent(safeCategorySlug)}`
+                              ? `/categories/${encodeURIComponent(safeCategorySlug)}${countryQuerySuffix}`
                               : "#"
                           }
                           className="flex items-center justify-between gap-3 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
@@ -377,7 +397,7 @@ export default function CategoriesPage() {
                   <Link
                     href={
                       (group.slug ?? "").trim()
-                        ? `/categories/${encodeURIComponent((group.slug ?? "").trim())}`
+                        ? `/categories/${encodeURIComponent((group.slug ?? "").trim())}${countryQuerySuffix}`
                         : "#"
                     }
                     className="inline-flex items-center gap-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"

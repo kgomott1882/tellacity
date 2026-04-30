@@ -1,5 +1,9 @@
 // src/lib/getActiveCountry.ts
-const STORAGE_KEY = "tellacity_country";
+import {
+  COUNTRY_COOKIE_NAME,
+  clearStoredCountry,
+  setStoredCountry,
+} from "@/lib/country";
 const ALLOWED_COUNTRIES = ["US", "ZA", "GB", "AU", "CA", "NZ", "IE"] as const;
 
 function normalizeCountry(code: string | null | undefined): string | null {
@@ -15,7 +19,7 @@ export function getActiveCountry(): string | null {
     const fromUrl = new URLSearchParams(window.location.search).get("country");
     const normalizedFromUrl = normalizeCountry(fromUrl);
     if (normalizedFromUrl) return normalizedFromUrl;
-    return normalizeCountry(window.localStorage.getItem(STORAGE_KEY));
+    return normalizeCountry(window.localStorage.getItem(COUNTRY_COOKIE_NAME));
   }
   return null;
 }
@@ -24,9 +28,8 @@ export function setActiveCountry(code: string | null): void {
   if (typeof window === "undefined") return;
   const normalized = normalizeCountry(code);
   if (normalized) {
-    window.localStorage.setItem(STORAGE_KEY, normalized);
+    setStoredCountry(normalized);
   } else {
-    window.localStorage.removeItem(STORAGE_KEY);
+    clearStoredCountry();
   }
-  window.dispatchEvent(new Event("tellacity-country-change"));
 }

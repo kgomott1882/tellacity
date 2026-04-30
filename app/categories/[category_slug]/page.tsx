@@ -6,8 +6,6 @@ import CategoryClient from "./CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
 import { normalizeBusinessTags, mergeTagsForDisplay } from "@/lib/businessTags";
 import { getCachedCategoryListingPage } from "@/lib/cachedCategoryListing";
-import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
-import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
 type PageProps = {
   params: Promise<{ category_slug: string }>;
@@ -16,8 +14,6 @@ type PageProps = {
 /** Cap tag scan per request — avoids heavy reads on huge categories. */
 const TAG_FETCH_LIMIT = 500;
 const GLOBAL_TAG_FALLBACK_LIMIT = 400;
-const LISTING_PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
-
 function getSupabase(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -185,70 +181,6 @@ async function loadCategoryCountsForMetadata(
   } catch (e) {
     console.error("[category page] loadCategoryCountsForMetadata:", e);
     return { businessCount: 0, reviewCount: 0 };
-  }
-}
-
-/** When country-filtered listing is empty, load same category across all countries (no country filter). */
-async function loadBusinessesWithoutCountryFilter(
-  supabase: SupabaseClient,
-  safeCategorySlug: string,
-  pageIndex0: number,
-): Promise<{ rows: CategoryBusinessRow[]; totalCount: number; hasNext: boolean }> {
-  const offset = pageIndex0 * LISTING_PAGE_SIZE;
-  const categories =
-    safeCategorySlug === "banking"
-      ? ["banking", "banking-and-money"]
-      : [safeCategorySlug];
-  try {
-    const { data, error } = await supabase
-      .from("businesses")
-      .select(
-        "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,logo_url,status,tags,secondary_category_slugs",
-      )
-      .in("category_slug", categories)
-      .eq("status", "active")
-      .order("trust_score", { ascending: false })
-      .order("review_count", { ascending: false })
-      .order("name", { ascending: true })
-      .range(offset, offset + LISTING_PAGE_SIZE);
-
-    if (error || !Array.isArray(data)) {
-      return { rows: [], totalCount: 0, hasNext: false };
-    }
-
-    const rows = data as CategoryBusinessRow[];
-    for (const row of rows) {
-      row.tags = mergeTagsForDisplay(
-        row.tags,
-        row.secondary_category_slugs,
-        row.category_slug,
-      );
-    }
-    const hasNext = rows.length > LISTING_PAGE_SIZE;
-    const sliced = hasNext ? rows.slice(0, LISTING_PAGE_SIZE) : rows;
-
-    const { count, error: countError } = await supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .in("category_slug", categories)
-      .eq("status", "active");
-
-    if (countError) {
-      return {
-        rows: sliced,
-        totalCount: offset + sliced.length + (hasNext ? 1 : 0),
-        hasNext,
-      };
-    }
-
-    return {
-      rows: sliced,
-      totalCount: count ?? sliced.length,
-      hasNext,
-    };
-  } catch (e) {
-    console.error("[category page] fallback listing (no country):", e);
-    return { rows: [], totalCount: 0, hasNext: false };
   }
 }
 
@@ -486,29 +418,6 @@ export default async function Page(props: PageProps) {
       hasNextPage = false;
     }
 
-    const hadExplicitCountryParam =
-      typeof searchParams.country === "string" &&
-      searchParams.country.trim() !== "";
-
-    if (
-      businesses.length === 0 &&
-      hadExplicitCountryParam &&
-      supabase
-    ) {
-      try {
-        const fallback = await loadBusinessesWithoutCountryFilter(
-          supabase,
-          safeCategorySlug,
-          pageNum - 1,
-        );
-        businesses = fallback.rows as unknown[];
-        companyCount = fallback.totalCount;
-        hasNextPage = fallback.hasNext;
-      } catch (e) {
-        console.error("[category page] fallback no-country:", e);
-      }
-    }
-
     let popularTags: Array<{ label: string; slug: string }> = [];
     try {
       popularTags = await loadPopularTagsForCategory(
@@ -557,6 +466,7 @@ export default async function Page(props: PageProps) {
         </section>
 
         <CategoryClient
+          key={`${safeCategorySlug}-${countryCode}`}
           categorySlug={safeCategorySlug}
           initialCountryCode={countryCode}
           businesses={businesses}

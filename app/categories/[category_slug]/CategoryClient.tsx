@@ -408,6 +408,7 @@ export default function CategoryClient({
     if (!queryCountry && typeof window !== "undefined") {
       const stored = getStoredCountry();
       if (stored) {
+        setStoredCountry(stored);
         const params = new URLSearchParams(searchParams.toString());
         params.set("country", stored);
         params.delete("page");
@@ -557,7 +558,12 @@ export default function CategoryClient({
 
   // ---------- THE REAL FIX: FETCH BUSINESSES ----------
   useEffect(() => {
-    let isMounted = true;
+    const ac = new AbortController();
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      ac.abort();
+    }, 28_000);
 
     const fetchBusinesses = async () => {
       if (!categorySlug) return;
@@ -566,66 +572,83 @@ export default function CategoryClient({
       setFetchError(null);
 
       const offset = listingPageIndex * PAGE_SIZE;
-      const countryCode = derivedCountry ?? "US";
+      const countryCodeForApi = derivedCountry ?? "US";
       const q = new URLSearchParams();
       q.set("slug", categorySlug);
-      q.set("country", countryCode);
+      q.set("country", countryCodeForApi);
       q.set("page", String(listingPageIndex));
       q.set("minRating", "0");
       q.set("mode", "page");
       if (listingKind === "tag") q.set("kind", "tag");
-      const res = await fetch(`/api/category-listings?${q.toString()}`, {
-        cache: "no-store",
-        signal: AbortSignal.timeout(28_000),
-      });
-      const data = (await res.json()) as {
-        rows?: BusinessRow[];
-        totalCount?: number;
-        hasNext?: boolean;
-        error?: string | null;
-      };
+      try {
+        const res = await fetch(`/api/category-listings?${q.toString()}`, {
+          cache: "no-store",
+          signal: ac.signal,
+        });
+        const data = (await res.json()) as {
+          rows?: BusinessRow[];
+          totalCount?: number;
+          hasNext?: boolean;
+          error?: string | null;
+        };
 
-      if (!isMounted) return;
+        window.clearTimeout(timeoutId);
 
-      const list = Array.isArray(data.rows) ? data.rows : [];
-      if (!res.ok && list.length === 0) {
-        setRows([]);
-        setComputedCount(offset);
-        setComputedHasNext(false);
+        if (ac.signal.aborted) return;
+
+        const list = Array.isArray(data.rows) ? data.rows : [];
+        if (!res.ok && list.length === 0) {
+          setRows([]);
+          setComputedCount(offset);
+          setComputedHasNext(false);
+          setFetchError("Failed to load businesses.");
+          setLoading(false);
+          return;
+        }
+
+        if (data.error && list.length === 0) {
+          setRows([]);
+          setComputedCount(offset);
+          setComputedHasNext(false);
+          setFetchError(data.error ?? "Failed to load businesses.");
+          setLoading(false);
+          return;
+        }
+
+        const hasNext = Boolean(data.hasNext);
+        const sliced = list;
+
+        setRows(sliced);
+        setComputedCount(
+          typeof data.totalCount === "number"
+            ? data.totalCount
+            : offset + sliced.length + (hasNext ? 1 : 0)
+        );
+        setComputedHasNext(hasNext);
+        setFetchError(
+          sliced.length > 0 ? null : (data.error ?? null),
+        );
+        setLoading(false);
+      } catch (e) {
+        window.clearTimeout(timeoutId);
+        if (ac.signal.aborted) {
+          if (timedOut) {
+            setFetchError("Request timed out. Try again.");
+            setLoading(false);
+          }
+          return;
+        }
+        console.error("[CategoryClient] fetch listings:", e);
         setFetchError("Failed to load businesses.");
         setLoading(false);
-        return;
       }
-
-      if (data.error && list.length === 0) {
-        setRows([]);
-        setComputedCount(offset);
-        setComputedHasNext(false);
-        setFetchError(data.error ?? "Failed to load businesses.");
-        setLoading(false);
-        return;
-      }
-
-      const hasNext = Boolean(data.hasNext);
-      const sliced = list;
-
-      setRows(sliced);
-      setComputedCount(
-        typeof data.totalCount === "number"
-          ? data.totalCount
-          : offset + sliced.length + (hasNext ? 1 : 0)
-      );
-      setComputedHasNext(hasNext);
-      setFetchError(
-        sliced.length > 0 ? null : (data.error ?? null),
-      );
-      setLoading(false);
     };
 
     fetchBusinesses();
 
     return () => {
-      isMounted = false;
+      window.clearTimeout(timeoutId);
+      ac.abort();
     };
   }, [categorySlug, listingPageIndex, derivedCountry, listingKind]);
 
@@ -811,7 +834,7 @@ export default function CategoryClient({
                   return (
                     <Link
                       key={item.id}
-                      href={`/categories/${safeSlug}`}
+                      href={categoryBrowseHref(safeSlug, countryCode)}
                       className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:border-[#1FAF9E]"
                     >
                       <span className="text-gray-500">🔍</span>

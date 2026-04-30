@@ -121,7 +121,6 @@ export default async function BusinessPage({
       redirect(`/b/${data.slug}`);
     }
 
-    console.log("NO_BUSINESS_RENDER", { inputSlug: normalizedSlug });
     return notFound();
   }
 

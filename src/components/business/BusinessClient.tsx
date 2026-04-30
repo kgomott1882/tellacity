@@ -1011,6 +1011,19 @@ export default function BusinessClient({
   const rankingsCountryCode =
     (business?.countryCode || "US").trim().toUpperCase() || "US";
 
+  /** Navbar / URL preference first so category directory matches the user’s selected region. */
+  const categoryBrowseCountryCode = useMemo(() => {
+    if (typeof window !== "undefined") {
+      const nav = getActiveCountry();
+      if (nav) return normalizeCountryCode(nav);
+    }
+    return normalizeCountryCode(
+      activeCountry ?? business?.countryCode ?? undefined,
+    );
+  }, [activeCountry, business?.countryCode]);
+
+  const categoryListingsQs = `?country=${encodeURIComponent(categoryBrowseCountryCode)}`;
+
   const businessLogoUrl = similarBusinessLogoUrl({
     resolved_logo_url: business?.logoUrl,
     logo_url: null,
@@ -1056,14 +1069,14 @@ export default function BusinessClient({
       )}
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <nav className="text-xs text-gray-500">
-          <Link href="/categories" className="hover:text-[#1FAF9E]">
+          <Link href={`/categories${categoryListingsQs}`} className="hover:text-[#1FAF9E]">
             Categories
           </Link>
           {categoryTrail?.groupName && categoryTrail?.groupSlug && (
             <>
               <span className="mx-2">›</span>
               <Link
-                href={`/categories/${categoryTrail.groupSlug}`}
+                href={`/categories/${categoryTrail.groupSlug}${categoryListingsQs}`}
                 className="hover:text-[#1FAF9E]"
               >
                 {sanitizeText(categoryTrail.groupName)}
@@ -1074,7 +1087,7 @@ export default function BusinessClient({
             <>
               <span className="mx-2">›</span>
               <Link
-                href={`/categories/${categoryTrail.categorySlug}`}
+                href={`/categories/${categoryTrail.categorySlug}${categoryListingsQs}`}
                 className="hover:text-[#1FAF9E]"
               >
                 {sanitizeText(categoryTrail.categoryName)}

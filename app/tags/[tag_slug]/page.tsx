@@ -213,6 +213,7 @@ export default async function TagBusinessesPage(props: PageProps) {
         </div>
       </section>
       <CategoryClient
+        key={`${safeTagSlug}-${countryCodeForQuery}`}
         listingKind="tag"
         categorySlug={safeTagSlug}
         initialCountryCode={countryCodeForQuery}
