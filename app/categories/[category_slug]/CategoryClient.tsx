@@ -801,6 +801,28 @@ export default function CategoryClient({
             </section>
           )}
 
+          {popularSearches.length > 0 && (
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold text-[#0E0E0E]">Explore related categories</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {popularSearches.map((item) => {
+                  const safeSlug = (item.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/categories/${safeSlug}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:border-[#1FAF9E]"
+                    >
+                      <span className="text-gray-500">🔍</span>
+                      {sanitizeText(item.name)}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
             <span>
               Companies ({computedCount > 0 ? computedCount.toLocaleString("en-US") : sortedBusinessesList.length.toLocaleString("en-US")})
@@ -1152,21 +1174,36 @@ export default function CategoryClient({
             </div>
           )}
 
-          {popularSearches.length > 0 && (
-            <section className="mt-12">
-              <h2 className="text-sm font-semibold text-[#0E0E0E]">Explore related categories</h2>
-              <div className="mt-4 flex flex-wrap gap-3">
-                {popularSearches.map((item) => {
-                  const safeSlug = (item.slug ?? "").trim().toLowerCase();
-                  if (!isValidSlug(safeSlug)) return null;
-                  return (
-                    <Link
-                      key={item.id}
-                      href={`/categories/${safeSlug}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:border-[#1FAF9E]"
+          {popularTags.length > 0 && (
+            <section className="mt-10" aria-label="Popular searches">
+              <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
+              <div
+                className="mt-3 flex flex-wrap gap-1.5"
+                role="tablist"
+                aria-label="Popular tag filters"
+              >
+                {popularTags.map((tag) => {
+                  const safe = (tag.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safe)) return null;
+                  const active = listingKind === "tag" && safe === categorySlug.trim().toLowerCase();
+                  return active ? (
+                    <span
+                      key={tag.slug}
+                      role="tab"
+                      aria-selected="true"
+                      className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
                     >
-                      <span className="text-gray-500">🔍</span>
-                      {sanitizeText(item.name)}
+                      {tag.label}
+                    </span>
+                  ) : (
+                    <Link
+                      key={tag.slug}
+                      role="tab"
+                      aria-selected="false"
+                      href={tagBrowseHref(safe, countryCode)}
+                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                    >
+                      {tag.label}
                     </Link>
                   );
                 })}
@@ -1261,43 +1298,6 @@ export default function CategoryClient({
                           </div>
                         </div>
                       </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {popularTags.length > 0 && (
-            <section className="mt-10" aria-label="Popular searches">
-              <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
-              <div
-                className="mt-3 flex flex-wrap gap-1.5"
-                role="tablist"
-                aria-label="Popular tag filters"
-              >
-                {popularTags.map((tag) => {
-                  const safe = (tag.slug ?? "").trim().toLowerCase();
-                  if (!isValidSlug(safe)) return null;
-                  const active = listingKind === "tag" && safe === categorySlug.trim().toLowerCase();
-                  return active ? (
-                    <span
-                      key={tag.slug}
-                      role="tab"
-                      aria-selected="true"
-                      className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
-                    >
-                      {tag.label}
-                    </span>
-                  ) : (
-                    <Link
-                      key={tag.slug}
-                      role="tab"
-                      aria-selected="false"
-                      href={tagBrowseHref(safe, countryCode)}
-                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
-                    >
-                      {tag.label}
                     </Link>
                   );
                 })}

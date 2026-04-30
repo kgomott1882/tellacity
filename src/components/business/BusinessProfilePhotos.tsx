@@ -11,6 +11,7 @@ import {
   type BusinessPhotoPublic,
   type BusinessPhotoSectionConfig,
 } from "@/lib/businessPhotosDisplay";
+import { formatProductPrice } from "@/lib/productCurrency";
 import type { PlanKey } from "@/lib/plans";
 import {
   buildBusinessSignupClaimPrefillUrl,
@@ -155,6 +156,14 @@ function HeroPhotoGallery({
   const categoryLabel = selectedPhoto.sectionTitle?.trim() || "Photos";
   const isCoverShot = selectedPhoto.is_cover === true;
   const isFitMode = selectedPhoto.preview_frame === "portrait";
+  const isProductPhoto = selectedPhoto.section === "products";
+  const productName = selectedPhoto.product_name?.trim() ?? "";
+  const productCode = selectedPhoto.product_description?.trim() ?? "";
+  const productPrice = selectedPhoto.product_price ?? null;
+  const productCurrency = selectedPhoto.product_currency ?? "USD";
+  const priceLabel = formatProductPrice(productPrice, productCurrency);
+  const hasProductMeta =
+    isProductPhoto && (productName || productCode || priceLabel != null);
 
   return (
     <div className="w-full">
@@ -280,6 +289,25 @@ function HeroPhotoGallery({
             >
               <CarouselNavChevron dir="right" />
             </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasProductMeta ? (
+        <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+          {productName ? (
+            <h3 className="text-sm font-semibold text-gray-900">{productName}</h3>
+          ) : null}
+          {productCode ? (
+            <p className="mt-1 text-sm text-gray-600">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Product code{" "}
+              </span>
+              <span className="font-mono text-gray-800">{productCode}</span>
+            </p>
+          ) : null}
+          {priceLabel ? (
+            <p className="mt-2 text-sm font-semibold text-[#124541]">{priceLabel}</p>
           ) : null}
         </div>
       ) : null}

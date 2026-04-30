@@ -12,6 +12,7 @@ import {
   Star,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -36,6 +37,11 @@ import {
 } from "@/lib/photoUploadFreeLimit";
 import { compressImage } from "@/lib/imageCompression";
 import PhotoLimitModal from "@/components/business/PhotoLimitModal";
+import {
+  formatProductPrice,
+  PRODUCT_CURRENCY_OPTIONS,
+  PRODUCT_CURRENCY_OPTION_CODES,
+} from "@/lib/productCurrency";
 
 const UPLOAD_BUCKET = "business_media";
 const MAX_ORIGINAL_BYTES = 20 * 1024 * 1024;
@@ -51,6 +57,13 @@ const BUILTIN_SECTION_HINTS: Record<string, string> = {
 
 const ACTIVE_BUILTIN_SECTION_SLUGS = new Set(["gallery", "products", "services"]);
 const LEGACY_BUILTIN_SECTION_SLUGS = new Set(["team", "workspace", "fleet-logistics"]);
+
+function normalizeBuyUrl(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) return t;
+  return `https://${t}`;
+}
 
 type ModerationStatus = "pending" | "approved" | "rejected" | "flagged";
 
@@ -72,6 +85,20 @@ type PhotoRow = {
   preview_x: number;
   preview_y: number;
   preview_frame: "landscape" | "portrait";
+  product_name: string | null;
+  product_description: string | null;
+  product_price: number | null;
+  product_currency: string;
+  product_redirect_url: string | null;
+};
+
+type ProductDraft = {
+  name: string;
+  /** Stored as `business_photos.product_description` (product code / SKU). */
+  productCode: string;
+  price: string;
+  currency: string;
+  redirectUrl: string;
 };
 
 type SectionRow = {
@@ -146,7 +173,7 @@ export default function BusinessPhotosSettingsPage() {
         sb
           .from("business_photos")
           .select(
-            "id, url, section, is_cover, sort_order, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, upload_batch_id, upload_batch_label, preview_zoom, preview_x, preview_y, preview_frame"
+            "id, url, section, is_cover, sort_order, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, upload_batch_id, upload_batch_label, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url"
           )
           .eq("business_id", businessId)
       );
@@ -191,6 +218,11 @@ export default function BusinessPhotosSettingsPage() {
       preview_x?: number | null;
       preview_y?: number | null;
       preview_frame?: string | null;
+      product_name?: string | null;
+      product_description?: string | null;
+      product_price?: number | null;
+      product_currency?: string | null;
+      product_redirect_url?: string | null;
     }>;
     setPhotos(
       photoRows
@@ -223,6 +255,20 @@ export default function BusinessPhotosSettingsPage() {
               String(r.preview_frame ?? "landscape").toLowerCase() === "portrait"
                 ? "portrait"
                 : "landscape",
+            product_name: r.product_name ? String(r.product_name) : null,
+            product_description: r.product_description ? String(r.product_description) : null,
+            product_price:
+              typeof r.product_price === "number"
+                ? r.product_price
+                : Number(r.product_price) || null,
+            product_currency:
+              typeof r.product_currency === "string" && r.product_currency.trim()
+                ? r.product_currency.trim().toUpperCase().slice(0, 3)
+                : "USD",
+            product_redirect_url:
+              typeof r.product_redirect_url === "string" && r.product_redirect_url.trim()
+                ? r.product_redirect_url.trim().slice(0, 2000)
+                : null,
           };
         })
     );
@@ -426,6 +472,65 @@ export default function BusinessPhotosSettingsPage() {
   const [previewThumbStart, setPreviewThumbStart] = useState(0);
   const [fitModeByPhotoId, setFitModeByPhotoId] = useState<Record<string, boolean>>({});
   const [fitSavingByPhotoId, setFitSavingByPhotoId] = useState<Record<string, boolean>>({});
+  const [productDraftByPhotoId, setProductDraftByPhotoId] = useState<Record<string, ProductDraft>>(
+    {}
+  );
+  const [productSavingByPhotoId, setProductSavingByPhotoId] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [productEditorPhotoId, setProductEditorPhotoId] = useState<string | null>(null);
+  /** Full-screen preview while editing draft tiles (click photo area). */
+  const [draftLightboxPhotoId, setDraftLightboxPhotoId] = useState<string | null>(null);
+  /** Saved on `businesses.product_buy_url` — opened when customers tap Buy (e.g. shop checkout). */
+  const [productBuyUrl, setProductBuyUrl] = useState("");
+  const [productBuySaving, setProductBuySaving] = useState(false);
+
+  const draftLightboxPhoto = useMemo(
+    () =>
+      draftLightboxPhotoId ? photos.find((x) => x.id === draftLightboxPhotoId) ?? null : null,
+    [photos, draftLightboxPhotoId]
+  );
+
+  useEffect(() => {
+    if (draftLightboxPhotoId && !photos.some((x) => x.id === draftLightboxPhotoId)) {
+      setDraftLightboxPhotoId(null);
+    }
+  }, [photos, draftLightboxPhotoId]);
+
+  useEffect(() => {
+    if (!draftLightboxPhotoId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDraftLightboxPhotoId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draftLightboxPhotoId]);
+
+  useEffect(() => {
+    if (!businessId) {
+      setProductBuyUrl("");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/business/${encodeURIComponent(businessId)}/business-profile`,
+          { credentials: "same-origin" }
+        );
+        const data = (await res.json().catch(() => null)) as {
+          business?: { product_buy_url?: string | null };
+        } | null;
+        if (cancelled || !res.ok) return;
+        setProductBuyUrl(String(data?.business?.product_buy_url ?? ""));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
 
   // Pick a sensible default section for the preview. Priority:
   //   1. Keep the user's current choice if it still exists and is enabled.
@@ -454,7 +559,19 @@ export default function BusinessPhotosSettingsPage() {
   useEffect(() => {
     setPreviewPhotoId(null);
     setPreviewThumbStart(0);
+    setProductEditorPhotoId(null);
   }, [previewSectionSlug]);
+
+  /** Close product editor when a different photo is selected in the published preview strip. */
+  useEffect(() => {
+    if (
+      previewPhotoId &&
+      productEditorPhotoId &&
+      productEditorPhotoId !== previewPhotoId
+    ) {
+      setProductEditorPhotoId(null);
+    }
+  }, [previewPhotoId, productEditorPhotoId]);
 
   const previewSection = useMemo(
     () => sections.find((s) => s.slug === previewSectionSlug) ?? null,
@@ -1062,6 +1179,131 @@ export default function BusinessPhotosSettingsPage() {
     }
   };
 
+  const savePhotoProductMeta = async (photo: PhotoRow) => {
+    if (!businessId) return;
+    const draft: ProductDraft =
+      productDraftByPhotoId[photo.id] ?? {
+        name: photo.product_name ?? "",
+        productCode: photo.product_description ?? "",
+        price: photo.product_price != null ? String(photo.product_price) : "",
+        currency: photo.product_currency ?? "USD",
+        redirectUrl: photo.product_redirect_url ?? "",
+      };
+    setProductSavingByPhotoId((cur) => ({ ...cur, [photo.id]: true }));
+    try {
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/photos/${encodeURIComponent(photo.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product: {
+              name: draft.name,
+              description: draft.productCode,
+              price: draft.price,
+              currency: draft.currency.trim().toUpperCase() || "USD",
+              redirect_url: draft.redirectUrl.trim() || null,
+            },
+          }),
+        }
+      );
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        photo?: {
+          product_name?: string | null;
+          product_description?: string | null;
+          product_price?: number | null;
+          product_currency?: string | null;
+          product_redirect_url?: string | null;
+        };
+      } | null;
+      if (!res.ok) {
+        setMessage({ type: "error", text: body?.error ?? "Could not save product details." });
+        return;
+      }
+      if (body?.photo) {
+        const ph = body.photo;
+        setPhotos((cur) =>
+          cur.map((p) =>
+            p.id === photo.id
+              ? {
+                  ...p,
+                  product_name:
+                    typeof ph.product_name === "string" ? ph.product_name.trim() || null : null,
+                  product_description:
+                    typeof ph.product_description === "string"
+                      ? ph.product_description.trim() || null
+                      : null,
+                  product_price:
+                    typeof ph.product_price === "number" && Number.isFinite(ph.product_price)
+                      ? ph.product_price
+                      : null,
+                  product_currency:
+                    typeof ph.product_currency === "string" && ph.product_currency.trim()
+                      ? ph.product_currency.trim().toUpperCase().slice(0, 3)
+                      : "USD",
+                  product_redirect_url:
+                    typeof ph.product_redirect_url === "string" && ph.product_redirect_url.trim()
+                      ? ph.product_redirect_url.trim().slice(0, 2000)
+                      : null,
+                }
+              : p
+          )
+        );
+      } else {
+        setPhotos((cur) =>
+          cur.map((p) =>
+            p.id === photo.id
+              ? {
+                  ...p,
+                  product_name: draft.name.trim() || null,
+                  product_description: draft.productCode.trim() || null,
+                  product_price: draft.price.trim() ? Number(draft.price) : null,
+                  product_currency: draft.currency.trim().toUpperCase() || "USD",
+                  product_redirect_url: draft.redirectUrl.trim()
+                    ? draft.redirectUrl.trim().slice(0, 2000)
+                    : null,
+                }
+              : p
+          )
+        );
+      }
+      setMessage({ type: "success", text: "Product details saved." });
+    } catch {
+      setMessage({ type: "error", text: "Network error while saving product details." });
+    } finally {
+      setProductSavingByPhotoId((cur) => ({ ...cur, [photo.id]: false }));
+    }
+  };
+
+  const saveProductBuyUrl = async () => {
+    if (!businessId) return;
+    setProductBuySaving(true);
+    try {
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/business-profile`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_buy_url: productBuyUrl.trim() || null }),
+        }
+      );
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setMessage({ type: "error", text: body?.error ?? "Could not save buy link." });
+        return;
+      }
+      setMessage({ type: "success", text: "Buy link saved." });
+      bumpNavRefresh();
+    } catch {
+      setMessage({ type: "error", text: "Network error while saving buy link." });
+    } finally {
+      setProductBuySaving(false);
+    }
+  };
+
   /** ---- Publish ---- */
   const publishDrafts = async (sectionSlug?: string | null) => {
     if (!businessId) return;
@@ -1112,6 +1354,132 @@ export default function BusinessPhotosSettingsPage() {
   if (!businessId) return null;
   if (loading) return <PageLoadingOverlay />;
 
+  /** Product name / price / URL editor — draft tile overlay or published preview panel. */
+  const renderProductDetailsEditor = (p: PhotoRow, wrapperClassName: string) => {
+    const pd: ProductDraft =
+      productDraftByPhotoId[p.id] ?? {
+        name: p.product_name ?? "",
+        productCode: p.product_description ?? "",
+        price: p.product_price != null ? String(p.product_price) : "",
+        currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
+        redirectUrl: p.product_redirect_url ?? "",
+      };
+    const curCode = (pd.currency || "").trim().toUpperCase();
+    const selVal = PRODUCT_CURRENCY_OPTION_CODES.has(curCode) ? curCode : "__other__";
+    const merge = (patch: Partial<ProductDraft>) =>
+      setProductDraftByPhotoId((cur) => {
+        const base: ProductDraft =
+          cur[p.id] ?? {
+            name: p.product_name ?? "",
+            productCode: p.product_description ?? "",
+            price: p.product_price != null ? String(p.product_price) : "",
+            currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
+            redirectUrl: p.product_redirect_url ?? "",
+          };
+        return { ...cur, [p.id]: { ...base, ...patch } };
+      });
+    const closeWithoutSave = () => {
+      if (productSavingByPhotoId[p.id]) return;
+      setProductEditorPhotoId((cur) => (cur === p.id ? null : cur));
+      setProductDraftByPhotoId((cur) => {
+        if (!(p.id in cur)) return cur;
+        const { [p.id]: _, ...rest } = cur;
+        return rest;
+      });
+    };
+    return (
+      <div className={`relative ${wrapperClassName}`}>
+        <button
+          type="button"
+          onClick={closeWithoutSave}
+          disabled={productSavingByPhotoId[p.id] === true}
+          aria-label="Close without saving"
+          title="Close without saving"
+          className="absolute right-0.5 top-0.5 z-[15] inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200/90 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <X className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
+        </button>
+        <div className="space-y-1 pr-1 pt-4">
+        <input
+          type="text"
+          value={pd.name}
+          onChange={(e) => merge({ name: e.target.value })}
+          placeholder="Product name"
+          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+        />
+        <input
+          type="text"
+          value={pd.productCode}
+          onChange={(e) => merge({ productCode: e.target.value })}
+          placeholder="Product code (e.g. SKU)"
+          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+        />
+        <input
+          type="url"
+          value={pd.redirectUrl}
+          onChange={(e) => merge({ redirectUrl: e.target.value })}
+          placeholder="Product / checkout URL (optional)"
+          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+        />
+        <div className="flex flex-wrap items-center gap-1">
+          <select
+            value={selVal}
+            onChange={(e) => {
+              const v = e.target.value;
+              merge({ currency: v === "__other__" ? "" : v });
+            }}
+            className="max-w-[5.5rem] shrink-0 rounded border border-gray-200 px-1 py-1 text-[10px] text-gray-700"
+            aria-label="Currency"
+          >
+            {PRODUCT_CURRENCY_OPTIONS.map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.code}
+              </option>
+            ))}
+            <option value="__other__">Other…</option>
+          </select>
+          {selVal === "__other__" ? (
+            <input
+              type="text"
+              inputMode="text"
+              maxLength={3}
+              value={curCode}
+              onChange={(e) =>
+                merge({
+                  currency: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3),
+                })
+              }
+              placeholder="ISO"
+              className="w-11 rounded border border-gray-200 px-1 py-1 text-[10px] uppercase text-gray-700"
+              aria-label="Currency code"
+            />
+          ) : null}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={pd.price}
+            onChange={(e) => merge({ price: e.target.value })}
+            placeholder="Price"
+            className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              await savePhotoProductMeta(p);
+              setProductEditorPhotoId(null);
+            }}
+            disabled={productSavingByPhotoId[p.id] === true}
+            className="shrink-0 rounded bg-[#124541] px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-60"
+          >
+            {productSavingByPhotoId[p.id] ? "Saving..." : "Save"}
+          </button>
+        </div>
+        </div>
+      </div>
+    );
+  };
+
   /** ---- Reusable photo tile ---- */
   const renderPhotoTile = (
     p: PhotoRow,
@@ -1136,169 +1504,233 @@ export default function BusinessPhotosSettingsPage() {
     return (
       <li
         key={p.id}
-        className={`relative overflow-hidden rounded-lg border bg-gray-50 aspect-[4/3] ${borderClass} ${
+        className={`relative overflow-hidden rounded-lg border bg-gray-50 ${borderClass} ${
           isDraftBulkSelected ? "ring-2 ring-[#1FAF9E] ring-offset-2 ring-offset-amber-50/40" : ""
         }`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={p.url}
-          alt=""
-          className={`h-full w-full object-center ${
-            (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
-              ? "object-contain bg-gray-100"
-              : "object-cover"
-          }`}
-          loading="lazy"
-        />
-
-        {bulkSelectDrafts && isDraft ? (
-          <div className="absolute left-2 bottom-12 z-[2]">
-            <label
-              className={`inline-flex items-center justify-center rounded-md bg-white/95 p-1.5 shadow-md ring-1 ring-black/10 ${
-                bulkSelectionAtCap || locked || bulkDeleteBusy
-                  ? "cursor-not-allowed opacity-70"
-                  : "cursor-pointer"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedDraftIds.includes(p.id)}
-                disabled={locked || bulkDeleteBusy || bulkSelectionAtCap}
-                onChange={() => toggleDraftSelection(p.id)}
-                aria-label={`Select draft for bulk delete, ${labelForSection(p.section)}`}
-                title={
-                  bulkSelectionAtCap
-                    ? `At most ${MAX_BULK_DRAFT_SELECTION} drafts can be selected`
-                    : undefined
-                }
-                className="h-4 w-4 rounded border-gray-300 text-[#1FAF9E] focus:ring-[#1FAF9E] disabled:cursor-not-allowed"
-              />
-            </label>
-          </div>
-        ) : null}
-
-        {isDraft ? (
-          <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
-            <span className="rounded-md bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-              Draft
-            </span>
-            {p.is_cover ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-                <Star className="h-3 w-3" aria-hidden />
-                Cover
-              </span>
-            ) : null}
-          </div>
-        ) : p.is_cover ? (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-            <Star className="h-3 w-3" aria-hidden />
-            Cover
-          </span>
-        ) : null}
-
-        {!isDraft && locked ? (
-          <span className="absolute left-2 bottom-8 inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
-            <Lock className="h-3 w-3" aria-hidden />
-            Locked
-          </span>
-        ) : null}
-
-        {/* Moderation badge — only render when the validator has an opinion
-            (pending/flagged/rejected). Approved rows get no badge to keep
-            the tile clean. */}
-        {p.moderation_status !== "approved" ? (
-          <span
-            className={`absolute right-2 bottom-8 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-sm backdrop-blur ${
-              p.moderation_status === "rejected"
-                ? "bg-rose-600/90 text-white"
-                : p.moderation_status === "flagged"
-                  ? "bg-orange-500/90 text-white"
-                  : "bg-slate-700/80 text-white"
+        <div className="relative aspect-[4/3] w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={p.url}
+            alt=""
+            className={`absolute inset-0 z-0 h-full w-full object-center ${
+              (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+                ? "object-contain bg-gray-100"
+                : "object-cover"
             }`}
-            title={
-              p.moderation_status === "rejected"
-                ? p.moderation_reason
-                  ? `Rejected: ${p.moderation_reason}`
-                  : "Rejected by image review"
-                : p.moderation_status === "flagged"
-                  ? p.moderation_reason
-                    ? `Flagged for review: ${p.moderation_reason}`
-                    : "Flagged for manual review"
-                  : "Pending image review — usually clears within a few minutes"
-            }
-          >
-            {p.moderation_status === "rejected"
-              ? "Rejected"
-              : p.moderation_status === "flagged"
-                ? "Flagged"
-                : "Pending review"}
-          </span>
-        ) : null}
-
-        <div className="absolute right-2 top-2 flex items-center gap-1">
+            loading="lazy"
+          />
           {isDraft ? (
-            <div className="inline-flex rounded-md border border-gray-200 bg-white/95 p-0.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => void savePhotoFitMode(p, false)}
-                disabled={fitSavingByPhotoId[p.id] === true}
-                className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
-                  (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
-                    ? "text-gray-600 hover:bg-gray-100"
-                    : "bg-[#124541] text-white"
-                }`}
-              >
-                Fill
-              </button>
-              <button
-                type="button"
-                onClick={() => void savePhotoFitMode(p, true)}
-                disabled={fitSavingByPhotoId[p.id] === true}
-                className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
-                  (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
-                    ? "bg-[#124541] text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                Fit
-              </button>
-            </div>
-          ) : null}
-          {!p.is_cover ? (
             <button
               type="button"
-              onClick={() => void setAsCover(p)}
+              aria-label="Preview full photo"
+              title="Preview full photo"
+              className="absolute inset-0 z-[1] cursor-zoom-in bg-transparent"
+              onClick={() => setDraftLightboxPhotoId(p.id)}
+            />
+          ) : null}
+
+          {bulkSelectDrafts && isDraft ? (
+            <div className="absolute bottom-3 left-2 z-[12]">
+              <label
+                className={`inline-flex items-center justify-center rounded-md bg-white/95 p-1.5 shadow-md ring-1 ring-black/10 ${
+                  bulkSelectionAtCap || locked || bulkDeleteBusy
+                    ? "cursor-not-allowed opacity-70"
+                    : "cursor-pointer"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedDraftIds.includes(p.id)}
+                  disabled={locked || bulkDeleteBusy || bulkSelectionAtCap}
+                  onChange={() => toggleDraftSelection(p.id)}
+                  aria-label={`Select draft for bulk delete, ${labelForSection(p.section)}`}
+                  title={
+                    bulkSelectionAtCap
+                      ? `At most ${MAX_BULK_DRAFT_SELECTION} drafts can be selected`
+                      : undefined
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-[#1FAF9E] focus:ring-[#1FAF9E] disabled:cursor-not-allowed"
+                />
+              </label>
+            </div>
+          ) : null}
+
+          {p.is_cover ? (
+            <span className="absolute left-2 top-2 z-[12] inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
+              <Star className="h-3 w-3" aria-hidden />
+              Cover
+            </span>
+          ) : null}
+
+          {!isDraft && locked ? (
+            <span className="absolute bottom-3 left-2 z-[12] inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
+              <Lock className="h-3 w-3" aria-hidden />
+              Locked
+            </span>
+          ) : null}
+
+          {/* Draft + moderation: single bottom-right badge. Published: moderation only. */}
+          {isDraft ? (
+            <span
+              className={`absolute bottom-3 right-2 z-[11] max-w-[calc(100%-3rem)] truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow-sm backdrop-blur ${
+                p.moderation_status === "rejected"
+                  ? "bg-rose-600/95 text-white"
+                  : p.moderation_status === "flagged"
+                    ? "bg-orange-500/95 text-white"
+                    : p.moderation_status === "approved"
+                      ? "bg-amber-500/95 text-white ring-1 ring-amber-700/30"
+                      : "bg-gradient-to-r from-amber-500 to-slate-800 text-white ring-1 ring-white/20"
+              }`}
+              title={
+                p.moderation_status === "rejected"
+                  ? p.moderation_reason
+                    ? `Rejected: ${p.moderation_reason}`
+                    : "Rejected by image review"
+                  : p.moderation_status === "flagged"
+                    ? p.moderation_reason
+                      ? `Flagged: ${p.moderation_reason}`
+                      : "Flagged for manual review"
+                    : p.moderation_status === "approved"
+                      ? "Draft — not yet published"
+                      : "Pending image review — usually clears within a few minutes"
+              }
+            >
+              {p.moderation_status === "rejected"
+                ? "Rejected draft"
+                : p.moderation_status === "flagged"
+                  ? "Flagged draft preview"
+                  : p.moderation_status === "approved"
+                    ? "Draft preview"
+                    : "Pending draft preview"}
+            </span>
+          ) : p.moderation_status !== "approved" ? (
+            <span
+              className={`absolute bottom-3 right-2 z-[11] inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow-sm backdrop-blur ${
+                p.moderation_status === "rejected"
+                  ? "bg-rose-600/90 text-white"
+                  : p.moderation_status === "flagged"
+                    ? "bg-orange-500/90 text-white"
+                    : "bg-slate-700/80 text-white"
+              }`}
+              title={
+                p.moderation_status === "rejected"
+                  ? p.moderation_reason
+                    ? `Rejected: ${p.moderation_reason}`
+                    : "Rejected by image review"
+                  : p.moderation_status === "flagged"
+                    ? p.moderation_reason
+                      ? `Flagged for review: ${p.moderation_reason}`
+                      : "Flagged for manual review"
+                    : "Pending image review — usually clears within a few minutes"
+              }
+            >
+              {p.moderation_status === "rejected"
+                ? "Rejected"
+                : p.moderation_status === "flagged"
+                  ? "Flagged"
+                  : "Pending review"}
+            </span>
+          ) : null}
+
+          <div
+            className={`absolute left-2 right-2 top-2 z-[12] flex min-w-0 items-center ${
+              isDraft ? "justify-evenly gap-0.5" : "justify-end gap-1"
+            }`}
+          >
+            {isDraft ? (
+              <div className="inline-flex h-7 min-w-0 shrink items-stretch rounded-md border border-gray-200 bg-white/95 p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => void savePhotoFitMode(p, false)}
+                  disabled={fitSavingByPhotoId[p.id] === true}
+                  className={`flex min-w-0 flex-1 items-center justify-center rounded px-1.5 text-[9px] font-medium ${
+                    (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+                      ? "text-gray-600 hover:bg-gray-100"
+                      : "bg-[#124541] text-white"
+                  }`}
+                >
+                  Fill
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void savePhotoFitMode(p, true)}
+                  disabled={fitSavingByPhotoId[p.id] === true}
+                  className={`flex min-w-0 flex-1 items-center justify-center rounded px-1.5 text-[9px] font-medium ${
+                    (fitModeByPhotoId[p.id] ?? (p.preview_frame === "portrait")) === true
+                      ? "bg-[#124541] text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  Fit
+                </button>
+              </div>
+            ) : null}
+            {isDraft && p.section === "products" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setProductEditorPhotoId((cur) => (cur === p.id ? null : p.id));
+                  setProductDraftByPhotoId((cur) => ({
+                    ...cur,
+                    [p.id]: {
+                      name: cur[p.id]?.name ?? p.product_name ?? "",
+                      productCode: cur[p.id]?.productCode ?? p.product_description ?? "",
+                      price: cur[p.id]?.price ?? (p.product_price != null ? String(p.product_price) : ""),
+                      currency:
+                        cur[p.id]?.currency ??
+                        (p.product_currency ? p.product_currency.toUpperCase() : "USD"),
+                      redirectUrl: cur[p.id]?.redirectUrl ?? (p.product_redirect_url ?? ""),
+                    },
+                  }));
+                }}
+                className="inline-flex h-7 min-w-0 shrink items-center justify-center rounded-full border border-gray-300 bg-white/95 px-2 text-[10px] font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+              >
+                Details
+              </button>
+            ) : null}
+            {!p.is_cover ? (
+              <button
+                type="button"
+                onClick={() => void setAsCover(p)}
+                disabled={actionsDisabled}
+                aria-label={isDraft ? "Pick as cover (applies when published)" : "Set as cover"}
+                title={
+                  locked
+                    ? "Locked for 30 days after publishing — upgrade to change the cover now"
+                    : isDraft
+                      ? "Pick as cover (applies when published)"
+                      : "Set as cover"
+                }
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Star className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void deletePhoto(p)}
               disabled={actionsDisabled}
-              aria-label={isDraft ? "Pick as cover (applies when published)" : "Set as cover"}
+              aria-label={isDraft ? "Remove draft" : "Remove photo"}
               title={
                 locked
-                  ? "Locked for 30 days after publishing — upgrade to change the cover now"
+                  ? "Locked for 30 days after publishing — upgrade to remove now"
                   : isDraft
-                    ? "Pick as cover (applies when published)"
-                    : "Set as cover"
+                    ? "Remove draft"
+                    : "Remove photo"
               }
               className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Star className="h-3.5 w-3.5" aria-hidden />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void deletePhoto(p)}
-            disabled={actionsDisabled}
-            aria-label={isDraft ? "Remove draft" : "Remove photo"}
-            title={
-              locked
-                ? "Locked for 30 days after publishing — upgrade to remove now"
-                : isDraft
-                  ? "Remove draft"
-                  : "Remove photo"
-            }
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          </button>
+          </div>
+
+          {isDraft && p.section === "products" && productEditorPhotoId === p.id
+            ? renderProductDetailsEditor(
+                p,
+                "absolute inset-x-2 bottom-2 z-[14] max-h-[55%] space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-white/95 p-2 shadow-lg backdrop-blur"
+              )
+            : null}
         </div>
 
         <div className={`${footerClass} px-2 py-1 text-xs text-gray-600`}>
@@ -1329,14 +1761,15 @@ export default function BusinessPhotosSettingsPage() {
     // "Active / available" = enabled AND the current plan can actually upload
     // to this section. Paid plans → every enabled section. Free → only Gallery.
     const isAvailable = !disabledRow && !uploadPlanLocked;
+    const canUploadInThisRow = isSelected && isAvailable;
     const showUpgradeForMore =
-      atPhotoLimit && canUpgrade && isSelected && isAvailable;
+      atPhotoLimit && canUpgrade && canUploadInThisRow;
     const uploadDisabled =
       isUploading ||
       anyUploading ||
       disabledRow ||
       (!showUpgradeForMore && atPhotoLimit) ||
-      (isAvailable && !isSelected);
+      !canUploadInThisRow;
     const hint =
       BUILTIN_SECTION_HINTS[s.slug] ??
       (s.is_builtin ? "" : `Photos for "${s.title}".`);
@@ -1501,7 +1934,7 @@ export default function BusinessPhotosSettingsPage() {
               })()}
             </div>
 
-            {uploadPlanLocked ? (
+            {isSelected && uploadPlanLocked ? (
               <button
                 type="button"
                 onClick={() => openUpgradeFlow("section_locked")}
@@ -1511,7 +1944,7 @@ export default function BusinessPhotosSettingsPage() {
                 <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
                 Upgrade to upload
               </button>
-            ) : (
+            ) : isSelected ? (
               <>
                 <input
                   ref={(el) => {
@@ -1539,7 +1972,7 @@ export default function BusinessPhotosSettingsPage() {
                       ? "You've reached your plan's photo limit"
                       : !s.is_enabled
                         ? "This section is hidden from your public profile — set it to Public to upload"
-                        : !isSelected
+                        : !canUploadInThisRow
                           ? "Select this category first to upload here"
                           : "Upload photos to this section"
                   }
@@ -1563,6 +1996,11 @@ export default function BusinessPhotosSettingsPage() {
                       <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
                       Upgrade for more
                     </>
+                  ) : !canUploadInThisRow ? (
+                    <>
+                      <Upload className="h-3.5 w-3.5" aria-hidden />
+                      Select to upload
+                    </>
                   ) : (
                     <>
                       <Upload className="h-3.5 w-3.5" aria-hidden />
@@ -1571,7 +2009,7 @@ export default function BusinessPhotosSettingsPage() {
                   )}
                 </button>
               </>
-            )}
+            ) : null}
 
             {!sectionTogglesLocked && s.slug !== "gallery" ? (
               <button
@@ -1597,6 +2035,134 @@ export default function BusinessPhotosSettingsPage() {
   return (
     <div className="w-full space-y-6">
       <PhotoLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} />
+
+      {draftLightboxPhoto ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Draft photo preview"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setDraftLightboxPhotoId(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setDraftLightboxPhotoId(null)}
+            className="absolute right-4 top-4 z-[1] rounded-full bg-white/15 p-2 text-white ring-1 ring-white/30 hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            aria-label="Close preview"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+          {(() => {
+            const lp = draftLightboxPhoto;
+            const productDraft = productDraftByPhotoId[lp.id];
+            const productName = (productDraft?.name ?? lp.product_name ?? "").trim();
+            const productCode = (productDraft?.productCode ?? lp.product_description ?? "").trim();
+            const priceRaw = productDraft?.price ?? (lp.product_price != null ? String(lp.product_price) : "");
+            const priceNum = priceRaw.trim() === "" ? null : Number(priceRaw);
+            const currencyForPrice =
+              productDraft?.currency?.trim() || lp.product_currency || "USD";
+            const priceFormatted =
+              priceNum != null && Number.isFinite(priceNum)
+                ? formatProductPrice(priceNum, currencyForPrice)
+                : null;
+            const isProducts = lp.section === "products";
+            return (
+              <div
+                className="flex max-h-[min(92vh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-100 px-3 py-4 sm:px-5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lp.url}
+                    alt=""
+                    className="max-h-[min(52vh,480px)] max-w-full rounded-lg object-contain shadow-md"
+                  />
+                </div>
+                <div className="border-t border-gray-200 bg-white px-4 py-3 text-left">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    {isProducts ? "Product details" : labelForSection(lp.section)}
+                  </p>
+                  {isProducts ? (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-medium uppercase text-gray-400">Name</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {productName || "—"}
+                          </p>
+                        </div>
+                        {selectedBusiness?.slug ? (
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-lg border border-[#124541] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5"
+                            onClick={() => {
+                              const qs = new URLSearchParams({
+                                businessSlug: selectedBusiness.slug!,
+                                photoId: lp.id,
+                              });
+                              window.open(`/write-review/item?${qs.toString()}`, "_blank", "noopener,noreferrer");
+                            }}
+                          >
+                            Review this item
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-medium uppercase text-gray-400">Product code</p>
+                          <p className="text-sm font-mono text-gray-700">
+                            {productCode || "—"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-lg bg-[#124541] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#0f3a35]"
+                          onClick={() => {
+                            const perPhoto = normalizeBuyUrl(
+                              (productDraft?.redirectUrl ?? lp.product_redirect_url ?? "").trim()
+                            );
+                            const fallback = normalizeBuyUrl(productBuyUrl);
+                            const u = perPhoto ?? fallback;
+                            if (!u) {
+                              setMessage({
+                                type: "error",
+                                text: "Add a product or checkout URL in Details, or set the global buy link below, then save.",
+                              });
+                              return;
+                            }
+                            window.open(u, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          Buy
+                        </button>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase text-gray-400">Price</p>
+                        <p className="text-sm font-semibold text-[#124541]">
+                          {priceFormatted ?? "—"}
+                        </p>
+                      </div>
+                      {!productName && !productCode && !priceFormatted ? (
+                        <p className="text-xs text-gray-500">
+                          Add name, product code, and price using{" "}
+                          <span className="font-semibold">Details</span> on the photo card, then{" "}
+                          <span className="font-semibold">Save</span>.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-600">
+                      Product name, code, and price are available when the photo is in{" "}
+                      <span className="font-medium">Products</span>.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      ) : null}
 
       {showUpgradeSuccess ? (
         <div
@@ -1634,6 +2200,37 @@ export default function BusinessPhotosSettingsPage() {
           </Link>
         ) : null}
       </div>
+
+      {businessId ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-[#0E0E0E]">Buy button (Products)</h2>
+          <p className="mt-1 text-xs text-gray-600">
+            When you preview a product photo, <span className="font-medium">Buy</span> opens the
+            product URL from <span className="font-medium">Details</span> on that photo if set;
+            otherwise it uses this default (your store, checkout, or product page).
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="min-w-0 flex-1 text-xs font-medium text-gray-700">
+              Buy / checkout URL
+              <input
+                type="url"
+                value={productBuyUrl}
+                onChange={(e) => setProductBuyUrl(e.target.value)}
+                placeholder="https://yourstore.com/checkout"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void saveProductBuyUrl()}
+              disabled={productBuySaving}
+              className="shrink-0 rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35] disabled:opacity-60"
+            >
+              {productBuySaving ? "Saving…" : "Save link"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Single merged Free-plan upgrade nudge — covers BOTH the 30-day
           publish lock and the photo upload limit. Title adapts to the
@@ -1952,8 +2549,8 @@ export default function BusinessPhotosSettingsPage() {
           {publishedPhotos.length > 0 ? (
             <p className="text-xs text-gray-500">
               {planKey === "free"
-                ? "Preview each section exactly like your public page. Photos lock for 30 days after publishing."
-                : "Preview each section. Click the star on a thumbnail to set it as your cover."}
+                ? "Preview each section like your public page. In Products, use Details below the hero to edit name, product code, price, and links. Published tiles lock for cover/delete for 30 days — product fields still edit."
+                : "Preview each section. Star a thumbnail for cover. In Products, use Details below the hero to edit product info (name, code, price, links)."}
             </p>
           ) : null}
         </div>
@@ -2078,7 +2675,55 @@ export default function BusinessPhotosSettingsPage() {
                 </div>
               )}
 
-              
+              {previewPhoto && previewPhoto.section === "products" ? (
+                <div className="rounded-lg border border-amber-200/80 bg-amber-50/30 p-3 ring-1 ring-amber-100/60">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-[#0E0E0E]">
+                      Product details (published preview)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductEditorPhotoId((cur) =>
+                          cur === previewPhoto.id ? null : previewPhoto.id
+                        );
+                        setProductDraftByPhotoId((cur) => ({
+                          ...cur,
+                          [previewPhoto.id]: {
+                            name: cur[previewPhoto.id]?.name ?? previewPhoto.product_name ?? "",
+                            productCode:
+                              cur[previewPhoto.id]?.productCode ??
+                              previewPhoto.product_description ??
+                              "",
+                            price:
+                              cur[previewPhoto.id]?.price ??
+                              (previewPhoto.product_price != null
+                                ? String(previewPhoto.product_price)
+                                : ""),
+                            currency:
+                              cur[previewPhoto.id]?.currency ??
+                              (previewPhoto.product_currency
+                                ? previewPhoto.product_currency.toUpperCase()
+                                : "USD"),
+                            redirectUrl:
+                              cur[previewPhoto.id]?.redirectUrl ??
+                              (previewPhoto.product_redirect_url ?? ""),
+                          },
+                        }));
+                      }}
+                      className="inline-flex h-8 items-center justify-center rounded-full border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                      {productEditorPhotoId === previewPhoto.id ? "Close" : "Details"}
+                    </button>
+                  </div>
+                  {productEditorPhotoId === previewPhoto.id
+                    ? renderProductDetailsEditor(
+                        previewPhoto,
+                        "mt-3 max-h-[min(40vh,320px)] space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-white p-2 shadow-sm"
+                      )
+                    : null}
+                </div>
+              ) : null}
 
               {/* Thumbnail strip + pagination arrows. We only render the
                   strip at all if there's something worth scrolling to —

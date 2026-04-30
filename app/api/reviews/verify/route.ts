@@ -39,6 +39,7 @@ type ReviewDraftRow = {
   receipt_url: string | null;
   reference_number: string | null;
   user_id: string | null;
+  product_photo_id?: string | null;
 };
 
 type OtpRow = {
@@ -239,6 +240,7 @@ export async function POST(req: Request) {
           reference_number: d.reference_number,
           user_id: d.user_id,
           is_flagged: false,
+          ...(d.product_photo_id ? { product_photo_id: d.product_photo_id } : {}),
         })
         .select("id")
         .maybeSingle();

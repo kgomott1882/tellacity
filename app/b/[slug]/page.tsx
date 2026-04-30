@@ -110,6 +110,17 @@ export default async function BusinessPage({
   }
 
   if (!business) {
+    const { data } = await supabase
+      .from("businesses")
+      .select("slug")
+      .eq("canonical_slug", cleanSlug)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (data?.slug) {
+      redirect(`/b/${data.slug}`);
+    }
+
     console.log("NO_BUSINESS_RENDER", { inputSlug: normalizedSlug });
     return notFound();
   }
@@ -117,7 +128,7 @@ export default async function BusinessPage({
   const primaryPhotosRes = await applyBusinessPhotosOrdering(
     supabase
       .from("business_photos")
-      .select("id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame")
+      .select("id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
       .eq("business_id", String(business.id))
       .eq("status", "published")
       // Publish-first visibility: rows are live as soon as the owner
@@ -153,6 +164,23 @@ export default async function BusinessPage({
       "portrait"
         ? ("portrait" as const)
         : ("landscape" as const),
+    product_name: (row as { product_name?: string | null }).product_name ?? null,
+    product_description:
+      (row as { product_description?: string | null }).product_description ?? null,
+    product_price:
+      typeof (row as { product_price?: number | null }).product_price === "number"
+        ? (row as { product_price?: number | null }).product_price ?? null
+        : null,
+    product_currency: (() => {
+      const c = (row as { product_currency?: string | null }).product_currency;
+      if (typeof c === "string" && c.trim()) return c.trim().toUpperCase().slice(0, 3);
+      return "USD";
+    })(),
+    product_redirect_url: (() => {
+      const u = (row as { product_redirect_url?: string | null }).product_redirect_url;
+      if (typeof u === "string" && u.trim()) return u.trim();
+      return null;
+    })(),
   })).filter((p) => p.id && p.url);
 
   const { data: sectionRows } = await supabase

@@ -9,6 +9,7 @@ import {
   computePublishLockStatus,
   isPhotoEditLocked,
 } from "@/lib/businessPhotoLock";
+import { sanitizeProductCurrencyCode } from "@/lib/productCurrency";
 
 const STORAGE_BUCKET = "business_media";
 const STORAGE_PUBLIC_URL_MARKER = "/storage/v1/object/public/" as const;
@@ -40,6 +41,11 @@ type PhotoRow = {
   preview_x?: number | null;
   preview_y?: number | null;
   preview_frame?: string | null;
+  product_name?: string | null;
+  product_description?: string | null;
+  product_price?: number | null;
+  product_currency?: string | null;
+  product_redirect_url?: string | null;
   url?: string | null;
 };
 
@@ -49,9 +55,24 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   return Math.max(min, Math.min(max, n));
 }
 
+function cleanOptionalText(value: unknown, maxLen: number): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (!s) return null;
+  return s.slice(0, maxLen);
+}
+
+const MAX_PRODUCT_REDIRECT_URL = 2000;
+
+function cleanProductRedirectUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (!s) return null;
+  return s.slice(0, MAX_PRODUCT_REDIRECT_URL);
+}
+
 /**
- * PATCH — update a single photo: set cover, move to a different section.
- * Body: { isCover?: boolean; section?: string, preview?: { zoom?: number; x?: number; y?: number; frame?: "landscape" | "portrait" } }
+ * PATCH — update a single photo: set cover, move section, preview mode, product metadata.
  *
  * On Free, a published photo is locked for 30 days after it was published.
  * While locked, both cover changes and section moves return 423. Drafts
@@ -76,20 +97,28 @@ export async function PATCH(
             y?: unknown;
             frame?: unknown;
           };
+          product?: {
+            name?: unknown;
+            description?: unknown;
+            price?: unknown;
+            currency?: unknown;
+            redirect_url?: unknown;
+          };
         }
       | null;
     if (
       !body ||
       (body.isCover === undefined &&
         body.section === undefined &&
-        body.preview === undefined)
+        body.preview === undefined &&
+        body.product === undefined)
     ) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
     const { data: photoRaw, error: photoErr } = await ctx.db
       .from("business_photos")
-      .select("id, business_id, section, is_cover, status, published_at, preview_zoom, preview_x, preview_y, preview_frame")
+      .select("id, business_id, section, is_cover, status, published_at, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
       .eq("id", photoId)
       .eq("business_id", businessId)
       .maybeSingle();
@@ -198,9 +227,48 @@ export async function PATCH(
       }
     }
 
+    if (body.product && typeof body.product === "object") {
+      const productName = cleanOptionalText(body.product.name, 80);
+      const productDescription = cleanOptionalText(body.product.description, 280);
+      const rawPrice = body.product.price;
+      const parsedPrice =
+        rawPrice === null || rawPrice === undefined || rawPrice === ""
+          ? null
+          : Number(rawPrice);
+      const productPrice =
+        parsedPrice === null || Number.isNaN(parsedPrice)
+          ? null
+          : Math.max(0, Math.min(9999999999.99, parsedPrice));
+      const productCurrency = sanitizeProductCurrencyCode(body.product.currency);
+      const productRedirectUrl = cleanProductRedirectUrl(body.product.redirect_url);
+      const { error } = await ctx.db
+        .from("business_photos")
+        .update({
+          product_name: productName,
+          product_description: productDescription,
+          product_price: productPrice,
+          product_currency: productCurrency,
+          product_redirect_url: productRedirectUrl,
+        })
+        .eq("id", photoId);
+      if (error) {
+        if (error.code === "42703") {
+          return NextResponse.json(
+            {
+              error:
+                "Product metadata columns are missing. Run the latest Supabase migration for business_photos product fields.",
+              code: "PRODUCT_COLUMNS_MISSING",
+            },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    }
+
     const { data: refreshed } = await ctx.db
       .from("business_photos")
-      .select("id, business_id, url, section, status, is_cover, sort_order, created_at, published_at, preview_zoom, preview_x, preview_y, preview_frame")
+      .select("id, business_id, url, section, status, is_cover, sort_order, created_at, published_at, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
       .eq("id", photoId)
       .maybeSingle();
 

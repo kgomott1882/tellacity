@@ -446,6 +446,24 @@ export default async function Page(props: PageProps) {
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
+    let categoryGroupName = "Business Services";
+    if (supabase && categoryRow?.group_slug) {
+      try {
+        const { data: groupData, error: groupError } = await supabase
+          .from("category_groups")
+          .select("name")
+          .eq("slug", categoryRow.group_slug)
+          .maybeSingle();
+        if (!groupError) {
+          const resolvedGroupName = String(groupData?.name ?? "").trim();
+          if (resolvedGroupName) {
+            categoryGroupName = resolvedGroupName;
+          }
+        }
+      } catch (e) {
+        console.error("[category page] category group fetch:", e);
+      }
+    }
 
     let businesses: unknown[] = [];
     let companyCount = 0;
@@ -507,7 +525,7 @@ export default async function Page(props: PageProps) {
         <section className="mx-auto w-full max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <p className="text-xs text-[#1FAF9E]">
-              Categories <span className="mx-1">›</span> Business Services{" "}
+              Categories <span className="mx-1">›</span> {categoryGroupName}{" "}
               <span className="mx-1">›</span> {categoryName}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">

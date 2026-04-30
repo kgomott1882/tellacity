@@ -10,6 +10,14 @@ export type BusinessPhotoPublic = {
   preview_x?: number | null;
   preview_y?: number | null;
   preview_frame?: "landscape" | "portrait" | null;
+  product_name?: string | null;
+  /** Product code / SKU (DB column `product_description`). */
+  product_description?: string | null;
+  product_price?: number | null;
+  /** ISO 4217 code for formatting {@link product_price}. */
+  product_currency?: string | null;
+  /** Optional checkout URL for this photo (Products); overrides business-wide buy link when set. */
+  product_redirect_url?: string | null;
 };
 
 /** Prefer `is_cover === true`; otherwise first photo in list order. */

@@ -8,6 +8,7 @@ import {
   logInviteConvertedActivity,
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
+import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -24,6 +25,8 @@ type Body = {
   marketing_opt_in?: boolean | null;
   receipt_url?: string | null;
   reference_number?: string | null;
+  /** Optional: published business_photos row (item review). */
+  product_photo_id?: string | null;
 };
 
 const getEffectiveEmail = async (
@@ -371,6 +374,22 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  let productPhotoIdResolved: string | null = null;
+  if (body.product_photo_id !== undefined && body.product_photo_id !== null) {
+    const rawPid =
+      typeof body.product_photo_id === "string" ? body.product_photo_id.trim() : "";
+    if (rawPid) {
+      productPhotoIdResolved = await validatedProductPhotoIdForReview(
+        supabase,
+        business_id,
+        body.product_photo_id
+      );
+      if (!productPhotoIdResolved) {
+        return NextResponse.json({ error: "Invalid item" }, { status: 400 });
+      }
+    }
+  }
+
   if (isInvitePublish) {
     const guestEmailLower = effectiveEmail.trim().toLowerCase();
     try {
@@ -396,6 +415,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           reference_number,
           invite_id: inviteId,
           is_flagged: false,
+          ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
         })
         .select("id")
         .single();
@@ -528,6 +548,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           reference_number,
           is_flagged: false,
           user_id: isGoogleUser ? authUser?.id : null,
+          ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
         })
         .select("id")
         .single();
@@ -575,6 +596,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       marketing_opt_in,
       receipt_url,
       reference_number,
+      ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
     })
     .select("id")
     .single();

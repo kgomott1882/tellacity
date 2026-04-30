@@ -334,7 +334,7 @@ export default function BusinessClient({
       const primaryPhotosRes = await applyBusinessPhotosOrdering(
         sb
           .from("business_photos")
-          .select("id, url, section, created_at, is_cover, sort_order, preview_zoom, preview_x, preview_y, preview_frame")
+          .select("id, url, section, created_at, is_cover, sort_order, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
           .eq("business_id", business.id)
           .eq("status", "published")
           .eq("is_live", true)
@@ -361,6 +361,11 @@ export default function BusinessClient({
         preview_x?: number | null;
         preview_y?: number | null;
         preview_frame?: string | null;
+        product_name?: string | null;
+        product_description?: string | null;
+        product_price?: number | null;
+        product_currency?: string | null;
+        product_redirect_url?: string | null;
       }>;
       setBusinessPhotos(
         rows
@@ -379,6 +384,17 @@ export default function BusinessClient({
               String(r.preview_frame ?? "landscape").toLowerCase() === "portrait"
                 ? "portrait"
                 : "landscape",
+            product_name: r.product_name ?? null,
+            product_description: r.product_description ?? null,
+            product_price: typeof r.product_price === "number" ? r.product_price : null,
+            product_currency:
+              typeof r.product_currency === "string" && r.product_currency.trim()
+                ? r.product_currency.trim().toUpperCase().slice(0, 3)
+                : "USD",
+            product_redirect_url:
+              typeof r.product_redirect_url === "string" && r.product_redirect_url.trim()
+                ? r.product_redirect_url.trim()
+                : null,
           }))
       );
 

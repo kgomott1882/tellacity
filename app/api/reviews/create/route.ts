@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
+import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
 
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
@@ -53,12 +54,14 @@ export async function POST(req: Request) {
       title: rawTitle,
       body: rawBody,
       date_of_experience: rawDate,
+      product_photo_id: rawProductPhotoId,
     } = (await req.json()) as {
       business_id?: string;
       rating?: number;
       title?: string | null;
       body?: string;
       date_of_experience?: string | null;
+      product_photo_id?: string | null;
     };
 
     const business_id =
@@ -102,6 +105,22 @@ export async function POST(req: Request) {
     const rating = Math.round(ratingNum);
     const guest_name = reviewerDisplayNameFromAuthUser(user);
 
+    let productPhotoIdResolved: string | null = null;
+    if (rawProductPhotoId !== undefined && rawProductPhotoId !== null) {
+      const rawPid =
+        typeof rawProductPhotoId === "string" ? rawProductPhotoId.trim() : "";
+      if (rawPid) {
+        productPhotoIdResolved = await validatedProductPhotoIdForReview(
+          supabase,
+          business_id,
+          rawProductPhotoId
+        );
+        if (!productPhotoIdResolved) {
+          return NextResponse.json({ error: "Invalid item" }, { status: 400 });
+        }
+      }
+    }
+
     const { data: createdRow, error: insertError } = await supabase
       .from("reviews")
       .insert({
@@ -118,6 +137,7 @@ export async function POST(req: Request) {
         draft: false,
         imported: false,
         is_flagged: false,
+        ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
       })
       .select("id, business_id, user_id, rating")
       .single();
