@@ -24,6 +24,12 @@ function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
+/** Narrow rows when `profiles` columns are missing from generated DB types. */
+type ProfileIdEmailRow = {
+  id?: string | null;
+  email?: string | null;
+};
+
 function profileEmailFromEmbed(r: Record<string, unknown>): string | null {
   const p = r["profiles:consumer_id"] as
     | { email?: string | null }
@@ -137,11 +143,12 @@ export async function POST(req: Request) {
 
   let emailByUserId = new Map<string, string>();
   if (ids.size > 0) {
-    const { data: profs } = await admin
+    const { data: profsRaw } = await admin
       .from("profiles")
       .select("id, email")
       .in("id", [...ids]);
-    if (profs && profs.length > 0) {
+    const profs = (profsRaw ?? []) as ProfileIdEmailRow[];
+    if (profs.length > 0) {
       emailByUserId = new Map(
         profs
           .map((p) => {
@@ -201,14 +208,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: sendResult.error }, { status: 500 });
   }
 
-  const { error: insErr } = await admin.from("admin_review_guideline_warning_emails").insert({
+  const auditInsert = {
     review_id: reviewId,
     recipient_email: recipient,
     sent_by_user_id: user.id,
     reason_key: reasonKey,
     custom_note: customNote.length > 0 ? customNote : null,
     reason_label: getAdminReviewWarningReasonLabel(reasonKey),
-  });
+  };
+  const { error: insErr } = await admin
+    .from("admin_review_guideline_warning_emails")
+    // Table absent from generated schema → PostgREST builders infer `never`.
+    .insert(auditInsert as never);
 
   let auditWarning: string | null = null;
   if (insErr) {
@@ -219,7 +230,10 @@ export async function POST(req: Request) {
 
   const { error: flagErr } = await admin
     .from("reviews")
-    .update({ is_flagged: true, updated_at: new Date().toISOString() })
+    .update({
+      is_flagged: true,
+      updated_at: new Date().toISOString(),
+    } as never)
     .eq("id", reviewId);
   if (flagErr) {
     console.error("[send-guidelines-warning] flag review:", flagErr);
