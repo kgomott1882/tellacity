@@ -8,7 +8,8 @@ export default function AdminCategoriesPage() {
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">Categories</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Business counts per catalog category. Filter by country, group, or subcategory to plan seeding.
+          Browse category groups as cards with business and review totals per subcategory. Use country, group,
+          and subcategory filters above—the same filters apply to the grid and the detailed table below.
         </p>
       </div>
       <AdminCategoriesClient />

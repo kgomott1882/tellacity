@@ -18,6 +18,10 @@ import {
   primeHomeFeedHighlightNewest,
   primeHomeFeedHighlightReviewId,
 } from "@/lib/homeFeedHighlight";
+import {
+  BUSINESS_SUSPENDED_USER_MESSAGE,
+  isBusinessPubliclyActive,
+} from "@/lib/businessPublicAccess";
 
 type WriteReviewFormProps = {
   inviteId?: string | null;
@@ -587,7 +591,7 @@ export default function WriteReviewForm({
       const query = sb
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom"
+          "id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom, status"
         )
         .limit(1);
 
@@ -614,7 +618,14 @@ export default function WriteReviewForm({
           reference_number_enabled?: boolean;
           reference_number_type?: string | null;
           reference_number_label_custom?: string | null;
+          status?: string | null;
         };
+        if (!isBusinessPubliclyActive(row.status)) {
+          setBusiness(null);
+          setBusinessError(BUSINESS_SUSPENDED_USER_MESSAGE);
+          setBusinessLoading(false);
+          return;
+        }
         const refType = REFERENCE_TYPES.includes(row.reference_number_type as ReferenceType)
           ? (row.reference_number_type as ReferenceType)
           : null;

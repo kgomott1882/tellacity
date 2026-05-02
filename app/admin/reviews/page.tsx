@@ -6,6 +6,7 @@ import {
   type AdminReviewListFilter,
   type AdminReviewRow,
 } from "@/lib/admin";
+import { emailsFromAuthUsersByIds } from "@/lib/reviewerEmailResolution";
 import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 
@@ -107,7 +108,9 @@ export default async function AdminReviewsPage(props: PageProps) {
   const profileIds = new Set<string>();
   for (const r of rows) {
     const uid = trimStr(r.user_id);
+    const cid = trimStr(r.consumer_id);
     if (uid) profileIds.add(uid);
+    if (cid) profileIds.add(cid);
   }
 
   let emailByUserId = new Map<string, string>();
@@ -130,6 +133,31 @@ export default async function AdminReviewsPage(props: PageProps) {
     }
   }
 
+  const profileIdsNeedingAuth = [...profileIds].filter(
+    (id) => !emailByUserId.has(id),
+  );
+  const authEmails =
+    profileIdsNeedingAuth.length > 0
+      ? await emailsFromAuthUsersByIds(adminSupabase, profileIdsNeedingAuth)
+      : new Map<string, string>();
+
+  const reviewIdsForWarnings = rows
+    .map((r) => String((r as Record<string, unknown>).id ?? ""))
+    .filter(Boolean);
+
+  let warnedReviewIds = new Set<string>();
+  if (reviewIdsForWarnings.length > 0) {
+    const { data: warnedRows, error: warnedErr } = await adminSupabase
+      .from("admin_review_guideline_warning_emails")
+      .select("review_id")
+      .in("review_id", reviewIdsForWarnings);
+    if (!warnedErr && Array.isArray(warnedRows)) {
+      warnedReviewIds = new Set(
+        warnedRows.map((w) => String((w as { review_id?: string }).review_id ?? "")).filter(Boolean)
+      );
+    }
+  }
+
   const rawReviews: AdminReviewRow[] = rows.map((r) => {
     const id = String(r.id ?? "");
     const body = (r.body as string | null) ?? null;
@@ -137,8 +165,12 @@ export default async function AdminReviewsPage(props: PageProps) {
     const body_preview = bodyText.length > 200 ? bodyText.slice(0, 200) : bodyText;
 
     const uid = trimStr(r.user_id);
+    const cid = trimStr(r.consumer_id);
     const profileEmail = uid ? emailByUserId.get(uid) : undefined;
+    const consumerProfileEmail = cid ? emailByUserId.get(cid) : undefined;
     const embedEmail = profileEmailFromEmbed(r);
+    const authEmailUid = uid ? authEmails.get(uid) : undefined;
+    const authEmailCid = cid ? authEmails.get(cid) : undefined;
 
     const reviewer_email =
       trimStr(r.email) ||
@@ -146,6 +178,9 @@ export default async function AdminReviewsPage(props: PageProps) {
       trimStr(r.guest_email) ||
       embedEmail ||
       trimStr(profileEmail) ||
+      trimStr(consumerProfileEmail) ||
+      trimStr(authEmailUid) ||
+      trimStr(authEmailCid) ||
       "-";
 
     const verified_at = r.verified_at as string | null | undefined;
@@ -163,6 +198,7 @@ export default async function AdminReviewsPage(props: PageProps) {
       status: (r.status as string | null) ?? null,
       visibility: (r.visibility as string | null) ?? null,
       is_flagged: (r.is_flagged as boolean | null) ?? null,
+      prior_guidelines_warning: warnedReviewIds.has(id),
       created_at: (r.created_at as string | null) ?? null,
     };
   });

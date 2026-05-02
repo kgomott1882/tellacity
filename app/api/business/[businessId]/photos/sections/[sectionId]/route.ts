@@ -7,9 +7,10 @@ import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 /**
- * PATCH — toggle enable, rename a custom section.
+ * PATCH — toggle enable, rename a section.
  * Body: { isEnabled?: boolean; title?: string }
- * Built-ins may only have `isEnabled` toggled (their title is fixed).
+ * Built-in sections: only the `services` slug may be renamed (display label;
+ * URL segment stays `services`). Other built-ins may only use `isEnabled`.
  */
 export async function PATCH(
   req: Request,
@@ -61,7 +62,10 @@ export async function PATCH(
       update.is_enabled = body.isEnabled;
     }
     if (typeof body.title === "string") {
-      if (section.is_builtin) {
+      if (
+        section.is_builtin &&
+        String(section.slug).toLowerCase() !== "services"
+      ) {
         return NextResponse.json(
           { error: "Built-in sections can't be renamed." },
           { status: 400 }

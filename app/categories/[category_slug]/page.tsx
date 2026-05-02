@@ -409,7 +409,7 @@ export default async function Page(props: PageProps) {
         0,
       );
       businesses = (pack.rows ?? []) as unknown[];
-      companyCount = pack.totalCount;
+      companyCount = pack.totalCount ?? 0;
       hasNextPage = pack.hasNext;
     } catch (e) {
       console.error("[category page] prefetch:", e);

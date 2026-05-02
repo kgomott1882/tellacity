@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
+import {
+  fetchAndApplyLiveReviewMetrics,
+  fetchRecentlyReviewedForCategory,
+  type CategoryBusinessRow,
+} from "@/lib/categoryListingQueries";
 import { comparisonLinks } from "@/lib/comparisonLinks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import {
@@ -22,8 +26,6 @@ import { sanitizeText } from "@/lib/sanitizeText";
 import { RefreshCw } from "lucide-react";
 import RatingStars from "@/components/RatingStars";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
-import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
-import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
 type BusinessRow = CategoryBusinessRow;
@@ -49,6 +51,8 @@ type CountryOption = {
 };
 
 const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
+/** Prefetch window for `/api/category-listings` (same scope as main listing). */
+const LISTING_PREFETCH_AHEAD_PAGES = 5;
 
 /** URL uses 1-based `?page=` (omit or 1 = first page). Returns 0-based index for the listing API. */
 function listingPageIndexFromSearch(params: URLSearchParams): number {
@@ -78,8 +82,9 @@ function buildCategoryPaginationItems(
   return [1, "ellipsis", c - 1, c, c + 1, "ellipsis", t];
 }
 
-/** Top “rated” strip: built only from page-1 listing rows (no extra API scan). */
+/** Top “rated” strip: `/api/category-listings?mode=top`; candidates fetched so every page shows the strip. */
 const TOP_RATED_DISPLAY_COUNT = 8;
+const TOP_RATED_CANDIDATE_LIMIT = 80;
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
@@ -270,6 +275,13 @@ export default function CategoryClient({
   const [computedCount, setComputedCount] = useState<number>(companyCount ?? 0);
   const [computedHasNext, setComputedHasNext] = useState<boolean>(hasNextPage ?? false);
 
+  const listingPagePayloadCacheRef = useRef(
+    new Map<number, { rows: BusinessRow[]; hasNext: boolean }>(),
+  );
+  const listingPayloadCacheScopeRef = useRef<string>("");
+  const listingPrefetchInflightRef = useRef<Set<number>>(new Set());
+  const listingCacheMountSeededRef = useRef(false);
+
   /** Listing page from `?page=` so browser back/forward and shared links preserve pagination. */
   const listingPageIndex = useMemo(
     () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
@@ -321,7 +333,7 @@ export default function CategoryClient({
   );
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
-  const RECENT_PAGE_SIZE = 3;
+  const RECENTLY_REVIEWED_DISPLAY = 3;
 
   const businessesList = rows ?? [];
 
@@ -369,22 +381,62 @@ export default function CategoryClient({
     [listingPageIndex, listingTotalPages],
   );
 
-  /** Page-1 listing rows (leaderboard order from API) — used for “Top rated” only, no extra fetch. */
-  const [page1ListingSnapshot, setPage1ListingSnapshot] = useState<BusinessRow[]>([]);
+  /** Leaderboard-order candidates for “Top rated” — fetched independently so deep pagination still shows the strip. */
+  const [topRatedSourceRows, setTopRatedSourceRows] = useState<BusinessRow[]>([]);
+  const [topRatedLoading, setTopRatedLoading] = useState(false);
 
   useEffect(() => {
-    setPage1ListingSnapshot([]);
-  }, [categorySlug, listingKind, derivedCountry]);
+    const ac = new AbortController();
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!loading && listingPageIndex === 0) {
-      setPage1ListingSnapshot(rows.map((r) => ({ ...r })));
-    }
-  }, [loading, listingPageIndex, rows]);
+    const loadTopRated = async () => {
+      if (!categorySlug) {
+        setTopRatedSourceRows([]);
+        setTopRatedLoading(false);
+        return;
+      }
+      setTopRatedLoading(true);
+      try {
+        const q = new URLSearchParams();
+        q.set("slug", categorySlug);
+        q.set("country", derivedCountry ?? "US");
+        q.set("mode", "top");
+        q.set("candidateLimit", String(TOP_RATED_CANDIDATE_LIMIT));
+        q.set("minRating", "0");
+        if (listingKind === "tag") q.set("kind", "tag");
+        const res = await fetch(`/api/category-listings?${q.toString()}`, {
+          cache: "no-store",
+          signal: ac.signal,
+        });
+        const data = (await res.json()) as {
+          rows?: BusinessRow[];
+          error?: string | null;
+        };
+        if (cancelled || ac.signal.aborted) return;
+        const list = Array.isArray(data.rows) ? data.rows : [];
+        setTopRatedSourceRows(list.map((r) => ({ ...r })));
+      } catch {
+        if (!cancelled && !ac.signal.aborted) {
+          setTopRatedSourceRows([]);
+        }
+      } finally {
+        if (!cancelled && !ac.signal.aborted) {
+          setTopRatedLoading(false);
+        }
+      }
+    };
+
+    void loadTopRated();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [categorySlug, derivedCountry, listingKind]);
 
   const topRatedItems = useMemo(() => {
-    if (page1ListingSnapshot.length === 0) return [];
-    const list = [...page1ListingSnapshot].sort((a, b) => {
+    if (topRatedSourceRows.length === 0) return [];
+    const list = [...topRatedSourceRows].sort((a, b) => {
       const ar = Number(a.trust_score ?? 0) || 0;
       const br = Number(b.trust_score ?? 0) || 0;
       const ac = Number(a.review_count ?? 0) || 0;
@@ -398,10 +450,10 @@ export default function CategoryClient({
       .slice(0, TOP_RATED_DISPLAY_COUNT)
       .map((r, i) => mapRowToTopRatedItem(r, i))
       .filter((x): x is TopRatedDisplayItem => Boolean(x));
-  }, [page1ListingSnapshot]);
+  }, [topRatedSourceRows]);
 
   const showTopRatedSection =
-    topRatedItems.length > 0 || (listingPageIndex === 0 && loading);
+    topRatedItems.length > 0 || topRatedLoading;
 
   // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
@@ -422,15 +474,68 @@ export default function CategoryClient({
     return [];
   }, [subcategories]);
 
-  const [recentPage, setRecentPage] = useState(0);
-  const recentCompanies = useMemo(() => {
-    const start = recentPage * RECENT_PAGE_SIZE;
-    return sortedBusinessesList.slice(start, start + RECENT_PAGE_SIZE);
-  }, [sortedBusinessesList, recentPage]);
+  const [recentlyReviewedRows, setRecentlyReviewedRows] = useState<BusinessRow[]>(
+    [],
+  );
+  const [recentlyReviewedLoading, setRecentlyReviewedLoading] = useState(false);
+  const recentReviewRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  const recentHasPrev = recentPage > 0;
-  const recentHasNext =
-    (recentPage + 1) * RECENT_PAGE_SIZE < sortedBusinessesList.length;
+  const loadRecentlyReviewed = useCallback(async () => {
+    const slug = (categorySlug ?? "").trim();
+    if (!slug || !derivedCountry) {
+      setRecentlyReviewedRows([]);
+      return;
+    }
+    setRecentlyReviewedLoading(true);
+    try {
+      const { rows: rrRows } = await fetchRecentlyReviewedForCategory(
+        supabaseBrowser(),
+        slug,
+        derivedCountry,
+        RECENTLY_REVIEWED_DISPLAY,
+        listingKind,
+      );
+      const rowsCopy = (rrRows ?? []).map((r) => ({ ...r })) as BusinessRow[];
+      await fetchAndApplyLiveReviewMetrics(supabaseBrowser(), rowsCopy, {
+        preserveOrder: true,
+      });
+      setRecentlyReviewedRows(rowsCopy);
+    } finally {
+      setRecentlyReviewedLoading(false);
+    }
+  }, [categorySlug, derivedCountry, listingKind]);
+
+  useEffect(() => {
+    void loadRecentlyReviewed();
+  }, [loadRecentlyReviewed]);
+
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    const channel = sb
+      .channel(`recent-reviews-${categorySlug}-${derivedCountry}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reviews" },
+        () => {
+          if (recentReviewRefreshTimerRef.current) {
+            clearTimeout(recentReviewRefreshTimerRef.current);
+          }
+          recentReviewRefreshTimerRef.current = setTimeout(() => {
+            void loadRecentlyReviewed();
+          }, 1200);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (recentReviewRefreshTimerRef.current) {
+        clearTimeout(recentReviewRefreshTimerRef.current);
+      }
+      void sb.removeChannel(channel);
+    };
+  }, [loadRecentlyReviewed, categorySlug, derivedCountry]);
 
   const visiblePopularTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -556,7 +661,20 @@ export default function CategoryClient({
     };
   }, [categorySlug, listingKind]);
 
-  // ---------- THE REAL FIX: FETCH BUSINESSES ----------
+  // Seed listing cache from SSR payload once per mount (matches URL page).
+  useEffect(() => {
+    if (listingCacheMountSeededRef.current) return;
+    listingCacheMountSeededRef.current = true;
+    const scopeKey = `${listingKind}|${categorySlug}|${derivedCountry}`;
+    listingPayloadCacheScopeRef.current = scopeKey;
+    listingPagePayloadCacheRef.current.set(listingPageIndex, {
+      rows: ((businesses ?? []) as BusinessRow[]).map((r) => ({ ...r })),
+      hasNext: Boolean(hasNextPage),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only seed aligned with SSR
+  }, []);
+
+  // ---------- Listing fetch: skip heavy COUNT (SSR total), prefetch next pages ----------
   useEffect(() => {
     const ac = new AbortController();
     let timedOut = false;
@@ -565,20 +683,90 @@ export default function CategoryClient({
       ac.abort();
     }, 28_000);
 
+    const scopeKey = `${listingKind}|${categorySlug}|${derivedCountry}`;
+    if (listingPayloadCacheScopeRef.current !== scopeKey) {
+      listingPagePayloadCacheRef.current.clear();
+      listingPrefetchInflightRef.current.clear();
+      listingPayloadCacheScopeRef.current = scopeKey;
+    }
+
+    const countryCodeForApi = derivedCountry ?? "US";
+
+    const prefetchAhead = (fromPage: number) => {
+      const scopeAtPrefetch = scopeKey;
+      const schedule =
+        typeof window !== "undefined" && "requestIdleCallback" in window
+          ? (fn: () => void) =>
+              window.requestIdleCallback(() => {
+                fn();
+              }, { timeout: 2500 })
+          : (fn: () => void) => {
+              window.setTimeout(fn, 120);
+            };
+
+      schedule(() => {
+        for (let delta = 1; delta <= LISTING_PREFETCH_AHEAD_PAGES; delta++) {
+          const targetPage = fromPage + delta;
+          if (listingPagePayloadCacheRef.current.has(targetPage)) continue;
+          if (listingPrefetchInflightRef.current.has(targetPage)) continue;
+          listingPrefetchInflightRef.current.add(targetPage);
+
+          const pq = new URLSearchParams();
+          pq.set("slug", categorySlug);
+          pq.set("country", countryCodeForApi);
+          pq.set("page", String(targetPage));
+          pq.set("minRating", "0");
+          pq.set("mode", "page");
+          pq.set("includeCount", "0");
+          if (listingKind === "tag") pq.set("kind", "tag");
+
+          void fetch(`/api/category-listings?${pq.toString()}`, {
+            cache: "no-store",
+          })
+            .then(async (res) => {
+              listingPrefetchInflightRef.current.delete(targetPage);
+              if (listingPayloadCacheScopeRef.current !== scopeAtPrefetch) return;
+              const payload = (await res.json()) as {
+                rows?: BusinessRow[];
+                hasNext?: boolean;
+              };
+              const list = Array.isArray(payload.rows) ? payload.rows : [];
+              listingPagePayloadCacheRef.current.set(targetPage, {
+                rows: list as BusinessRow[],
+                hasNext: Boolean(payload.hasNext),
+              });
+            })
+            .catch(() => {
+              listingPrefetchInflightRef.current.delete(targetPage);
+            });
+        }
+      });
+    };
+
     const fetchBusinesses = async () => {
       if (!categorySlug) return;
+
+      const cached = listingPagePayloadCacheRef.current.get(listingPageIndex);
+      if (cached && listingPayloadCacheScopeRef.current === scopeKey) {
+        setRows(cached.rows);
+        setComputedHasNext(cached.hasNext);
+        setFetchError(null);
+        setLoading(false);
+        prefetchAhead(listingPageIndex);
+        return;
+      }
 
       setLoading(true);
       setFetchError(null);
 
       const offset = listingPageIndex * PAGE_SIZE;
-      const countryCodeForApi = derivedCountry ?? "US";
       const q = new URLSearchParams();
       q.set("slug", categorySlug);
       q.set("country", countryCodeForApi);
       q.set("page", String(listingPageIndex));
       q.set("minRating", "0");
       q.set("mode", "page");
+      q.set("includeCount", "0");
       if (listingKind === "tag") q.set("kind", "tag");
       try {
         const res = await fetch(`/api/category-listings?${q.toString()}`, {
@@ -587,7 +775,7 @@ export default function CategoryClient({
         });
         const data = (await res.json()) as {
           rows?: BusinessRow[];
-          totalCount?: number;
+          totalCount?: number | null;
           hasNext?: boolean;
           error?: string | null;
         };
@@ -599,7 +787,7 @@ export default function CategoryClient({
         const list = Array.isArray(data.rows) ? data.rows : [];
         if (!res.ok && list.length === 0) {
           setRows([]);
-          setComputedCount(offset);
+          setComputedCount((prev) => (prev > 0 ? prev : offset));
           setComputedHasNext(false);
           setFetchError("Failed to load businesses.");
           setLoading(false);
@@ -608,7 +796,7 @@ export default function CategoryClient({
 
         if (data.error && list.length === 0) {
           setRows([]);
-          setComputedCount(offset);
+          setComputedCount((prev) => (prev > 0 ? prev : offset));
           setComputedHasNext(false);
           setFetchError(data.error ?? "Failed to load businesses.");
           setLoading(false);
@@ -618,16 +806,18 @@ export default function CategoryClient({
         const hasNext = Boolean(data.hasNext);
         const sliced = list;
 
+        listingPagePayloadCacheRef.current.set(listingPageIndex, {
+          rows: sliced.map((r) => ({ ...r })),
+          hasNext,
+        });
+        prefetchAhead(listingPageIndex);
+
         setRows(sliced);
-        setComputedCount(
-          typeof data.totalCount === "number"
-            ? data.totalCount
-            : offset + sliced.length + (hasNext ? 1 : 0)
+        setComputedCount((prev) =>
+          typeof data.totalCount === "number" ? data.totalCount : prev,
         );
         setComputedHasNext(hasNext);
-        setFetchError(
-          sliced.length > 0 ? null : (data.error ?? null),
-        );
+        setFetchError(sliced.length > 0 ? null : (data.error ?? null));
         setLoading(false);
       } catch (e) {
         window.clearTimeout(timeoutId);
@@ -671,10 +861,6 @@ export default function CategoryClient({
     }
   }, [siteUrl, title]);
 
-  useEffect(() => {
-    setRecentPage(0);
-  }, [categorySlug]);
-
   const collectionJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -713,7 +899,7 @@ export default function CategoryClient({
           {showTopRatedSection && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              {listingPageIndex === 0 && loading && topRatedItems.length === 0 ? (
+              {topRatedLoading && topRatedItems.length === 0 ? (
                 <p className="mt-4 text-sm text-gray-500">Loading listings…</p>
               ) : (
                 <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1234,37 +1420,36 @@ export default function CategoryClient({
             </section>
           )}
 
-          {recentCompanies.length > 0 && (
-            <section className="mt-10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-[#0E0E0E]">Recently reviewed companies</h2>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    className={CAROUSEL_NAV_BUTTON_CLASS}
-                    onClick={() => setRecentPage((prev) => Math.max(0, prev - 1))}
-                    disabled={!recentHasPrev}
-                    aria-label="Previous companies"
-                  >
-                    <CarouselNavChevron dir="left" />
-                  </button>
-                  <button
-                    type="button"
-                    className={CAROUSEL_NAV_BUTTON_CLASS}
-                    onClick={() => setRecentPage((prev) => prev + 1)}
-                    disabled={!recentHasNext}
-                    aria-label="Next companies"
-                  >
-                    <CarouselNavChevron dir="right" />
-                  </button>
-                </div>
-              </div>
+          <section className="mt-10" aria-label="Recently reviewed companies">
+            <h2 className="text-sm font-semibold text-[#0E0E0E]">
+              Recently reviewed companies
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Up to three businesses in this {listingKind === "tag" ? "tag" : "category"} with the most recently published public reviews in {countryName}. Reviews are included regardless of age.
+            </p>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {recentCompanies.map((company) => {
+            {recentlyReviewedLoading ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {Array.from({ length: RECENTLY_REVIEWED_DISPLAY }).map((_, i) => (
+                  <div
+                    key={`recent-sk-${i}`}
+                    className="flex animate-pulse gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                  >
+                    <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-200" />
+                    <div className="min-w-0 flex-1 space-y-2 py-0.5">
+                      <div className="h-4 w-3/4 rounded bg-gray-200" />
+                      <div className="h-3 w-1/2 rounded bg-gray-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentlyReviewedRows.length > 0 ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {recentlyReviewedRows.map((company) => {
                   const safeSlug = (company.slug ?? "").trim().toLowerCase();
                   if (!isValidSlug(safeSlug)) return null;
-                  const reviewCount = (Number(company.review_count ?? 0)) || 0;
+                  const reviewCount =
+                    Number(company.review_count ?? 0) || 0;
                   const ratingValue = snapshotRpcRating(company).trust;
                   const logoUrl = categoryListLogoUrl(company);
                   return (
@@ -1289,14 +1474,18 @@ export default function CategoryClient({
                             />
                           ) : (
                             <span className="text-sm font-semibold text-[#0E0E0E]">
-                              {(sanitizeText(company.name)?.trim()?.charAt(0) || "B").toUpperCase()}
+                              {(
+                                sanitizeText(company.name)?.trim()?.charAt(0) || "B"
+                              ).toUpperCase()}
                             </span>
                           )}
                         </div>
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <div className="text-sm font-semibold text-[#0E0E0E]">{sanitizeText(company.name)}</div>
+                            <div className="text-sm font-semibold text-[#0E0E0E]">
+                              {sanitizeText(company.name)}
+                            </div>
                             {reviewCount > 0 && (
                               <img
                                 src="/brand/Tellacity%20Vefication%20Batch.png"
@@ -1306,7 +1495,9 @@ export default function CategoryClient({
                             )}
                           </div>
                           {company.website && (
-                            <div className="text-xs text-gray-500">{sanitizeText(company.website)}</div>
+                            <div className="text-xs text-gray-500">
+                              {sanitizeText(company.website)}
+                            </div>
                           )}
                           <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
                             <RatingStars
@@ -1325,8 +1516,12 @@ export default function CategoryClient({
                   );
                 })}
               </div>
-            </section>
-          )}
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">
+                No published reviews match this directory and country yet.
+              </p>
+            )}
+          </section>
 
           {/* How this page works (desktop / tablet only) */}
           <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">

@@ -234,6 +234,7 @@ export async function fetchCategoryCount(
 export async function fetchAndApplyLiveReviewMetrics(
   supabase: SupabaseClient,
   rows: CategoryBusinessRow[],
+  options?: { preserveOrder?: boolean },
 ): Promise<void> {
   const ids = rows.map((row) => row.id).filter(Boolean);
   if (ids.length === 0) return;
@@ -300,15 +301,17 @@ export async function fetchAndApplyLiveReviewMetrics(
       return rpcSnapshot.get(id)?.count ?? 0;
     };
 
-    rows.sort((a, b) => {
-      const aRating = mergedRating(a.id);
-      const bRating = mergedRating(b.id);
-      const aCt = mergedCount(a.id);
-      const bCt = mergedCount(b.id);
-      if (bRating !== aRating) return bRating - aRating;
-      if (bCt !== aCt) return bCt - aCt;
-      return (a.name || "").localeCompare(b.name || "");
-    });
+    if (!options?.preserveOrder) {
+      rows.sort((a, b) => {
+        const aRating = mergedRating(a.id);
+        const bRating = mergedRating(b.id);
+        const aCt = mergedCount(a.id);
+        const bCt = mergedCount(b.id);
+        if (bRating !== aRating) return bRating - aRating;
+        if (bCt !== aCt) return bCt - aCt;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    }
 
     rows.forEach((row) => {
       const m = agg[row.id];
@@ -324,4 +327,261 @@ export async function fetchAndApplyLiveReviewMetrics(
   } catch {
     // keep RPC metrics
   }
+}
+
+const RECENTLY_REVIEWED_RPC = "get_recently_reviewed_businesses_for_category" as const;
+
+function mapRecentlyReviewedRpcRow(row: Record<string, unknown>): CategoryBusinessRow {
+  const tagsVal = row.tags;
+  const sec = row.secondary_category_slugs;
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    slug: String(row.slug ?? ""),
+    website: row.website != null ? String(row.website) : null,
+    trust_score: row.trust_score != null ? Number(row.trust_score) : null,
+    average_rating: row.average_rating != null ? Number(row.average_rating) : null,
+    avg_rating: row.avg_rating != null ? Number(row.avg_rating) : null,
+    review_count: Number(row.review_count ?? 0) || 0,
+    category_slug: row.category_slug != null ? String(row.category_slug) : null,
+    country_code: row.country_code != null ? String(row.country_code) : null,
+    address: row.address != null ? String(row.address) : null,
+    city: row.city != null ? String(row.city) : null,
+    display_location:
+      row.display_location != null ? String(row.display_location) : null,
+    resolved_logo_url:
+      row.resolved_logo_url != null ? String(row.resolved_logo_url) : null,
+    logo_url: row.resolved_logo_url != null ? String(row.resolved_logo_url) : null,
+    tags: Array.isArray(tagsVal)
+      ? (tagsVal as unknown[]).map((x) => String(x))
+      : null,
+    secondary_category_slugs: Array.isArray(sec)
+      ? (sec as string[])
+      : null,
+  };
+}
+
+/** PostgREST `eq` value with hyphens must be quoted. */
+function pgQuotedEq(column: string, slug: string): string {
+  const safe = String(slug ?? "").replace(/"/g, "");
+  return `${column}.eq."${safe}"`;
+}
+
+/**
+ * Same semantics as `get_recently_reviewed_businesses_for_category` (no recency window):
+ * order businesses by time of latest public review in this directory slice.
+ */
+async function fetchRecentlyReviewedViaReviewsJoin(
+  supabase: SupabaseClient,
+  categorySlug: string,
+  countryCode: string,
+  limit: number,
+  listingKind: "category" | "tag",
+): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
+  const cleaned = categorySlug.trim().toLowerCase();
+  if (!cleaned) return { rows: [], error: null };
+
+  const cc = normalizeCountryCode(countryCode);
+  const countries = countryAliases(cc);
+  const lim = Math.max(1, Math.min(12, limit));
+
+  const businessSelect =
+    "id,name,slug,website,website_display,trust_score,review_count,category_slug,country_code,address,city,logo_url,status,tags,secondary_category_slugs";
+
+  const businessesMatchOr =
+    listingKind === "tag"
+      ? `tags.cs.{${cleaned}},secondary_category_slugs.cs.{${cleaned}},${pgQuotedEq(
+          "category_slug",
+          cleaned,
+        )}`
+      : cleaned === "banking"
+        ? "category_slug.in.(banking,banking-and-money),secondary_category_slugs.cs.{banking},secondary_category_slugs.cs.{banking-and-money}"
+        : `${pgQuotedEq("category_slug", cleaned)},secondary_category_slugs.cs.{${cleaned}}`;
+
+  const scanLimit = Math.min(600, Math.max(lim * 40, 80));
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(`created_at,business_id,businesses!inner(${businessSelect})`)
+    .eq("businesses.status", "active")
+    .in("businesses.country_code", countries)
+    .or(businessesMatchOr, { foreignTable: "businesses" })
+    .or(REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR)
+    .order("created_at", { ascending: false })
+    .limit(scanLimit);
+
+  if (error) {
+    return { rows: [], error: error.message };
+  }
+
+  const rowsOut: CategoryBusinessRow[] = [];
+  const seen = new Set<string>();
+
+  for (const row of data ?? []) {
+    const r = row as {
+      businesses?:
+        | Record<string, unknown>
+        | Record<string, unknown>[]
+        | null;
+    };
+    const b = Array.isArray(r.businesses) ? r.businesses[0] : r.businesses;
+    if (!b || typeof b !== "object") continue;
+
+    const id = String((b as { id?: string }).id ?? "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+
+    const websiteDisplay =
+      (b as { website_display?: string }).website_display != null
+        ? String((b as { website_display?: string }).website_display)
+        : null;
+    const websiteRaw =
+      (b as { website?: string }).website != null
+        ? String((b as { website?: string }).website)
+        : null;
+    const website =
+      (websiteDisplay && websiteDisplay.trim()) ||
+      (websiteRaw && websiteRaw.trim()) ||
+      null;
+
+    const city = (b as { city?: string }).city != null ? String((b as { city?: string }).city) : "";
+    const addr =
+      (b as { address?: string }).address != null
+        ? String((b as { address?: string }).address)
+        : "";
+    const ccRow =
+      (b as { country_code?: string }).country_code != null
+        ? String((b as { country_code?: string }).country_code)
+        : "";
+    const display_location =
+      [city, ccRow].filter((x) => (x ?? "").trim().length > 0).join(", ").trim() ||
+      null;
+
+    const logoRaw =
+      (b as { logo_url?: string }).logo_url != null
+        ? String((b as { logo_url?: string }).logo_url)
+        : null;
+
+    const tagsVal = (b as { tags?: unknown }).tags;
+    const sec = (b as { secondary_category_slugs?: unknown }).secondary_category_slugs;
+
+    rowsOut.push({
+      id,
+      name: String((b as { name?: string }).name ?? ""),
+      slug: String((b as { slug?: string }).slug ?? ""),
+      website,
+      trust_score:
+        (b as { trust_score?: unknown }).trust_score != null
+          ? Number((b as { trust_score?: unknown }).trust_score)
+          : null,
+      average_rating:
+        (b as { trust_score?: unknown }).trust_score != null
+          ? Number((b as { trust_score?: unknown }).trust_score)
+          : null,
+      avg_rating:
+        (b as { trust_score?: unknown }).trust_score != null
+          ? Number((b as { trust_score?: unknown }).trust_score)
+          : null,
+      review_count: Number((b as { review_count?: unknown }).review_count ?? 0) || 0,
+      category_slug:
+        (b as { category_slug?: string }).category_slug != null
+          ? String((b as { category_slug?: string }).category_slug)
+          : null,
+      country_code:
+        (b as { country_code?: string }).country_code != null
+          ? String((b as { country_code?: string }).country_code)
+          : null,
+      address: addr || null,
+      city: city || null,
+      display_location,
+      resolved_logo_url: logoRaw,
+      logo_url: logoRaw,
+      tags: Array.isArray(tagsVal)
+        ? (tagsVal as unknown[]).map((x) => String(x))
+        : null,
+      secondary_category_slugs: Array.isArray(sec)
+        ? (sec as string[])
+        : null,
+    });
+
+    if (rowsOut.length >= lim) break;
+  }
+
+  for (const row of rowsOut) {
+    row.tags = mergeTagsForDisplay(
+      row.tags,
+      row.secondary_category_slugs,
+      row.category_slug,
+    );
+  }
+
+  return { rows: rowsOut, error: null };
+}
+
+/**
+ * Category / tag directory: businesses in this slug + country ordered by time of
+ * their latest *published* public review. No time cutoff — reviews may be months old.
+ *
+ * Uses RPC when available (category pages); falls back to the same logic via PostgREST
+ * if the RPC is missing or returns nothing. Tag directories use the join path so `tags[]`
+ * matches the listing.
+ */
+export async function fetchRecentlyReviewedForCategory(
+  supabase: SupabaseClient,
+  categorySlug: string,
+  countryCode: string,
+  limit: number,
+  listingKind: "category" | "tag" = "category",
+): Promise<{ rows: CategoryBusinessRow[]; error: string | null }> {
+  const cleaned = (categorySlug ?? "").trim();
+  if (!cleaned) return { rows: [], error: null };
+
+  const cc = normalizeCountryCode(countryCode);
+  const lim = Math.max(1, Math.min(12, limit));
+
+  if (listingKind === "tag") {
+    return fetchRecentlyReviewedViaReviewsJoin(
+      supabase,
+      cleaned,
+      cc,
+      lim,
+      "tag",
+    );
+  }
+
+  const { data, error } = await supabase.rpc(RECENTLY_REVIEWED_RPC, {
+    p_category_slug: cleaned,
+    p_country_code: cc,
+    p_limit: lim,
+  });
+
+  const raw = (data ?? []) as Array<Record<string, unknown>>;
+  let rows: CategoryBusinessRow[] =
+    !error && raw.length > 0 ? raw.map((row) => mapRecentlyReviewedRpcRow(row)) : [];
+
+  if (rows.length > 0) {
+    for (const row of rows) {
+      row.tags = mergeTagsForDisplay(
+        row.tags,
+        row.secondary_category_slugs,
+        row.category_slug,
+      );
+    }
+    return { rows, error: null };
+  }
+
+  const fallback = await fetchRecentlyReviewedViaReviewsJoin(
+    supabase,
+    cleaned,
+    cc,
+    lim,
+    "category",
+  );
+  if (fallback.rows.length > 0) {
+    return { rows: fallback.rows, error: null };
+  }
+  return {
+    rows: [],
+    error: fallback.error ?? (error ? error.message : null),
+  };
 }

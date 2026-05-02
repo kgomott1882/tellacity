@@ -85,7 +85,7 @@ type SectionDef = StagedSectionDef;
 const BUILTIN_SECTIONS: ReadonlyArray<SectionDef> = [
   { slug: "gallery", title: "Gallery", isBuiltin: true },
   { slug: "team", title: "Team", isBuiltin: true },
-  { slug: "services", title: "Services", isBuiltin: true },
+  { slug: "services", title: "Other", isBuiltin: true },
   { slug: "products", title: "Products", isBuiltin: true },
   { slug: "workplace", title: "Workplace", isBuiltin: true },
   { slug: "fleet-logistics", title: "Fleet & Logistics", isBuiltin: true },

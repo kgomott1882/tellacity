@@ -63,10 +63,22 @@ export async function GET(req: Request) {
       0,
       parseInt(String(url.searchParams.get("page") ?? "0"), 10) || 0,
     );
+    const includeCountRaw = (
+      url.searchParams.get("includeCount") ?? "1"
+    ).trim().toLowerCase();
+    const includeTotalCount =
+      includeCountRaw !== "0" &&
+      includeCountRaw !== "false" &&
+      includeCountRaw !== "no";
+
     const payload =
       kind === "tag"
-        ? await getCachedTagListingPage(slug, country, page, minRpc)
-        : await getCachedCategoryListingPage(slug, country, page, minRpc);
+        ? await getCachedTagListingPage(slug, country, page, minRpc, {
+            includeTotalCount,
+          })
+        : await getCachedCategoryListingPage(slug, country, page, minRpc, {
+            includeTotalCount,
+          });
 
     return NextResponse.json(
       { mode: "page", kind, ...payload },

@@ -13,7 +13,8 @@ const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
 
 export type CategoryListingPagePayload = {
   rows: CategoryBusinessRow[];
-  totalCount: number;
+  /** `null` when `includeTotalCount` was false — client keeps prior total. */
+  totalCount: number | null;
   hasNext: boolean;
   error: string | null;
 };
@@ -23,7 +24,9 @@ async function loadCategoryListingPageUncached(
   countryCode: string,
   page: number,
   minRatingRpc: number | null,
+  options?: { includeTotalCount?: boolean },
 ): Promise<CategoryListingPagePayload> {
+  const includeTotalCount = options?.includeTotalCount !== false;
   const supabase = createSupabaseServerClient();
   const offset = page * PAGE_SIZE;
   const minForRpc = minRatingRpc ?? 0;
@@ -49,17 +52,29 @@ async function loadCategoryListingPageUncached(
   const hasNext = list.length > PAGE_SIZE;
   const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
   const rowsCopy = sliced.map((r) => ({ ...r }));
-  const [_, realCount] = await Promise.all([
-    fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
-    fetchCategoryCount(supabase, categorySlug, countryCode),
-  ]);
+
+  if (includeTotalCount) {
+    const [_, realCount] = await Promise.all([
+      fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
+      fetchCategoryCount(supabase, categorySlug, countryCode),
+    ]);
+
+    return {
+      rows: rowsCopy,
+      totalCount:
+        typeof realCount === "number"
+          ? realCount
+          : offset + rowsCopy.length + (hasNext ? 1 : 0),
+      hasNext,
+      error: result.error,
+    };
+  }
+
+  await fetchAndApplyLiveReviewMetrics(supabase, rowsCopy);
 
   return {
     rows: rowsCopy,
-    totalCount:
-      typeof realCount === "number"
-        ? realCount
-        : offset + rowsCopy.length + (hasNext ? 1 : 0),
+    totalCount: null,
     hasNext,
     error: result.error,
   };
@@ -97,7 +112,9 @@ async function loadTagListingPageUncached(
   countryCode: string,
   page: number,
   minRatingRpc: number | null,
+  options?: { includeTotalCount?: boolean },
 ): Promise<CategoryListingPagePayload> {
+  const includeTotalCount = options?.includeTotalCount !== false;
   const supabase = createSupabaseServerClient();
   const offset = page * PAGE_SIZE;
   const minForRpc = minRatingRpc ?? 0;
@@ -123,17 +140,29 @@ async function loadTagListingPageUncached(
   const hasNext = list.length > PAGE_SIZE;
   const sliced = hasNext ? list.slice(0, PAGE_SIZE) : list;
   const rowsCopy = sliced.map((r) => ({ ...r }));
-  const [_, realCount] = await Promise.all([
-    fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
-    fetchTagListingCount(supabase, tagSlug, countryCode),
-  ]);
+
+  if (includeTotalCount) {
+    const [_, realCount] = await Promise.all([
+      fetchAndApplyLiveReviewMetrics(supabase, rowsCopy),
+      fetchTagListingCount(supabase, tagSlug, countryCode),
+    ]);
+
+    return {
+      rows: rowsCopy,
+      totalCount:
+        typeof realCount === "number"
+          ? realCount
+          : offset + rowsCopy.length + (hasNext ? 1 : 0),
+      hasNext,
+      error: result.error,
+    };
+  }
+
+  await fetchAndApplyLiveReviewMetrics(supabase, rowsCopy);
 
   return {
     rows: rowsCopy,
-    totalCount:
-      typeof realCount === "number"
-        ? realCount
-        : offset + rowsCopy.length + (hasNext ? 1 : 0),
+    totalCount: null,
     hasNext,
     error: result.error,
   };
@@ -169,12 +198,14 @@ export function getCachedCategoryListingPage(
   countryCode: string,
   page: number,
   minRatingRpc: number | null,
+  options?: { includeTotalCount?: boolean },
 ): Promise<CategoryListingPagePayload> {
   return loadCategoryListingPageUncached(
     categorySlug,
     countryCode,
     page,
     minRatingRpc,
+    options,
   );
 }
 
@@ -198,8 +229,15 @@ export function getCachedTagListingPage(
   countryCode: string,
   page: number,
   minRatingRpc: number | null,
+  options?: { includeTotalCount?: boolean },
 ): Promise<CategoryListingPagePayload> {
-  return loadTagListingPageUncached(tagSlug, countryCode, page, minRatingRpc);
+  return loadTagListingPageUncached(
+    tagSlug,
+    countryCode,
+    page,
+    minRatingRpc,
+    options,
+  );
 }
 
 export function getCachedTagTopCandidates(

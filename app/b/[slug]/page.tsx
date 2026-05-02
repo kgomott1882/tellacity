@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
+import SuspendedBusinessPublicView from "@/components/public/SuspendedBusinessPublicView";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
-import { getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
+import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
-import { supabaseServer as supabaseServiceRole } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,25 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = createClient();
+
+  const { data: statusProbe } = await supabase
+    .from("businesses")
+    .select("status")
+    .eq("slug", slug.trim().toLowerCase())
+    .maybeSingle();
+
+  if (
+    statusProbe &&
+    typeof statusProbe === "object" &&
+    !isBusinessPubliclyActive(
+      (statusProbe as { status?: string | null }).status,
+    )
+  ) {
+    return {
+      title: "Business unavailable | Tellacity",
+      robots: { index: false, follow: false },
+    };
+  }
 
   const { data: businessBySlug } = await supabase
     .from("businesses")
@@ -109,6 +128,14 @@ export default async function BusinessPage({
     business = fallbackBusiness;
   }
 
+  if (
+    business &&
+    !isBusinessPubliclyActive((business as { status?: string | null }).status)
+  ) {
+    const nm = String((business as { name?: string | null }).name ?? "").trim();
+    return <SuspendedBusinessPublicView businessName={nm || undefined} />;
+  }
+
   if (!business) {
     const { data } = await supabase
       .from("businesses")
@@ -141,7 +168,9 @@ export default async function BusinessPage({
     ? await applyBusinessPhotosOrdering(
         supabase
           .from("business_photos")
-          .select("id, url, section, created_at, is_cover, sort_order, status")
+          .select(
+            "id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url"
+          )
           .eq("business_id", String(business.id))
           .eq("status", "published")
           .eq("is_live", true)
@@ -182,20 +211,6 @@ export default async function BusinessPage({
     })(),
   })).filter((p) => p.id && p.url);
 
-  const { data: sectionRows } = await supabase
-    .from("business_photo_sections")
-    .select("slug, title, is_enabled, sort_order")
-    .eq("business_id", String(business.id))
-    .eq("is_enabled", true)
-    .order("sort_order", { ascending: true });
-
-  const initialSections = (sectionRows ?? []).map((row) => ({
-    slug: String((row as { slug?: string }).slug ?? ""),
-    title: String((row as { title?: string }).title ?? ""),
-    is_enabled: (row as { is_enabled?: boolean }).is_enabled !== false,
-    sort_order: Number((row as { sort_order?: unknown }).sort_order) || 0,
-  })).filter((s) => s.slug && s.title);
-
   const finalSlug = business.slug.toLowerCase();
   const currentSlug = normalizedSlug;
 
@@ -205,26 +220,6 @@ export default async function BusinessPage({
   const initialIsClaimed = Boolean(
     (business as { owner_id?: string | null }).owner_id
   );
-
-  // Active billing plan for this business. Drives conversion-focused UX on
-  // the public profile — e.g. Free / unclaimed businesses get a grid of
-  // empty photo-category placeholders below the hero so the page still
-  // feels complete and subtly nudges owners to upload more photos. Paid
-  // plans don't get upsold, so we gate the placeholders on this.
-  //
-  // The public page runs with the anon client which has no RLS access to
-  // the `subscriptions` table — use the service-role client for this
-  // read-only lookup. The resolved PlanKey is the only thing passed to
-  // the client, so no privileged data crosses the wire.
-  let initialPlanKey: PlanKey = "free";
-  try {
-    initialPlanKey = await getActivePlanKeyForBusiness(
-      String(business.id),
-      supabaseServiceRole
-    );
-  } catch {
-    initialPlanKey = "free";
-  }
 
   const averageRating = (business as { average_rating?: number | null })
     .average_rating;
@@ -308,9 +303,7 @@ export default async function BusinessPage({
       <BusinessClient
         initialBusiness={business}
         initialBusinessPhotos={initialBusinessPhotos}
-        initialPhotoSections={initialSections}
         initialIsClaimed={initialIsClaimed}
-        initialPlanKey={initialPlanKey}
       />
     </>
   );

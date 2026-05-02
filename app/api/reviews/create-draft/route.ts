@@ -9,6 +9,7 @@ import {
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
 import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
+import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -126,6 +127,12 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
 
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const suspendedInvite = await assertBusinessAcceptsPublicReviews(
+    supabase,
+    business_id,
+  );
+  if (suspendedInvite) return suspendedInvite;
 
   const { data: invite, error: invErr } = await supabase
     .from("review_invites")
@@ -373,6 +380,12 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
 
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const suspendedGuest = await assertBusinessAcceptsPublicReviews(
+    supabase,
+    business_id,
+  );
+  if (suspendedGuest) return suspendedGuest;
 
   let productPhotoIdResolved: string | null = null;
   if (body.product_photo_id !== undefined && body.product_photo_id !== null) {

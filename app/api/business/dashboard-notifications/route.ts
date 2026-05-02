@@ -7,6 +7,8 @@ import {
 import {
   PLAN_PHOTO_LIMITS,
   getActivePlanKeyForBusinessResult,
+  getPhotoLimitForPlan,
+  type PlanKey,
 } from "@/lib/plans";
 import {
   FREE_PLAN_PHOTO_RETENTION_DAYS,
@@ -278,17 +280,6 @@ export async function GET(req: Request) {
 
     const publishedCount = parseIntCount(publishedReviewCount);
     const invitesThisMonth = parseIntCount(sentThisMonthCount);
-    if (publishedCount === 0 && invitesThisMonth === 0) {
-      notifications.push({
-        key: "start_collecting_reviews",
-        title: "No reviews yet - start using your invites",
-        description:
-          "Review invites do not carry over and expire in calendar days. Use them now to maximize your online presence and dominate your niche.",
-        href: "/business/dashboard/get-reviews/invitation-methods",
-        priority: 70,
-        created_at: new Date().toISOString(),
-      });
-    }
 
     const logins24h = parseIntCount(loginCount24h);
     if (logins24h >= 1) {
@@ -318,18 +309,34 @@ export async function GET(req: Request) {
       return (Date.now() - ref.getTime()) / (60 * 60 * 1000);
     })();
 
-    if (hoursSinceInvite >= 48) {
-      const since = timeSinceLabel(referenceIso);
+    const hoursSinceLastInvite = (() => {
+      if (!latestInviteAt) return Number.POSITIVE_INFINITY;
+      const ref = new Date(latestInviteAt);
+      if (Number.isNaN(ref.getTime())) return Number.POSITIVE_INFINITY;
+      return (Date.now() - ref.getTime()) / (60 * 60 * 1000);
+    })();
+    const sentInviteInLast48h = Boolean(latestInviteAt) && hoursSinceLastInvite < 48;
+    const coldStartNoInvites = publishedCount === 0 && invitesThisMonth === 0;
+    const inviteCadenceQuiet = hoursSinceInvite >= 48;
+
+    if (!sentInviteInLast48h && (coldStartNoInvites || inviteCadenceQuiet)) {
+      let description: string;
+      if (latestInviteAt) {
+        const since = timeSinceLabel(latestInviteAt);
+        description = `No invites sent in the last 48 hours (last sent ${since} ago). Monthly allocations don't roll over — send more to keep collecting reviews.`;
+      } else if (inviteCadenceQuiet) {
+        description = `You haven't sent any invites yet (${timeSinceLabel(createdAt)} since setup). Invites reset each calendar month — use them to grow reviews and visibility.`;
+      } else {
+        description =
+          "Review invites reset each calendar month and don't roll over. Send invitations now to start collecting reviews and strengthen your online presence.";
+      }
       notifications.push({
-        key: "invite_inactive_48h",
-        title: "You have not used review invites recently",
-        description: latestInviteAt
-          ? `No invites sent in the last 48 hours (last sent ${since} ago).`
-          : `You have not sent any invites yet (${since} since setup).`,
+        key: "review_invites_nudge",
+        title: "Use your review invitations",
+        description,
         href: "/business/dashboard/get-reviews/invitation-methods",
-        priority: 85,
+        priority: 82,
         created_at: new Date().toISOString(),
-        always_show: true,
       });
     }
 
@@ -368,15 +375,23 @@ export async function GET(req: Request) {
     const lifetimeLogins = loginLifetimeCount.error
       ? 0
       : parseIntCount(loginLifetimeCount.count);
-    const activePlanKey = planResolution.ok ? planResolution.plan : "free";
+    const activePlanKey: PlanKey = planResolution.ok ? planResolution.plan : "free";
     const freePhotoCap = PLAN_PHOTO_LIMITS.free;
+    const photoCapForPlan = getPhotoLimitForPlan(activePlanKey);
 
-    if (photoTableAvailable && photoCount === 0) {
+    if (photoTableAvailable && photoCount < photoCapForPlan) {
+      const remaining = photoCapForPlan - photoCount;
+      const remainingLabel = remaining === 1 ? "1 slot" : `${remaining} slots`;
       notifications.push({
-        key: "photos_none_uploaded",
-        title: "Showcase your business with photos",
+        key: "photos_upload_capacity",
+        title:
+          photoCount === 0
+            ? "Showcase your business with photos"
+            : `Fill your photo gallery (${remainingLabel} left)`,
         description:
-          "Businesses with photos look more trustworthy. Upload a few — your team, workspace, or products — to stand out on your public profile.",
+          photoCount === 0
+            ? "You haven't uploaded any photos yet. Add images of your team, workspace, or work — profiles with photos get more trust and engagement."
+            : `You've used ${photoCount} of ${photoCapForPlan} photos on your plan (${remainingLabel} remaining). Add more to stand out while you still have room.`,
         href: "/business/dashboard/settings/photos",
         priority: 75,
         created_at: createdAt,

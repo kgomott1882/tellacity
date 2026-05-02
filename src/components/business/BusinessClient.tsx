@@ -19,12 +19,10 @@ import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import BusinessProfilePhotos from "@/components/business/BusinessProfilePhotos";
-import type { PlanKey } from "@/lib/plans";
-import type {
-  BusinessPhotoPublic,
-  BusinessPhotoSectionConfig,
-} from "@/lib/businessPhotosDisplay";
+import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
+import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
+import { buildBusinessSignupClaimPrefillUrl } from "@/lib/businessSignupClaimPrefill";
 
 interface BusinessRow {
   address?: string | null;
@@ -110,6 +108,31 @@ const cleanDomain = (value: string | null | undefined) => {
   return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 };
 
+const NO_BUSINESS_DETAILS_YET_COPY =
+  "This business hasn't added details yet.";
+
+/** Empty or legacy auto-generated SEO paragraph stored on `businesses.description`. */
+function isOwnerWrittenBusinessDescription(
+  text: string | null | undefined
+): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  const lower = t.toLowerCase();
+  if (
+    lower.startsWith("explore ") &&
+    lower.includes("a company in the") &&
+    lower.includes("tellacity collects")
+  ) {
+    return false;
+  }
+  if (
+    /tellacity collects real customer reviews to help you understand/i.test(t)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 const formatDate = (value: string | null | undefined) => {
   if (!value) {
     return "";
@@ -152,10 +175,27 @@ async function resolveBusinessRowBySlug(rawSlug: string) {
   const exact = await fetchBySlug(safeSlug);
   if (exact) return exact;
 
+  const { data: exactRaw } = await sb
+    .from("businesses")
+    .select("status")
+    .eq("slug", safeSlug)
+    .maybeSingle();
+  if (exactRaw && !isBusinessPubliclyActive(exactRaw.status)) {
+    return null;
+  }
+
   const baseSlug = safeSlug.replace(/-\d+$/, "");
   if (baseSlug && baseSlug !== safeSlug) {
     const baseMatch = await fetchBySlug(baseSlug);
     if (baseMatch) return baseMatch;
+    const { data: baseRaw } = await sb
+      .from("businesses")
+      .select("status")
+      .eq("slug", baseSlug)
+      .maybeSingle();
+    if (baseRaw && !isBusinessPubliclyActive(baseRaw.status)) {
+      return null;
+    }
   }
 
   const prefix = (baseSlug || safeSlug).trim();
@@ -178,27 +218,18 @@ async function resolveBusinessRowBySlug(rawSlug: string) {
 type BusinessClientProps = {
   initialBusiness?: BusinessRow | null;
   initialBusinessPhotos?: BusinessPhotoPublic[];
-  initialPhotoSections?: BusinessPhotoSectionConfig[];
   /**
    * Whether this business has a registered owner (i.e. has been claimed).
    * Derived from `businesses.owner_id` on the server and passed down so the
    * public profile can hide the "Claim this profile" teaser when not needed.
    */
   initialIsClaimed?: boolean;
-  /**
-   * Active billing plan for this business. Used on the public profile to
-   * render empty photo-category placeholders for Free / unclaimed
-   * businesses only (paid plans don't get upsold with empty cards).
-   */
-  initialPlanKey?: PlanKey;
 };
 
 export default function BusinessClient({
   initialBusiness = null,
   initialBusinessPhotos,
-  initialPhotoSections,
   initialIsClaimed = false,
-  initialPlanKey = "free",
 }: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
@@ -281,6 +312,24 @@ export default function BusinessClient({
   const [relatedBusinessesLoading, setRelatedBusinessesLoading] =
     useState(false);
 
+  /** `/b/[slug]` public profile only: show top 3 in one row; other routes keep full list. */
+  const isPublicBusinessProfile = pathname?.startsWith("/b/") ?? false;
+  const topRatedForExploreRankings = useMemo(
+    () =>
+      isPublicBusinessProfile
+        ? topRatedInCategory.slice(0, 3)
+        : topRatedInCategory,
+    [isPublicBusinessProfile, topRatedInCategory]
+  );
+
+  const relatedForMoreLikeThis = useMemo(
+    () =>
+      isPublicBusinessProfile
+        ? relatedBusinesses.slice(0, 3)
+        : relatedBusinesses,
+    [isPublicBusinessProfile, relatedBusinesses]
+  );
+
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const scrollReviewsRowLeft = () => {
@@ -293,9 +342,6 @@ export default function BusinessClient({
   const [activeCountry, setActiveCountry] = useState<string | null>(null);
   const [businessPhotos, setBusinessPhotos] = useState<BusinessPhotoPublic[]>(
     () => initialBusinessPhotos ?? []
-  );
-  const [photoSections, setPhotoSections] = useState<BusinessPhotoSectionConfig[]>(
-    () => initialPhotoSections ?? []
   );
   const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -397,27 +443,6 @@ export default function BusinessClient({
                 : null,
           }))
       );
-
-      if (initialPhotoSections === undefined) {
-        const { data: secData } = await sb
-          .from("business_photo_sections")
-          .select("slug, title, is_enabled, sort_order")
-          .eq("business_id", business.id)
-          .eq("is_enabled", true)
-          .order("sort_order", { ascending: true });
-        if (!cancelled && Array.isArray(secData)) {
-          setPhotoSections(
-            secData
-              .map((r) => ({
-                slug: String((r as { slug?: string }).slug ?? ""),
-                title: String((r as { title?: string }).title ?? ""),
-                is_enabled: (r as { is_enabled?: boolean }).is_enabled !== false,
-                sort_order: Number((r as { sort_order?: unknown }).sort_order) || 0,
-              }))
-              .filter((s) => s.slug && s.title)
-          );
-        }
-      }
     })();
 
     return () => {
@@ -1068,35 +1093,52 @@ export default function BusinessClient({
         </div>
       )}
       <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-        <nav className="text-xs text-gray-500">
-          <Link href={`/categories${categoryListingsQs}`} className="hover:text-[#1FAF9E]">
-            Categories
-          </Link>
-          {categoryTrail?.groupName && categoryTrail?.groupSlug && (
-            <>
-              <span className="mx-2">›</span>
-              <Link
-                href={`/categories/${categoryTrail.groupSlug}${categoryListingsQs}`}
-                className="hover:text-[#1FAF9E]"
-              >
-                {sanitizeText(categoryTrail.groupName)}
-              </Link>
-            </>
-          )}
-          {categoryTrail?.categoryName && categoryTrail?.categorySlug && (
-            <>
-              <span className="mx-2">›</span>
-              <Link
-                href={`/categories/${categoryTrail.categorySlug}${categoryListingsQs}`}
-                className="hover:text-[#1FAF9E]"
-              >
-                {sanitizeText(categoryTrail.categoryName)}
-              </Link>
-            </>
-          )}
-          <span className="mx-2">›</span>
-          <span className="text-gray-700">{sanitizeText(business?.name ?? "Business")}</span>
-        </nav>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <nav className="min-w-0 flex-1 text-xs text-gray-500">
+            <Link href={`/categories${categoryListingsQs}`} className="hover:text-[#1FAF9E]">
+              Categories
+            </Link>
+            {categoryTrail?.groupName && categoryTrail?.groupSlug && (
+              <>
+                <span className="mx-2">›</span>
+                <Link
+                  href={`/categories/${categoryTrail.groupSlug}${categoryListingsQs}`}
+                  className="hover:text-[#1FAF9E]"
+                >
+                  {sanitizeText(categoryTrail.groupName)}
+                </Link>
+              </>
+            )}
+            {categoryTrail?.categoryName && categoryTrail?.categorySlug && (
+              <>
+                <span className="mx-2">›</span>
+                <Link
+                  href={`/categories/${categoryTrail.categorySlug}${categoryListingsQs}`}
+                  className="hover:text-[#1FAF9E]"
+                >
+                  {sanitizeText(categoryTrail.categoryName)}
+                </Link>
+              </>
+            )}
+            <span className="mx-2">›</span>
+            <span className="text-gray-700">
+              {sanitizeText(business?.name ?? "Business")}
+            </span>
+          </nav>
+          {!initialIsClaimed && business?.id ? (
+            <Link
+              href={buildBusinessSignupClaimPrefillUrl({
+                businessId: business.id,
+                businessName: business.name,
+                businessSlug: business.slug ?? null,
+                website: business.website ?? null,
+              })}
+              className="inline-flex shrink-0 items-center self-start rounded border border-[#124541] bg-[#124541] px-2 py-0.5 text-xs font-semibold leading-none text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/35"
+            >
+              Claim this profile
+            </Link>
+          ) : null}
+        </div>
 
         <div className="mt-6 flex flex-col gap-6 border-b border-gray-200 pb-10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -1218,6 +1260,27 @@ export default function BusinessClient({
           )}
         </div>
 
+        {business ? (
+          <div className="mt-10">
+            <BusinessProfilePhotos
+              businessId={business.id}
+              businessWebsite={business.website}
+              businessSlug={business.slug ?? null}
+              photos={businessPhotos}
+              claimSignupPrefill={
+                !initialIsClaimed && business
+                  ? {
+                      businessId: business.id,
+                      businessName: business.name,
+                      businessSlug: business.slug || null,
+                      website: business.website || null,
+                    }
+                  : null
+              }
+            />
+          </div>
+        ) : null}
+
         <div className="mt-10 space-y-10">
           <div>
               <div className="mt-10">
@@ -1297,27 +1360,6 @@ export default function BusinessClient({
                   </div>
                 </div>
               </div>
-
-              {business ? (
-                <div className="mt-10">
-                  <BusinessProfilePhotos
-                    photos={businessPhotos}
-                    sections={photoSections}
-                    isClaimed={initialIsClaimed}
-                    planKey={initialPlanKey}
-                    claimSignupPrefill={
-                      !initialIsClaimed && business
-                        ? {
-                            businessId: business.id,
-                            businessName: business.name,
-                            businessSlug: business.slug || null,
-                            website: business.website || null,
-                          }
-                        : null
-                    }
-                  />
-                </div>
-              ) : null}
 
             <div className="mt-10">
               <div className="flex items-center justify-between">
@@ -1534,16 +1576,16 @@ export default function BusinessClient({
             </div>
 
               <div className="mt-10 space-y-6 text-sm text-gray-600">
-                {/* Company description - same as Profile page; fallback to category when empty */}
+                {/* Company description — owner text only; no SEO filler or category fallback */}
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-base font-semibold text-[#0E0E0E]">
                     Company description
                   </h3>
-                  <p className="mt-3 whitespace-pre-wrap">
-                    {sanitizeText(business?.description?.trim()) ||
-                      (categoryTrail?.categoryName || categoryTrail?.groupName
-                        ? `This business is in the ${sanitizeText(categoryTrail?.categoryName ?? categoryTrail?.groupName)} category.`
-                        : "No description provided.")}
+                  <p className="mt-3 whitespace-pre-wrap text-gray-600">
+                    {business &&
+                    isOwnerWrittenBusinessDescription(business.description)
+                      ? sanitizeText(business.description.trim())
+                      : NO_BUSINESS_DETAILS_YET_COPY}
                   </p>
                 </div>
 
@@ -1640,8 +1682,16 @@ export default function BusinessClient({
                       </div>
 
                       {topRatedInCategoryLoading ? (
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          className={`mt-4 grid grid-cols-1 gap-3 ${
+                            isPublicBusinessProfile
+                              ? "sm:grid-cols-3"
+                              : "sm:grid-cols-2"
+                          }`}
+                        >
+                          {Array.from({
+                            length: isPublicBusinessProfile ? 3 : 8,
+                          }).map((_, i) => (
                             <div
                               key={`top-rated-sk-${i}`}
                               className="flex animate-pulse gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
@@ -1654,9 +1704,15 @@ export default function BusinessClient({
                             </div>
                           ))}
                         </div>
-                      ) : topRatedInCategory.length > 0 ? (
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {topRatedInCategory.map((item) => (
+                      ) : topRatedForExploreRankings.length > 0 ? (
+                        <div
+                          className={`mt-4 grid grid-cols-1 gap-3 ${
+                            isPublicBusinessProfile
+                              ? "sm:grid-cols-3"
+                              : "sm:grid-cols-2"
+                          }`}
+                        >
+                          {topRatedForExploreRankings.map((item) => (
                             <Link
                               key={item.id}
                               href={`/b/${item.slug}`}
@@ -1747,8 +1803,16 @@ export default function BusinessClient({
                       </div>
 
                       {relatedBusinessesLoading ? (
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                          className={`mt-4 grid grid-cols-1 gap-3 ${
+                            isPublicBusinessProfile
+                              ? "sm:grid-cols-3"
+                              : "sm:grid-cols-2"
+                          }`}
+                        >
+                          {Array.from({
+                            length: isPublicBusinessProfile ? 3 : 6,
+                          }).map((_, i) => (
                             <div
                               key={`related-sk-${i}`}
                               className="flex animate-pulse gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
@@ -1762,8 +1826,14 @@ export default function BusinessClient({
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {relatedBusinesses.map((item) => (
+                        <div
+                          className={`mt-4 grid grid-cols-1 gap-3 ${
+                            isPublicBusinessProfile
+                              ? "sm:grid-cols-3"
+                              : "sm:grid-cols-2"
+                          }`}
+                        >
+                          {relatedForMoreLikeThis.map((item) => (
                             <Link
                               key={item.id}
                               href={`/b/${item.slug}`}

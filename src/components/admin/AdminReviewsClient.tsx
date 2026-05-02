@@ -20,6 +20,10 @@ import {
   type AdminReviewListFilter,
   type AdminReviewRow,
 } from "@/lib/admin";
+import {
+  ADMIN_REVIEW_WARNING_REASON_OPTIONS,
+  type AdminReviewWarningReasonKey,
+} from "@/lib/adminReviewWarningReasons";
 
 function reviewId(row: AdminReviewRow): string {
   return String(row.review_id ?? row.id ?? "");
@@ -173,12 +177,16 @@ export default function AdminReviewsClient({
   );
   const [listError, setListError] = useState<string | null>(initialListError);
   const [pendingActionKey, setPendingActionKey] = useState<string | null>(null);
+  const [warningModalReview, setWarningModalReview] = useState<AdminReviewTableRow | null>(null);
+  const [warningReasonKey, setWarningReasonKey] =
+    useState<AdminReviewWarningReasonKey>("general");
+  const [warningCustomNote, setWarningCustomNote] = useState("");
 
   /** Ensures useEffect runs when moderation fields change even if the array reference is reused. */
   const initialReviewsServerSignature = initialReviews
     .map(
       (r) =>
-        `${reviewId(r)}:${String(r.visibility ?? "").trim()}:${r.is_flagged === true ? "1" : "0"}`
+        `${reviewId(r)}:${String(r.visibility ?? "").trim()}:${r.is_flagged === true ? "1" : "0"}:${r.prior_guidelines_warning === true ? "1" : "0"}`
     )
     .join("|");
 
@@ -196,6 +204,28 @@ export default function AdminReviewsClient({
   useEffect(() => {
     setListError(initialListError);
   }, [initialListError]);
+
+  useEffect(() => {
+    if (!warningModalReview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (pendingActionKey?.endsWith(":warn")) return;
+      setWarningModalReview(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [warningModalReview, pendingActionKey]);
+
+  const openWarningModal = (review: AdminReviewTableRow) => {
+    const email = review.reviewer_email?.trim();
+    if (!email || email === "-") {
+      alert("No reviewer email on file for this review.");
+      return;
+    }
+    setWarningReasonKey("general");
+    setWarningCustomNote("");
+    setWarningModalReview(review);
+  };
 
   const handleSetVisibility = async (
     review: AdminReviewTableRow,
@@ -245,6 +275,56 @@ export default function AdminReviewsClient({
     }
   };
 
+  const handleConfirmWarningSend = async () => {
+    if (!warningModalReview) return;
+    const email = warningModalReview.reviewer_email?.trim();
+    if (!email || email === "-") return;
+
+    const reviewIdSending = warningModalReview.id;
+    const key = `${reviewIdSending}:warn`;
+    setPendingActionKey(key);
+    try {
+      const res = await fetch("/api/admin/reviews/send-guidelines-warning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reviewId: reviewIdSending,
+          reasonKey: warningReasonKey,
+          customNote: warningCustomNote.trim() || undefined,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        recipient?: string;
+        warning?: string;
+      };
+      if (!res.ok) {
+        alert(data.error || "Failed to send email.");
+        return;
+      }
+      const recipientFinal = data.recipient ?? email;
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === reviewIdSending
+            ? { ...r, is_flagged: true, prior_guidelines_warning: true }
+            : r
+        )
+      );
+      setWarningModalReview(null);
+      if (data.warning) {
+        alert(`${data.warning}\n\nGuidelines warning sent to ${recipientFinal}.`);
+      } else {
+        alert(`Guidelines warning sent to ${recipientFinal}.`);
+      }
+      await router.refresh();
+    } catch {
+      alert("Failed to send email.");
+    } finally {
+      setPendingActionKey(null);
+    }
+  };
+
   const handleDelete = async (review: AdminReviewTableRow) => {
     if (
       !confirm(
@@ -286,6 +366,97 @@ export default function AdminReviewsClient({
     <div className="space-y-4">
       {urlError ? <AdminActionMessage type="error" text={urlError} /> : null}
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
+
+      {warningModalReview ? (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-warning-modal-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !pendingActionKey?.endsWith(":warn")) {
+              setWarningModalReview(null);
+            }
+          }}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-neutral-200 bg-white p-5 shadow-xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2 id="admin-warning-modal-title" className="text-lg font-semibold text-neutral-900">
+              Send guidelines warning
+            </h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              No-reply email to{" "}
+              <span className="font-medium text-neutral-900">
+                {warningModalReview.reviewer_email?.trim() || "—"}
+              </span>
+              . They will see your selected reason and any note below.
+            </p>
+            {warningModalReview.prior_guidelines_warning ? (
+              <div
+                className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+                role="status"
+              >
+                You already sent a guidelines warning for this review. You can send another if you
+                need to.
+              </div>
+            ) : null}
+
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Reason
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              value={warningReasonKey}
+              disabled={pendingActionKey?.endsWith(":warn")}
+              onChange={(e) =>
+                setWarningReasonKey(e.target.value as AdminReviewWarningReasonKey)
+              }
+            >
+              {ADMIN_REVIEW_WARNING_REASON_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Additional details (optional)
+            </label>
+            <textarea
+              className="mt-1 min-h-[100px] w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              placeholder="Optional extra context for the reviewer (shown in the email if provided)."
+              maxLength={2000}
+              value={warningCustomNote}
+              disabled={pendingActionKey?.endsWith(":warn")}
+              onChange={(e) => setWarningCustomNote(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Up to 2,000 characters. Leave blank if the preset reason is enough.
+            </p>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={pendingActionKey?.endsWith(":warn")}
+                className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                onClick={() => setWarningModalReview(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={pendingActionKey?.endsWith(":warn")}
+                className="rounded-md bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3834] disabled:opacity-50"
+                onClick={() => void handleConfirmWarningSend()}
+              >
+                {pendingActionKey?.endsWith(":warn") ? "Sending…" : "Send warning email"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <AdminTableShell
         title="Reviews"
@@ -331,8 +502,9 @@ export default function AdminReviewsClient({
                   {reviews.map((review, i) => {
                     const visPending = pendingActionKey === `${review.id}:visibility`;
                     const flagPending = pendingActionKey === `${review.id}:flag`;
+                    const warnPending = pendingActionKey === `${review.id}:warn`;
                     const delPending = pendingActionKey === `${review.id}:delete`;
-                    const rowBusy = visPending || flagPending || delPending;
+                    const rowBusy = visPending || flagPending || warnPending || delPending;
                     return (
                       <tr key={review.id || `r-${i}`} className="bg-white align-top">
                         <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
@@ -415,6 +587,15 @@ export default function AdminReviewsClient({
                               }
                             >
                               {flagPending ? "…" : review.is_flagged ? "Unflag" : "Flag"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowBusy}
+                              title="Email reviewer a guidelines notice (no-reply)"
+                              onClick={() => openWarningModal(review)}
+                              className="rounded-md border border-sky-600 bg-white px-2 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-50 disabled:opacity-50"
+                            >
+                              {warnPending ? "…" : "Warning"}
                             </button>
                             <button
                               type="button"

@@ -7,7 +7,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  GripVertical,
   Lock,
+  Pencil,
   Plus,
   Star,
   Trash2,
@@ -31,17 +34,19 @@ import {
 } from "@/lib/businessPhotoLock";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
-  isFreePlanSectionLockResponse,
+  evaluateFreePlanExclusiveUpload,
+  isFreePlanExclusiveUploadResponse,
   isPhotoLimitResponse,
-  isSectionUploadLocked,
 } from "@/lib/photoUploadFreeLimit";
 import { compressImage } from "@/lib/imageCompression";
 import PhotoLimitModal from "@/components/business/PhotoLimitModal";
+import WriteReviewItemContent from "@/components/reviews/WriteReviewItemContent";
 import {
   formatProductPrice,
   PRODUCT_CURRENCY_OPTIONS,
   PRODUCT_CURRENCY_OPTION_CODES,
 } from "@/lib/productCurrency";
+import { buildProductPurchaseHref } from "@/lib/productPurchaseHref";
 
 const UPLOAD_BUCKET = "business_media";
 const MAX_ORIGINAL_BYTES = 20 * 1024 * 1024;
@@ -58,11 +63,29 @@ const BUILTIN_SECTION_HINTS: Record<string, string> = {
 const ACTIVE_BUILTIN_SECTION_SLUGS = new Set(["gallery", "products", "services"]);
 const LEGACY_BUILTIN_SECTION_SLUGS = new Set(["team", "workspace", "fleet-logistics"]);
 
-function normalizeBuyUrl(raw: string): string | null {
-  const t = raw.trim();
+/** Brand asset(s) for the Gallery section “Preview Example” modal (`public/brand`). */
+const GALLERY_EXAMPLE_IMAGE_PATHS = [
+  "/brand/Gallery%20Photos.png",
+] as const;
+
+/** Brand asset(s) for the Products section “Preview Example” modal (`public/brand`). */
+const PRODUCTS_EXAMPLE_IMAGE_PATHS = [
+  "/brand/Products%20Photos.png",
+] as const;
+
+/** Built-in `services` row: legacy DB title "Services" displays as "Other". */
+function normalizePhotoSectionTitle(slug: string, title: string): string {
+  const s = slug.trim().toLowerCase();
+  if (s === "services" && title.trim() === "Services") return "Other";
+  return title;
+}
+
+function parseOptionalProductPrice(raw: string): number | null {
+  const t = String(raw ?? "").trim();
   if (!t) return null;
-  if (/^https?:\/\//i.test(t)) return t;
-  return `https://${t}`;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(9999999999.99, n));
 }
 
 type ModerationStatus = "pending" | "approved" | "rejected" | "flagged";
@@ -98,7 +121,8 @@ type ProductDraft = {
   productCode: string;
   price: string;
   currency: string;
-  redirectUrl: string;
+  /** Stored as `business_photos.product_redirect_url` — public “Buy” opens this URL first. */
+  productUrl: string;
 };
 
 type SectionRow = {
@@ -154,6 +178,19 @@ export default function BusinessPhotosSettingsPage() {
     Record<string, boolean>
   >({});
   const [savingSectionId, setSavingSectionId] = useState<string | null>(null);
+  /** Editable display name for built-in `services` section (slug fixed; title in DB). */
+  const [servicesTitleDraftById, setServicesTitleDraftById] = useState<
+    Record<string, string>
+  >({});
+  const [savingServicesTitleId, setSavingServicesTitleId] = useState<string | null>(
+    null
+  );
+  const [galleryExampleOpen, setGalleryExampleOpen] = useState(false);
+  const [galleryExampleIndex, setGalleryExampleIndex] = useState(0);
+  const [productsExampleOpen, setProductsExampleOpen] = useState(false);
+  const [productsExampleIndex, setProductsExampleIndex] = useState(0);
+  /** Draft product tile: modal showing approximate published appearance. */
+  const [draftLivePreviewPhotoId, setDraftLivePreviewPhotoId] = useState<string | null>(null);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -281,17 +318,20 @@ export default function BusinessPhotosSettingsPage() {
       is_builtin?: boolean;
       sort_order?: number;
     }>;
-    let mappedSections = sectionRows.map((r) => ({
-      id: String(r.id),
-      slug: String(r.slug).trim().toLowerCase(),
-      title: String(r.title),
-      is_enabled: r.is_enabled !== false,
-      is_builtin: r.is_builtin === true,
-      sort_order: typeof r.sort_order === "number" ? r.sort_order : 0,
-    }));
+    let mappedSections = sectionRows.map((r) => {
+      const slug = String(r.slug).trim().toLowerCase();
+      return {
+        id: String(r.id),
+        slug,
+        title: normalizePhotoSectionTitle(slug, String(r.title)),
+        is_enabled: r.is_enabled !== false,
+        is_builtin: r.is_builtin === true,
+        sort_order: typeof r.sort_order === "number" ? r.sort_order : 0,
+      };
+    });
 
-    // Hide retired built-ins from the dashboard UI. Only Gallery/Products/Services
-    // remain built-in; custom paid sections continue to show.
+    // Hide retired built-ins from the dashboard UI. Only Gallery/Products/Other
+    // (slug `services`) remain built-in; custom paid sections continue to show.
     mappedSections = mappedSections.filter((section) => {
       if (section.is_builtin) {
         return ACTIVE_BUILTIN_SECTION_SLUGS.has(section.slug);
@@ -310,7 +350,16 @@ export default function BusinessPhotosSettingsPage() {
           const data = (await res.json().catch(() => null)) as {
             sections?: SectionRow[];
           } | null;
-          if (data?.sections) mappedSections = data.sections;
+          if (data?.sections) {
+            mappedSections = data.sections.map((row) => {
+              const slug = String(row.slug).trim().toLowerCase();
+              return {
+                ...row,
+                slug,
+                title: normalizePhotoSectionTitle(slug, String(row.title)),
+              };
+            });
+          }
         }
       } catch {
         /* ignore */
@@ -334,6 +383,33 @@ export default function BusinessPhotosSettingsPage() {
       cancelled = true;
     };
   }, [businessId, loadAll]);
+
+  useEffect(() => {
+    if (!galleryExampleOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setGalleryExampleOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [galleryExampleOpen]);
+
+  useEffect(() => {
+    if (!productsExampleOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProductsExampleOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [productsExampleOpen]);
+
+  useEffect(() => {
+    if (!draftLivePreviewPhotoId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDraftLivePreviewPhotoId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draftLivePreviewPhotoId]);
 
   useEffect(() => {
     const v = (searchParams.get("upgrade_success") ?? "").trim().toLowerCase();
@@ -481,9 +557,11 @@ export default function BusinessPhotosSettingsPage() {
   const [productEditorPhotoId, setProductEditorPhotoId] = useState<string | null>(null);
   /** Full-screen preview while editing draft tiles (click photo area). */
   const [draftLightboxPhotoId, setDraftLightboxPhotoId] = useState<string | null>(null);
-  /** Saved on `businesses.product_buy_url` — opened when customers tap Buy (e.g. shop checkout). */
-  const [productBuyUrl, setProductBuyUrl] = useState("");
-  const [productBuySaving, setProductBuySaving] = useState(false);
+  /** In-page “Review this item” flow (same UI as /write-review/item, no new tab). */
+  const [itemReviewPhotoId, setItemReviewPhotoId] = useState<string | null>(null);
+  /** Draft tile drag-reorder (HTML5 DnD): grip sets this while dragging. */
+  const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
+  const [reorderBusy, setReorderBusy] = useState(false);
 
   const draftLightboxPhoto = useMemo(
     () =>
@@ -498,39 +576,48 @@ export default function BusinessPhotosSettingsPage() {
   }, [photos, draftLightboxPhotoId]);
 
   useEffect(() => {
-    if (!draftLightboxPhotoId) return;
+    if (itemReviewPhotoId && !photos.some((x) => x.id === itemReviewPhotoId)) {
+      setItemReviewPhotoId(null);
+    }
+  }, [photos, itemReviewPhotoId]);
+
+  const productSavingRef = useRef(productSavingByPhotoId);
+  productSavingRef.current = productSavingByPhotoId;
+
+  const closeProductDetailsModal = useCallback(() => {
+    const id = productEditorPhotoId;
+    if (!id) return;
+    if (productSavingRef.current[id]) return;
+    setProductEditorPhotoId(null);
+    setProductDraftByPhotoId((cur) => {
+      if (!(id in cur)) return cur;
+      const { [id]: _, ...rest } = cur;
+      return rest;
+    });
+  }, [productEditorPhotoId]);
+
+  useEffect(() => {
+    if (!productEditorPhotoId && !draftLightboxPhotoId && !itemReviewPhotoId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDraftLightboxPhotoId(null);
+      if (e.key !== "Escape") return;
+      if (itemReviewPhotoId) {
+        setItemReviewPhotoId(null);
+        return;
+      }
+      if (productEditorPhotoId) {
+        closeProductDetailsModal();
+        return;
+      }
+      if (draftLightboxPhotoId) setDraftLightboxPhotoId(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [draftLightboxPhotoId]);
-
-  useEffect(() => {
-    if (!businessId) {
-      setProductBuyUrl("");
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/business/${encodeURIComponent(businessId)}/business-profile`,
-          { credentials: "same-origin" }
-        );
-        const data = (await res.json().catch(() => null)) as {
-          business?: { product_buy_url?: string | null };
-        } | null;
-        if (cancelled || !res.ok) return;
-        setProductBuyUrl(String(data?.business?.product_buy_url ?? ""));
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [businessId]);
+  }, [
+    productEditorPhotoId,
+    draftLightboxPhotoId,
+    itemReviewPhotoId,
+    closeProductDetailsModal,
+  ]);
 
   // Pick a sensible default section for the preview. Priority:
   //   1. Keep the user's current choice if it still exists and is enabled.
@@ -562,16 +649,11 @@ export default function BusinessPhotosSettingsPage() {
     setProductEditorPhotoId(null);
   }, [previewSectionSlug]);
 
-  /** Close product editor when a different photo is selected in the published preview strip. */
   useEffect(() => {
-    if (
-      previewPhotoId &&
-      productEditorPhotoId &&
-      productEditorPhotoId !== previewPhotoId
-    ) {
+    if (productEditorPhotoId && !photos.some((p) => p.id === productEditorPhotoId)) {
       setProductEditorPhotoId(null);
     }
-  }, [previewPhotoId, productEditorPhotoId]);
+  }, [photos, productEditorPhotoId]);
 
   const previewSection = useMemo(
     () => sections.find((s) => s.slug === previewSectionSlug) ?? null,
@@ -595,18 +677,6 @@ export default function BusinessPhotosSettingsPage() {
     return cover ?? previewPhotos[0];
   }, [previewPhotos, previewPhotoId]);
 
-
-  // Clamp the thumb-strip scroll window to valid bounds whenever the
-  // list shrinks (e.g. after a delete).
-  useEffect(() => {
-    const maxStart = Math.max(0, previewPhotos.length - HERO_VISIBLE_THUMBS);
-    if (previewThumbStart > maxStart) setPreviewThumbStart(maxStart);
-  }, [previewPhotos.length, previewThumbStart]);
-
-  const maxThumbStart = Math.max(0, previewPhotos.length - HERO_VISIBLE_THUMBS);
-  const canPrevThumb = previewThumbStart > 0;
-  const canNextThumb = previewThumbStart < maxThumbStart;
-
   const previewSectionsForChips = useMemo(
     () => sections.filter((s) => s.is_enabled),
     [sections]
@@ -623,6 +693,48 @@ export default function BusinessPhotosSettingsPage() {
     () => draftPhotos.filter((p) => p.section === activeSectionSlug),
     [draftPhotos, activeSectionSlug]
   );
+
+  /** Single list per section: drafts and published on the same cards after publish. */
+  const photosForActiveUnifiedSection = useMemo(() => {
+    return photos
+      .filter((p) => p.section === activeSectionSlug)
+      .slice()
+      .sort((a, b) => {
+        if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+        const ta = a.created_at ? Date.parse(a.created_at) : 0;
+        const tb = b.created_at ? Date.parse(b.created_at) : 0;
+        return tb - ta;
+      });
+  }, [photos, activeSectionSlug]);
+
+  /** Strip length for arrow pagination: Gallery tab edits all photos in-section; Other uses published-only preview list. */
+  const thumbStripPhotoCount = useMemo(() => {
+    if (activeSectionSlug === "gallery") return photosForActiveUnifiedSection.length;
+    return previewPhotos.length;
+  }, [activeSectionSlug, photosForActiveUnifiedSection.length, previewPhotos.length]);
+
+  /** Gallery tab: large hero + thumbnails include drafts and published (matches public profile layout while editing). */
+  const galleryHeroPhoto = useMemo<PhotoRow | null>(() => {
+    if (activeSectionSlug !== "gallery") return null;
+    const list = photosForActiveUnifiedSection;
+    if (list.length === 0) return null;
+    if (previewPhotoId) {
+      const explicit = list.find((p) => p.id === previewPhotoId);
+      if (explicit) return explicit;
+    }
+    const cover = list.find((p) => p.is_cover);
+    return cover ?? list[0];
+  }, [activeSectionSlug, photosForActiveUnifiedSection, previewPhotoId]);
+
+  // Clamp the thumb-strip scroll window whenever the active strip shrinks.
+  useEffect(() => {
+    const maxStart = Math.max(0, thumbStripPhotoCount - HERO_VISIBLE_THUMBS);
+    if (previewThumbStart > maxStart) setPreviewThumbStart(maxStart);
+  }, [thumbStripPhotoCount, previewThumbStart]);
+
+  const maxThumbStart = Math.max(0, thumbStripPhotoCount - HERO_VISIBLE_THUMBS);
+  const canPrevThumb = previewThumbStart > 0;
+  const canNextThumb = previewThumbStart < maxThumbStart;
 
   useEffect(() => {
     setSelectedDraftIds((prev) => {
@@ -793,6 +905,96 @@ export default function BusinessPhotosSettingsPage() {
     }
   };
 
+  const commitServicesSectionTitle = async (section: SectionRow) => {
+    if (!businessId || section.slug !== "services") return;
+    const raw =
+      servicesTitleDraftById[section.id] !== undefined
+        ? servicesTitleDraftById[section.id]
+        : section.title;
+    const next = raw.trim();
+    if (!next) {
+      setServicesTitleDraftById((prev) => {
+        const n = { ...prev };
+        delete n[section.id];
+        return n;
+      });
+      setMessage({ type: "error", text: "Title can't be empty." });
+      return;
+    }
+    if (next.length > 40) {
+      setMessage({ type: "error", text: "Title must be 1–40 characters." });
+      return;
+    }
+    if (next === section.title.trim()) {
+      setServicesTitleDraftById((prev) => {
+        const n = { ...prev };
+        delete n[section.id];
+        return n;
+      });
+      return;
+    }
+    setSavingServicesTitleId(section.id);
+    try {
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/photos/sections/${encodeURIComponent(section.id)}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: next }),
+        }
+      );
+      const body = (await res.json().catch(() => null)) as
+        | {
+            section?: {
+              id: string;
+              slug: string;
+              title: string;
+              is_enabled: boolean;
+              is_builtin: boolean;
+              sort_order: number;
+            };
+            error?: string;
+          }
+        | null;
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text: body?.error ?? "Could not update section name.",
+        });
+        return;
+      }
+      if (body?.section) {
+        const row = body.section;
+        setSections((cur) =>
+          cur.map((s) =>
+            s.id === row.id
+              ? {
+                  ...s,
+                  title: row.title,
+                  is_enabled: row.is_enabled,
+                  is_builtin: row.is_builtin,
+                  sort_order: row.sort_order,
+                }
+              : s
+          )
+        );
+      } else {
+        await loadAll();
+      }
+      setServicesTitleDraftById((prev) => {
+        const n = { ...prev };
+        delete n[section.id];
+        return n;
+      });
+      setMessage({ type: "success", text: `Section renamed to “${next}”.` });
+    } catch {
+      setMessage({ type: "error", text: "Network error while saving section name." });
+    } finally {
+      setSavingServicesTitleId((id) => (id === section.id ? null : id));
+    }
+  };
+
   /** ---- Upload (inline per-section; multi-select supported) ---- */
   const handleFilesForSection = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -802,8 +1004,9 @@ export default function BusinessPhotosSettingsPage() {
     e.target.value = "";
     if (rawList.length === 0 || !businessId) return;
 
-    if (isSectionUploadLocked(planKey, section.slug)) {
-      openUpgradeFlow("section_locked");
+    const exclusive = evaluateFreePlanExclusiveUpload(planKey, section.slug, photos);
+    if (exclusive.blocked) {
+      setMessage({ type: "error", text: exclusive.message });
       return;
     }
 
@@ -902,8 +1105,11 @@ export default function BusinessPhotosSettingsPage() {
             setLimitModalOpen(true);
             break;
           }
-          if (isFreePlanSectionLockResponse(res.status, body)) {
-            openUpgradeFlow("section_locked");
+          if (isFreePlanExclusiveUploadResponse(res.status, body)) {
+            setMessage({
+              type: "error",
+              text: body?.error ?? "That upload isn't allowed on your current plan.",
+            });
             break;
           }
           setMessage({
@@ -1048,6 +1254,82 @@ export default function BusinessPhotosSettingsPage() {
 
   const clearDraftSelection = () => setSelectedDraftIds([]);
 
+  const sortSectionPhotosList = (list: PhotoRow[]) =>
+    list.slice().sort((a, b) => {
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      const ta = a.created_at ? Date.parse(a.created_at) : 0;
+      const tb = b.created_at ? Date.parse(b.created_at) : 0;
+      return tb - ta;
+    });
+
+  const REORDER_MIME = "application/x-tellacity-photo-id" as const;
+
+  const applyReorderDrop = async (
+    sectionSlug: string,
+    draggedId: string,
+    targetId: string
+  ) => {
+    if (!businessId || reorderBusy || draggedId === targetId) return;
+    const dragged = photos.find((x) => x.id === draggedId);
+    if (
+      !dragged ||
+      dragged.section !== sectionSlug ||
+      dragged.status !== "draft" ||
+      isLocked(dragged)
+    ) {
+      return;
+    }
+    const target = photos.find((x) => x.id === targetId);
+    if (!target || target.section !== sectionSlug) return;
+
+    const sectionPhotos = sortSectionPhotosList(
+      photos.filter((p) => p.section === sectionSlug)
+    );
+    const without = sectionPhotos.filter((p) => p.id !== draggedId);
+    const insertIdx = without.findIndex((p) => p.id === targetId);
+    if (insertIdx === -1) return;
+    const nextList = [...without.slice(0, insertIdx), dragged, ...without.slice(insertIdx)];
+    const orderedIds = nextList.map((p) => p.id);
+
+    const prevSnapshot = photos;
+    const idxMap = new Map(orderedIds.map((id, i) => [id, (i + 1) * 10]));
+    setPhotos((prev) =>
+      prev.map((ph) => {
+        if (ph.section !== sectionSlug) return ph;
+        const so = idxMap.get(ph.id);
+        return so !== undefined ? { ...ph, sort_order: so } : ph;
+      })
+    );
+
+    setReorderBusy(true);
+    try {
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/photos/reorder`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ section: sectionSlug, orderedIds }),
+        }
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setPhotos(prevSnapshot);
+        setMessage({
+          type: "error",
+          text: body?.error ?? "Could not save photo order.",
+        });
+        return;
+      }
+    } catch {
+      setPhotos(prevSnapshot);
+      setMessage({ type: "error", text: "Network error while saving order." });
+    } finally {
+      setReorderBusy(false);
+      setReorderDraggingId(null);
+    }
+  };
+
   const deleteSelectedDrafts = async () => {
     if (!businessId) return;
     const toRemove = selectedDraftIds
@@ -1171,7 +1453,7 @@ export default function BusinessPhotosSettingsPage() {
             : p
         )
       );
-      setMessage({ type: "success", text: `Saved ${fit ? "Fit" : "Fill"} for this draft photo.` });
+      setMessage({ type: "success", text: `Saved ${fit ? "Fit" : "Fill"} for this photo.` });
     } catch {
       setMessage({ type: "error", text: "Network error while saving fit mode." });
     } finally {
@@ -1187,7 +1469,7 @@ export default function BusinessPhotosSettingsPage() {
         productCode: photo.product_description ?? "",
         price: photo.product_price != null ? String(photo.product_price) : "",
         currency: photo.product_currency ?? "USD",
-        redirectUrl: photo.product_redirect_url ?? "",
+        productUrl: photo.product_redirect_url ?? "",
       };
     setProductSavingByPhotoId((cur) => ({ ...cur, [photo.id]: true }));
     try {
@@ -1201,9 +1483,11 @@ export default function BusinessPhotosSettingsPage() {
             product: {
               name: draft.name,
               description: draft.productCode,
-              price: draft.price,
+              price: parseOptionalProductPrice(draft.price),
               currency: draft.currency.trim().toUpperCase() || "USD",
-              redirect_url: draft.redirectUrl.trim() || null,
+              redirect_url: draft.productUrl.trim()
+                ? draft.productUrl.trim().slice(0, 2000)
+                : null,
             },
           }),
         }
@@ -1259,10 +1543,10 @@ export default function BusinessPhotosSettingsPage() {
                   ...p,
                   product_name: draft.name.trim() || null,
                   product_description: draft.productCode.trim() || null,
-                  product_price: draft.price.trim() ? Number(draft.price) : null,
+                  product_price: parseOptionalProductPrice(draft.price),
                   product_currency: draft.currency.trim().toUpperCase() || "USD",
-                  product_redirect_url: draft.redirectUrl.trim()
-                    ? draft.redirectUrl.trim().slice(0, 2000)
+                  product_redirect_url: draft.productUrl.trim()
+                    ? draft.productUrl.trim().slice(0, 2000)
                     : null,
                 }
               : p
@@ -1274,33 +1558,6 @@ export default function BusinessPhotosSettingsPage() {
       setMessage({ type: "error", text: "Network error while saving product details." });
     } finally {
       setProductSavingByPhotoId((cur) => ({ ...cur, [photo.id]: false }));
-    }
-  };
-
-  const saveProductBuyUrl = async () => {
-    if (!businessId) return;
-    setProductBuySaving(true);
-    try {
-      const res = await fetch(
-        `/api/business/${encodeURIComponent(businessId)}/business-profile`,
-        {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product_buy_url: productBuyUrl.trim() || null }),
-        }
-      );
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        setMessage({ type: "error", text: body?.error ?? "Could not save buy link." });
-        return;
-      }
-      setMessage({ type: "success", text: "Buy link saved." });
-      bumpNavRefresh();
-    } catch {
-      setMessage({ type: "error", text: "Network error while saving buy link." });
-    } finally {
-      setProductBuySaving(false);
     }
   };
 
@@ -1354,7 +1611,7 @@ export default function BusinessPhotosSettingsPage() {
   if (!businessId) return null;
   if (loading) return <PageLoadingOverlay />;
 
-  /** Product name / price / URL editor — draft tile overlay or published preview panel. */
+  /** Product name / code / optional price — shown inside the full-screen details modal. */
   const renderProductDetailsEditor = (p: PhotoRow, wrapperClassName: string) => {
     const pd: ProductDraft =
       productDraftByPhotoId[p.id] ?? {
@@ -1362,7 +1619,7 @@ export default function BusinessPhotosSettingsPage() {
         productCode: p.product_description ?? "",
         price: p.product_price != null ? String(p.product_price) : "",
         currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
-        redirectUrl: p.product_redirect_url ?? "",
+        productUrl: p.product_redirect_url ?? "",
       };
     const curCode = (pd.currency || "").trim().toUpperCase();
     const selVal = PRODUCT_CURRENCY_OPTION_CODES.has(curCode) ? curCode : "__other__";
@@ -1374,61 +1631,51 @@ export default function BusinessPhotosSettingsPage() {
             productCode: p.product_description ?? "",
             price: p.product_price != null ? String(p.product_price) : "",
             currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
-            redirectUrl: p.product_redirect_url ?? "",
+            productUrl: p.product_redirect_url ?? "",
           };
         return { ...cur, [p.id]: { ...base, ...patch } };
       });
-    const closeWithoutSave = () => {
-      if (productSavingByPhotoId[p.id]) return;
-      setProductEditorPhotoId((cur) => (cur === p.id ? null : cur));
-      setProductDraftByPhotoId((cur) => {
-        if (!(p.id in cur)) return cur;
-        const { [p.id]: _, ...rest } = cur;
-        return rest;
-      });
-    };
     return (
       <div className={`relative ${wrapperClassName}`}>
-        <button
-          type="button"
-          onClick={closeWithoutSave}
-          disabled={productSavingByPhotoId[p.id] === true}
-          aria-label="Close without saving"
-          title="Close without saving"
-          className="absolute right-0.5 top-0.5 z-[15] inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200/90 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <X className="h-3 w-3 shrink-0" strokeWidth={2.5} aria-hidden />
-        </button>
-        <div className="space-y-1 pr-1 pt-4">
+        <div className="space-y-2">
         <input
           type="text"
           value={pd.name}
           onChange={(e) => merge({ name: e.target.value })}
           placeholder="Product name"
-          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
         />
         <input
           type="text"
           value={pd.productCode}
           onChange={(e) => merge({ productCode: e.target.value })}
           placeholder="Product code (e.g. SKU)"
-          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
         />
-        <input
-          type="url"
-          value={pd.redirectUrl}
-          onChange={(e) => merge({ redirectUrl: e.target.value })}
-          placeholder="Product / checkout URL (optional)"
-          className="w-full rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
-        />
-        <div className="flex flex-wrap items-center gap-1">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            Product page URL (optional)
+          </label>
+          <input
+            type="url"
+            value={pd.productUrl}
+            onChange={(e) => merge({ productUrl: e.target.value })}
+            placeholder="https://yoursite.com/…"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+          />
+          <p className="mt-1 text-[11px] leading-snug text-gray-500">
+            Visitors see a <span className="font-medium">Buy</span> button on your public profile;
+            it opens this link, or your business website if empty.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={selVal}
             onChange={(e) => {
               const v = e.target.value;
               merge({ currency: v === "__other__" ? "" : v });
             }}
-            className="max-w-[5.5rem] shrink-0 rounded border border-gray-200 px-1 py-1 text-[10px] text-gray-700"
+            className="max-w-[6rem] shrink-0 rounded-lg border border-gray-200 px-2 py-2 text-sm text-gray-800"
             aria-label="Currency"
           >
             {PRODUCT_CURRENCY_OPTIONS.map((o) => (
@@ -1450,7 +1697,7 @@ export default function BusinessPhotosSettingsPage() {
                 })
               }
               placeholder="ISO"
-              className="w-11 rounded border border-gray-200 px-1 py-1 text-[10px] uppercase text-gray-700"
+              className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm uppercase text-gray-800"
               aria-label="Currency code"
             />
           ) : null}
@@ -1460,8 +1707,9 @@ export default function BusinessPhotosSettingsPage() {
             step="0.01"
             value={pd.price}
             onChange={(e) => merge({ price: e.target.value })}
-            placeholder="Price"
-            className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-700"
+            placeholder="Price (optional)"
+            aria-label="Price (optional)"
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900"
           />
           <button
             type="button"
@@ -1470,7 +1718,7 @@ export default function BusinessPhotosSettingsPage() {
               setProductEditorPhotoId(null);
             }}
             disabled={productSavingByPhotoId[p.id] === true}
-            className="shrink-0 rounded bg-[#124541] px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-60"
+            className="shrink-0 rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] disabled:opacity-60"
           >
             {productSavingByPhotoId[p.id] ? "Saving..." : "Save"}
           </button>
@@ -1478,6 +1726,25 @@ export default function BusinessPhotosSettingsPage() {
         </div>
       </div>
     );
+  };
+
+  const openPublishedProductDetailModal = (p: PhotoRow) => {
+    if (p.section !== "products") return;
+    setProductEditorPhotoId(p.id);
+    setProductDraftByPhotoId((cur) => ({
+      ...cur,
+      [p.id]: {
+        name: cur[p.id]?.name ?? p.product_name ?? "",
+        productCode: cur[p.id]?.productCode ?? p.product_description ?? "",
+        price:
+          cur[p.id]?.price ??
+          (p.product_price != null ? String(p.product_price) : ""),
+        currency:
+          cur[p.id]?.currency ??
+          (p.product_currency ? p.product_currency.toUpperCase() : "USD"),
+        productUrl: cur[p.id]?.productUrl ?? (p.product_redirect_url ?? ""),
+      },
+    }));
   };
 
   /** ---- Reusable photo tile ---- */
@@ -1501,11 +1768,29 @@ export default function BusinessPhotosSettingsPage() {
       : "border-t border-gray-200 bg-white";
     const actionsDisabled = busy || locked || bulkDeleteBusy;
 
+    const reorderDropActive =
+      Boolean(reorderDraggingId) && !reorderBusy && reorderDraggingId !== p.id;
+
     return (
       <li
         key={p.id}
+        onDragOver={(e) => {
+          if (!reorderDropActive) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          if (!reorderDropActive) return;
+          e.preventDefault();
+          const draggedId =
+            e.dataTransfer.getData(REORDER_MIME) || e.dataTransfer.getData("text/plain");
+          if (!draggedId || draggedId === p.id) return;
+          void applyReorderDrop(p.section, draggedId, p.id);
+        }}
         className={`relative overflow-hidden rounded-lg border bg-gray-50 ${borderClass} ${
           isDraftBulkSelected ? "ring-2 ring-[#1FAF9E] ring-offset-2 ring-offset-amber-50/40" : ""
+        } ${reorderDraggingId === p.id ? "opacity-55 ring-2 ring-[#124541]/40" : ""} ${
+          reorderDropActive ? "transition-colors" : ""
         }`}
       >
         <div className="relative aspect-[4/3] w-full">
@@ -1527,6 +1812,14 @@ export default function BusinessPhotosSettingsPage() {
               title="Preview full photo"
               className="absolute inset-0 z-[1] cursor-zoom-in bg-transparent"
               onClick={() => setDraftLightboxPhotoId(p.id)}
+            />
+          ) : !isDraft && p.section === "products" ? (
+            <button
+              type="button"
+              aria-label="Open full product details"
+              title="View product details"
+              className="absolute inset-0 z-[1] cursor-pointer bg-transparent"
+              onClick={() => openPublishedProductDetailModal(p)}
             />
           ) : null}
 
@@ -1556,7 +1849,7 @@ export default function BusinessPhotosSettingsPage() {
             </div>
           ) : null}
 
-          {p.is_cover ? (
+          {isDraft && p.is_cover && p.section !== "products" ? (
             <span className="absolute left-2 top-2 z-[12] inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
               <Star className="h-3 w-3" aria-hidden />
               Cover
@@ -1635,10 +1928,34 @@ export default function BusinessPhotosSettingsPage() {
 
           <div
             className={`absolute left-2 right-2 top-2 z-[12] flex min-w-0 items-center ${
-              isDraft ? "justify-evenly gap-0.5" : "justify-end gap-1"
+              isDraft || (!isDraft && p.section === "products")
+                ? "justify-evenly gap-0.5"
+                : "justify-end gap-1"
             }`}
           >
-            {isDraft ? (
+            {isDraft && !locked ? (
+              <div
+                draggable={!bulkDeleteBusy && !publishBusy && !reorderBusy}
+                onDragStart={(e) => {
+                  if (bulkDeleteBusy || publishBusy || reorderBusy) {
+                    e.preventDefault();
+                    return;
+                  }
+                  e.stopPropagation();
+                  e.dataTransfer.setData(REORDER_MIME, p.id);
+                  e.dataTransfer.setData("text/plain", p.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  setReorderDraggingId(p.id);
+                }}
+                onDragEnd={() => setReorderDraggingId(null)}
+                className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md border border-gray-200 bg-white/95 text-gray-500 shadow-sm active:cursor-grabbing"
+                aria-label="Drag to reorder draft"
+                title="Drag to reorder"
+              >
+                <GripVertical className="h-4 w-4" aria-hidden />
+              </div>
+            ) : null}
+            {isDraft || (!isDraft && p.section === "products") ? (
               <div className="inline-flex h-7 min-w-0 shrink items-stretch rounded-md border border-gray-200 bg-white/95 p-0.5 shadow-sm">
                 <button
                   type="button"
@@ -1667,29 +1984,43 @@ export default function BusinessPhotosSettingsPage() {
               </div>
             ) : null}
             {isDraft && p.section === "products" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDraftLivePreviewPhotoId(p.id);
+                  }}
+                  title="Preview how this will look when published"
+                  aria-label="Preview published look"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm hover:bg-teal-50 hover:text-[#124541]"
+                >
+                  <Eye className="h-3.5 w-3.5" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openPublishedProductDetailModal(p);
+                  }}
+                  className="inline-flex h-7 min-w-0 shrink items-center justify-center rounded-full border border-gray-300 bg-white/95 px-2 text-[10px] font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  Insert Details
+                </button>
+              </>
+            ) : null}
+            {!isDraft && p.section === "products" ? (
               <button
                 type="button"
-                onClick={() => {
-                  setProductEditorPhotoId((cur) => (cur === p.id ? null : p.id));
-                  setProductDraftByPhotoId((cur) => ({
-                    ...cur,
-                    [p.id]: {
-                      name: cur[p.id]?.name ?? p.product_name ?? "",
-                      productCode: cur[p.id]?.productCode ?? p.product_description ?? "",
-                      price: cur[p.id]?.price ?? (p.product_price != null ? String(p.product_price) : ""),
-                      currency:
-                        cur[p.id]?.currency ??
-                        (p.product_currency ? p.product_currency.toUpperCase() : "USD"),
-                      redirectUrl: cur[p.id]?.redirectUrl ?? (p.product_redirect_url ?? ""),
-                    },
-                  }));
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPublishedProductDetailModal(p);
                 }}
                 className="inline-flex h-7 min-w-0 shrink items-center justify-center rounded-full border border-gray-300 bg-white/95 px-2 text-[10px] font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
               >
-                Details
+                Insert Details
               </button>
             ) : null}
-            {!p.is_cover ? (
+            {p.section !== "products" && !p.is_cover ? (
               <button
                 type="button"
                 onClick={() => void setAsCover(p)}
@@ -1725,20 +2056,11 @@ export default function BusinessPhotosSettingsPage() {
             </button>
           </div>
 
-          {isDraft && p.section === "products" && productEditorPhotoId === p.id
-            ? renderProductDetailsEditor(
-                p,
-                "absolute inset-x-2 bottom-2 z-[14] max-h-[55%] space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-white/95 p-2 shadow-lg backdrop-blur"
-              )
-            : null}
         </div>
 
         <div className={`${footerClass} px-2 py-1 text-xs text-gray-600`}>
           {labelForSection(p.section)}
-          {!isDraft && p.is_cover ? (
-            <span className="ml-1 font-medium text-[#1FAF9E]">· cover</span>
-          ) : null}
-          {isDraft && p.is_cover ? (
+          {isDraft && p.is_cover && p.section !== "products" ? (
             <span className="ml-1 font-medium text-[#1FAF9E]">· cover pick</span>
           ) : null}
           {isDraft && p.upload_batch_label ? (
@@ -1756,25 +2078,24 @@ export default function BusinessPhotosSettingsPage() {
     const isUploading = uploadingSlug === s.slug;
     const anyUploading = uploadingSlug !== null && !isUploading;
     const disabledRow = !s.is_enabled;
-    const uploadPlanLocked = isSectionUploadLocked(planKey, s.slug);
+    const exclusiveGate = evaluateFreePlanExclusiveUpload(planKey, s.slug, photos);
+    const exclusiveUploadBlocked = exclusiveGate.blocked;
+    const exclusiveHintText = exclusiveGate.blocked ? exclusiveGate.message : null;
     const isSelected = s.slug === activeSectionSlug;
-    // "Active / available" = enabled AND the current plan can actually upload
-    // to this section. Paid plans → every enabled section. Free → only Gallery.
-    const isAvailable = !disabledRow && !uploadPlanLocked;
-    const canUploadInThisRow = isSelected && isAvailable;
-    const showUpgradeForMore =
-      atPhotoLimit && canUpgrade && canUploadInThisRow;
+    const isAvailable = !disabledRow;
+    const showUpgradeForMore = atPhotoLimit && canUpgrade && isSelected && !disabledRow;
     const uploadDisabled =
       isUploading ||
       anyUploading ||
       disabledRow ||
       (!showUpgradeForMore && atPhotoLimit) ||
-      !canUploadInThisRow;
+      (!showUpgradeForMore && exclusiveUploadBlocked && isSelected);
     const hint =
       BUILTIN_SECTION_HINTS[s.slug] ??
       (s.is_builtin ? "" : `Photos for "${s.title}".`);
     const savedBatches = savedBatchCountBySectionSlug.get(s.slug) ?? 0;
-    const uploadButtonPrimary = isSelected && isAvailable && !uploadDisabled;
+    const uploadButtonPrimary =
+      isSelected && isAvailable && !exclusiveUploadBlocked && !uploadDisabled;
 
     return (
       <li
@@ -1788,7 +2109,7 @@ export default function BusinessPhotosSettingsPage() {
         className={`cursor-pointer rounded-lg p-4 transition-colors ${
           disabledRow
             ? "cursor-default border border-gray-200 bg-gray-50/80"
-            : uploadPlanLocked
+            : exclusiveUploadBlocked
               ? "border border-amber-200/90 bg-amber-50/25"
               : isSelected
                 ? "border border-[#1FAF9E] bg-white shadow-sm ring-2 ring-[#1FAF9E]/25"
@@ -1797,30 +2118,139 @@ export default function BusinessPhotosSettingsPage() {
       >
         <div className="flex h-full flex-col gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3
-                className={`text-sm text-[#0E0E0E] ${
-                  isSelected && isAvailable ? "font-bold" : "font-semibold"
-                }`}
-              >
-                {s.title}
-                {isSelected && !disabledRow ? (
-                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-[#1FAF9E]">
-                    Selected
-                  </span>
-                ) : null}
-              </h3>
-              {s.is_builtin ? (
-                <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-                  Built-in
-                </span>
-              ) : (
-                <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-700 ring-1 ring-teal-100">
-                  Custom
-                </span>
-              )}
-              {!uploadPlanLocked ? <AvailableToUseLabel /> : null}
-            </div>
+            {(() => {
+              const titleAndBadges = (
+                <>
+                  {s.slug === "services" ? (
+                    <>
+                      {(() => {
+                        const servicesTitleValue =
+                          servicesTitleDraftById[s.id] !== undefined
+                            ? servicesTitleDraftById[s.id]
+                            : s.title;
+                        const titleInputSize = Math.min(
+                          40,
+                          Math.max(4, servicesTitleValue.length + 2)
+                        );
+                        return (
+                          <div className="inline-flex max-w-full shrink-0 items-center gap-1">
+                            <input
+                              id={`photo-section-title-${s.id}`}
+                              type="text"
+                              aria-label="Section display name"
+                              disabled={savingServicesTitleId === s.id}
+                              size={titleInputSize}
+                              value={servicesTitleValue}
+                              onChange={(e) =>
+                                setServicesTitleDraftById((prev) => ({
+                                  ...prev,
+                                  [s.id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => void commitServicesSectionTitle(s)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                              maxLength={40}
+                              className={`max-w-[18rem] rounded border border-transparent bg-transparent px-0.5 py-0 text-sm text-[#0E0E0E] outline-none transition placeholder:text-gray-400 hover:border-gray-200 focus:border-[#1FAF9E] focus:ring-1 focus:ring-[#1FAF9E]/30 disabled:opacity-60 ${
+                                isSelected && isAvailable
+                                  ? "font-bold"
+                                  : "font-semibold"
+                              }`}
+                            />
+                            <label
+                              htmlFor={`photo-section-title-${s.id}`}
+                              className={`shrink-0 cursor-text rounded p-0.5 text-gray-400 transition hover:text-[#1FAF9E] ${
+                                savingServicesTitleId === s.id
+                                  ? "pointer-events-none opacity-40"
+                                  : ""
+                              }`}
+                              title="Edit section name"
+                            >
+                              <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                              <span className="sr-only">Edit section name</span>
+                            </label>
+                          </div>
+                        );
+                      })()}
+                      {isSelected && !disabledRow ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#1FAF9E]">
+                          Selected
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <h3
+                      className={`text-sm text-[#0E0E0E] ${
+                        isSelected && isAvailable ? "font-bold" : "font-semibold"
+                      }`}
+                    >
+                      {s.title}
+                      {isSelected && !disabledRow ? (
+                        <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-[#1FAF9E]">
+                          Selected
+                        </span>
+                      ) : null}
+                    </h3>
+                  )}
+                  {s.is_builtin ? (
+                    <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      Built-in
+                    </span>
+                  ) : (
+                    <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-medium text-teal-700 ring-1 ring-teal-100">
+                      Custom
+                    </span>
+                  )}
+                  {!exclusiveUploadBlocked ? <AvailableToUseLabel /> : null}
+                </>
+              );
+              if (s.slug === "gallery") {
+                return (
+                  <div className="flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {titleAndBadges}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setGalleryExampleIndex(0);
+                        setGalleryExampleOpen(true);
+                      }}
+                      className="shrink-0 rounded-lg border border-[#124541]/30 bg-white px-2.5 py-1 text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35"
+                    >
+                      Preview Example
+                    </button>
+                  </div>
+                );
+              }
+              if (s.slug === "products") {
+                return (
+                  <div className="flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {titleAndBadges}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProductsExampleIndex(0);
+                        setProductsExampleOpen(true);
+                      }}
+                      className="shrink-0 rounded-lg border border-[#124541]/30 bg-white px-2.5 py-1 text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35"
+                    >
+                      Preview Example
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex flex-wrap items-center gap-2">{titleAndBadges}</div>
+              );
+            })()}
             {savedBatches > 0 ? (
               <p className="mt-1.5">
                 <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-800 ring-1 ring-gray-200/90">
@@ -1934,16 +2364,20 @@ export default function BusinessPhotosSettingsPage() {
               })()}
             </div>
 
-            {isSelected && uploadPlanLocked ? (
+            {isSelected && showUpgradeForMore ? (
               <button
                 type="button"
-                onClick={() => openUpgradeFlow("section_locked")}
-                title="Upgrade to upload photos to this section"
+                onClick={() => openUpgradeFlow("upload_limit")}
+                title="Upgrade to add more photos beyond your current limit"
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#4B5563] bg-[#4B5563] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B5563]/40 sm:text-sm"
               >
                 <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
-                Upgrade to upload
+                Upgrade for more photos
               </button>
+            ) : isSelected && exclusiveHintText ? (
+              <p className="max-w-[14rem] rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2 text-left text-[11px] leading-snug text-amber-950">
+                {exclusiveHintText}
+              </p>
             ) : isSelected ? (
               <>
                 <input
@@ -1959,28 +2393,18 @@ export default function BusinessPhotosSettingsPage() {
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    showUpgradeForMore
-                      ? openUpgradeFlow("upload_limit")
-                      : fileInputRefs.current[s.slug]?.click()
-                  }
+                  onClick={() => fileInputRefs.current[s.slug]?.click()}
                   disabled={uploadDisabled}
                   title={
-                    showUpgradeForMore
-                      ? "Upgrade to add more photos beyond your current limit"
-                      : atPhotoLimit
+                    atPhotoLimit
                       ? "You've reached your plan's photo limit"
                       : !s.is_enabled
                         ? "This section is hidden from your public profile — set it to Public to upload"
-                        : !canUploadInThisRow
-                          ? "Select this category first to upload here"
-                          : "Upload photos to this section"
+                        : "Upload photos to this section"
                   }
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition focus-visible:outline-none sm:text-sm ${
                     uploadDisabled
                       ? "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-500 shadow-none"
-                      : showUpgradeForMore
-                        ? "border border-[#4B5563] bg-[#4B5563] text-white hover:bg-[#374151] focus-visible:ring-2 focus-visible:ring-[#4B5563]/40"
                       : uploadButtonPrimary
                         ? "border border-[#86EFAC] bg-[#DCFCE7] text-[#166534] hover:border-[#4ADE80] hover:bg-[#BBF7D0] focus-visible:ring-2 focus-visible:ring-[#86EFAC]/50"
                         : "border border-gray-200 bg-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-gray-300/60"
@@ -1990,16 +2414,6 @@ export default function BusinessPhotosSettingsPage() {
                     <>
                       <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#166534]/60 border-t-transparent" />
                       Uploading…
-                    </>
-                  ) : showUpgradeForMore ? (
-                    <>
-                      <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
-                      Upgrade for more
-                    </>
-                  ) : !canUploadInThisRow ? (
-                    <>
-                      <Upload className="h-3.5 w-3.5" aria-hidden />
-                      Select to upload
                     </>
                   ) : (
                     <>
@@ -2032,9 +2446,333 @@ export default function BusinessPhotosSettingsPage() {
     );
   };
 
+  const galleryExampleCount = GALLERY_EXAMPLE_IMAGE_PATHS.length;
+  const galleryExampleSrc =
+    GALLERY_EXAMPLE_IMAGE_PATHS[
+      Math.min(galleryExampleIndex, Math.max(0, galleryExampleCount - 1))
+    ] ?? GALLERY_EXAMPLE_IMAGE_PATHS[0];
+
+  const productsExampleCount = PRODUCTS_EXAMPLE_IMAGE_PATHS.length;
+  const productsExampleSrc =
+    PRODUCTS_EXAMPLE_IMAGE_PATHS[
+      Math.min(productsExampleIndex, Math.max(0, productsExampleCount - 1))
+    ] ?? PRODUCTS_EXAMPLE_IMAGE_PATHS[0];
+
   return (
     <div className="w-full space-y-6">
       <PhotoLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} />
+
+      {galleryExampleOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gallery-example-modal-title"
+          className="fixed inset-0 z-[310] flex items-center justify-center bg-black/80 p-4 sm:p-6"
+          onClick={() => setGalleryExampleOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+              <h2
+                id="gallery-example-modal-title"
+                className="text-base font-semibold text-[#0E0E0E]"
+              >
+                Gallery example
+              </h2>
+              <button
+                type="button"
+                onClick={() => setGalleryExampleOpen(false)}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+            <div className="relative flex min-h-[12rem] items-center justify-center px-3 pb-4 pt-2 sm:px-6 sm:pb-6">
+              {galleryExampleCount > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryExampleIndex(
+                        (i) => (i - 1 + galleryExampleCount) % galleryExampleCount
+                      )
+                    }
+                    className="absolute left-1 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:left-3"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryExampleIndex((i) => (i + 1) % galleryExampleCount)
+                    }
+                    className="absolute right-1 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:right-3"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="h-5 w-5" aria-hidden />
+                  </button>
+                </>
+              ) : null}
+              {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+              <img
+                src={galleryExampleSrc}
+                alt="Example of how your Gallery section can appear on your public profile"
+                className="max-h-[min(72vh,560px)] w-full max-w-full object-contain"
+              />
+            </div>
+            {galleryExampleCount > 1 ? (
+              <p className="border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-500">
+                {galleryExampleIndex + 1} / {galleryExampleCount}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {productsExampleOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="products-example-modal-title"
+          className="fixed inset-0 z-[310] flex items-center justify-center bg-black/80 p-4 sm:p-6"
+          onClick={() => setProductsExampleOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+              <h2
+                id="products-example-modal-title"
+                className="text-base font-semibold text-[#0E0E0E]"
+              >
+                Products example
+              </h2>
+              <button
+                type="button"
+                onClick={() => setProductsExampleOpen(false)}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+            <div className="relative flex min-h-[12rem] items-center justify-center px-3 pb-4 pt-2 sm:px-6 sm:pb-6">
+              {productsExampleCount > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductsExampleIndex(
+                        (i) => (i - 1 + productsExampleCount) % productsExampleCount
+                      )
+                    }
+                    className="absolute left-1 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:left-3"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductsExampleIndex((i) => (i + 1) % productsExampleCount)
+                    }
+                    className="absolute right-1 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:right-3"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="h-5 w-5" aria-hidden />
+                  </button>
+                </>
+              ) : null}
+              {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+              <img
+                src={productsExampleSrc}
+                alt="Example of how your Products section can appear on your public profile"
+                className="max-h-[min(72vh,560px)] w-full max-w-full object-contain"
+              />
+            </div>
+            {productsExampleCount > 1 ? (
+              <p className="border-t border-gray-100 px-4 py-2 text-center text-xs text-gray-500">
+                {productsExampleIndex + 1} / {productsExampleCount}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {draftLivePreviewPhotoId
+        ? (() => {
+            const lp = photos.find((x) => x.id === draftLivePreviewPhotoId);
+            if (!lp || lp.status !== "draft" || lp.section !== "products") return null;
+            const pd = productDraftByPhotoId[lp.id];
+            const name =
+              (pd?.name ?? lp.product_name ?? "").trim() || "Untitled product";
+            const code = (pd?.productCode ?? lp.product_description ?? "").trim();
+            const priceRaw = pd?.price ?? (lp.product_price != null ? String(lp.product_price) : "");
+            const priceNum = parseOptionalProductPrice(priceRaw);
+            const currencyForPrice =
+              pd?.currency?.trim() || lp.product_currency || "USD";
+            const priceFormatted =
+              priceNum != null && Number.isFinite(priceNum)
+                ? formatProductPrice(priceNum, currencyForPrice)
+                : null;
+            const productUrl = (pd?.productUrl ?? lp.product_redirect_url ?? "").trim();
+            const fitLikePublished =
+              (fitModeByPhotoId[lp.id] ?? (lp.preview_frame === "portrait")) === true;
+            return (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="draft-live-preview-title"
+                className="fixed inset-0 z-[315] flex items-center justify-center bg-black/75 p-4 sm:p-6"
+                onClick={() => setDraftLivePreviewPhotoId(null)}
+              >
+                <div
+                  className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                    <h2
+                      id="draft-live-preview-title"
+                      className="text-base font-semibold text-[#0E0E0E]"
+                    >
+                      Published preview
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setDraftLivePreviewPhotoId(null)}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                      aria-label="Close"
+                    >
+                      <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                  <p className="border-b border-gray-50 bg-teal-50/40 px-4 py-2 text-[11px] text-gray-700">
+                    Approximate look after you publish — add details with{" "}
+                    <span className="font-semibold">Insert Details</span> on the card.
+                  </p>
+                  <div className="border-b border-gray-100 bg-neutral-100 px-4 py-4">
+                    <div className="relative mx-auto aspect-[4/3] max-h-[280px] w-full overflow-hidden rounded-xl bg-white shadow-inner ring-1 ring-black/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={lp.url}
+                        alt=""
+                        className={`h-full w-full object-center ${
+                          fitLikePublished ? "object-contain bg-gray-100" : "object-cover"
+                        }`}
+                      />
+                      <span className="pointer-events-none absolute left-2 bottom-2 rounded bg-black/65 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Live
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-3 px-4 py-4 text-sm">
+                    <div>
+                      <p className="text-[10px] font-medium uppercase text-gray-400">Name</p>
+                      <p className="font-semibold text-[#0E0E0E]">{name}</p>
+                    </div>
+                    {code ? (
+                      <div>
+                        <p className="text-[10px] font-medium uppercase text-gray-400">Code</p>
+                        <p className="font-mono text-gray-800">{code}</p>
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="text-[10px] font-medium uppercase text-gray-400">Price</p>
+                      <p className="font-semibold text-[#124541]">{priceFormatted ?? "—"}</p>
+                    </div>
+                    {productUrl ? (
+                      <p className="text-xs text-gray-500">
+                        Buy link:{" "}
+                        <span className="break-all font-medium text-[#1FAF9E]">{productUrl}</span>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500">No buy link yet — optional in Insert Details.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        : null}
+
+      {productEditorPhotoId
+        ? (() => {
+            const detailPhoto = photos.find((x) => x.id === productEditorPhotoId);
+            if (!detailPhoto || detailPhoto.section !== "products") return null;
+            return (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="product-details-modal-title"
+                className="fixed inset-0 z-[320] flex items-center justify-center bg-black/75 p-4 sm:p-6"
+                onClick={() => closeProductDetailsModal()}
+              >
+                <div
+                  className="flex max-h-[min(92vh,900px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border-2 border-amber-200 bg-white shadow-2xl ring-1 ring-black/10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-100 bg-gradient-to-b from-amber-50/90 to-white px-4 py-3">
+                    <h2
+                      id="product-details-modal-title"
+                      className="text-base font-semibold text-[#0E0E0E]"
+                    >
+                      Product details
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => closeProductDetailsModal()}
+                      disabled={productSavingByPhotoId[detailPhoto.id] === true}
+                      aria-label="Close"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40"
+                    >
+                      <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                  <div className="shrink-0 border-b border-amber-100/80 bg-neutral-100 px-4 py-4">
+                    <div className="flex max-h-[min(42vh,380px)] items-center justify-center overflow-hidden rounded-xl bg-white p-3 shadow-inner ring-1 ring-black/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={detailPhoto.url}
+                        alt=""
+                        className="max-h-[min(42vh,380px)] max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    {renderProductDetailsEditor(detailPhoto, "p-4")}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        : null}
+
+      {itemReviewPhotoId && selectedBusiness?.slug ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Review this item"
+          className="fixed inset-0 z-[340] flex items-center justify-center bg-black/75 p-4 sm:p-6"
+          onClick={() => setItemReviewPhotoId(null)}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <WriteReviewItemContent
+              businessSlug={selectedBusiness.slug}
+              photoId={itemReviewPhotoId}
+              variant="modal"
+              onRequestClose={() => setItemReviewPhotoId(null)}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {draftLightboxPhoto ? (
         <div
@@ -2066,18 +2804,34 @@ export default function BusinessPhotosSettingsPage() {
                 ? formatProductPrice(priceNum, currencyForPrice)
                 : null;
             const isProducts = lp.section === "products";
+            const productPageUrlForBuy = (
+              productDraft?.productUrl ??
+              lp.product_redirect_url ??
+              ""
+            ).trim();
+            const buyHref = isProducts
+              ? buildProductPurchaseHref(
+                  productPageUrlForBuy || null,
+                  selectedBusiness?.website,
+                )
+              : "";
             return (
               <div
-                className="flex max-h-[min(92vh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+                className="flex max-h-[min(92vh,920px)] w-full max-w-lg flex-col overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-100 px-3 py-4 sm:px-5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={lp.url}
-                    alt=""
-                    className="max-h-[min(52vh,480px)] max-w-full rounded-lg object-contain shadow-md"
-                  />
+                {/* Use shrink-0 + explicit max-height (same idea as the Product details
+                    editor modal). flex-1 min-h-0 here made the image row collapse to
+                    zero height in column flex when the parent height is content-sized. */}
+                <div className="shrink-0 bg-neutral-100 px-3 py-4 sm:px-5">
+                  <div className="mx-auto flex max-h-[min(52vh,480px)] w-full items-center justify-center overflow-hidden rounded-xl bg-white p-2 shadow-inner ring-1 ring-black/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={lp.url}
+                      alt=""
+                      className="max-h-[min(52vh,480px)] max-w-full rounded-lg object-contain shadow-md"
+                    />
+                  </div>
                 </div>
                 <div className="border-t border-gray-200 bg-white px-4 py-3 text-left">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -2092,68 +2846,58 @@ export default function BusinessPhotosSettingsPage() {
                             {productName || "—"}
                           </p>
                         </div>
-                        {selectedBusiness?.slug ? (
-                          <button
-                            type="button"
-                            className="shrink-0 rounded-lg border border-[#124541] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5"
-                            onClick={() => {
-                              const qs = new URLSearchParams({
-                                businessSlug: selectedBusiness.slug!,
-                                photoId: lp.id,
-                              });
-                              window.open(`/write-review/item?${qs.toString()}`, "_blank", "noopener,noreferrer");
-                            }}
-                          >
-                            Review this item
-                          </button>
+                        {selectedBusiness?.slug || buyHref ? (
+                          <div className="flex shrink-0 flex-col items-stretch gap-2">
+                            {selectedBusiness?.slug ? (
+                              <button
+                                type="button"
+                                className="rounded-lg border border-[#124541] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5"
+                                onClick={() => {
+                                  setDraftLightboxPhotoId(null);
+                                  setItemReviewPhotoId(lp.id);
+                                }}
+                              >
+                                Review this item
+                              </button>
+                            ) : null}
+                            {buyHref ? (
+                              <a
+                                href={buyHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center rounded-lg bg-[#124541] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/35"
+                              >
+                                Buy
+                              </a>
+                            ) : null}
+                          </div>
                         ) : null}
                       </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-medium uppercase text-gray-400">Product code</p>
-                          <p className="text-sm font-mono text-gray-700">
-                            {productCode || "—"}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="shrink-0 rounded-lg bg-[#124541] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#0f3a35]"
-                          onClick={() => {
-                            const perPhoto = normalizeBuyUrl(
-                              (productDraft?.redirectUrl ?? lp.product_redirect_url ?? "").trim()
-                            );
-                            const fallback = normalizeBuyUrl(productBuyUrl);
-                            const u = perPhoto ?? fallback;
-                            if (!u) {
-                              setMessage({
-                                type: "error",
-                                text: "Add a product or checkout URL in Details, or set the global buy link below, then save.",
-                              });
-                              return;
-                            }
-                            window.open(u, "_blank", "noopener,noreferrer");
-                          }}
-                        >
-                          Buy
-                        </button>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase text-gray-400">Product code</p>
+                        <p className="text-sm font-mono text-gray-700">
+                          {productCode || "—"}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-medium uppercase text-gray-400">Price</p>
+                        <p className="text-[10px] font-medium uppercase text-gray-400">
+                          Price <span className="font-normal normal-case text-gray-400">(optional)</span>
+                        </p>
                         <p className="text-sm font-semibold text-[#124541]">
                           {priceFormatted ?? "—"}
                         </p>
                       </div>
                       {!productName && !productCode && !priceFormatted ? (
                         <p className="text-xs text-gray-500">
-                          Add name, product code, and price using{" "}
-                          <span className="font-semibold">Details</span> on the photo card, then{" "}
+                          Add name, product code, optional price, and product URL using{" "}
+                          <span className="font-semibold">Insert Details</span> on the photo card, then{" "}
                           <span className="font-semibold">Save</span>.
                         </p>
                       ) : null}
                     </div>
                   ) : (
                     <p className="mt-1 text-xs text-gray-600">
-                      Product name, code, and price are available when the photo is in{" "}
+                      Product name, code, optional price, and URL are available when the photo is in{" "}
                       <span className="font-medium">Products</span>.
                     </p>
                   )}
@@ -2201,37 +2945,6 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
       </div>
 
-      {businessId ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-[#0E0E0E]">Buy button (Products)</h2>
-          <p className="mt-1 text-xs text-gray-600">
-            When you preview a product photo, <span className="font-medium">Buy</span> opens the
-            product URL from <span className="font-medium">Details</span> on that photo if set;
-            otherwise it uses this default (your store, checkout, or product page).
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="min-w-0 flex-1 text-xs font-medium text-gray-700">
-              Buy / checkout URL
-              <input
-                type="url"
-                value={productBuyUrl}
-                onChange={(e) => setProductBuyUrl(e.target.value)}
-                placeholder="https://yourstore.com/checkout"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => void saveProductBuyUrl()}
-              disabled={productBuySaving}
-              className="shrink-0 rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35] disabled:opacity-60"
-            >
-              {productBuySaving ? "Saving…" : "Save link"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {/* Single merged Free-plan upgrade nudge — covers BOTH the 30-day
           publish lock and the photo upload limit. Title adapts to the
           most urgent state (limit reached > lock), while the body
@@ -2264,9 +2977,8 @@ export default function BusinessPhotosSettingsPage() {
                 : businessLock.locked
                   ? "You can still upload new photos up to your plan limit. "
                   : ""}
-              Upgrade to edit published photos now, add more photos, upload to every
-              section (Gallery, Products, Services, and custom categories), hide categories you
-              don&apos;t use, and create custom ones. Your built-in categories stay visible on your
+              Upgrade to edit published photos now, add more photos, use multiple photo categories at once,
+              hide categories you don&apos;t use, and create custom ones. Your built-in categories stay visible on your
               public page even when empty.
             </p>
             {canUpgrade ? (
@@ -2300,7 +3012,7 @@ export default function BusinessPhotosSettingsPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">
               {sectionTogglesLocked
-                ? "Free plan: upload to Gallery only. Other sections stay visible on your public page — upgrade to add photos to them."
+                ? "Free plan: choose Gallery, Products, or Other as your photo category — all uploads stay in that one category until you delete those photos to switch. Categories stay visible on your public page."
                 : "Toggle categories on or off, add your own, and upload photos directly into any section."}
             </p>
           </div>
@@ -2313,6 +3025,12 @@ export default function BusinessPhotosSettingsPage() {
               <span className="ml-2 text-amber-900/75">You&apos;re close to your limit</span>
             ) : null}
           </p>
+          {planKey === "free" ? (
+            <p className="text-xs text-gray-500">
+              Select a category below, then upload — Free accounts use one category at a time (no mixing across
+              Gallery, Products, and Other).
+            </p>
+          ) : null}
           <p className="text-xs text-gray-500">
             Best results: upload landscape photos around 1600x900 (16:9). Also supported:
             1200x900 (4:3) and 1080x1350 (portrait).
@@ -2383,200 +3101,31 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
       </div>
 
-      {/* ---- Drafts awaiting publish (scoped to selected section) ---- */}
-      {draftPhotos.length > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-[#0E0E0E]">
-                {activeSectionTitle} drafts (
-                {draftPhotosForActiveSection.length})
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Showing drafts for the selected section ({activeSectionTitle}). Use the checkboxes
-                to select up to {MAX_BULK_DRAFT_SELECTION} drafts at a time, then{" "}
-                <span className="font-medium text-[#0E0E0E]">Delete selected</span> or publish.
-                Tap the star on any draft to mark it as your cover — that applies when you publish
-                this section.{" "}
-                {planKey === "free" ? (
-                  <span className="font-medium text-amber-900">
-                    Free plan: Once a photo is published, it becomes read-only. Upgrade to edit it
-                    now, or wait 30 calendar days to upload, update, or remove it.
-                  </span>
-                ) : null}
-              </p>
-              {draftPhotos.length !== draftPhotosForActiveSection.length ? (
-                <p className="mt-2 text-xs text-amber-900/90">
-                  You have {draftPhotos.length} draft photo{draftPhotos.length === 1 ? "" : "s"}{" "}
-                  across all sections. Select another category above to review or publish those
-                  drafts.
-                </p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-              {pendingBatchMeta &&
-              draftPhotos.some(
-                (p) =>
-                  p.upload_batch_id === pendingBatchMeta.batchId &&
-                  p.section === pendingBatchMeta.sectionSlug &&
-                  !p.upload_batch_label
-              ) ? (
-                <button
-                  type="button"
-                  onClick={() => void savePendingBatchLabel()}
-                  disabled={batchLabelBusy || bulkDeleteBusy}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#124541] bg-white px-4 py-2 text-sm font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {batchLabelBusy ? (
-                    <>
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#124541] border-t-transparent" />
-                      Saving…
-                    </>
-                  ) : (
-                    <>Save batch</>
-                  )}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => void deleteSelectedDrafts()}
-                disabled={
-                  bulkDeleteBusy ||
-                  publishBusy ||
-                  selectedDraftIds.length === 0 ||
-                  !selectedDraftIds.some((id) => {
-                    const ph = draftPhotosForActiveSection.find((x) => x.id === id);
-                    return ph && !isLocked(ph);
-                  })
-                }
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/60 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {bulkDeleteBusy ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />
-                    Deleting…
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
-                    Delete selected ({selectedDraftIds.length})
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void publishDrafts(activeSectionSlug)}
-                disabled={
-                  publishBusy ||
-                  bulkDeleteBusy ||
-                  anyFitSaving ||
-                  draftPhotosForActiveSection.length === 0
-                }
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#124541] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {publishBusy ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Publishing…
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" aria-hidden />
-                    Publish {draftPhotosForActiveSection.length} in {activeSectionTitle}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-          {draftPhotosForActiveSection.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-600">
-              No drafts in this section. Select a different photo category or upload photos here.
-            </p>
-          ) : (
-            <>
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-200/50 pt-3 text-sm">
-                <button
-                  type="button"
-                  onClick={selectAllDeletableDraftsInSection}
-                  disabled={
-                    bulkDeleteBusy ||
-                    draftPhotosForActiveSection.filter((p) => !isLocked(p)).length === 0
-                  }
-                  className="font-medium text-[#124541] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Select all
-                </button>
-                <span className="text-gray-300" aria-hidden>
-                  |
-                </span>
-                <button
-                  type="button"
-                  onClick={clearDraftSelection}
-                  disabled={bulkDeleteBusy || selectedDraftIds.length === 0}
-                  className="font-medium text-gray-600 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Clear selection
-                </button>
-                {selectedDraftIds.length > 0 ? (
-                  <span className="rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-700 ring-1 ring-amber-200/80">
-                    {selectedDraftIds.length} selected
-                  </span>
-                ) : null}
-              </div>
-              <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {draftPhotosForActiveSection.map((p) =>
-                  renderPhotoTile(p, { bulkSelectDrafts: true })
-                )}
-              </ul>
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {/* ---- Published photos — category-driven hero preview ----
-          Mirrors the public /b/[slug] gallery: pick a section (Gallery,
-          Products, Services, or custom) at the top, see a large cover photo with
-          up to 4 thumbnails beneath, click any thumb to swap what's big,
-          and page through extra photos with the left/right arrows.
-          Owner controls (set-as-cover, delete, lock/moderation badges)
-          stay on the thumbnails so this is still a working management
-          surface, not just a read-only preview. */}
+      {/* ---- Your photos: drafts + published ----
+          Gallery: hero + thumbnail strip (public-profile layout) with drafts + published in one strip.
+          Products / Other: grid tiles; Other keeps an extra published-only hero preview below the grid.
+          Product drafts: eye on the tile opens a published preview modal. */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-base font-semibold text-[#0E0E0E]">
-            Your published photos ({publishedPhotos.length})
+            Your photos — drafts &amp; published ({photos.length})
           </h2>
-          {publishedPhotos.length > 0 ? (
-            <p className="text-xs text-gray-500">
-              {planKey === "free"
-                ? "Preview each section like your public page. In Products, use Details below the hero to edit name, product code, price, and links. Published tiles lock for cover/delete for 30 days — product fields still edit."
-                : "Preview each section. Star a thumbnail for cover. In Products, use Details below the hero to edit product info (name, code, price, links)."}
-            </p>
-          ) : null}
+          <p className="max-w-xl text-xs text-gray-500">
+            {planKey === "free"
+              ? "Drafts and live photos appear together by section. Gallery uses the same strip layout as your public page; Products use a grid (eye = draft preview). Publish moves a draft to live on the same photo. Published tiles may lock cover/delete for 30 days — product fields still edit."
+              : "Gallery uses the large preview and thumbnail strip (what visitors see). Products and Other use a grid; Other adds a published-only hero preview below. Publish updates each photo in place."}
+          </p>
         </div>
 
-        {publishedPhotos.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">
-            No published photos yet.{" "}
-            {draftPhotos.length > 0
-              ? "You have drafts above — publish them to make them live."
-              : "Upload one above to show on your public profile."}
-          </p>
-        ) : (
-          <>
-            {/* Section chips — one per enabled section. Count badge shows
-                how many published photos live in that section so owners
-                can see at a glance which buckets are empty. */}
-            {previewSectionsForChips.length > 0 ? (
-              <div
-                role="tablist"
-                aria-label="Photo sections"
-                className="mt-4 flex flex-wrap gap-2"
-              >
-                {previewSectionsForChips.map((s) => {
-                  const count = publishedPhotos.filter(
-                    (p) => p.section === s.slug
-                  ).length;
+        {/* Section tabs — counts include drafts + published */}
+        {previewSectionsForChips.length > 0 ? (
+          <div
+            role="tablist"
+            aria-label="Photo sections"
+            className="mt-4 flex flex-wrap gap-2"
+          >
+            {previewSectionsForChips.map((s) => {
+              const count = photos.filter((p) => p.section === s.slug).length;
                   const isActive = s.slug === previewSectionSlug;
                   return (
                     <button
@@ -2609,128 +3158,614 @@ export default function BusinessPhotosSettingsPage() {
               </div>
             ) : null}
 
-            {/* Hero preview area */}
-            <div className="mt-5 space-y-3">
-              {previewPhoto ? (
-                <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
-                  <div
-                    className="relative block w-full aspect-[16/9]"
+        {draftPhotosForActiveSection.length > 0 ? (
+          <div className="mt-4 rounded-lg border border-amber-200/90 bg-amber-50/45 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="min-w-0 max-w-xl text-sm text-gray-800">
+                <span className="font-semibold text-[#0E0E0E]">Drafts in {activeSectionTitle}.</span>{" "}
+                Drag drafts by the grip icon to reorder (Gallery thumbnails and grid). Select up to{" "}
+                {MAX_BULK_DRAFT_SELECTION} tiles below, then delete or publish — live photos stay on
+                the same cards after publishing.
+              </p>
+              <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                {pendingBatchMeta &&
+                draftPhotos.some(
+                  (p) =>
+                    p.upload_batch_id === pendingBatchMeta.batchId &&
+                    p.section === pendingBatchMeta.sectionSlug &&
+                    !p.upload_batch_label
+                ) ? (
+                  <button
+                    type="button"
+                    onClick={() => void savePendingBatchLabel()}
+                    disabled={batchLabelBusy || bulkDeleteBusy}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#124541] bg-white px-4 py-2 text-sm font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      key={previewPhoto.id}
-                      src={previewPhoto.url}
-                      alt=""
-                      className={`absolute inset-0 h-full w-full object-center photos-hero-fade ${
-                        previewPhoto.preview_frame === "portrait"
-                          ? "object-contain bg-gray-100"
-                          : "object-cover"
-                      }`}
-                      loading="eager"
-                      decoding="async"
-                    />
+                    {batchLabelBusy ? (
+                      <>
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#124541] border-t-transparent" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>Save batch</>
+                    )}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void deleteSelectedDrafts()}
+                  disabled={
+                    bulkDeleteBusy ||
+                    publishBusy ||
+                    selectedDraftIds.length === 0 ||
+                    !selectedDraftIds.some((id) => {
+                      const ph = draftPhotosForActiveSection.find((x) => x.id === id);
+                      return ph && !isLocked(ph);
+                    })
+                  }
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/60 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkDeleteBusy ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />
+                      Deleting…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                      Delete selected ({selectedDraftIds.length})
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void publishDrafts(activeSectionSlug)}
+                  disabled={
+                    publishBusy ||
+                    bulkDeleteBusy ||
+                    anyFitSaving ||
+                    draftPhotosForActiveSection.length === 0
+                  }
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#124541] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {publishBusy ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Publishing…
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" aria-hidden />
+                      Publish {draftPhotosForActiveSection.length} in {activeSectionTitle}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-                    {/* Section label chip (matches the public page). */}
-                    <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#0E0E0E] shadow-sm ring-1 ring-black/5 backdrop-blur">
-                      {previewSection?.title ?? "Photos"}
-                    </span>
+        {draftPhotos.length > 0 &&
+        draftPhotos.some((p) => p.section !== activeSectionSlug) ? (
+          <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
+            You have {draftPhotos.length} draft{draftPhotos.length === 1 ? "" : "s"} across
+            sections — switch tabs to work on another category.
+          </p>
+        ) : null}
 
-                    {/* Cover / lock / position indicators */}
-                    {previewPhoto.is_cover ? (
-                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm">
-                        <Star className="h-3 w-3" aria-hidden />
-                        Cover
+        {photosForActiveUnifiedSection.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-600">
+            No photos in <span className="font-semibold">{activeSectionTitle}</span> yet. Choose
+            this category under <span className="font-medium">Photo sections</span> above, then
+            upload. New uploads save as drafts until you publish.
+          </p>
+        ) : (
+          <>
+            {draftPhotosForActiveSection.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-100 pt-4 text-sm">
+                <button
+                  type="button"
+                  onClick={selectAllDeletableDraftsInSection}
+                  disabled={
+                    bulkDeleteBusy ||
+                    draftPhotosForActiveSection.filter((p) => !isLocked(p)).length === 0
+                  }
+                  className="font-medium text-[#124541] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Select all
+                </button>
+                <span className="text-gray-300" aria-hidden>
+                  |
+                </span>
+                <button
+                  type="button"
+                  onClick={clearDraftSelection}
+                  disabled={bulkDeleteBusy || selectedDraftIds.length === 0}
+                  className="font-medium text-gray-600 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear selection
+                </button>
+                {selectedDraftIds.length > 0 ? (
+                  <span className="rounded-full bg-[#E6F7F5] px-2.5 py-0.5 text-xs font-medium text-[#124541] ring-1 ring-teal-100">
+                    {selectedDraftIds.length} selected
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {activeSectionSlug === "gallery" ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-gray-500">
+                  Same layout as your live Gallery: large preview plus thumbnails. Drafts show editing controls;
+                  published tiles hide star/delete until hover (locked photos hide them completely). Drag drafts by
+                  the grip on a thumbnail to reorder.
+                </p>
+                {galleryHeroPhoto ? (
+                  <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
+                    <div className="relative block aspect-[16/9] w-full">
+                      {galleryHeroPhoto.status === "draft" ? (
+                        <button
+                          type="button"
+                          aria-label="Preview full photo"
+                          title="Preview full photo"
+                          className="absolute inset-0 z-[1] cursor-zoom-in bg-transparent"
+                          onClick={() => setDraftLightboxPhotoId(galleryHeroPhoto.id)}
+                        />
+                      ) : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        key={galleryHeroPhoto.id}
+                        src={galleryHeroPhoto.url}
+                        alt=""
+                        className={`absolute inset-0 z-0 h-full w-full object-center photos-hero-fade ${
+                          galleryHeroPhoto.preview_frame === "portrait"
+                            ? "object-contain bg-gray-100"
+                            : "object-cover"
+                        }`}
+                        loading="eager"
+                        decoding="async"
+                      />
+
+                      <span className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#0E0E0E] shadow-sm ring-1 ring-black/5 backdrop-blur">
+                        {previewSection?.title ?? "Gallery"}
                       </span>
-                    ) : null}
 
-                    {isLocked(previewPhoto) ? (
-                      <span className="absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
-                        <Lock className="h-3 w-3" aria-hidden />
-                        Locked
-                      </span>
-                    ) : null}
+                      {galleryHeroPhoto.status === "draft" && galleryHeroPhoto.is_cover ? (
+                        <span className="absolute left-3 top-3 z-[2] inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                          <Star className="h-3 w-3" aria-hidden />
+                          Cover
+                        </span>
+                      ) : null}
 
-                    {previewPhotos.length > 1 ? (
-                      <span className="absolute left-3 bottom-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm backdrop-blur">
-                        {previewPhotos.findIndex((p) => p.id === previewPhoto.id) + 1} / {previewPhotos.length}
-                      </span>
-                    ) : null}
+                      {isLocked(galleryHeroPhoto) ? (
+                        <span className="absolute bottom-3 right-3 z-[2] inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
+                          <Lock className="h-3 w-3" aria-hidden />
+                          Locked
+                        </span>
+                      ) : (
+                        <div className="absolute bottom-3 right-3 z-[2] inline-flex h-8 items-stretch rounded-md border border-gray-200 bg-white/95 p-0.5 shadow-md backdrop-blur">
+                          <button
+                            type="button"
+                            onClick={() => void savePhotoFitMode(galleryHeroPhoto, false)}
+                            disabled={fitSavingByPhotoId[galleryHeroPhoto.id] === true}
+                            className={`rounded px-2 text-[10px] font-semibold ${
+                              (fitModeByPhotoId[galleryHeroPhoto.id] ??
+                                (galleryHeroPhoto.preview_frame === "portrait")) === true
+                                ? "text-gray-600 hover:bg-gray-100"
+                                : "bg-[#124541] text-white"
+                            }`}
+                          >
+                            Fill
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void savePhotoFitMode(galleryHeroPhoto, true)}
+                            disabled={fitSavingByPhotoId[galleryHeroPhoto.id] === true}
+                            className={`rounded px-2 text-[10px] font-semibold ${
+                              (fitModeByPhotoId[galleryHeroPhoto.id] ??
+                                (galleryHeroPhoto.preview_frame === "portrait")) === true
+                                ? "bg-[#124541] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
+                            }`}
+                          >
+                            Fit
+                          </button>
+                        </div>
+                      )}
+
+                      {photosForActiveUnifiedSection.length > 1 ? (
+                        <span className="pointer-events-none absolute bottom-3 left-3 z-[2] rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm backdrop-blur">
+                          {photosForActiveUnifiedSection.findIndex((x) => x.id === galleryHeroPhoto.id) +
+                            1}{" "}
+                          / {photosForActiveUnifiedSection.length}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                // Section exists but has no published photos yet — show
-                // an inviting placeholder so owners understand which
-                // bucket is empty and how to fill it.
-                <div className="flex aspect-[16/9] w-full flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm ring-1 ring-black/5">
-                    <Upload className="h-5 w-5" aria-hidden />
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-[#0E0E0E]">
-                    No published photos in {previewSection?.title ?? "this section"} yet
-                  </p>
-                  <p className="mt-1 max-w-sm text-xs text-gray-500">
-                    Upload into this section above, then publish to see it here and on your
-                    public profile.
-                  </p>
-                </div>
-              )}
+                ) : null}
 
-              {previewPhoto && previewPhoto.section === "products" ? (
-                <div className="rounded-lg border border-amber-200/80 bg-amber-50/30 p-3 ring-1 ring-amber-100/60">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-[#0E0E0E]">
-                      Product details (published preview)
-                    </p>
+                {photosForActiveUnifiedSection.length > 0 ||
+                (planKey === "free" && atPhotoLimit && canUpgrade) ? (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setProductEditorPhotoId((cur) =>
-                          cur === previewPhoto.id ? null : previewPhoto.id
-                        );
-                        setProductDraftByPhotoId((cur) => ({
-                          ...cur,
-                          [previewPhoto.id]: {
-                            name: cur[previewPhoto.id]?.name ?? previewPhoto.product_name ?? "",
-                            productCode:
-                              cur[previewPhoto.id]?.productCode ??
-                              previewPhoto.product_description ??
-                              "",
-                            price:
-                              cur[previewPhoto.id]?.price ??
-                              (previewPhoto.product_price != null
-                                ? String(previewPhoto.product_price)
-                                : ""),
-                            currency:
-                              cur[previewPhoto.id]?.currency ??
-                              (previewPhoto.product_currency
-                                ? previewPhoto.product_currency.toUpperCase()
-                                : "USD"),
-                            redirectUrl:
-                              cur[previewPhoto.id]?.redirectUrl ??
-                              (previewPhoto.product_redirect_url ?? ""),
-                          },
-                        }));
-                      }}
-                      className="inline-flex h-8 items-center justify-center rounded-full border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+                      onClick={() =>
+                        setPreviewThumbStart((prev) => Math.max(0, prev - 1))
+                      }
+                      disabled={!canPrevThumb}
+                      aria-label="Show previous photos"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {productEditorPhotoId === previewPhoto.id ? "Close" : "Details"}
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                    </button>
+
+                    <div className="relative min-w-0 flex-1 overflow-hidden">
+                      <div
+                        className="flex transition-transform duration-300 ease-out"
+                        style={{
+                          transform: `translateX(-${(100 / HERO_VISIBLE_THUMBS) * previewThumbStart}%)`,
+                        }}
+                      >
+                        {photosForActiveUnifiedSection.map((p) => {
+                          const isActive = galleryHeroPhoto?.id === p.id;
+                          const isDraft = p.status === "draft";
+                          const locked = isLocked(p);
+                          const busy = photoBusyId === p.id;
+                          const actionsDisabled = busy || locked || bulkDeleteBusy;
+                          const bulkSelectionAtCap =
+                            isDraft &&
+                            !selectedDraftIds.includes(p.id) &&
+                            selectedDraftIds.length >= MAX_BULK_DRAFT_SELECTION;
+                          const publishedUnlockedChromeHover =
+                            !isDraft && !locked;
+                          const publishedLockedChromeOff = !isDraft && locked;
+                          return (
+                            <div
+                              key={p.id}
+                              style={{ flex: `0 0 ${100 / HERO_VISIBLE_THUMBS}%` }}
+                              className="px-1"
+                            >
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                aria-pressed={isActive}
+                                aria-label={`Show ${labelForSection(p.section)} photo in preview`}
+                                onClick={() => setPreviewPhotoId(p.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setPreviewPhotoId(p.id);
+                                  }
+                                }}
+                                onDragOver={(e) => {
+                                  const dropOk =
+                                    Boolean(reorderDraggingId) &&
+                                    !reorderBusy &&
+                                    reorderDraggingId !== p.id;
+                                  if (!dropOk) return;
+                                  e.preventDefault();
+                                  e.dataTransfer.dropEffect = "move";
+                                }}
+                                onDrop={(e) => {
+                                  const dropOk =
+                                    Boolean(reorderDraggingId) &&
+                                    !reorderBusy &&
+                                    reorderDraggingId !== p.id;
+                                  if (!dropOk) return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const draggedId =
+                                    e.dataTransfer.getData(REORDER_MIME) ||
+                                    e.dataTransfer.getData("text/plain");
+                                  if (!draggedId || draggedId === p.id) return;
+                                  void applyReorderDrop(p.section, draggedId, p.id);
+                                }}
+                                className={`group relative aspect-[4/3] w-full cursor-pointer overflow-hidden rounded-lg border bg-gray-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 ${
+                                  isActive
+                                    ? "border-[#1FAF9E] ring-2 ring-[#1FAF9E]/40"
+                                    : "border-gray-200 hover:border-gray-300"
+                                } ${reorderDraggingId === p.id ? "opacity-55" : ""}`}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={p.url}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                  className={`h-full w-full object-center ${
+                                    p.preview_frame === "portrait"
+                                      ? "object-contain bg-gray-100"
+                                      : "object-cover"
+                                  }`}
+                                />
+
+                                {isDraft && !locked ? (
+                                  <div
+                                    draggable={!bulkDeleteBusy && !publishBusy && !reorderBusy}
+                                    onDragStart={(e) => {
+                                      if (bulkDeleteBusy || publishBusy || reorderBusy) {
+                                        e.preventDefault();
+                                        return;
+                                      }
+                                      e.stopPropagation();
+                                      e.dataTransfer.setData(REORDER_MIME, p.id);
+                                      e.dataTransfer.setData("text/plain", p.id);
+                                      e.dataTransfer.effectAllowed = "move";
+                                      setReorderDraggingId(p.id);
+                                    }}
+                                    onDragEnd={() => setReorderDraggingId(null)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute left-1 top-1 z-[13] inline-flex h-6 w-6 cursor-grab items-center justify-center rounded border border-gray-200 bg-white/95 text-gray-500 shadow-sm active:cursor-grabbing"
+                                    aria-label="Drag to reorder draft"
+                                    title="Drag to reorder"
+                                  >
+                                    <GripVertical className="h-3.5 w-3.5" aria-hidden />
+                                  </div>
+                                ) : null}
+
+                                {isDraft ? (
+                                  <div className="absolute bottom-1.5 left-1.5 z-[12]">
+                                    <label
+                                      className={`inline-flex items-center justify-center rounded-md bg-white/95 p-1 shadow-md ring-1 ring-black/10 ${
+                                        bulkSelectionAtCap || locked || bulkDeleteBusy
+                                          ? "cursor-not-allowed opacity-70"
+                                          : "cursor-pointer"
+                                      }`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onKeyDown={(e) => e.stopPropagation()}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedDraftIds.includes(p.id)}
+                                        disabled={locked || bulkDeleteBusy || bulkSelectionAtCap}
+                                        onChange={() => toggleDraftSelection(p.id)}
+                                        aria-label={`Select draft for bulk delete, ${labelForSection(p.section)}`}
+                                        title={
+                                          bulkSelectionAtCap
+                                            ? `At most ${MAX_BULK_DRAFT_SELECTION} drafts can be selected`
+                                            : undefined
+                                        }
+                                        className="h-3.5 w-3.5 rounded border-gray-300 text-[#1FAF9E] focus:ring-[#1FAF9E] disabled:cursor-not-allowed"
+                                      />
+                                    </label>
+                                  </div>
+                                ) : null}
+
+                                {isDraft && p.is_cover ? (
+                                  <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                                    <Star className="h-2.5 w-2.5" aria-hidden />
+                                    Cover
+                                  </span>
+                                ) : null}
+
+                                {!isDraft && locked ? (
+                                  <span className="absolute left-1.5 bottom-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
+                                    <Lock className="h-2.5 w-2.5" aria-hidden />
+                                    Locked
+                                  </span>
+                                ) : null}
+
+                                {isDraft ? (
+                                  <span
+                                    className={`absolute right-1.5 bottom-1.5 z-[11] max-w-[calc(100%-2.5rem)] truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow-sm backdrop-blur ${
+                                      p.moderation_status === "rejected"
+                                        ? "bg-rose-600/95 text-white"
+                                        : p.moderation_status === "flagged"
+                                          ? "bg-orange-500/95 text-white"
+                                          : p.moderation_status === "approved"
+                                            ? "bg-amber-500/95 text-white ring-1 ring-amber-700/30"
+                                            : "bg-slate-700/80 text-white"
+                                    }`}
+                                  >
+                                    {p.moderation_status === "rejected"
+                                      ? "Rejected"
+                                      : p.moderation_status === "flagged"
+                                        ? "Flagged"
+                                        : p.moderation_status === "approved"
+                                          ? "Draft"
+                                          : "Pending"}
+                                  </span>
+                                ) : p.moderation_status !== "approved" ? (
+                                  <span
+                                    className={`absolute right-1.5 bottom-1.5 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow-sm backdrop-blur ${
+                                      p.moderation_status === "rejected"
+                                        ? "bg-rose-600/90 text-white"
+                                        : p.moderation_status === "flagged"
+                                          ? "bg-orange-500/90 text-white"
+                                          : "bg-slate-700/80 text-white"
+                                    }`}
+                                  >
+                                    {p.moderation_status === "rejected"
+                                      ? "Rejected"
+                                      : p.moderation_status === "flagged"
+                                        ? "Flagged"
+                                        : "Pending"}
+                                  </span>
+                                ) : null}
+
+                                <div
+                                  className={`absolute right-1.5 top-1.5 z-[12] flex items-center gap-1 transition-opacity ${
+                                    publishedUnlockedChromeHover
+                                      ? "opacity-0 group-hover:opacity-100"
+                                      : publishedLockedChromeOff
+                                        ? "pointer-events-none opacity-0"
+                                        : ""
+                                  }`}
+                                >
+                                  {!p.is_cover ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void setAsCover(p);
+                                      }}
+                                      disabled={actionsDisabled}
+                                      aria-label={
+                                        isDraft ? "Pick as cover (applies when published)" : "Set as cover"
+                                      }
+                                      title={
+                                        locked
+                                          ? "Locked — upgrade to change cover now"
+                                          : isDraft
+                                            ? "Pick as cover (applies when published)"
+                                            : "Set as cover"
+                                      }
+                                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <Star className="h-3 w-3" aria-hidden />
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void deletePhoto(p);
+                                    }}
+                                    disabled={actionsDisabled}
+                                    aria-label={isDraft ? "Remove draft" : "Remove photo"}
+                                    title={
+                                      locked
+                                        ? "Locked — upgrade to remove now"
+                                        : isDraft
+                                          ? "Remove draft"
+                                          : "Remove photo"
+                                    }
+                                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-3 w-3" aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {planKey === "free" && atPhotoLimit && canUpgrade ? (
+                          <div
+                            style={{
+                              flex: `0 0 ${100 / HERO_VISIBLE_THUMBS}%`,
+                            }}
+                            className="px-1"
+                          >
+                            <Link
+                              href="/business/dashboard/settings/photos/more"
+                              className="group relative flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#1FAF9E]/50 bg-[#E6F7F5] px-2 text-center transition hover:border-[#1FAF9E] hover:bg-[#D9F1EE]"
+                            >
+                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#1FAF9E] shadow-sm">
+                                <Plus className="h-4 w-4" aria-hidden />
+                              </span>
+                              <span className="text-[11px] font-semibold text-[#0E0E0E]">
+                                Upload more photos
+                              </span>
+                              <span className="text-[10px] leading-snug text-gray-600">
+                                Queue up to{" "}
+                                {PLAN_PHOTO_LIMITS.grow - PLAN_PHOTO_LIMITS.free} more on Grow
+                              </span>
+                            </Link>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewThumbStart((prev) =>
+                          Math.min(maxThumbStart, prev + 1)
+                        )
+                      }
+                      disabled={!canNextThumb}
+                      aria-label="Show more photos"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronRight className="h-4 w-4" aria-hidden />
                     </button>
                   </div>
-                  {productEditorPhotoId === previewPhoto.id
-                    ? renderProductDetailsEditor(
-                        previewPhoto,
-                        "mt-3 max-h-[min(40vh,320px)] space-y-1 overflow-y-auto rounded-md border border-amber-200 bg-white p-2 shadow-sm"
-                      )
-                    : null}
-                </div>
-              ) : null}
+                ) : null}
+              </div>
+            ) : (
+              <ul
+                className={`mt-4 grid gap-3 ${
+                  activeSectionSlug === "products"
+                    ? "grid-cols-2 sm:grid-cols-5"
+                    : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                }`}
+              >
+                {photosForActiveUnifiedSection.map((p) =>
+                  renderPhotoTile(p, { bulkSelectDrafts: true })
+                )}
+              </ul>
+            )}
+          </>
+        )}
 
-              {/* Thumbnail strip + pagination arrows. We only render the
-                  strip at all if there's something worth scrolling to —
-                  a photo in this section, or the Free-plan "upload more"
-                  teaser card. */}
-              {previewPhotos.length > 0 ||
-              (planKey === "free" && atPhotoLimit && canUpgrade) ? (
+            {/* Public profile preview — Other (published only). Gallery uses hero strip above; Products use the grid + tip. */}
+            <div className="mt-6 space-y-3 border-t border-gray-100 pt-5">
+              {previewSectionSlug === "products" ? (
+                activeSectionSlug === "products" ? (
+                  <p className="text-center text-xs text-gray-500">
+                    Product drafts: tap the{" "}
+                    <span className="inline-flex align-middle text-gray-700">
+                      <Eye className="mx-0.5 inline h-3.5 w-3.5" aria-hidden />
+                    </span>{" "}
+                    on a card for a published-style preview before you go live.
+                  </p>
+                ) : null
+              ) : previewSectionSlug === "gallery" ? null : (
+                <>
+                  {previewPhoto ? (
+                    <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
+                      <div className="relative block aspect-[16/9] w-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          key={previewPhoto.id}
+                          src={previewPhoto.url}
+                          alt=""
+                          className={`absolute inset-0 h-full w-full object-center photos-hero-fade ${
+                            previewPhoto.preview_frame === "portrait"
+                              ? "object-contain bg-gray-100"
+                              : "object-cover"
+                          }`}
+                          loading="eager"
+                          decoding="async"
+                        />
+
+                        <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#0E0E0E] shadow-sm ring-1 ring-black/5 backdrop-blur">
+                          {previewSection?.title ?? "Photos"}
+                        </span>
+
+                        {isLocked(previewPhoto) ? (
+                          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
+                            <Lock className="h-3 w-3" aria-hidden />
+                            Locked
+                          </span>
+                        ) : null}
+
+                        {previewPhotos.length > 1 ? (
+                          <span className="absolute bottom-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-sm backdrop-blur">
+                            {previewPhotos.findIndex((p) => p.id === previewPhoto.id) + 1} /{" "}
+                            {previewPhotos.length}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex aspect-[16/9] w-full flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm ring-1 ring-black/5">
+                        <Upload className="h-5 w-5" aria-hidden />
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-[#0E0E0E]">
+                        No published photos in {previewSection?.title ?? "this section"} yet
+                      </p>
+                      <p className="mt-1 max-w-sm text-xs text-gray-500">
+                        Upload into this section above, then publish to see it here and on your
+                        public profile.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Thumbnail strip + pagination (Gallery / Other sections only) */}
+                  {previewPhotos.length > 0 ||
+                  (planKey === "free" && atPhotoLimit && canUpgrade) ? (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -2792,13 +3827,6 @@ export default function BusinessPhotosSettingsPage() {
                                     : "object-cover"
                                 }`}
                               />
-
-                              {p.is_cover ? (
-                                <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-md bg-[#1FAF9E] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
-                                  <Star className="h-2.5 w-2.5" aria-hidden />
-                                  Cover
-                                </span>
-                              ) : null}
 
                               {locked ? (
                                 <span className="absolute left-1.5 bottom-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm backdrop-blur">
@@ -2930,6 +3958,8 @@ export default function BusinessPhotosSettingsPage() {
                   </button>
                 </div>
               ) : null}
+                </>
+              )}
             </div>
 
             {atPhotoLimit && canUpgrade ? (
@@ -2944,8 +3974,7 @@ export default function BusinessPhotosSettingsPage() {
                 </button>
               </p>
             ) : null}
-          </>
-        )}
+      </div>
 
         {/* Tiny cross-fade for the hero image swap. Scoped via
             styled-jsx so it doesn't leak into other pages. */}
@@ -2964,7 +3993,6 @@ export default function BusinessPhotosSettingsPage() {
             animation: photosHeroFade 260ms ease-out both;
           }
         `}</style>
-      </div>
 
       {/* ---------- Publish success modal (Free plan) ----------
           Fires after drafts are successfully published. Reassures the

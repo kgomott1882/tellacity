@@ -235,6 +235,30 @@ serve(async (req) => {
       return json({ error: "business_id must be a valid UUID" }, 400);
     }
 
+    const { data: bizStatusRow, error: bizStatusErr } = await supabase
+      .from("businesses")
+      .select("status")
+      .eq("id", business_id)
+      .maybeSingle();
+    if (bizStatusErr || !bizStatusRow) {
+      return json({ error: "business_not_found" }, 404);
+    }
+    const st = String(
+      (bizStatusRow as { status?: string | null }).status ?? "active",
+    )
+      .trim()
+      .toLowerCase();
+    if (st !== "active") {
+      return json(
+        {
+          error: "business_suspended",
+          message:
+            "This business has been suspended and is no longer available on Tellacity.",
+        },
+        403,
+      );
+    }
+
     const ratingNum = Number(payload.rating);
     if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {
       return json({ error: "rating must be between 1 and 5" }, 400);

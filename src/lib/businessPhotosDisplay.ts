@@ -16,7 +16,7 @@ export type BusinessPhotoPublic = {
   product_price?: number | null;
   /** ISO 4217 code for formatting {@link product_price}. */
   product_currency?: string | null;
-  /** Optional checkout URL for this photo (Products); overrides business-wide buy link when set. */
+  /** Optional link for public “Buy” on product photos; falls back to business website when unset. */
   product_redirect_url?: string | null;
 };
 

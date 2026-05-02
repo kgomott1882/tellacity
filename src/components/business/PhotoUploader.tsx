@@ -25,7 +25,7 @@ const BUILTIN_SECTION_HINTS: Record<string, string> = {
 const DEFAULT_SECTION_OPTIONS = [
   { value: "gallery", label: "Gallery", hint: BUILTIN_SECTION_HINTS.gallery },
   { value: "products", label: "Products", hint: BUILTIN_SECTION_HINTS.products },
-  { value: "services", label: "Services", hint: BUILTIN_SECTION_HINTS.services },
+  { value: "services", label: "Other", hint: BUILTIN_SECTION_HINTS.services },
 ] as const;
 
 export type PhotoUploaderSection = {

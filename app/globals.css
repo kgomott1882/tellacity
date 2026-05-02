@@ -82,6 +82,34 @@
     animation: signup-shake 0.45s ease;
   }
 
+  /* Business dashboard: draw attention to unread notifications until the panel is opened */
+  @keyframes dashboard-bell-attention {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    12% {
+      transform: rotate(-14deg);
+    }
+    24% {
+      transform: rotate(14deg);
+    }
+    36% {
+      transform: rotate(-9deg);
+    }
+    48% {
+      transform: rotate(9deg);
+    }
+    60% {
+      transform: rotate(0deg);
+    }
+  }
+
+  .animate-dashboard-bell-attention {
+    animation: dashboard-bell-attention 2.4s ease-in-out infinite;
+    transform-origin: 50% 10%;
+  }
+
   @keyframes category-strip-glow {
     0%,
     100% {
@@ -97,6 +125,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .animate-dashboard-bell-attention {
+      animation: none;
+    }
+
     .animate-category-strip-glow {
       animation: none;
       opacity: 0.72;

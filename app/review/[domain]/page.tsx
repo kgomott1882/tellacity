@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
-import { getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
-import { supabaseServer as supabaseServiceRole } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 
@@ -137,35 +135,9 @@ export default async function DomainReviewPage({
     }))
     .filter((photo) => photo.id && photo.url);
 
-  const { data: sectionRows } = await supabase
-    .from("business_photo_sections")
-    .select("slug, title, is_enabled, sort_order")
-    .eq("business_id", String(business.id))
-    .eq("is_enabled", true)
-    .order("sort_order", { ascending: true });
-
-  const initialSections = (sectionRows ?? [])
-    .map((row) => ({
-      slug: String((row as { slug?: string }).slug ?? ""),
-      title: String((row as { title?: string }).title ?? ""),
-      is_enabled: (row as { is_enabled?: boolean }).is_enabled !== false,
-      sort_order: Number((row as { sort_order?: unknown }).sort_order) || 0,
-    }))
-    .filter((section) => section.slug && section.title);
-
   const initialIsClaimed = Boolean(
     (business as { owner_id?: string | null }).owner_id
   );
-
-  let initialPlanKey: PlanKey = "free";
-  try {
-    initialPlanKey = await getActivePlanKeyForBusiness(
-      String(business.id),
-      supabaseServiceRole
-    );
-  } catch {
-    initialPlanKey = "free";
-  }
 
   const averageRating = (business as { average_rating?: number | null })
     .average_rating;
@@ -248,9 +220,7 @@ export default async function DomainReviewPage({
       <BusinessClient
         initialBusiness={business}
         initialBusinessPhotos={initialBusinessPhotos}
-        initialPhotoSections={initialSections}
         initialIsClaimed={initialIsClaimed}
-        initialPlanKey={initialPlanKey}
       />
     </>
   );

@@ -5,7 +5,7 @@ import type { PlanKey } from "@/lib/plans";
 const BUILTIN_SECTIONS = [
   { slug: "gallery", title: "Gallery", sort_order: 10 },
   { slug: "products", title: "Products", sort_order: 20 },
-  { slug: "services", title: "Services", sort_order: 30 },
+  { slug: "services", title: "Other", sort_order: 30 },
 ] as const;
 
 /** Legacy built-ins we no longer expose by default. */

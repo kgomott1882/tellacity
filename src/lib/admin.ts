@@ -74,6 +74,8 @@ export type AdminReviewRow = {
   /** Moderation: visible | hidden | landing_hidden */
   visibility?: string | null;
   is_flagged?: boolean | null;
+  /** True if at least one guidelines warning email was logged for this review */
+  prior_guidelines_warning?: boolean | null;
   created_at?: string | null;
 } & Record<string, unknown>;
 

@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import {
-  FREE_PLAN_SECTION_LOCK_MESSAGE,
-  isSectionUploadLocked,
+  FREE_PLAN_EXCLUSIVE_UPLOAD_CODE,
+  evaluateFreePlanExclusiveUpload,
   photoLimitMessageForPlan,
 } from "@/lib/photoUploadFreeLimit";
 import {
@@ -85,12 +85,28 @@ export async function POST(
     const planByBiz = await getActivePlanKeysByBusinessIds([businessId], ctx.db);
     const planKey = planByBiz.get(businessId) ?? "free";
 
-    // Free-plan section gate: only uploads to Gallery are accepted. Every
-    // other section stays visible on the public profile as a nudge to
-    // upgrade, but the upload affordance is off.
-    if (isSectionUploadLocked(planKey, section)) {
+    const { data: existingSectionRows, error: existingSecErr } = await ctx.db
+      .from("business_photos")
+      .select("section")
+      .eq("business_id", businessId);
+    if (existingSecErr) {
+      console.error("[photos/upload] existing sections", existingSecErr.message);
+      return NextResponse.json({ error: "Could not verify photo sections." }, { status: 500 });
+    }
+
+    const exclusiveGate = evaluateFreePlanExclusiveUpload(
+      planKey,
+      section,
+      existingSectionRows ?? []
+    );
+    if (exclusiveGate.blocked) {
       return NextResponse.json(
-        { error: FREE_PLAN_SECTION_LOCK_MESSAGE, planKey, section },
+        {
+          error: exclusiveGate.message,
+          code: FREE_PLAN_EXCLUSIVE_UPLOAD_CODE,
+          planKey,
+          section,
+        },
         { status: 403 }
       );
     }
@@ -102,8 +118,7 @@ export async function POST(
     // route). The cap check below is the only remaining gate on new
     // uploads.
 
-    // Enforce the total per-plan photo cap. Users choose how to distribute
-    // photos across sections — we only care about the total.
+    // Enforce the total per-plan photo cap (Free: also single-category rule above).
     const planCap = PLAN_PHOTO_LIMITS[planKey] ?? PLAN_PHOTO_LIMITS.free;
     const { data: existingRows, error: countErr } = await ctx.db
       .from("business_photos")

@@ -146,6 +146,9 @@ export default function TopBar({
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  /** Stops the bell “attention” animation once the user opens the dropdown; resets when unread count increases (new items). */
+  const [bellAttentionSuppressed, setBellAttentionSuppressed] = useState(false);
+  const prevUnreadCountRef = useRef<number | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
@@ -376,6 +379,22 @@ export default function TopBar({
   }, [businessId]);
 
   useEffect(() => {
+    prevUnreadCountRef.current = null;
+    setBellAttentionSuppressed(false);
+  }, [businessId]);
+
+  useEffect(() => {
+    const prev = prevUnreadCountRef.current;
+    if (prev !== null && unreadCount > prev) {
+      setBellAttentionSuppressed(false);
+    }
+    prevUnreadCountRef.current = unreadCount;
+  }, [unreadCount]);
+
+  const bellShouldAnimateAttention =
+    unreadCount > 0 && !bellAttentionSuppressed;
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
@@ -446,16 +465,28 @@ export default function TopBar({
         <div className="relative" ref={notificationsRef}>
           <button
             type="button"
+            aria-label={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : "Notifications"
+            }
             onClick={() => {
               const next = !isNotificationsOpen;
               setIsNotificationsOpen(next);
               if (next) {
+                setBellAttentionSuppressed(true);
                 void refreshNotifications();
               }
             }}
             className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center relative"
           >
-            <Bell size={18} className="text-gray-500" />
+            <Bell
+              size={18}
+              className={`text-gray-500 inline-block ${
+                bellShouldAnimateAttention ? "animate-dashboard-bell-attention" : ""
+              }`}
+              aria-hidden
+            />
             {unreadCount > 0 ? (
               <span className="absolute -top-0.5 -right-0.5 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
                 {unreadCount > 99 ? "99+" : unreadCount}

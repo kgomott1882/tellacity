@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
 import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
+import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
 
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
@@ -69,6 +70,12 @@ export async function POST(req: Request) {
     if (!isUuid(business_id)) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
+
+    const suspendedBlock = await assertBusinessAcceptsPublicReviews(
+      supabase,
+      business_id,
+    );
+    if (suspendedBlock) return suspendedBlock;
 
     const ratingNum = Number(rawRating);
     if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {

@@ -7,6 +7,7 @@ import {
   logInviteConvertedActivity,
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
+import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
 
 type VerifyBody = {
   draft_id?: string;
@@ -202,6 +203,12 @@ export async function POST(req: Request) {
     }
 
     const d = draft as ReviewDraftRow;
+    const suspendedVerify = await assertBusinessAcceptsPublicReviews(
+      supabaseAdmin,
+      d.business_id,
+    );
+    if (suspendedVerify) return suspendedVerify;
+
     const guestEmail = String(otpRow.email ?? "").trim().toLowerCase();
     if (!guestEmail.includes("@")) {
       return NextResponse.json(
