@@ -8,8 +8,19 @@ import {
   logInviteConvertedActivity,
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
+import { isGeneralBusinessReviewRow } from "@/lib/reviewGeneralScope";
 import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
 import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
+import {
+  evaluateProductReviewRateLimits,
+  PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+} from "@/lib/productReviewRateLimits";
+import {
+  fetchBusinessDomainContext,
+  isReviewerBlockedAsBusinessDomain,
+  SAME_DOMAIN_REVIEW_ERROR_CODE,
+  SAME_DOMAIN_REVIEW_MESSAGE,
+} from "@/lib/reviewBusinessSelfReview";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -167,17 +178,36 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     }
   }
 
+  const domainCtxInvite = await fetchBusinessDomainContext(supabase, business_id);
+  if (
+    isReviewerBlockedAsBusinessDomain({
+      reviewerEmailLower: invEmail,
+      businessDomains: domainCtxInvite.domains,
+      businessContactEmailLower: domainCtxInvite.contactEmailLower,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: SAME_DOMAIN_REVIEW_MESSAGE,
+        error_code: SAME_DOMAIN_REVIEW_ERROR_CODE,
+      },
+      { status: 403 },
+    );
+  }
+
   const inviteRowId = invite.id as string;
 
   const { data: existingByGuest } = await supabase
     .from("reviews")
-    .select("id, status, draft, visibility")
+    .select("id, status, draft, visibility, product_photo_id")
     .eq("business_id", business_id)
     .eq("guest_email", invEmail)
     .limit(25);
 
   const guestRows = existingByGuest ?? [];
-  const live = guestRows.find((r) => rowIsPublicLiveReview(r));
+  const live = guestRows.find(
+    (r) => rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+  );
   if (live) {
     return NextResponse.json(
       { error: "You already have a published review for this business." },
@@ -403,9 +433,64 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
     }
   }
 
+  const authUser = await getAuthUser(req);
+  const isGoogleUser = !!authUser;
+
+  const domainCtxGuest = await fetchBusinessDomainContext(supabase, business_id);
+  const reviewerEmailForDomain = isInvitePublish
+    ? effectiveEmail.trim().toLowerCase()
+    : isGoogleUser
+      ? (authUser?.email?.trim().toLowerCase() ?? "")
+      : effectiveEmail.trim().toLowerCase();
+  if (
+    reviewerEmailForDomain &&
+    isReviewerBlockedAsBusinessDomain({
+      reviewerEmailLower: reviewerEmailForDomain,
+      businessDomains: domainCtxGuest.domains,
+      businessContactEmailLower: domainCtxGuest.contactEmailLower,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: SAME_DOMAIN_REVIEW_MESSAGE,
+        error_code: SAME_DOMAIN_REVIEW_ERROR_CODE,
+      },
+      { status: 403 },
+    );
+  }
+
+  let productRate:
+    | Awaited<ReturnType<typeof evaluateProductReviewRateLimits>>
+    | null = null;
+  if (productPhotoIdResolved) {
+    const emailLower = effectiveEmail.trim().toLowerCase();
+    /** Invite publish rows are always guest-scoped (`user_id` null); match that for counts. */
+    const rate = await evaluateProductReviewRateLimits(supabase, {
+      businessId: business_id,
+      guestEmailLower:
+        isInvitePublish || !isGoogleUser ? emailLower : null,
+      userId:
+        isInvitePublish || !isGoogleUser ? null : authUser?.id ?? null,
+    });
+    if (rate.outcome === "block") {
+      return NextResponse.json(
+        {
+          error: PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+          error_code: "product_review_rate_limit",
+        },
+        { status: 429 },
+      );
+    }
+    productRate = rate;
+  }
+
   if (isInvitePublish) {
     const guestEmailLower = effectiveEmail.trim().toLowerCase();
     try {
+      const itemStatus =
+        productPhotoIdResolved && productRate?.outcome === "allow"
+          ? productRate.reviewStatus
+          : "published";
       const { data: review, error: pubErr } = await supabase
         .from("reviews")
         .insert({
@@ -418,7 +503,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           user_id: null,
           consumer_id: null,
           date_of_experience,
-          status: "published",
+          status: itemStatus,
           visibility: "visible",
           verification_status: "verified",
           draft: false,
@@ -434,10 +519,17 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         .single();
 
       if (pubErr) {
-        const anyPub = pubErr as { code?: string };
+        const anyPub = pubErr as { code?: string; message?: string };
         if (anyPub.code === "23505") {
+          const m = String(anyPub.message ?? "").toLowerCase();
+          const isProduct =
+            m.includes("reviews_guest_product_photo_uniq") || Boolean(productPhotoIdResolved);
           return NextResponse.json(
-            { error: "You have already reviewed this business." },
+            {
+              error: isProduct
+                ? "You've already reviewed this product."
+                : "You have already reviewed this business.",
+            },
             { status: 400 },
           );
         }
@@ -488,12 +580,9 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
     }
   }
 
-  const authUser = await getAuthUser(req);
-  const isGoogleUser = !!authUser;
-
   const { data: guestRows, error: existingError } = await supabase
     .from("reviews")
-    .select("id, status, draft, visibility, created_at")
+    .select("id, status, draft, visibility, created_at, product_photo_id")
     .eq("business_id", business_id)
     .eq("guest_email", effectiveEmail)
     .order("created_at", { ascending: false })
@@ -506,41 +595,77 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
 
   const list = guestRows ?? [];
 
-  const { data: pendingDraftRow, error: pendingDraftErr } = await supabase
+  let pendingDraftBuilder = supabase
     .from("review_drafts")
     .select("id")
     .eq("business_id", business_id)
     .eq("email", effectiveEmail)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (productPhotoIdResolved) {
+    pendingDraftBuilder = pendingDraftBuilder.eq(
+      "product_photo_id",
+      productPhotoIdResolved,
+    );
+  } else {
+    pendingDraftBuilder = pendingDraftBuilder.is("product_photo_id", null);
+  }
+
+  const { data: pendingDraftRow, error: pendingDraftErr } =
+    await pendingDraftBuilder.maybeSingle();
 
   if (pendingDraftErr) {
     console.error("guest draft review_drafts lookup:", pendingDraftErr);
     return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
   }
 
+  /** Supersede in-progress OTP for this exact scope (same business + email + product or general). */
   if (pendingDraftRow?.id) {
-    return NextResponse.json(
-      {
-        error: "draft_exists",
-        draft_id: pendingDraftRow.id,
-        verification_email: effectiveEmail,
-      },
-      { status: 409 },
-    );
+    const { error: supersedeErr } = await supabase
+      .from("review_drafts")
+      .delete()
+      .eq("id", pendingDraftRow.id);
+    if (supersedeErr) {
+      console.error("guest draft supersede pending:", supersedeErr);
+      return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    }
   }
 
-  const guestLive = list.find((r) => rowIsPublicLiveReview(r));
-  if (guestLive?.id) {
-    return NextResponse.json(
-      { requiresUpdate: true, reviewId: guestLive.id },
-      { status: 200 },
+  if (productPhotoIdResolved) {
+    const itemLive = list.find(
+      (r) =>
+        rowIsPublicLiveReview(r) &&
+        r.product_photo_id != null &&
+        String(r.product_photo_id) === String(productPhotoIdResolved),
     );
+    if (itemLive?.id) {
+      return NextResponse.json(
+        {
+          error: "duplicate_item_review",
+          message: "You've already reviewed this product.",
+        },
+        { status: 409 },
+      );
+    }
+  } else {
+    const guestLive = list.find(
+      (r) =>
+        rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+    );
+    if (guestLive?.id) {
+      return NextResponse.json(
+        { requiresUpdate: true, reviewId: guestLive.id },
+        { status: 200 },
+      );
+    }
   }
 
   if (isGoogleUser) {
     try {
+      const directStatus =
+        productPhotoIdResolved && productRate?.outcome === "allow"
+          ? productRate.reviewStatus
+          : "published";
       const { data: inserted, error: insertErr } = await supabase
         .from("reviews")
         .insert({
@@ -551,7 +676,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           guest_email: effectiveEmail,
           guest_name: guest_name_raw.slice(0, 200),
           date_of_experience,
-          status: "published",
+          status: directStatus,
           visibility: "visible",
           verification_status: "verified",
           draft: false,
@@ -569,6 +694,15 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
       if (insertErr || !inserted?.id) {
         const anyErr = insertErr as { code?: string } | null;
         if (anyErr?.code === "23505") {
+          if (productPhotoIdResolved) {
+            return NextResponse.json(
+              {
+                error: "duplicate_item_review",
+                message: "You've already reviewed this product.",
+              },
+              { status: 409 },
+            );
+          }
           return NextResponse.json(
             { requiresUpdate: true, reviewId: null },
             { status: 200 },
@@ -618,7 +752,15 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
     console.error("guest draft insert:", draftError);
     const anyErr = draftError as { code?: string } | null;
     if (anyErr?.code === "23505") {
-      return NextResponse.json({ error: "duplicate_review" }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: "duplicate_review",
+          message: productPhotoIdResolved
+            ? "You've already reviewed this product."
+            : undefined,
+        },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
   }

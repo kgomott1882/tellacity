@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   fetchAndApplyLiveReviewMetrics,
   fetchRecentlyReviewedForCategory,
@@ -266,7 +266,17 @@ export default function CategoryClient({
   listingKind = "category",
 }: CategoryClientProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
+
+  const hrefFromMutatedSearchParams = useCallback(
+    (params: URLSearchParams) => {
+      const s = params.toString();
+      if (!pathname) return s ? `?${s}` : "?";
+      return s ? `${pathname}?${s}` : pathname;
+    },
+    [pathname],
+  );
 
   // ---------- LIVE DATA STATE (this was missing) ----------
   const [loading, setLoading] = useState(false);
@@ -292,10 +302,9 @@ export default function CategoryClient({
     (mutate: (p: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParams.toString());
       mutate(params);
-      const s = params.toString();
-      router.push(s ? `?${s}` : "?", { scroll: false });
+      router.push(hrefFromMutatedSearchParams(params), { scroll: false });
     },
-    [router, searchParams],
+    [router, searchParams, hrefFromMutatedSearchParams],
   );
 
   const goToListingPage = useCallback(
@@ -381,6 +390,10 @@ export default function CategoryClient({
     [listingPageIndex, listingTotalPages],
   );
 
+  /** Prefer API `hasNext`; fall back to SSR total pages so Next is not wrongly disabled on mobile. */
+  const canGoNextListingPage =
+    computedHasNext || listingPageIndex + 1 < listingTotalPages;
+
   /** Leaderboard-order candidates for “Top rated” — fetched independently so deep pagination still shows the strip. */
   const [topRatedSourceRows, setTopRatedSourceRows] = useState<BusinessRow[]>([]);
   const [topRatedLoading, setTopRatedLoading] = useState(false);
@@ -464,10 +477,10 @@ export default function CategoryClient({
         const params = new URLSearchParams(searchParams.toString());
         params.set("country", stored);
         params.delete("page");
-        router.replace(`?${params.toString()}`, { scroll: false });
+        router.replace(hrefFromMutatedSearchParams(params), { scroll: false });
       }
     }
-  }, [queryCountry, searchParams, router]);
+  }, [queryCountry, searchParams, router, hrefFromMutatedSearchParams]);
 
   const popularSearches = useMemo(() => {
     if (subcategories.length > 0) return subcategories.slice(0, 8);
@@ -1064,7 +1077,7 @@ export default function CategoryClient({
                       const params = new URLSearchParams(searchParams.toString());
                       params.delete("sort");
                       params.delete("page");
-                      router.push(`?${params.toString()}`, { scroll: false });
+                      router.push(hrefFromMutatedSearchParams(params), { scroll: false });
                       setSortOpen(false);
                     }}
                     type="button"
@@ -1088,7 +1101,7 @@ export default function CategoryClient({
                       const params = new URLSearchParams(searchParams.toString());
                       params.set("sort", "reviews");
                       params.delete("page");
-                      router.push(`?${params.toString()}`, { scroll: false });
+                      router.push(hrefFromMutatedSearchParams(params), { scroll: false });
                       setSortOpen(false);
                     }}
                     type="button"
@@ -1107,7 +1120,7 @@ export default function CategoryClient({
                       const params = new URLSearchParams(searchParams.toString());
                       params.set("sort", "recent");
                       params.delete("page");
-                      router.push(`?${params.toString()}`, { scroll: false });
+                      router.push(hrefFromMutatedSearchParams(params), { scroll: false });
                       setSortOpen(false);
                     }}
                     type="button"
@@ -1322,63 +1335,65 @@ export default function CategoryClient({
           {sortedBusinessesList.length > 0 && (
             <div className="mt-6 flex justify-center">
               <nav
-                className="max-w-full overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+                className="flex w-full max-w-full items-stretch overflow-hidden rounded-md border border-neutral-700 bg-white text-sm shadow-sm"
                 aria-label="Listing pagination"
               >
-                <div className="inline-flex min-h-[2.5rem] items-stretch rounded-md border border-neutral-700 bg-white text-sm shadow-sm">
-                  <button
-                    type="button"
-                    className="shrink-0 border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
-                    onClick={() => goToListingPage(listingPageIndex - 1)}
-                    disabled={listingPageIndex === 0}
-                  >
-                    Previous
-                  </button>
-                  {listingPaginationItems.map((item, idx) => {
-                    const divider = "border-l border-neutral-300";
-                    if (item === "ellipsis") {
+                <button
+                  type="button"
+                  className="touch-manipulation shrink-0 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
+                  onClick={() => goToListingPage(listingPageIndex - 1)}
+                  disabled={listingPageIndex === 0}
+                >
+                  Previous
+                </button>
+                <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] sm:overflow-x-visible sm:pb-0">
+                  <div className="inline-flex min-h-[2.5rem] items-stretch">
+                    {listingPaginationItems.map((item, idx) => {
+                      const divider = "border-l border-neutral-300";
+                      if (item === "ellipsis") {
+                        return (
+                          <span
+                            key={`e-${idx}`}
+                            className={`${divider} flex min-w-[2.25rem] select-none items-center justify-center px-2 py-2 text-neutral-500`}
+                            aria-hidden
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      const isActive = item === listingPageIndex + 1;
+                      if (isActive) {
+                        return (
+                          <span
+                            key={item}
+                            aria-current="page"
+                            className={`${divider} relative z-[1] inline-flex min-w-[2.5rem] items-center justify-center bg-sky-50 px-3 py-2 font-semibold text-sky-700 ring-1 ring-inset ring-sky-600`}
+                          >
+                            {item}
+                          </span>
+                        );
+                      }
                       return (
-                        <span
-                          key={`e-${idx}`}
-                          className={`${divider} flex min-w-[2.25rem] select-none items-center justify-center px-2 py-2 text-neutral-500`}
-                          aria-hidden
-                        >
-                          ...
-                        </span>
-                      );
-                    }
-                    const isActive = item === listingPageIndex + 1;
-                    if (isActive) {
-                      return (
-                        <span
+                        <button
                           key={item}
-                          aria-current="page"
-                          className={`${divider} relative z-[1] inline-flex min-w-[2.5rem] items-center justify-center bg-sky-50 px-3 py-2 font-semibold text-sky-700 ring-1 ring-inset ring-sky-600`}
+                          type="button"
+                          className={`touch-manipulation ${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
+                          onClick={() => goToListingPage(item - 1)}
                         >
                           {item}
-                        </span>
+                        </button>
                       );
-                    }
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        className={`${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
-                        onClick={() => goToListingPage(item - 1)}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    className={`shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50`}
-                    onClick={() => goToListingPage(listingPageIndex + 1)}
-                    disabled={!computedHasNext}
-                  >
-                    Next page
-                  </button>
+                    })}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className="touch-manipulation shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
+                  onClick={() => goToListingPage(listingPageIndex + 1)}
+                  disabled={!canGoNextListingPage}
+                >
+                  Next page
+                </button>
               </nav>
             </div>
           )}

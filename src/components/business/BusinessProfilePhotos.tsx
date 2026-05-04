@@ -9,12 +9,12 @@ import {
   normalizeBusinessPhotoSection,
   type BusinessPhotoPublic,
 } from "@/lib/businessPhotosDisplay";
-import { formatProductPrice } from "@/lib/productCurrency";
-import { buildProductPurchaseHref } from "@/lib/productPurchaseHref";
 import {
   buildBusinessSignupClaimPrefillUrl,
   type BusinessSignupClaimPrefill,
 } from "@/lib/businessSignupClaimPrefill";
+import { REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR } from "@/lib/reviewVisibility";
+import RatingStars from "@/components/RatingStars";
 
 const MAX_GRID_PHOTOS = 8;
 /** Matches dashboard Gallery editor: visible thumb slots before paging. */
@@ -222,17 +222,22 @@ function ProfileGalleryHeroStrip({
 
 function ProfileProductsGrid({
   photos,
-  businessWebsite,
+  businessId,
   businessSlug,
   onOpenLightbox,
 }: {
   photos: BusinessPhotoPublic[];
-  businessWebsite: string | null | undefined;
+  businessId: string;
   businessSlug: string | null | undefined;
   onOpenLightbox: (url: string) => void;
 }) {
   const pageSize = MAX_GRID_PHOTOS;
   const [pageStart, setPageStart] = useState(0);
+  const [productReviewStats, setProductReviewStats] = useState<
+    Record<string, { averageRating: number; reviewCount: number }>
+  >({});
+  const [productStatsLoading, setProductStatsLoading] = useState(false);
+
   const total = photos.length;
   const maxStart = Math.max(0, total - pageSize);
   const safeStart = Math.min(pageStart, maxStart);
@@ -250,10 +255,84 @@ function ProfileProductsGrid({
     setPageStart(0);
   }, [photoIdsKey]);
 
+  useEffect(() => {
+    if (!businessId) {
+      setProductReviewStats({});
+      setProductStatsLoading(false);
+      return;
+    }
+    const photoIds = photos.map((p) => p.id).filter(Boolean);
+    if (photoIds.length === 0) {
+      setProductReviewStats({});
+      setProductStatsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const CHUNK = 60;
+
+    void (async () => {
+      setProductStatsLoading(true);
+      const merged: Record<string, { sum: number; count: number }> = {};
+      try {
+        const sb = supabaseBrowser();
+
+        for (let i = 0; i < photoIds.length; i += CHUNK) {
+          const chunk = photoIds.slice(i, i + CHUNK);
+          const { data, error } = await sb
+            .from("reviews")
+            .select("product_photo_id, rating")
+            .eq("business_id", businessId)
+            .in("product_photo_id", chunk)
+            .or(REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR);
+
+          if (cancelled) return;
+          if (error) {
+            setProductReviewStats({});
+            return;
+          }
+
+          for (const row of data ?? []) {
+            const pid = String((row as { product_photo_id?: string | null }).product_photo_id ?? "");
+            if (!pid) continue;
+            const r = Number((row as { rating?: number | null }).rating);
+            if (!Number.isFinite(r) || r < 1 || r > 5) continue;
+            if (!merged[pid]) merged[pid] = { sum: 0, count: 0 };
+            merged[pid].sum += r;
+            merged[pid].count += 1;
+          }
+        }
+
+        if (cancelled) return;
+
+        const out: Record<string, { averageRating: number; reviewCount: number }> = {};
+        for (const [pid, v] of Object.entries(merged)) {
+          out[pid] = {
+            averageRating: v.count > 0 ? v.sum / v.count : 0,
+            reviewCount: v.count,
+          };
+        }
+        setProductReviewStats(out);
+      } finally {
+        if (!cancelled) setProductStatsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, photoIdsKey, photos]);
+
   return (
     <div className="mt-10 space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h3 className="text-base font-semibold text-[#0E0E0E]">Products</h3>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h3 className="text-base font-semibold text-[#0E0E0E]">Products &amp; Services</h3>
+          <p className="max-w-2xl text-xs leading-relaxed text-gray-500">
+            This business hasn&apos;t added product details yet. Own this business? Add your products,
+            services, and gallery to stand out.
+          </p>
+        </div>
         {total > pageSize ? (
           <p className="text-xs text-gray-500" aria-live="polite">
             {safeStart + 1}–{rangeEnd} of {total}
@@ -273,28 +352,26 @@ function ProfileProductsGrid({
             }
             disabled={!canPrev}
             aria-label="Previous products"
-            className="inline-flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="touch-manipulation inline-flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
             {gridPhotos.map((p) => {
               const fitPortrait = p.preview_frame === "portrait";
               const name = (p.product_name ?? "").trim() || "Product";
-              const code = (p.product_description ?? "").trim();
-              const priceFormatted = formatProductPrice(
-                p.product_price,
-                p.product_currency ?? "USD"
-              );
-              const buyHref = buildProductPurchaseHref(p.product_redirect_url, businessWebsite);
               const slug = (businessSlug ?? "").trim();
               const reviewHref =
                 slug.length > 0
                   ? `/write-review/item?businessSlug=${encodeURIComponent(slug)}&photoId=${encodeURIComponent(p.id)}`
                   : null;
+              const stats = productReviewStats[p.id];
+              const reviewCount = stats?.reviewCount ?? 0;
+              const averageRating = stats?.averageRating ?? 0;
+              const hasReviews = reviewCount > 0 && averageRating > 0;
 
               return (
                 <article
@@ -320,38 +397,37 @@ function ProfileProductsGrid({
                     />
                   </button>
 
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 border-t border-gray-100 p-3">
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 border-t border-gray-100 p-2.5">
                     <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-[#0E0E0E]">
                       {name}
                     </h4>
-                    {code ? (
-                      <p className="truncate font-mono text-[11px] text-gray-600" title={code}>
-                        SKU: {code}
-                      </p>
-                    ) : null}
-                    {priceFormatted ? (
-                      <p className="text-sm font-semibold text-[#124541]">{priceFormatted}</p>
-                    ) : null}
-                    <div className="mt-auto flex flex-col gap-2 pt-0.5">
-                      {reviewHref ? (
+                    <div className="min-h-[2.25rem] text-xs leading-snug">
+                      {productStatsLoading ? (
+                        <span className="text-gray-400">Loading…</span>
+                      ) : hasReviews ? (
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                          <RatingStars rating={averageRating} size={11} />
+                          <span className="font-semibold tabular-nums text-[#0E0E0E]">
+                            {averageRating.toFixed(1)}
+                          </span>
+                          <span className="text-gray-500">
+                            ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">No reviews yet</span>
+                      )}
+                    </div>
+                    {reviewHref ? (
+                      <div className="mt-1.5">
                         <Link
                           href={reviewHref}
-                          className="inline-flex items-center justify-center rounded-lg border border-[#124541] bg-white px-3 py-2 text-center text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/40"
+                          className="inline-flex w-full touch-manipulation items-center justify-center rounded-lg bg-[#124541] px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/40"
                         >
-                          Review this item
+                          Review this product
                         </Link>
-                      ) : null}
-                      {buyHref ? (
-                        <a
-                          href={buyHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-lg bg-[#124541] px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/40"
-                        >
-                          Buy
-                        </a>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -370,7 +446,7 @@ function ProfileProductsGrid({
             }
             disabled={!canNext}
             aria-label="Next products"
-            className="inline-flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="touch-manipulation inline-flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" aria-hidden />
           </button>
@@ -441,7 +517,7 @@ function ProfileSectionPhotoGrid({
 export default function BusinessProfilePhotos({
   photos,
   businessId,
-  businessWebsite = null,
+  businessWebsite: _businessWebsite = null,
   businessSlug = null,
   claimSignupPrefill = null,
 }: Props) {
@@ -635,7 +711,7 @@ export default function BusinessProfilePhotos({
           {productsPhotos.length > 0 ? (
             <ProfileProductsGrid
               photos={productsPhotos}
-              businessWebsite={businessWebsite}
+              businessId={businessId}
               businessSlug={businessSlug}
               onOpenLightbox={setLightboxSrc}
             />

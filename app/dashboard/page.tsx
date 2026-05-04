@@ -2,19 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import BusinessSearchInput from "@/components/search/BusinessSearchInput";
-function isValidSlug(slug: string) {
-  if (!slug || typeof slug !== "string") return false;
-  const clean = slug.trim().toLowerCase();
-  return /^[a-z0-9-]+$/.test(clean);
-}
-
+import { X, Building2, Package } from "lucide-react";
+import BusinessSearchInput, {
+  type BusinessSearchResult,
+} from "@/components/search/BusinessSearchInput";
+import WriteReviewForm from "@/components/reviews/WriteReviewForm";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { isAbortError } from "@/lib/authErrors";
 import { normalizeLogoUrl } from "@/lib/logo";
 import { getPostLoginPath } from "@/lib/postLoginRedirect";
 import { getUserBusinesses } from "@/lib/getUserBusinesses";
+
+function isValidSlug(slug: string) {
+  if (!slug || typeof slug !== "string") return false;
+  const clean = slug.trim().toLowerCase();
+  return /^[a-z0-9-]+$/.test(clean);
+}
 
 type ReviewItem = {
   id: string;
@@ -65,9 +69,26 @@ export default function ConsumerDashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
-  const [showWriteReviewSearch, setShowWriteReviewSearch] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewModalPhase, setReviewModalPhase] = useState<
+    "pick" | "search-business" | "form-business" | "search-product"
+  >("pick");
+  const [selectedBusinessForReview, setSelectedBusinessForReview] =
+    useState<BusinessSearchResult | null>(null);
   /** Final ownership guard: keep consumer UI from flashing while sending owners to the business dashboard. */
   const [ownerRedirectActive, setOwnerRedirectActive] = useState(false);
+
+  const closeReviewModal = () => {
+    setReviewModalOpen(false);
+    setReviewModalPhase("pick");
+    setSelectedBusinessForReview(null);
+  };
+
+  const openReviewModal = () => {
+    setReviewModalPhase("pick");
+    setSelectedBusinessForReview(null);
+    setReviewModalOpen(true);
+  };
 
   const recentActivities = useMemo(() => {
     return reviews.slice(0, 3).map((review) => {
@@ -351,31 +372,12 @@ export default function ConsumerDashboard() {
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowWriteReviewSearch(true)}
+                    onClick={openReviewModal}
                     className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786]"
                   >
                     Write a review
                   </button>
                 </div>
-                {showWriteReviewSearch && (
-                  <div className="w-full max-w-2xl">
-                    <BusinessSearchInput
-                      placeholder="Find businesses you can trust..."
-                      className="w-full"
-                      heroLayout
-                      heroButtonLabel="Find a business"
-                      onSelect={(business) => {
-                        if (business?.slug) {
-                          router.push(`/write-review?businessSlug=${business.slug}`);
-                        }
-                      }}
-                      onSubmitQuery={(query: string) => {
-                        if (!query.trim()) return;
-                        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-                      }}
-                    />
-                  </div>
-                )}
                 <div>
                   <h2 className="text-lg font-semibold text-[#0E0E0E]">
                     Recent activity
@@ -617,6 +619,179 @@ export default function ConsumerDashboard() {
           </div>
         </div>
       </section>
+
+      {reviewModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/25 p-2 backdrop-blur-lg sm:p-4"
+          onClick={() => closeReviewModal()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={
+              reviewModalPhase === "pick" ? "dashboard-review-modal-title" : undefined
+            }
+            aria-label={reviewModalPhase === "pick" ? undefined : "Write a review"}
+            className={`relative w-full overflow-hidden ${
+              reviewModalPhase === "form-business"
+                ? "max-h-[96dvh] w-full max-w-3xl bg-transparent shadow-none ring-0"
+                : "max-h-[min(92vh,920px)] max-w-3xl rounded-2xl border border-white/60 bg-white shadow-[0_25px_80px_-12px_rgba(15,23,42,0.35)]"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => closeReviewModal()}
+              className={`absolute z-20 inline-flex h-10 w-10 items-center justify-center rounded-full shadow-md transition ${
+                reviewModalPhase === "form-business"
+                  ? "right-0 top-0 bg-white text-gray-600 ring-1 ring-black/10 hover:bg-gray-50"
+                  : "right-3 top-3 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" strokeWidth={2} aria-hidden />
+            </button>
+
+            <div
+              className={`${
+                reviewModalPhase === "form-business"
+                  ? "max-h-[96dvh] overflow-y-auto overscroll-contain px-0 pb-4 pt-11"
+                  : "max-h-[min(92vh,920px)] overflow-y-auto px-4 pb-6 pt-12 sm:px-6"
+              }`}
+            >
+              {reviewModalPhase === "pick" && (
+                <div className="space-y-4">
+                  <h2
+                    id="dashboard-review-modal-title"
+                    className="text-xl font-semibold text-[#0E0E0E]"
+                  >
+                    What would you like to review?
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Choose a business for a general review, or a business profile to review a specific product
+                    photo.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setReviewModalPhase("search-business")}
+                      className="flex flex-col items-start gap-3 rounded-2xl border-2 border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-[#1FAF9E]/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                    >
+                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#1FAF9E]/10 text-[#1FAF9E]">
+                        <Building2 className="h-6 w-6" aria-hidden />
+                      </span>
+                      <span className="text-base font-semibold text-[#0E0E0E]">Review a business</span>
+                      <span className="text-sm text-gray-600">
+                        Search for a business and write a review about your experience.
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewModalPhase("search-product")}
+                      className="flex flex-col items-start gap-3 rounded-2xl border-2 border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-[#1FAF9E]/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                    >
+                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#1FAF9E]/10 text-[#1FAF9E]">
+                        <Package className="h-6 w-6" aria-hidden />
+                      </span>
+                      <span className="text-base font-semibold text-[#0E0E0E]">Review a product</span>
+                      <span className="text-sm text-gray-600">
+                        Find a business and open its profile to review a product or service photo.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reviewModalPhase === "search-business" && (
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setReviewModalPhase("pick")}
+                    className="text-sm font-medium text-[#1FAF9E] hover:underline"
+                  >
+                    ← Back
+                  </button>
+                  <h2 className="text-xl font-semibold text-[#0E0E0E]">Find a business to review</h2>
+                  <p className="text-sm text-gray-600">
+                    Search by name, then select the business to open the review form.
+                  </p>
+                  <BusinessSearchInput
+                    inputId="dashboard-review-business-search"
+                    placeholder="Find businesses you can trust..."
+                    className="w-full"
+                    heroLayout
+                    heroButtonLabel="Find a business"
+                    onSelect={(business) => {
+                      setSelectedBusinessForReview(business);
+                      setReviewModalPhase("form-business");
+                    }}
+                    onSubmitQuery={(query: string) => {
+                      if (!query.trim()) return;
+                      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                    }}
+                  />
+                </div>
+              )}
+
+              {reviewModalPhase === "search-product" && (
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setReviewModalPhase("pick")}
+                    className="text-sm font-medium text-[#1FAF9E] hover:underline"
+                  >
+                    ← Back
+                  </button>
+                  <h2 className="text-xl font-semibold text-[#0E0E0E]">Find a business</h2>
+                  <p className="text-sm text-gray-600">
+                    Open the business profile to scroll to its products and tap{" "}
+                    <span className="font-medium">Review this product</span> on an item.
+                  </p>
+                  <BusinessSearchInput
+                    inputId="dashboard-review-product-search"
+                    placeholder="Find businesses you can trust..."
+                    className="w-full"
+                    heroLayout
+                    heroButtonLabel="Find a business"
+                    onSelect={(business) => {
+                      if (business?.slug) {
+                        closeReviewModal();
+                        router.push(`/b/${encodeURIComponent(business.slug.trim().toLowerCase())}`);
+                      }
+                    }}
+                    onSubmitQuery={(query: string) => {
+                      if (!query.trim()) return;
+                      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                    }}
+                  />
+                </div>
+              )}
+
+              {reviewModalPhase === "form-business" && selectedBusinessForReview && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBusinessForReview(null);
+                      setReviewModalPhase("search-business");
+                    }}
+                    className="inline-flex w-fit rounded-lg bg-white/95 px-3 py-2 text-sm font-medium text-[#1FAF9E] shadow-sm ring-1 ring-black/10 hover:bg-white hover:underline"
+                  >
+                    ← Change business
+                  </button>
+                  <WriteReviewForm
+                    embedInModal
+                    businessSlug={selectedBusinessForReview.slug}
+                    initialBusinessSlug={selectedBusinessForReview.slug}
+                    initialBusinessName={selectedBusinessForReview.name}
+                    initialBusinessId={selectedBusinessForReview.id}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

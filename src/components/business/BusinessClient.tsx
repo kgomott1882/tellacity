@@ -70,6 +70,8 @@ type Review = {
   createdAt: string;
   createdAtRaw: string | null;
   likeCount: number;
+  /** From linked product photo when review is for a specific item. */
+  productName: string | null;
 };
 
 type ReviewReply = {
@@ -144,6 +146,46 @@ const formatDate = (value: string | null | undefined) => {
     year: "numeric",
   });
 };
+
+async function mapReviewRowsWithProductNames(
+  sb: ReturnType<typeof supabaseBrowser>,
+  rows: Array<Record<string, unknown>>,
+): Promise<Review[]> {
+  const photoIds = [
+    ...new Set(
+      rows
+        .map((r) => r.product_photo_id as string | null | undefined)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  const nameByPhoto = new Map<string, string>();
+  if (photoIds.length > 0) {
+    const { data: photos } = await sb
+      .from("business_photos")
+      .select("id, product_name")
+      .in("id", photoIds);
+    for (const p of photos ?? []) {
+      const id = String((p as { id?: string }).id ?? "");
+      const nm = String((p as { product_name?: string | null }).product_name ?? "").trim();
+      if (id && nm) nameByPhoto.set(id, nm);
+    }
+  }
+  return rows.map((review) => {
+    const pid = review.product_photo_id as string | null | undefined;
+    const productName = pid ? nameByPhoto.get(pid) ?? null : null;
+    return {
+      id: String(review.id),
+      reviewerName: String(review.guest_name ?? "Anonymous"),
+      rating: Number(review.rating ?? 0),
+      title: String(review.title ?? ""),
+      body: String(review.body ?? ""),
+      createdAt: formatDate(review.created_at as string | null | undefined),
+      createdAtRaw: (review.created_at as string | null | undefined) ?? null,
+      likeCount: Number((review as { like_count?: number }).like_count ?? 0),
+      productName,
+    };
+  });
+}
 
 const buildWebsiteHref = (value: string | null | undefined) => {
   const trimmed = (value ?? "").trim();
@@ -841,7 +883,7 @@ export default function BusinessClient({
       const { data, error, count } = await sb
         .from("reviews")
         .select(
-          "id, guest_name, rating, title, body, created_at, status, like_count",
+          "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id",
           { count: "exact" }
         )
         .eq("business_id", businessId)
@@ -855,16 +897,10 @@ export default function BusinessClient({
       }
 
       if (!error) {
-        const mapped = (data ?? []).map((review) => ({
-          id: review.id,
-          reviewerName: review.guest_name ?? "Anonymous",
-          rating: Number(review.rating ?? 0),
-          title: review.title ?? "",
-          body: review.body ?? "",
-          createdAt: formatDate(review.created_at),
-          createdAtRaw: review.created_at ?? null,
-          likeCount: Number((review as { like_count?: number }).like_count ?? 0),
-        }));
+        const mapped = await mapReviewRowsWithProductNames(
+          sb,
+          (data ?? []) as Array<Record<string, unknown>>,
+        );
         setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
         const reviewIds = mapped.map((item) => item.id);
         void fetchReplies(reviewIds, !append);
@@ -1452,6 +1488,7 @@ export default function BusinessClient({
                               created_at:
                                 review.createdAtRaw ?? undefined,
                               like_count: review.likeCount,
+                              product_name: review.productName ?? undefined,
                               business_slug: business?.slug ?? undefined,
                               business_name: business?.name,
                               website: business?.website,
@@ -1496,7 +1533,7 @@ export default function BusinessClient({
                         const { data, error, count } = await sb
                           .from("reviews")
                           .select(
-                            "id, guest_name, rating, title, body, created_at, status, like_count",
+                            "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id",
                             { count: "exact" }
                           )
                           .eq("business_id", business.id)
@@ -1506,18 +1543,10 @@ export default function BusinessClient({
                           .range(offset, offset + 4);
 
                         if (!error) {
-                          const mapped = (data ?? []).map((review) => ({
-                            id: review.id,
-                            reviewerName: review.guest_name ?? "Anonymous",
-                            rating: Number(review.rating ?? 0),
-                            title: review.title ?? "",
-                            body: review.body ?? "",
-                            createdAt: formatDate(review.created_at),
-                            createdAtRaw: review.created_at ?? null,
-                            likeCount: Number(
-                              (review as { like_count?: number }).like_count ?? 0
-                            ),
-                          }));
+                          const mapped = await mapReviewRowsWithProductNames(
+                            sb,
+                            (data ?? []) as Array<Record<string, unknown>>,
+                          );
                           setReviews((prevReviews) => [
                             ...prevReviews,
                             ...mapped,

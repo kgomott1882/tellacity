@@ -114,6 +114,18 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
     return NextResponse.json({ error: "Photo not found" }, { status: 404 });
   }
 
+  // Remove pending item-review drafts for this photo before the row is deleted; otherwise
+  // SET NULL on product_photo_id can duplicate (business_id, email) under general draft uniques.
+  const { error: draftDelErr } = await admin
+    .from("review_drafts")
+    .delete()
+    .eq("product_photo_id", photoId)
+    .eq("business_id", businessId);
+  if (draftDelErr) {
+    console.error("[admin/photos DELETE] review_drafts cleanup", draftDelErr);
+    return NextResponse.json({ error: draftDelErr.message }, { status: 500 });
+  }
+
   // --- delete the DB row (single source of truth for visibility) ----------
   const { error: delErr } = await admin
     .from("business_photos")

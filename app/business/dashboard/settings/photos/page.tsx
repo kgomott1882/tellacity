@@ -7,6 +7,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Eye,
   GripVertical,
   Lock,
@@ -41,12 +42,6 @@ import {
 import { compressImage } from "@/lib/imageCompression";
 import PhotoLimitModal from "@/components/business/PhotoLimitModal";
 import WriteReviewItemContent from "@/components/reviews/WriteReviewItemContent";
-import {
-  formatProductPrice,
-  PRODUCT_CURRENCY_OPTIONS,
-  PRODUCT_CURRENCY_OPTION_CODES,
-} from "@/lib/productCurrency";
-import { buildProductPurchaseHref } from "@/lib/productPurchaseHref";
 
 const UPLOAD_BUCKET = "business_media";
 const MAX_ORIGINAL_BYTES = 20 * 1024 * 1024;
@@ -80,14 +75,6 @@ function normalizePhotoSectionTitle(slug: string, title: string): string {
   return title;
 }
 
-function parseOptionalProductPrice(raw: string): number | null {
-  const t = String(raw ?? "").trim();
-  if (!t) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(9999999999.99, n));
-}
-
 type ModerationStatus = "pending" | "approved" | "rejected" | "flagged";
 
 type PhotoRow = {
@@ -115,14 +102,9 @@ type PhotoRow = {
   product_redirect_url: string | null;
 };
 
+/** In-progress edits for the label shown on the public profile (name + reviews only). */
 type ProductDraft = {
   name: string;
-  /** Stored as `business_photos.product_description` (product code / SKU). */
-  productCode: string;
-  price: string;
-  currency: string;
-  /** Stored as `business_photos.product_redirect_url` — public “Buy” opens this URL first. */
-  productUrl: string;
 };
 
 type SectionRow = {
@@ -149,10 +131,8 @@ export default function BusinessPhotosSettingsPage() {
   const [newSectionTitle, setNewSectionTitle] = useState("");
   const [addingSectionBusy, setAddingSectionBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
-  // Controls the "Yay! Your photos are now live" success modal that appears
-  // after a successful publish. Tracks how many photos were published so the
-  // modal can pluralise correctly.
-  const [publishSuccess, setPublishSuccess] = useState<{
+  /** Floating toast after publish — link to public profile (all plans). */
+  const [publishProfileToast, setPublishProfileToast] = useState<{
     count: number;
   } | null>(null);
   const [photoBusyId, setPhotoBusyId] = useState<string | null>(null);
@@ -167,6 +147,20 @@ export default function BusinessPhotosSettingsPage() {
   /** Draft IDs in the current section chosen for bulk delete (checkboxes). */
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
+  /** Brief "Copied" feedback after copying product photo UUID for reviews. */
+  const [copiedProductPhotoId, setCopiedProductPhotoId] = useState<string | null>(null);
+
+  const copyProductPhotoReviewId = useCallback(async (photoId: string) => {
+    try {
+      await navigator.clipboard.writeText(photoId);
+      setCopiedProductPhotoId(photoId);
+      window.setTimeout(() => {
+        setCopiedProductPhotoId((cur) => (cur === photoId ? null : cur));
+      }, 2200);
+    } catch {
+      setMessage({ type: "error", text: "Could not copy to clipboard." });
+    }
+  }, []);
 
   // Pending visibility changes per section — set when the user flips a
   // section's Public/Hidden toggle but has not yet pressed Save. Keyed by
@@ -412,6 +406,12 @@ export default function BusinessPhotosSettingsPage() {
   }, [draftLivePreviewPhotoId]);
 
   useEffect(() => {
+    if (!publishProfileToast) return;
+    const t = window.setTimeout(() => setPublishProfileToast(null), 12_000);
+    return () => window.clearTimeout(t);
+  }, [publishProfileToast]);
+
+  useEffect(() => {
     const v = (searchParams.get("upgrade_success") ?? "").trim().toLowerCase();
     if (v !== "1" && v !== "true" && v !== "yes") return;
     setShowUpgradeSuccess(true);
@@ -561,7 +561,14 @@ export default function BusinessPhotosSettingsPage() {
   const [itemReviewPhotoId, setItemReviewPhotoId] = useState<string | null>(null);
   /** Draft tile drag-reorder (HTML5 DnD): grip sets this while dragging. */
   const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
+  /** Tile receiving a dragged photo — subtle highlight while hovering with a drag. */
+  const [reorderDropTargetId, setReorderDropTargetId] = useState<string | null>(null);
   const [reorderBusy, setReorderBusy] = useState(false);
+
+  const clearReorderDragUi = useCallback(() => {
+    setReorderDraggingId(null);
+    setReorderDropTargetId(null);
+  }, []);
 
   const draftLightboxPhoto = useMemo(
     () =>
@@ -1274,8 +1281,7 @@ export default function BusinessPhotosSettingsPage() {
     if (
       !dragged ||
       dragged.section !== sectionSlug ||
-      dragged.status !== "draft" ||
-      isLocked(dragged)
+      (dragged.status !== "draft" && dragged.status !== "published")
     ) {
       return;
     }
@@ -1326,7 +1332,7 @@ export default function BusinessPhotosSettingsPage() {
       setMessage({ type: "error", text: "Network error while saving order." });
     } finally {
       setReorderBusy(false);
-      setReorderDraggingId(null);
+      clearReorderDragUi();
     }
   };
 
@@ -1466,10 +1472,6 @@ export default function BusinessPhotosSettingsPage() {
     const draft: ProductDraft =
       productDraftByPhotoId[photo.id] ?? {
         name: photo.product_name ?? "",
-        productCode: photo.product_description ?? "",
-        price: photo.product_price != null ? String(photo.product_price) : "",
-        currency: photo.product_currency ?? "USD",
-        productUrl: photo.product_redirect_url ?? "",
       };
     setProductSavingByPhotoId((cur) => ({ ...cur, [photo.id]: true }));
     try {
@@ -1482,12 +1484,10 @@ export default function BusinessPhotosSettingsPage() {
           body: JSON.stringify({
             product: {
               name: draft.name,
-              description: draft.productCode,
-              price: parseOptionalProductPrice(draft.price),
-              currency: draft.currency.trim().toUpperCase() || "USD",
-              redirect_url: draft.productUrl.trim()
-                ? draft.productUrl.trim().slice(0, 2000)
-                : null,
+              description: null,
+              price: null,
+              currency: "USD",
+              redirect_url: null,
             },
           }),
         }
@@ -1542,18 +1542,16 @@ export default function BusinessPhotosSettingsPage() {
               ? {
                   ...p,
                   product_name: draft.name.trim() || null,
-                  product_description: draft.productCode.trim() || null,
-                  product_price: parseOptionalProductPrice(draft.price),
-                  product_currency: draft.currency.trim().toUpperCase() || "USD",
-                  product_redirect_url: draft.productUrl.trim()
-                    ? draft.productUrl.trim().slice(0, 2000)
-                    : null,
+                  product_description: null,
+                  product_price: null,
+                  product_currency: "USD",
+                  product_redirect_url: null,
                 }
               : p
           )
         );
       }
-      setMessage({ type: "success", text: "Product details saved." });
+      setMessage({ type: "success", text: "Product name saved." });
     } catch {
       setMessage({ type: "error", text: "Network error while saving product details." });
     } finally {
@@ -1590,15 +1588,7 @@ export default function BusinessPhotosSettingsPage() {
         return;
       }
       const publishedCount = body?.publishedCount ?? targets.length;
-      setMessage({
-        type: "success",
-        text: `Published ${publishedCount} photo${
-          publishedCount === 1 ? "" : "s"
-        }.`,
-      });
-      if (planKey === "free" && publishedCount > 0) {
-        setPublishSuccess({ count: publishedCount });
-      }
+      setPublishProfileToast({ count: publishedCount });
       setPendingBatchMeta(null);
       await loadAll();
     } catch {
@@ -1611,118 +1601,76 @@ export default function BusinessPhotosSettingsPage() {
   if (!businessId) return null;
   if (loading) return <PageLoadingOverlay />;
 
-  /** Product name / code / optional price — shown inside the full-screen details modal. */
+  /** Product label editor — matches public profile (title + review stats only). */
   const renderProductDetailsEditor = (p: PhotoRow, wrapperClassName: string) => {
     const pd: ProductDraft =
       productDraftByPhotoId[p.id] ?? {
         name: p.product_name ?? "",
-        productCode: p.product_description ?? "",
-        price: p.product_price != null ? String(p.product_price) : "",
-        currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
-        productUrl: p.product_redirect_url ?? "",
       };
-    const curCode = (pd.currency || "").trim().toUpperCase();
-    const selVal = PRODUCT_CURRENCY_OPTION_CODES.has(curCode) ? curCode : "__other__";
     const merge = (patch: Partial<ProductDraft>) =>
       setProductDraftByPhotoId((cur) => {
         const base: ProductDraft =
           cur[p.id] ?? {
             name: p.product_name ?? "",
-            productCode: p.product_description ?? "",
-            price: p.product_price != null ? String(p.product_price) : "",
-            currency: p.product_currency ? p.product_currency.toUpperCase() : "USD",
-            productUrl: p.product_redirect_url ?? "",
           };
         return { ...cur, [p.id]: { ...base, ...patch } };
       });
     return (
       <div className={`relative ${wrapperClassName}`}>
-        <div className="space-y-2">
-        <input
-          type="text"
-          value={pd.name}
-          onChange={(e) => merge({ name: e.target.value })}
-          placeholder="Product name"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
-        />
-        <input
-          type="text"
-          value={pd.productCode}
-          onChange={(e) => merge({ productCode: e.target.value })}
-          placeholder="Product code (e.g. SKU)"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
-        />
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">
-            Product page URL (optional)
-          </label>
-          <input
-            type="url"
-            value={pd.productUrl}
-            onChange={(e) => merge({ productUrl: e.target.value })}
-            placeholder="https://yoursite.com/…"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
-          />
-          <p className="mt-1 text-[11px] leading-snug text-gray-500">
-            Visitors see a <span className="font-medium">Buy</span> button on your public profile;
-            it opens this link, or your business website if empty.
+        <p className="text-xs leading-relaxed text-gray-600">
+          This name appears under the photo on your public page, with star ratings and{" "}
+          <span className="font-medium text-gray-800">Review this product</span>. We no longer use SKU,
+          price, or buy links there.
+        </p>
+        <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+            Product review ID
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selVal}
-            onChange={(e) => {
-              const v = e.target.value;
-              merge({ currency: v === "__other__" ? "" : v });
-            }}
-            className="max-w-[6rem] shrink-0 rounded-lg border border-gray-200 px-2 py-2 text-sm text-gray-800"
-            aria-label="Currency"
-          >
-            {PRODUCT_CURRENCY_OPTIONS.map((o) => (
-              <option key={o.code} value={o.code}>
-                {o.code}
-              </option>
-            ))}
-            <option value="__other__">Other…</option>
-          </select>
-          {selVal === "__other__" ? (
-            <input
-              type="text"
-              inputMode="text"
-              maxLength={3}
-              value={curCode}
-              onChange={(e) =>
-                merge({
-                  currency: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3),
-                })
-              }
-              placeholder="ISO"
-              className="w-14 rounded-lg border border-gray-200 px-2 py-2 text-sm uppercase text-gray-800"
-              aria-label="Currency code"
-            />
-          ) : null}
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={pd.price}
-            onChange={(e) => merge({ price: e.target.value })}
-            placeholder="Price (optional)"
-            aria-label="Price (optional)"
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900"
-          />
+          <p className="mt-1 break-all font-mono text-[11px] leading-snug text-gray-800">{p.id}</p>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
+            Assigned when this photo is first saved. Public{" "}
+            <span className="font-medium text-gray-700">Review this product</span> links use this ID so
+            each product can be reviewed separately.
+          </p>
           <button
             type="button"
-            onClick={async () => {
-              await savePhotoProductMeta(p);
-              setProductEditorPhotoId(null);
-            }}
-            disabled={productSavingByPhotoId[p.id] === true}
-            className="shrink-0 rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] disabled:opacity-60"
+            onClick={() => void copyProductPhotoReviewId(p.id)}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-gray-50"
           >
-            {productSavingByPhotoId[p.id] ? "Saving..." : "Save"}
+            <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {copiedProductPhotoId === p.id ? "Copied" : "Copy ID"}
           </button>
         </div>
+        <div className="mt-4 space-y-3">
+          <div>
+            <label
+              htmlFor={`product-name-${p.id}`}
+              className="mb-1 block text-xs font-medium text-gray-700"
+            >
+              Product name
+            </label>
+            <input
+              id={`product-name-${p.id}`}
+              type="text"
+              value={pd.name}
+              onChange={(e) => merge({ name: e.target.value })}
+              placeholder="e.g. Kids puffer jacket"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
+            />
+          </div>
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={async () => {
+                await savePhotoProductMeta(p);
+                setProductEditorPhotoId(null);
+              }}
+              disabled={productSavingByPhotoId[p.id] === true}
+              className="rounded-lg bg-[#124541] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3a35] disabled:opacity-60"
+            >
+              {productSavingByPhotoId[p.id] ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1735,14 +1683,6 @@ export default function BusinessPhotosSettingsPage() {
       ...cur,
       [p.id]: {
         name: cur[p.id]?.name ?? p.product_name ?? "",
-        productCode: cur[p.id]?.productCode ?? p.product_description ?? "",
-        price:
-          cur[p.id]?.price ??
-          (p.product_price != null ? String(p.product_price) : ""),
-        currency:
-          cur[p.id]?.currency ??
-          (p.product_currency ? p.product_currency.toUpperCase() : "USD"),
-        productUrl: cur[p.id]?.productUrl ?? (p.product_redirect_url ?? ""),
       },
     }));
   };
@@ -1770,6 +1710,8 @@ export default function BusinessPhotosSettingsPage() {
 
     const reorderDropActive =
       Boolean(reorderDraggingId) && !reorderBusy && reorderDraggingId !== p.id;
+    const reorderGripEligible =
+      p.status === "draft" || p.status === "published";
 
     return (
       <li
@@ -1778,6 +1720,13 @@ export default function BusinessPhotosSettingsPage() {
           if (!reorderDropActive) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
+          setReorderDropTargetId(p.id);
+        }}
+        onDragLeave={(e) => {
+          if (!reorderDropActive) return;
+          const next = e.relatedTarget;
+          if (next instanceof Node && e.currentTarget.contains(next)) return;
+          setReorderDropTargetId((cur) => (cur === p.id ? null : cur));
         }}
         onDrop={(e) => {
           if (!reorderDropActive) return;
@@ -1787,11 +1736,17 @@ export default function BusinessPhotosSettingsPage() {
           if (!draggedId || draggedId === p.id) return;
           void applyReorderDrop(p.section, draggedId, p.id);
         }}
-        className={`relative overflow-hidden rounded-lg border bg-gray-50 ${borderClass} ${
+        className={`relative overflow-hidden rounded-lg border bg-gray-50 transition-[transform,box-shadow,opacity] duration-200 ease-out ${borderClass} ${
           isDraftBulkSelected ? "ring-2 ring-[#1FAF9E] ring-offset-2 ring-offset-amber-50/40" : ""
-        } ${reorderDraggingId === p.id ? "opacity-55 ring-2 ring-[#124541]/40" : ""} ${
-          reorderDropActive ? "transition-colors" : ""
-        }`}
+        } ${
+          reorderDraggingId === p.id
+            ? "z-40 scale-[1.03] opacity-95 shadow-2xl ring-2 ring-[#1FAF9E]/60"
+            : ""
+        } ${
+          reorderDropActive && reorderDropTargetId === p.id
+            ? "z-[1] scale-[0.98] bg-teal-50/40 ring-2 ring-[#1FAF9E]"
+            : ""
+        } ${reorderDropActive && reorderDropTargetId !== p.id ? "duration-150" : ""}`}
       >
         <div className="relative aspect-[4/3] w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1933,7 +1888,7 @@ export default function BusinessPhotosSettingsPage() {
                 : "justify-end gap-1"
             }`}
           >
-            {isDraft && !locked ? (
+            {reorderGripEligible ? (
               <div
                 draggable={!bulkDeleteBusy && !publishBusy && !reorderBusy}
                 onDragStart={(e) => {
@@ -1947,9 +1902,9 @@ export default function BusinessPhotosSettingsPage() {
                   e.dataTransfer.effectAllowed = "move";
                   setReorderDraggingId(p.id);
                 }}
-                onDragEnd={() => setReorderDraggingId(null)}
+                onDragEnd={clearReorderDragUi}
                 className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md border border-gray-200 bg-white/95 text-gray-500 shadow-sm active:cursor-grabbing"
-                aria-label="Drag to reorder draft"
+                aria-label="Drag to reorder"
                 title="Drag to reorder"
               >
                 <GripVertical className="h-4 w-4" aria-hidden />
@@ -2004,7 +1959,7 @@ export default function BusinessPhotosSettingsPage() {
                   }}
                   className="inline-flex h-7 min-w-0 shrink items-center justify-center rounded-full border border-gray-300 bg-white/95 px-2 text-[10px] font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
                 >
-                  Insert Details
+                  Set name
                 </button>
               </>
             ) : null}
@@ -2017,7 +1972,7 @@ export default function BusinessPhotosSettingsPage() {
                 }}
                 className="inline-flex h-7 min-w-0 shrink items-center justify-center rounded-full border border-gray-300 bg-white/95 px-2 text-[10px] font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
               >
-                Insert Details
+                Set name
               </button>
             ) : null}
             {p.section !== "products" && !p.is_cover ? (
@@ -2611,16 +2566,6 @@ export default function BusinessPhotosSettingsPage() {
             const pd = productDraftByPhotoId[lp.id];
             const name =
               (pd?.name ?? lp.product_name ?? "").trim() || "Untitled product";
-            const code = (pd?.productCode ?? lp.product_description ?? "").trim();
-            const priceRaw = pd?.price ?? (lp.product_price != null ? String(lp.product_price) : "");
-            const priceNum = parseOptionalProductPrice(priceRaw);
-            const currencyForPrice =
-              pd?.currency?.trim() || lp.product_currency || "USD";
-            const priceFormatted =
-              priceNum != null && Number.isFinite(priceNum)
-                ? formatProductPrice(priceNum, currencyForPrice)
-                : null;
-            const productUrl = (pd?.productUrl ?? lp.product_redirect_url ?? "").trim();
             const fitLikePublished =
               (fitModeByPhotoId[lp.id] ?? (lp.preview_frame === "portrait")) === true;
             return (
@@ -2652,8 +2597,8 @@ export default function BusinessPhotosSettingsPage() {
                     </button>
                   </div>
                   <p className="border-b border-gray-50 bg-teal-50/40 px-4 py-2 text-[11px] text-gray-700">
-                    Approximate look after you publish — add details with{" "}
-                    <span className="font-semibold">Insert Details</span> on the card.
+                    Approximate look on your public profile — use{" "}
+                    <span className="font-semibold">Set name</span> on the card for the label under the photo.
                   </p>
                   <div className="border-b border-gray-100 bg-neutral-100 px-4 py-4">
                     <div className="relative mx-auto aspect-[4/3] max-h-[280px] w-full overflow-hidden rounded-xl bg-white shadow-inner ring-1 ring-black/5">
@@ -2675,24 +2620,12 @@ export default function BusinessPhotosSettingsPage() {
                       <p className="text-[10px] font-medium uppercase text-gray-400">Name</p>
                       <p className="font-semibold text-[#0E0E0E]">{name}</p>
                     </div>
-                    {code ? (
-                      <div>
-                        <p className="text-[10px] font-medium uppercase text-gray-400">Code</p>
-                        <p className="font-mono text-gray-800">{code}</p>
-                      </div>
-                    ) : null}
                     <div>
-                      <p className="text-[10px] font-medium uppercase text-gray-400">Price</p>
-                      <p className="font-semibold text-[#124541]">{priceFormatted ?? "—"}</p>
-                    </div>
-                    {productUrl ? (
+                      <p className="text-[10px] font-medium uppercase text-gray-400">Reviews</p>
                       <p className="text-xs text-gray-500">
-                        Buy link:{" "}
-                        <span className="break-all font-medium text-[#1FAF9E]">{productUrl}</span>
+                        No reviews yet — matches the public card until customers leave feedback.
                       </p>
-                    ) : (
-                      <p className="text-xs text-gray-500">No buy link yet — optional in Insert Details.</p>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2721,7 +2654,7 @@ export default function BusinessPhotosSettingsPage() {
                       id="product-details-modal-title"
                       className="text-base font-semibold text-[#0E0E0E]"
                     >
-                      Product details
+                      Product name
                     </h2>
                     <button
                       type="button"
@@ -2794,35 +2727,12 @@ export default function BusinessPhotosSettingsPage() {
             const lp = draftLightboxPhoto;
             const productDraft = productDraftByPhotoId[lp.id];
             const productName = (productDraft?.name ?? lp.product_name ?? "").trim();
-            const productCode = (productDraft?.productCode ?? lp.product_description ?? "").trim();
-            const priceRaw = productDraft?.price ?? (lp.product_price != null ? String(lp.product_price) : "");
-            const priceNum = priceRaw.trim() === "" ? null : Number(priceRaw);
-            const currencyForPrice =
-              productDraft?.currency?.trim() || lp.product_currency || "USD";
-            const priceFormatted =
-              priceNum != null && Number.isFinite(priceNum)
-                ? formatProductPrice(priceNum, currencyForPrice)
-                : null;
             const isProducts = lp.section === "products";
-            const productPageUrlForBuy = (
-              productDraft?.productUrl ??
-              lp.product_redirect_url ??
-              ""
-            ).trim();
-            const buyHref = isProducts
-              ? buildProductPurchaseHref(
-                  productPageUrlForBuy || null,
-                  selectedBusiness?.website,
-                )
-              : "";
             return (
               <div
                 className="flex max-h-[min(92vh,920px)] w-full max-w-lg flex-col overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Use shrink-0 + explicit max-height (same idea as the Product details
-                    editor modal). flex-1 min-h-0 here made the image row collapse to
-                    zero height in column flex when the parent height is content-sized. */}
                 <div className="shrink-0 bg-neutral-100 px-3 py-4 sm:px-5">
                   <div className="mx-auto flex max-h-[min(52vh,480px)] w-full items-center justify-center overflow-hidden rounded-xl bg-white p-2 shadow-inner ring-1 ring-black/5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2835,7 +2745,7 @@ export default function BusinessPhotosSettingsPage() {
                 </div>
                 <div className="border-t border-gray-200 bg-white px-4 py-3 text-left">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                    {isProducts ? "Product details" : labelForSection(lp.section)}
+                    {isProducts ? "Product" : labelForSection(lp.section)}
                   </p>
                   {isProducts ? (
                     <div className="mt-2 space-y-2">
@@ -2846,59 +2756,46 @@ export default function BusinessPhotosSettingsPage() {
                             {productName || "—"}
                           </p>
                         </div>
-                        {selectedBusiness?.slug || buyHref ? (
-                          <div className="flex shrink-0 flex-col items-stretch gap-2">
-                            {selectedBusiness?.slug ? (
-                              <button
-                                type="button"
-                                className="rounded-lg border border-[#124541] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5"
-                                onClick={() => {
-                                  setDraftLightboxPhotoId(null);
-                                  setItemReviewPhotoId(lp.id);
-                                }}
-                              >
-                                Review this item
-                              </button>
-                            ) : null}
-                            {buyHref ? (
-                              <a
-                                href={buyHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center rounded-lg bg-[#124541] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/35"
-                              >
-                                Buy
-                              </a>
-                            ) : null}
-                          </div>
+                        {selectedBusiness?.slug ? (
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-lg border border-[#124541] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#124541] shadow-sm hover:bg-[#124541]/5"
+                            onClick={() => {
+                              setDraftLightboxPhotoId(null);
+                              setItemReviewPhotoId(lp.id);
+                            }}
+                          >
+                            Review this product
+                          </button>
                         ) : null}
                       </div>
-                      <div>
-                        <p className="text-[10px] font-medium uppercase text-gray-400">Product code</p>
-                        <p className="text-sm font-mono text-gray-700">
-                          {productCode || "—"}
-                        </p>
+                      <p className="text-xs text-gray-500">
+                        Public visitors see this title, star ratings, and{" "}
+                        <span className="font-medium text-gray-700">Review this product</span>. Use{" "}
+                        <span className="font-semibold">Set name</span> on the card to edit.
+                      </p>
+                      <div className="rounded-lg border border-gray-100 bg-gray-50/90 px-2.5 py-2">
+                        <p className="text-[10px] font-medium uppercase text-gray-500">Review ID</p>
+                        <p className="mt-0.5 break-all font-mono text-[10px] text-gray-800">{lp.id}</p>
+                        <button
+                          type="button"
+                          onClick={() => void copyProductPhotoReviewId(lp.id)}
+                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-[#124541] hover:underline"
+                        >
+                          <Copy className="h-3 w-3 shrink-0" aria-hidden />
+                          {copiedProductPhotoId === lp.id ? "Copied" : "Copy"}
+                        </button>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-medium uppercase text-gray-400">
-                          Price <span className="font-normal normal-case text-gray-400">(optional)</span>
-                        </p>
-                        <p className="text-sm font-semibold text-[#124541]">
-                          {priceFormatted ?? "—"}
-                        </p>
-                      </div>
-                      {!productName && !productCode && !priceFormatted ? (
-                        <p className="text-xs text-gray-500">
-                          Add name, product code, optional price, and product URL using{" "}
-                          <span className="font-semibold">Insert Details</span> on the photo card, then{" "}
-                          <span className="font-semibold">Save</span>.
+                      {!productName ? (
+                        <p className="text-xs text-amber-800">
+                          Add a product name so customers know what they&apos;re reviewing.
                         </p>
                       ) : null}
                     </div>
                   ) : (
                     <p className="mt-1 text-xs text-gray-600">
-                      Product name, code, optional price, and URL are available when the photo is in{" "}
-                      <span className="font-medium">Products</span>.
+                      Move this photo to <span className="font-medium">Products</span> to add a public product
+                      label and reviews.
                     </p>
                   )}
                 </div>
@@ -3163,7 +3060,8 @@ export default function BusinessPhotosSettingsPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <p className="min-w-0 max-w-xl text-sm text-gray-800">
                 <span className="font-semibold text-[#0E0E0E]">Drafts in {activeSectionTitle}.</span>{" "}
-                Drag drafts by the grip icon to reorder (Gallery thumbnails and grid). Select up to{" "}
+                Drag drafts or published photos by the grip to reorder (Gallery thumbnails and grid).
+                Select up to{" "}
                 {MAX_BULK_DRAFT_SELECTION} tiles below, then delete or publish — live photos stay on
                 the same cards after publishing.
               </p>
@@ -3296,8 +3194,8 @@ export default function BusinessPhotosSettingsPage() {
               <div className="mt-4 space-y-3">
                 <p className="text-xs text-gray-500">
                   Same layout as your live Gallery: large preview plus thumbnails. Drafts show editing controls;
-                  published tiles hide star/delete until hover (locked photos hide them completely). Drag drafts by
-                  the grip on a thumbnail to reorder.
+                  published tiles hide star/delete until hover (locked photos hide them completely). Drag any tile by
+                  the grip on a thumbnail or grid card to reorder — drafts and published photos move the same way.
                 </p>
                 {galleryHeroPhoto ? (
                   <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
@@ -3418,6 +3316,10 @@ export default function BusinessPhotosSettingsPage() {
                           const publishedUnlockedChromeHover =
                             !isDraft && !locked;
                           const publishedLockedChromeOff = !isDraft && locked;
+                          const reorderThumbDropActive =
+                            Boolean(reorderDraggingId) &&
+                            !reorderBusy &&
+                            reorderDraggingId !== p.id;
                           return (
                             <div
                               key={p.id}
@@ -3437,20 +3339,19 @@ export default function BusinessPhotosSettingsPage() {
                                   }
                                 }}
                                 onDragOver={(e) => {
-                                  const dropOk =
-                                    Boolean(reorderDraggingId) &&
-                                    !reorderBusy &&
-                                    reorderDraggingId !== p.id;
-                                  if (!dropOk) return;
+                                  if (!reorderThumbDropActive) return;
                                   e.preventDefault();
                                   e.dataTransfer.dropEffect = "move";
+                                  setReorderDropTargetId(p.id);
+                                }}
+                                onDragLeave={(e) => {
+                                  if (!reorderThumbDropActive) return;
+                                  const next = e.relatedTarget;
+                                  if (next instanceof Node && e.currentTarget.contains(next)) return;
+                                  setReorderDropTargetId((cur) => (cur === p.id ? null : cur));
                                 }}
                                 onDrop={(e) => {
-                                  const dropOk =
-                                    Boolean(reorderDraggingId) &&
-                                    !reorderBusy &&
-                                    reorderDraggingId !== p.id;
-                                  if (!dropOk) return;
+                                  if (!reorderThumbDropActive) return;
                                   e.preventDefault();
                                   e.stopPropagation();
                                   const draggedId =
@@ -3459,11 +3360,21 @@ export default function BusinessPhotosSettingsPage() {
                                   if (!draggedId || draggedId === p.id) return;
                                   void applyReorderDrop(p.section, draggedId, p.id);
                                 }}
-                                className={`group relative aspect-[4/3] w-full cursor-pointer overflow-hidden rounded-lg border bg-gray-100 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 ${
+                                className={`group relative aspect-[4/3] w-full cursor-pointer overflow-hidden rounded-lg border bg-gray-100 transition-[border-color,transform,box-shadow,opacity] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 ${
                                   isActive
                                     ? "border-[#1FAF9E] ring-2 ring-[#1FAF9E]/40"
                                     : "border-gray-200 hover:border-gray-300"
-                                } ${reorderDraggingId === p.id ? "opacity-55" : ""}`}
+                                } ${
+                                  reorderDraggingId === p.id
+                                    ? "z-30 scale-[1.03] opacity-95 shadow-2xl ring-2 ring-[#1FAF9E]/50"
+                                    : ""
+                                } ${
+                                  reorderThumbDropActive &&
+                                  reorderDropTargetId === p.id &&
+                                  reorderDraggingId !== p.id
+                                    ? "z-[5] scale-[0.97] bg-teal-50/50 ring-2 ring-[#1FAF9E]"
+                                    : ""
+                                }`}
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
@@ -3478,7 +3389,7 @@ export default function BusinessPhotosSettingsPage() {
                                   }`}
                                 />
 
-                                {isDraft && !locked ? (
+                                {(isDraft || p.status === "published") ? (
                                   <div
                                     draggable={!bulkDeleteBusy && !publishBusy && !reorderBusy}
                                     onDragStart={(e) => {
@@ -3492,10 +3403,10 @@ export default function BusinessPhotosSettingsPage() {
                                       e.dataTransfer.effectAllowed = "move";
                                       setReorderDraggingId(p.id);
                                     }}
-                                    onDragEnd={() => setReorderDraggingId(null)}
+                                    onDragEnd={clearReorderDragUi}
                                     onClick={(e) => e.stopPropagation()}
                                     className="absolute left-1 top-1 z-[13] inline-flex h-6 w-6 cursor-grab items-center justify-center rounded border border-gray-200 bg-white/95 text-gray-500 shadow-sm active:cursor-grabbing"
-                                    aria-label="Drag to reorder draft"
+                                    aria-label="Drag to reorder"
                                     title="Drag to reorder"
                                   >
                                     <GripVertical className="h-3.5 w-3.5" aria-hidden />
@@ -3707,7 +3618,8 @@ export default function BusinessPhotosSettingsPage() {
                     <span className="inline-flex align-middle text-gray-700">
                       <Eye className="mx-0.5 inline h-3.5 w-3.5" aria-hidden />
                     </span>{" "}
-                    on a card for a published-style preview before you go live.
+                    on a card for a published-style preview before you go live. Each upload gets a unique
+                    review ID (see <span className="font-medium text-gray-700">Set name</span>).
                   </p>
                 ) : null
               ) : previewSectionSlug === "gallery" ? null : (
@@ -3994,68 +3906,51 @@ export default function BusinessPhotosSettingsPage() {
           }
         `}</style>
 
-      {/* ---------- Publish success modal (Free plan) ----------
-          Fires after drafts are successfully published. Reassures the
-          owner that the photos are visible immediately while making the
-          moderation step transparent so rejected photos later don't feel
-          sudden. */}
-      {publishSuccess ? (
+      {/* Floating toast after publish — immediate feedback + link to public profile */}
+      {publishProfileToast ? (
         <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setPublishSuccess(null)}
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 left-4 right-4 z-[1050] mx-auto flex max-w-md sm:left-auto sm:right-6 sm:mx-0"
         >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex w-full flex-col gap-2 rounded-xl border border-emerald-200/80 bg-white p-4 text-sm shadow-lg ring-1 ring-black/5">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-5 w-5"
-                  aria-hidden
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.704 5.29a1 1 0 010 1.42l-8 8a1 1 0 01-1.42 0l-4-4a1 1 0 011.42-1.42L8 12.58l7.29-7.29a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <Check className="h-4 w-4" aria-hidden />
               </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-semibold text-[#0E0E0E]">
-                  Yay! Your photos are now live and visible.
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                  They&apos;re currently under review by the Tellacity admin
-                  team for final approval.
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="font-semibold text-[#0E0E0E]">
+                  {publishProfileToast.count === 1
+                    ? "1 photo published."
+                    : `${publishProfileToast.count} photos published.`}
                 </p>
+                {planKey === "free" ? (
+                  <p className="mt-1 text-xs leading-relaxed text-gray-600">
+                    They&apos;re visible on your profile while our team completes image review.
+                  </p>
+                ) : null}
+                {selectedBusiness?.slug ? (
+                  <Link
+                    href={`/b/${selectedBusiness.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setPublishProfileToast(null)}
+                    className="mt-2 inline-flex text-sm font-semibold text-[#1FAF9E] underline-offset-2 hover:underline"
+                  >
+                    View public profile
+                  </Link>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">Add a public profile URL in settings to share your page.</p>
+                )}
               </div>
-            </div>
-            <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setPublishSuccess(null)}
-                className="inline-flex items-center rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setPublishProfileToast(null)}
+                className="-mr-1 -mt-1 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Dismiss"
               >
-                Close
+                <X className="h-4 w-4" aria-hidden />
               </button>
-              {selectedBusiness?.slug ? (
-                <Link
-                  href={`/b/${selectedBusiness.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setPublishSuccess(null)}
-                  className="inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#179487]"
-                >
-                  View them live
-                  <span aria-hidden>→</span>
-                </Link>
-              ) : null}
             </div>
           </div>
         </div>

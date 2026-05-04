@@ -61,6 +61,154 @@ function rowIsPublicLiveReview(row: {
   return vis === "visible";
 }
 
+/** Business-level review (not an item / product_photo review). */
+function isGeneralBusinessReviewRow(row: {
+  product_photo_id?: string | null;
+}): boolean {
+  const p = row.product_photo_id;
+  if (p == null) return true;
+  if (typeof p === "string" && p.trim() === "") return true;
+  return false;
+}
+
+/** Mirrors app `reviewBusinessSelfReview` — block reviews from the business’s website / work domain. */
+const GENERIC_CONSUMER_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.uk",
+  "hotmail.com",
+  "outlook.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "proton.me",
+  "protonmail.com",
+  "aol.com",
+  "gmx.com",
+  "gmx.de",
+  "web.de",
+  "yandex.com",
+  "mail.com",
+  "zoho.com",
+]);
+
+function normalizeWebsiteHost(input: string): string {
+  if (!input) return "";
+  let value = input.trim().toLowerCase();
+  while (/^https?:\/\//.test(value)) {
+    value = value.replace(/^https?:\/\//, "");
+  }
+  value = value.replace(/\/+$/, "");
+  value = value.split("/")[0] ?? value;
+  while (value.startsWith("www.")) {
+    value = value.slice(4);
+  }
+  return value;
+}
+
+function extractEmailHost(emailLower: string): string | null {
+  const e = emailLower.trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at < 1 || at === e.length - 1) return null;
+  return e.slice(at + 1).trim() || null;
+}
+
+function isGenericConsumerDomain(d: string): boolean {
+  return GENERIC_CONSUMER_DOMAINS.has(d.trim().toLowerCase());
+}
+
+function domainIsUnder(org: string, cand: string): boolean {
+  const o = org.trim().toLowerCase();
+  const c = cand.trim().toLowerCase();
+  if (!o || !c) return false;
+  if (c === o) return true;
+  return c.endsWith("." + o);
+}
+
+function buildBusinessDomainSetEdge(row: {
+  email?: string | null;
+  website?: string | null;
+  website_display?: string | null;
+}): { domains: Set<string>; contactEmailLower: string | null } {
+  const out = new Set<string>();
+  const add = (raw: string) => {
+    const d = normalizeWebsiteHost(raw);
+    if (d) out.add(d);
+  };
+  add(String(row.website_display ?? ""));
+  add(String(row.website ?? ""));
+  const contact = String(row.email ?? "").trim().toLowerCase();
+  if (contact.includes("@")) {
+    const host = extractEmailHost(contact);
+    if (host && !isGenericConsumerDomain(host)) {
+      add(host);
+    }
+  }
+  return { domains: out, contactEmailLower: contact || null };
+}
+
+function isReviewerBlockedEdge(
+  reviewerEmailLower: string,
+  domains: Set<string>,
+  contactEmailLower: string | null,
+): boolean {
+  const rev = reviewerEmailLower.trim().toLowerCase();
+  if (!rev.includes("@")) return false;
+  if (
+    contactEmailLower &&
+    rev === contactEmailLower.trim().toLowerCase()
+  ) {
+    return true;
+  }
+  const rd = extractEmailHost(rev);
+  if (!rd) return false;
+  for (const bd of domains) {
+    if (!bd) continue;
+    if (domainIsUnder(bd, rd)) return true;
+  }
+  return false;
+}
+
+async function jsonIfSameDomainAsBusiness(
+  supabase: ReturnType<typeof createClient>,
+  businessId: string,
+  reviewerEmailLower: string,
+): Promise<Response | null> {
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("email, website, website_display")
+    .eq("id", businessId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const ctx = buildBusinessDomainSetEdge(
+    data as {
+      email?: string | null;
+      website?: string | null;
+      website_display?: string | null;
+    },
+  );
+  if (
+    isReviewerBlockedEdge(
+      reviewerEmailLower,
+      ctx.domains,
+      ctx.contactEmailLower,
+    )
+  ) {
+    return json(
+      {
+        error:
+          "You can’t use a work email for this business. Please leave a review from a personal email address.",
+        error_code: "same_domain_as_business",
+      },
+      403,
+    );
+  }
+  return null;
+}
+
 /**
  * Inserts `review_received` (service role). Awaited so rows appear before the HTTP response.
  * Temporary debug logs ,  remove when stable.
@@ -279,6 +427,15 @@ serve(async (req) => {
       return json({ error: "guest_email must be a valid email" }, 400);
     }
 
+    const reviewerEmailForDomain =
+      authedUser?.email?.trim().toLowerCase() || guest_email;
+    const sameDomainBlock = await jsonIfSameDomainAsBusiness(
+      supabase,
+      business_id,
+      reviewerEmailForDomain,
+    );
+    if (sameDomainBlock) return sameDomainBlock;
+
     let date_of_experience: string | null = null;
     if (payload.date_of_experience && payload.date_of_experience.trim()) {
       const d = payload.date_of_experience.trim();
@@ -426,6 +583,7 @@ serve(async (req) => {
         draft?: boolean | null;
         visibility?: string | null;
         created_at?: string | null;
+        product_photo_id?: string | null;
       };
 
       let list: ListRow[] = [];
@@ -433,14 +591,14 @@ serve(async (req) => {
         const [uRes, gRes] = await Promise.all([
           supabase
             .from("reviews")
-            .select("id, status, draft, visibility, created_at")
+            .select("id, status, draft, visibility, created_at, product_photo_id")
             .eq("business_id", business_id)
             .eq("user_id", authedUser.id)
             .order("created_at", { ascending: false })
             .limit(20),
           supabase
             .from("reviews")
-            .select("id, status, draft, visibility, created_at")
+            .select("id, status, draft, visibility, created_at, product_photo_id")
             .eq("business_id", business_id)
             .eq("guest_email", invEmail)
             .order("created_at", { ascending: false })
@@ -466,7 +624,7 @@ serve(async (req) => {
       } else {
         const { data: existingRows, error: existingInviteError } = await supabase
           .from("reviews")
-          .select("id, status, draft, visibility, created_at")
+          .select("id, status, draft, visibility, created_at, product_photo_id")
           .eq("business_id", business_id)
           .eq("guest_email", guest_email)
           .order("created_at", { ascending: false })
@@ -482,7 +640,9 @@ serve(async (req) => {
         list = (existingRows ?? []) as ListRow[];
       }
 
-      const draftRow = list.find((r) => rowIsDraft(r));
+      const draftRow = list.find(
+        (r) => rowIsDraft(r) && isGeneralBusinessReviewRow(r),
+      );
       if (draftRow?.id) {
         const { error: upErr } = await supabase
           .from("reviews")
@@ -528,7 +688,10 @@ serve(async (req) => {
         );
       }
 
-      const liveRow = list.find((r) => rowIsPublicLiveReview(r));
+      const liveRow = list.find(
+        (r) =>
+          rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+      );
       if (liveRow?.id) {
         return json(
           {
@@ -541,7 +704,10 @@ serve(async (req) => {
 
       // Hidden / non-live rows still tied to this email: republish in place so the invite
       // succeeds (business page may show 0 visible reviews while a hidden row existed).
-      const salvageRow = list[0];
+      const salvageRow = list.find(
+        (r) =>
+          isGeneralBusinessReviewRow(r) && !rowIsPublicLiveReview(r),
+      );
       if (salvageRow?.id) {
         const { error: upSalvage } = await supabase
           .from("reviews")
@@ -653,7 +819,7 @@ serve(async (req) => {
     // Check for an existing published review for this business + guest email
     const { data: guestRows, error: existingError } = await supabase
       .from("reviews")
-      .select("id, status, draft, visibility, created_at")
+      .select("id, status, draft, visibility, created_at, product_photo_id")
       .eq("business_id", business_id)
       .eq("guest_email", guest_email)
       .order("created_at", { ascending: false })
@@ -690,7 +856,10 @@ serve(async (req) => {
       );
     }
 
-    const guestLive = guestList.find((r) => rowIsPublicLiveReview(r));
+    const guestLive = guestList.find(
+      (r) =>
+        rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+    );
     if (guestLive?.id) {
       return json(
         {

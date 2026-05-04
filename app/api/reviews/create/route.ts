@@ -7,6 +7,16 @@ import { getServerEnv } from "@/lib/serverEnv";
 import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
 import { validatedProductPhotoIdForReview } from "@/lib/reviewProductPhotoId";
 import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
+import {
+  evaluateProductReviewRateLimits,
+  PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+} from "@/lib/productReviewRateLimits";
+import {
+  fetchBusinessDomainContext,
+  isReviewerBlockedAsBusinessDomain,
+  SAME_DOMAIN_REVIEW_ERROR_CODE,
+  SAME_DOMAIN_REVIEW_MESSAGE,
+} from "@/lib/reviewBusinessSelfReview";
 
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
@@ -77,6 +87,26 @@ export async function POST(req: Request) {
     );
     if (suspendedBlock) return suspendedBlock;
 
+    const userEmail = (user.email ?? "").trim().toLowerCase();
+    if (userEmail) {
+      const domainCtx = await fetchBusinessDomainContext(supabase, business_id);
+      if (
+        isReviewerBlockedAsBusinessDomain({
+          reviewerEmailLower: userEmail,
+          businessDomains: domainCtx.domains,
+          businessContactEmailLower: domainCtx.contactEmailLower,
+        })
+      ) {
+        return NextResponse.json(
+          {
+            error: SAME_DOMAIN_REVIEW_MESSAGE,
+            error_code: SAME_DOMAIN_REVIEW_ERROR_CODE,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const ratingNum = Number(rawRating);
     if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {
       return NextResponse.json({ error: "Invalid rating" }, { status: 400 });
@@ -128,6 +158,25 @@ export async function POST(req: Request) {
       }
     }
 
+    let reviewStatus: "published" | "under_review" = "published";
+    if (productPhotoIdResolved) {
+      const rate = await evaluateProductReviewRateLimits(supabase, {
+        businessId: business_id,
+        guestEmailLower: null,
+        userId: user.id,
+      });
+      if (rate.outcome === "block") {
+        return NextResponse.json(
+          {
+            error: PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+            error_code: "product_review_rate_limit",
+          },
+          { status: 429 },
+        );
+      }
+      reviewStatus = rate.reviewStatus;
+    }
+
     const { data: createdRow, error: insertError } = await supabase
       .from("reviews")
       .insert({
@@ -138,7 +187,7 @@ export async function POST(req: Request) {
         title,
         body,
         date_of_experience,
-        status: "published",
+        status: reviewStatus,
         visibility: "visible",
         verification_status: "verified",
         draft: false,
@@ -153,7 +202,11 @@ export async function POST(req: Request) {
       // Handle duplicate review cleanly
       if (insertError.code === "23505") {
         return NextResponse.json(
-          { error: "You have already reviewed this business." },
+          {
+            error: productPhotoIdResolved
+              ? "You've already reviewed this product."
+              : "You have already reviewed this business.",
+          },
           { status: 409 },
         );
       }

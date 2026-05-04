@@ -56,6 +56,22 @@ export default function RecentReviewCard({
   const title = review.title;
   const body = review.body;
 
+  const productLabel = String(
+    review.product_name ?? review.productName ?? "",
+  ).trim();
+  const titleTrim = typeof title === "string" ? title.trim() : "";
+  const bodyTrim = typeof body === "string" ? body.trim() : "";
+  /** Item reviews often set `title` to the product name — avoid "Product: X" + bold "X". */
+  const titleDuplicatesProduct =
+    productLabel.length > 0 &&
+    titleTrim.length > 0 &&
+    titleTrim.toLowerCase() === productLabel.toLowerCase();
+  /** Body sometimes equals the product name only (no real comment). */
+  const bodyOnlyDuplicatesProduct =
+    productLabel.length > 0 &&
+    bodyTrim.length > 0 &&
+    bodyTrim.toLowerCase() === productLabel.toLowerCase();
+
   const reviewId = review.review_id || review.id;
 
   const logoUrl = similarBusinessLogoUrl({
@@ -279,25 +295,33 @@ export default function RecentReviewCard({
           {!isLanding && <span className="shrink-0">{dateText}</span>}
         </div>
 
-        {!isLanding && title && (
+        {productLabel ? (
+          <p className="mt-1 text-xs font-medium text-[#124541]">
+            Product: {productLabel}
+          </p>
+        ) : null}
+
+        {!isLanding && titleTrim && !titleDuplicatesProduct && (
           <div className="mt-0 line-clamp-1 break-words font-semibold text-sm text-slate-900">
-            {title}
+            {titleTrim}
           </div>
         )}
 
         {/* Landing: max 5 lines with … (do not use flex-1 here , it breaks line-clamp/ellipsis) */}
-        <p
-          className={cn(
-            "text-sm leading-relaxed text-slate-600 break-words [overflow-wrap:anywhere]",
-            isLanding ? "mt-2 line-clamp-5 overflow-hidden" : "mt-0",
-            !isLanding &&
-              !showMore &&
-              (isMobile ? "line-clamp-4" : "line-clamp-5"),
-            !isLanding && "flex-grow",
-          )}
-        >
-          {body}
-        </p>
+        {!bodyOnlyDuplicatesProduct && bodyTrim.length > 0 && (
+          <p
+            className={cn(
+              "text-sm leading-relaxed text-slate-600 break-words [overflow-wrap:anywhere]",
+              isLanding ? "mt-2 line-clamp-5 overflow-hidden" : "mt-0",
+              !isLanding &&
+                !showMore &&
+                (isMobile ? "line-clamp-4" : "line-clamp-5"),
+              !isLanding && "flex-grow",
+            )}
+          >
+            {body}
+          </p>
+        )}
 
         {isLanding && reviewId && (
           <div className="mt-auto shrink-0 pt-1.5" onClick={(e) => e.stopPropagation()}>

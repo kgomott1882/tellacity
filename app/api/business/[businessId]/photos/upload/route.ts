@@ -47,6 +47,9 @@ function parseUrl(body: Record<string, unknown> | null): string | NextResponse {
  * Body: JSON { url: string, section?: string, uploadBatchId?: string (uuid) }.
  * Unknown / empty / invalid section → gallery. Optional uploadBatchId groups
  * multi-file uploads for batch labeling (see /photos/batch-label).
+ *
+ * Response `photo.id` is the permanent UUID for this row (`business_photos.id`).
+ * Product reviews use this value as `product_photo_id` / `?photoId=` on item review flows.
  */
 export async function POST(
   req: Request,

@@ -3,8 +3,15 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import { isGeneralBusinessReviewRow } from "@/lib/reviewGeneralScope";
 import { resolveReviewGuestEmail } from "@/lib/reviewSessionEmail";
 import { logReviewReceivedActivity } from "@/lib/logBusinessActivity";
+import {
+  fetchBusinessDomainContext,
+  isReviewerBlockedAsBusinessDomain,
+  SAME_DOMAIN_REVIEW_ERROR_CODE,
+  SAME_DOMAIN_REVIEW_MESSAGE,
+} from "@/lib/reviewBusinessSelfReview";
 
 type Body = {
   business_id?: string;
@@ -93,6 +100,27 @@ export async function POST(req: Request) {
         ? body.title.trim()
         : null;
 
+    const domainCtx = await fetchBusinessDomainContext(supabase, business_id);
+    const reviewerEmailForDomain = isGoogleUser
+      ? (user?.email?.trim().toLowerCase() ?? effectiveEmail.trim().toLowerCase())
+      : effectiveEmail.trim().toLowerCase();
+    if (
+      reviewerEmailForDomain &&
+      isReviewerBlockedAsBusinessDomain({
+        reviewerEmailLower: reviewerEmailForDomain,
+        businessDomains: domainCtx.domains,
+        businessContactEmailLower: domainCtx.contactEmailLower,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          error: SAME_DOMAIN_REVIEW_MESSAGE,
+          error_code: SAME_DOMAIN_REVIEW_ERROR_CODE,
+        },
+        { status: 403 },
+      );
+    }
+
     if (body.auth_mode === "authenticated" || isGoogleUser) {
       const guestName =
         (user?.user_metadata?.full_name as string | undefined)?.trim() ||
@@ -101,7 +129,7 @@ export async function POST(req: Request) {
 
       const { data: existingRows, error: existingErr } = await supabase
         .from("reviews")
-        .select("id, draft, status, visibility, created_at")
+        .select("id, draft, status, visibility, created_at, product_photo_id")
         .eq("business_id", business_id)
         .eq("guest_email", effectiveEmail)
         .order("created_at", { ascending: false })
@@ -111,7 +139,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "update_failed" }, { status: 500 });
       }
 
-      const existingLive = (existingRows ?? []).find((r) => rowIsPublicLiveReview(r));
+      const existingLive = (existingRows ?? []).find(
+        (r) => rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+      );
       if (existingLive?.id) {
         const { error: updateExistingErr } = await supabase
           .from("reviews")
@@ -178,7 +208,7 @@ export async function POST(req: Request) {
 
     const { data: rows, error: findError } = await supabase
       .from("reviews")
-      .select("id, draft, status, visibility, created_at")
+      .select("id, draft, status, visibility, created_at, product_photo_id")
       .eq("business_id", business_id)
       .eq("guest_email", effectiveEmail)
       .order("created_at", { ascending: false })
@@ -190,7 +220,9 @@ export async function POST(req: Request) {
     }
 
     const list = rows ?? [];
-    const existing = list.find((r) => rowIsPublicLiveReview(r));
+    const existing = list.find(
+      (r) => rowIsPublicLiveReview(r) && isGeneralBusinessReviewRow(r),
+    );
     if (!existing?.id) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }

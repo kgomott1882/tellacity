@@ -40,6 +40,11 @@ type WriteReviewFormProps = {
   onInviteDraftFlowError?: (message: string | null) => void;
   /** Invite page: after review is published (OTP modal or direct), parent shows success. */
   onInviteReviewPublished?: () => void;
+  /**
+   * When true, root is a `div` (not `main`) for embedding in e.g. the consumer dashboard modal.
+   * Slightly tighter section padding.
+   */
+  embedInModal?: boolean;
 };
 
 const REFERENCE_TYPES = ["order", "invoice", "booking", "customer", "generic", "custom"] as const;
@@ -236,6 +241,7 @@ export default function WriteReviewForm({
   onInviteDraftCreated,
   onInviteDraftFlowError,
   onInviteReviewPublished,
+  embedInModal = false,
 }: WriteReviewFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1904,37 +1910,81 @@ export default function WriteReviewForm({
     ? "You are almost done. Click submit review below to finalise"
     : submitError;
 
-  return (
-    <main className="bg-white">
-      <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">
-          Write a review
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Share your experience to help others make better decisions.
-        </p>
+  const Root: "main" | "div" = embedInModal ? "div" : "main";
 
-        {!showDuplicateModal && submitError && !isSubmitting && (
-          <div
-            className={`mt-4 rounded-md px-4 py-3 text-sm ${
-              showFinalizeHint
-                ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border border-red-200 bg-red-50 text-red-800"
-            }`}
-            role={showFinalizeHint ? "status" : "alert"}
-          >
-            {bannerMessage}
-          </div>
+  return (
+    <Root className={embedInModal ? "bg-transparent" : "bg-white"}>
+      <section
+        className={
+          embedInModal
+            ? "mx-auto w-full max-w-3xl px-2 pb-2 pt-1 sm:px-4 sm:pb-4"
+            : "mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8"
+        }
+      >
+        {!embedInModal && (
+          <>
+            <h1 className="text-2xl font-semibold text-[#0E0E0E]">
+              Write a review
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Share your experience to help others make better decisions.
+            </p>
+          </>
         )}
 
+        {!embedInModal &&
+          !showDuplicateModal &&
+          submitError &&
+          !isSubmitting && (
+            <div
+              className={`mt-4 rounded-md px-4 py-3 text-sm ${
+                showFinalizeHint
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border border-red-200 bg-red-50 text-red-800"
+              }`}
+              role={showFinalizeHint ? "status" : "alert"}
+            >
+              {bannerMessage}
+            </div>
+          )}
+
         <div
-          className="mt-6 space-y-6 rounded-2xl bg-white p-6"
+          className={
+            embedInModal
+              ? "mt-0 space-y-6 rounded-2xl bg-white p-6"
+              : "mt-6 space-y-6 rounded-2xl bg-white p-6"
+          }
           style={{
             border: "3px solid #124541",
             boxShadow:
               "0 0 20px rgba(18, 69, 65, 0.25), 0 0 40px rgba(18, 69, 65, 0.15)",
           }}
         >
+          {embedInModal && (
+            <div className="border-b border-gray-100 pb-4">
+              <h1 className="text-2xl font-semibold text-[#0E0E0E]">
+                Write a review
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Share your experience to help others make better decisions.
+              </p>
+            </div>
+          )}
+          {embedInModal &&
+            !showDuplicateModal &&
+            submitError &&
+            !isSubmitting && (
+              <div
+                className={`mb-4 rounded-md px-4 py-3 text-sm ${
+                  showFinalizeHint
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border border-red-200 bg-red-50 text-red-800"
+                }`}
+                role={showFinalizeHint ? "status" : "alert"}
+              >
+                {bannerMessage}
+              </div>
+            )}
           <div>
             <h2 className="text-sm font-semibold text-[#0E0E0E]">
               1. Choose a business
@@ -2475,7 +2525,11 @@ export default function WriteReviewForm({
         />
       )}
       {showDuplicateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div
+          className={`fixed inset-0 flex items-center justify-center bg-black/40 ${
+            embedInModal ? "z-[10001]" : "z-50"
+          }`}
+        >
           <div className="animate-fadeIn relative w-full max-w-md rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-xl">
             <button
               type="button"
@@ -2509,7 +2563,7 @@ export default function WriteReviewForm({
           </div>
         </div>
       )}
-    </main>
+    </Root>
   );
 }
 

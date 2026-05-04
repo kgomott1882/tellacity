@@ -2,7 +2,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
+import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import {
   FREE_PLAN_PUBLISH_LOCK_MESSAGE,
@@ -310,6 +312,22 @@ export async function DELETE(
     const planKey = planByBiz.get(businessId) ?? "free";
     if (isPhotoEditLocked(planKey, photo.status, photo.published_at)) {
       return publishLockResponse(photo.published_at);
+    }
+
+    // Must run before deleting the photo: FK is ON DELETE SET NULL in older DBs, which
+    // can produce duplicate (business, email) “general” drafts under partial uniques.
+    // Service role: review_drafts has no owner-facing RLS delete path.
+    const { supabaseUrl, serviceRoleKey } = getServerEnv();
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: draftDelErr } = await admin
+      .from("review_drafts")
+      .delete()
+      .eq("product_photo_id", photoId)
+      .eq("business_id", businessId);
+    if (draftDelErr) {
+      return NextResponse.json({ error: draftDelErr.message }, { status: 500 });
     }
 
     const { error: delErr } = await ctx.db

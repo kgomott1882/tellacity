@@ -7,7 +7,11 @@ import WriteReviewItemContent from "@/components/reviews/WriteReviewItemContent"
 function WriteReviewItemBody() {
   const searchParams = useSearchParams();
   const slug = (searchParams.get("businessSlug") || searchParams.get("slug") || "").trim();
-  const photoId = (searchParams.get("photoId") || "").trim();
+  const photoId = (
+    searchParams.get("photoId") ||
+    searchParams.get("productId") ||
+    ""
+  ).trim();
 
   if (!slug || !photoId) {
     return (

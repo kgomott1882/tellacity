@@ -8,6 +8,16 @@ import {
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
 import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
+import {
+  evaluateProductReviewRateLimits,
+  PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+} from "@/lib/productReviewRateLimits";
+import {
+  fetchBusinessDomainContext,
+  isReviewerBlockedAsBusinessDomain,
+  SAME_DOMAIN_REVIEW_ERROR_CODE,
+  SAME_DOMAIN_REVIEW_MESSAGE,
+} from "@/lib/reviewBusinessSelfReview";
 
 type VerifyBody = {
   draft_id?: string;
@@ -74,11 +84,60 @@ function codesMatch(stored: unknown, input: string): boolean {
   return String(stored ?? "").trim() === input.trim();
 }
 
+/** Stable UUID for inserts; DB may return uuid/null — never rely on truthiness alone. */
+function normalizeDraftProductPhotoId(raw: unknown): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s || !isValidUuid(s)) return null;
+  return s;
+}
+
+/**
+ * Uses Postgres error message (constraint / index name) so we don't mis-label
+ * business-scope duplicates as "product" when product_photo_id was omitted.
+ */
+function duplicateReviewMessageFromPgError(
+  pgMessage: string,
+  fallbackHadProductScope: boolean,
+): string {
+  const m = pgMessage.toLowerCase();
+  if (
+    m.includes("reviews_guest_product_photo_uniq") ||
+    (m.includes("product_photo") && m.includes("uniq"))
+  ) {
+    return "You've already reviewed this product.";
+  }
+  if (
+    m.includes("reviews_guest_business_no_product_uniq") ||
+    m.includes("reviews_business_id_guest_email") ||
+    m.includes("reviews_guest_email_business") ||
+    (m.includes("business_id") && m.includes("guest_email") && m.includes("uniq"))
+  ) {
+    return "You have already reviewed this business.";
+  }
+  return fallbackHadProductScope
+    ? "You've already reviewed this product."
+    : "You have already reviewed this business.";
+}
+
+function reviewRowIsPublicLive(row: {
+  draft?: boolean | null;
+  status?: string | null;
+  visibility?: string | null;
+}): boolean {
+  if (row.draft === true) return false;
+  const st = row.status;
+  if (st && st !== "published") return false;
+  return String(row.visibility ?? "visible").trim().toLowerCase() === "visible";
+}
+
 /**
  * POST /api/reviews/verify
  * { draft_id, code } , validate OTP, insert published review (service role), cleanup draft + OTP.
  */
 export async function POST(req: Request) {
+  /** Set after draft load so outer catch can return product vs business duplicate text. */
+  let verifyDraftProductPhotoId: string | null | undefined = undefined;
   try {
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -203,6 +262,8 @@ export async function POST(req: Request) {
     }
 
     const d = draft as ReviewDraftRow;
+    const productPhotoIdForInsert = normalizeDraftProductPhotoId(d.product_photo_id);
+    verifyDraftProductPhotoId = productPhotoIdForInsert;
     const suspendedVerify = await assertBusinessAcceptsPublicReviews(
       supabaseAdmin,
       d.business_id,
@@ -219,10 +280,49 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    const domainCtxVerify = await fetchBusinessDomainContext(
+      supabaseAdmin,
+      d.business_id,
+    );
+    if (
+      isReviewerBlockedAsBusinessDomain({
+        reviewerEmailLower: guestEmail,
+        businessDomains: domainCtxVerify.domains,
+        businessContactEmailLower: domainCtxVerify.contactEmailLower,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          error: SAME_DOMAIN_REVIEW_MESSAGE,
+          error_code: SAME_DOMAIN_REVIEW_ERROR_CODE,
+        },
+        { status: 403 },
+      );
+    }
     const guestNameResolved =
       (d.guest_name && String(d.guest_name).trim()) ||
       (guestEmail.includes("@") ? guestEmail.split("@")[0] : "") ||
       "Customer";
+
+    let productReviewStatus: "published" | "under_review" = "published";
+    if (productPhotoIdForInsert) {
+      const rate = await evaluateProductReviewRateLimits(supabaseAdmin, {
+        businessId: d.business_id,
+        guestEmailLower: guestEmail,
+        userId: d.user_id ?? null,
+      });
+      if (rate.outcome === "block") {
+        return NextResponse.json(
+          {
+            error: PRODUCT_REVIEW_RATE_LIMIT_MESSAGE,
+            error_code: "product_review_rate_limit",
+          },
+          { status: 429 },
+        );
+      }
+      productReviewStatus = rate.reviewStatus;
+    }
 
     let publishedReviewId: string | null = null;
     try {
@@ -236,7 +336,7 @@ export async function POST(req: Request) {
           guest_name: guestNameResolved.slice(0, 200),
           guest_email: guestEmail,
           date_of_experience: d.date_of_experience,
-          status: "published",
+          status: productPhotoIdForInsert ? productReviewStatus : "published",
           visibility: "visible",
           verification_status: "verified",
           draft: false,
@@ -247,7 +347,7 @@ export async function POST(req: Request) {
           reference_number: d.reference_number,
           user_id: d.user_id,
           is_flagged: false,
-          ...(d.product_photo_id ? { product_photo_id: d.product_photo_id } : {}),
+          ...(productPhotoIdForInsert ? { product_photo_id: productPhotoIdForInsert } : {}),
         })
         .select("id")
         .maybeSingle();
@@ -273,11 +373,76 @@ export async function POST(req: Request) {
         }
       }
     } catch (error: unknown) {
-      const err = error as { code?: string };
+      const err = error as { code?: string; message?: string };
       if (err.code === "23505") {
+        const pgMsg = String(err.message ?? "");
+        /** Row already exists (double-submit, retry, or race) — complete verify and clean up draft. */
+        if (productPhotoIdForInsert) {
+          const { data: productDupes, error: productDupeErr } = await supabaseAdmin
+            .from("reviews")
+            .select("id, draft, status, visibility")
+            .eq("business_id", d.business_id)
+            .eq("guest_email", guestEmail)
+            .eq("product_photo_id", productPhotoIdForInsert)
+            .order("created_at", { ascending: false })
+            .limit(8);
+          if (productDupeErr) {
+            console.error("[reviews/verify] idempotent product lookup", productDupeErr);
+          } else {
+            const live = (productDupes ?? []).find((r) => reviewRowIsPublicLive(r));
+            if (live?.id) {
+              await supabase.from("review_otps").delete().eq("draft_id", draftId);
+              await supabase.from("review_drafts").delete().eq("id", draftId);
+              return NextResponse.json({
+                success: true,
+                review_id: String(live.id),
+              });
+            }
+          }
+        } else {
+          const { data: genDupes, error: genDupeErr } = await supabaseAdmin
+            .from("reviews")
+            .select("id, draft, status, visibility, product_photo_id")
+            .eq("business_id", d.business_id)
+            .eq("guest_email", guestEmail)
+            .is("product_photo_id", null)
+            .order("created_at", { ascending: false })
+            .limit(8);
+          if (genDupeErr) {
+            console.error("[reviews/verify] idempotent general lookup", genDupeErr);
+          } else {
+            const live = (genDupes ?? []).find((r) => reviewRowIsPublicLive(r));
+            if (live?.id) {
+              await supabase.from("review_otps").delete().eq("draft_id", draftId);
+              await supabase.from("review_drafts").delete().eq("id", draftId);
+              return NextResponse.json({
+                success: true,
+                review_id: String(live.id),
+              });
+            }
+          }
+        }
+
+        console.error("[reviews/verify] duplicate key, no idempotent row", {
+          draftId,
+          guestEmail,
+          productPhotoIdForInsert,
+          pg: pgMsg.slice(0, 500),
+        });
+        if (
+          productPhotoIdForInsert &&
+          pgMsg.toLowerCase().includes("reviews_guest_business_no_product")
+        ) {
+          console.error(
+            "[reviews/verify] Product draft hit business-level unique — apply migrations (reviews partial indexes)",
+            { draftId, productPhotoIdForInsert },
+          );
+        }
+
+        const msg = duplicateReviewMessageFromPgError(pgMsg, productPhotoIdForInsert != null);
         return NextResponse.json(
           {
-            error: "You have already reviewed this business.",
+            error: msg,
             error_code: "duplicate_review",
           },
           { status: 400 },
@@ -308,9 +473,13 @@ export async function POST(req: Request) {
     console.error("VERIFY ERROR:", e);
     const err = e as { code?: string; message?: string };
     if (err.code === "23505") {
+      const msg = duplicateReviewMessageFromPgError(
+        String(err.message ?? ""),
+        verifyDraftProductPhotoId != null && verifyDraftProductPhotoId !== undefined,
+      );
       return NextResponse.json(
         {
-          error: "You have already reviewed this business.",
+          error: msg,
           error_code: "duplicate_review",
         },
         { status: 400 },
