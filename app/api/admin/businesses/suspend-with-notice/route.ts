@@ -29,28 +29,44 @@ function isValidEmail(v: string): boolean {
  * Best-effort: pick the registered owner email for a given business.
  * Order: business_profiles.email (by owner_id) → auth.users.email (by owner_id) → business_owners → business_profiles by user_id.
  */
+type BusinessOwnerRow = {
+  id?: string | null;
+  name?: string | null;
+  owner_id?: string | null;
+};
+
+type BusinessOwnersRow = {
+  owner_user_id?: string | null;
+};
+
+type BusinessProfileEmailRow = {
+  email?: string | null;
+};
+
 async function resolveOwnerEmail(
   admin: ReturnType<typeof createClient>,
   businessId: string
 ): Promise<{ ownerUserId: string | null; email: string | null; businessName: string | null }> {
-  const { data: biz } = await admin
+  const { data: bizRaw } = await admin
     .from("businesses")
     .select("id, name, owner_id")
     .eq("id", businessId)
     .maybeSingle();
 
+  const biz = bizRaw as BusinessOwnerRow | null;
   if (!biz) return { ownerUserId: null, email: null, businessName: null };
 
-  const businessName = trimStr((biz as { name?: string | null }).name);
+  const businessName = trimStr(biz.name);
   let ownerUserId: string | null =
     biz.owner_id != null ? String(biz.owner_id).trim() : null;
 
   if (!ownerUserId) {
-    const { data: bo } = await admin
+    const { data: boRaw } = await admin
       .from("business_owners")
       .select("owner_user_id")
       .eq("business_id", businessId)
       .maybeSingle();
+    const bo = boRaw as BusinessOwnersRow | null;
     const uid =
       bo?.owner_user_id != null ? String(bo.owner_user_id).trim() : "";
     ownerUserId = uid || null;
@@ -59,21 +75,23 @@ async function resolveOwnerEmail(
   let email: string | null = null;
 
   if (ownerUserId) {
-    const { data: bp } = await admin
+    const { data: bpRaw } = await admin
       .from("business_profiles")
       .select("email")
       .eq("id", ownerUserId)
       .maybeSingle();
+    const bp = bpRaw as BusinessProfileEmailRow | null;
     const bpEmail =
       typeof bp?.email === "string" ? bp.email.trim().toLowerCase() : "";
     if (bpEmail.includes("@")) email = bpEmail;
 
     if (!email) {
-      const { data: bp2 } = await admin
+      const { data: bp2Raw } = await admin
         .from("business_profiles")
         .select("email")
         .eq("user_id", ownerUserId)
         .maybeSingle();
+      const bp2 = bp2Raw as BusinessProfileEmailRow | null;
       const bp2Email =
         typeof bp2?.email === "string" ? bp2.email.trim().toLowerCase() : "";
       if (bp2Email.includes("@")) email = bp2Email;
@@ -159,11 +177,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
-  const { error: rpcError } = await admin.rpc("admin_update_business_status", {
-    target_business_id: businessId,
-    new_status: "suspended",
-    new_submission_status: "suspended",
-  });
+  const { error: rpcError } = await admin.rpc(
+    "admin_update_business_status",
+    {
+      target_business_id: businessId,
+      new_status: "suspended",
+      new_submission_status: "suspended",
+    } as never
+  );
   if (rpcError) {
     console.error("[suspend-with-notice] admin_update_business_status:", rpcError);
     return NextResponse.json(
