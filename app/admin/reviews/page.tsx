@@ -42,6 +42,15 @@ function businessNameFromRow(r: Record<string, unknown>): string | null {
   return null;
 }
 
+function businessSlugFromRow(r: Record<string, unknown>): string | null {
+  const b = r.businesses;
+  if (Array.isArray(b)) return trimStr((b[0] as { slug?: unknown } | undefined)?.slug);
+  if (b && typeof b === "object" && b !== null && "slug" in b) {
+    return trimStr((b as { slug?: unknown }).slug);
+  }
+  return null;
+}
+
 function profileEmailFromEmbed(r: Record<string, unknown>): string | null {
   const p = r["profiles:consumer_id"] as
     | { email?: string | null }
@@ -93,7 +102,8 @@ export default async function AdminReviewsPage(props: PageProps) {
       status,
       verified_at,
       businesses (
-        name
+        name,
+        slug
       ),
       profiles:consumer_id (
         email
@@ -189,6 +199,7 @@ export default async function AdminReviewsPage(props: PageProps) {
       review_id: id,
       id,
       business_name: businessNameFromRow(r),
+      business_slug: businessSlugFromRow(r),
       reviewer_email,
       rating: (r.rating as number | null) ?? null,
       title: (r.title as string | null) ?? null,

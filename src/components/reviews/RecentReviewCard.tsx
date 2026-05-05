@@ -59,18 +59,38 @@ export default function RecentReviewCard({
   const productLabel = String(
     review.product_name ?? review.productName ?? "",
   ).trim();
+  const hasProductPhotoId = Boolean(
+    review.product_photo_id ?? review.productPhotoId ?? null,
+  );
   const titleTrim = typeof title === "string" ? title.trim() : "";
   const bodyTrim = typeof body === "string" ? body.trim() : "";
+  // Landing payloads can omit product_name while still being a product review.
+  const productLabelForDisplay =
+    productLabel.length > 0
+      ? productLabel
+      : hasProductPhotoId && titleTrim.length > 0
+        ? titleTrim
+        : "";
   /** Item reviews often set `title` to the product name — avoid "Product: X" + bold "X". */
   const titleDuplicatesProduct =
-    productLabel.length > 0 &&
+    productLabelForDisplay.length > 0 &&
     titleTrim.length > 0 &&
-    titleTrim.toLowerCase() === productLabel.toLowerCase();
+    titleTrim.toLowerCase() === productLabelForDisplay.toLowerCase();
   /** Body sometimes equals the product name only (no real comment). */
   const bodyOnlyDuplicatesProduct =
-    productLabel.length > 0 &&
+    productLabelForDisplay.length > 0 &&
     bodyTrim.length > 0 &&
-    bodyTrim.toLowerCase() === productLabel.toLowerCase();
+    bodyTrim.toLowerCase() === productLabelForDisplay.toLowerCase();
+  const statusText = String(review.status ?? "")
+    .trim()
+    .toLowerCase();
+  const isProductReview = productLabelForDisplay.length > 0;
+  /** Legacy rows can have null status while still being treated as public live. */
+  const isPublishedLikeStatus = statusText === "" || statusText === "published";
+  const shouldShowTitle =
+    titleTrim.length > 0 &&
+    !titleDuplicatesProduct &&
+    (isProductReview ? isPublishedLikeStatus : true);
 
   const reviewId = review.review_id || review.id;
 
@@ -295,13 +315,18 @@ export default function RecentReviewCard({
           {!isLanding && <span className="shrink-0">{dateText}</span>}
         </div>
 
-        {productLabel ? (
-          <p className="mt-1 text-xs font-medium text-[#124541]">
-            Product: {productLabel}
+        {productLabelForDisplay ? (
+          <p
+            className={cn(
+              "mt-1 text-xs text-[#1FAF9E]",
+              isLanding ? "font-normal" : "font-medium",
+            )}
+          >
+            Product: {productLabelForDisplay}
           </p>
         ) : null}
 
-        {!isLanding && titleTrim && !titleDuplicatesProduct && (
+        {shouldShowTitle && (
           <div className="mt-0 line-clamp-1 break-words font-semibold text-sm text-slate-900">
             {titleTrim}
           </div>

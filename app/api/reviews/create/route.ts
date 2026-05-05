@@ -210,6 +210,14 @@ export async function POST(req: Request) {
           { status: 409 },
         );
       }
+      // Keep DB constraint internals out of UI; this indicates a migration mismatch.
+      if (insertError.code === "23514") {
+        console.error("Create review status constraint error:", insertError);
+        return NextResponse.json(
+          { error: "Could not submit review. Please try again in a moment." },
+          { status: 500 },
+        );
+      }
 
       console.error("Create review error:", insertError);
       return NextResponse.json(

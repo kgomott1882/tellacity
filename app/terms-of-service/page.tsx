@@ -84,6 +84,14 @@ export default function TermsOfServicePage() {
                 harassment, hate speech, or threats.
               </li>
             </ul>
+            <p className="mt-4">
+              Reviews must reflect independent customer experiences. Users may
+              review both businesses and individual products or services they
+              have genuinely interacted with. However, submitting multiple
+              reviews in a way that appears automated, coordinated, or
+              inconsistent with normal customer behaviour may result in
+              restrictions, moderation, or removal of such content.
+            </p>
           </div>
 
           <div>
@@ -139,7 +147,23 @@ export default function TermsOfServicePage() {
                 advertisements, or marketing-style content. Such content will be
                 removed.
               </li>
+              <li>
+                Unnatural Review Behaviour: Submitting multiple reviews in
+                rapid succession, reviewing a large number of products or
+                services within a short timeframe, or engaging in patterns
+                that do not reflect typical consumer behaviour may be treated
+                as suspicious activity and subject to moderation or
+                restriction.
+              </li>
             </ul>
+            <p className="mt-4">
+              <span className="font-semibold text-[#0E0E0E]">Product Reviews:</span>{" "}
+              Tellacity allows reviews of individual products or services in
+              addition to overall business reviews. Each product review must
+              be based on a genuine experience. Attempting to artificially
+              influence ratings through bulk or coordinated product reviews is
+              prohibited.
+            </p>
             <p className="mt-4 font-semibold text-[#0E0E0E]">Content Quality</p>
             <p className="mt-2">
               Reviews must reflect a genuine customer experience. Content that appears
@@ -149,6 +173,12 @@ export default function TermsOfServicePage() {
             <p className="mt-3">
               We reserve the right to remove any content that we determine, in our sole
               discretion, violates these Terms or our Content Guidelines.
+            </p>
+            <p className="mt-3">
+              We may limit the visibility, restrict, or remove content that
+              appears inconsistent with genuine user behaviour, even if it
+              does not explicitly violate a single rule, where necessary to
+              protect the integrity of the platform.
             </p>
           </div>
 
@@ -170,6 +200,9 @@ export default function TermsOfServicePage() {
                 Applying &quot;Consumer Warning&quot; badges to business profiles that
                 engage in suspicious activity.
               </li>
+              <li>Restricting review submission capabilities.</li>
+              <li>Temporarily limiting account activity.</li>
+              <li>Reducing visibility of content pending review.</li>
             </ul>
             <p className="mt-3">
               Decisions made by our moderation team are final. You may appeal a decision

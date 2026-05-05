@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export type AdminOverviewStats = {
   total_users?: number | null;
@@ -62,6 +62,7 @@ export type AdminReviewRow = {
   review_id?: string;
   id?: string;
   business_name?: string | null;
+  business_slug?: string | null;
   reviewer_email?: string | null;
   rating?: number | null;
   title?: string | null;
@@ -111,6 +112,38 @@ function firstRow<T>(data: unknown): T | null {
   if (Array.isArray(data) && data.length > 0) return data[0] as T;
   if (data && typeof data === "object" && !Array.isArray(data)) return data as T;
   return null;
+}
+
+function isMissingRpcFunctionError(error: { code?: string; message?: string } | null, fnName: string): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    msg.includes(`function public.${fnName}`) ||
+    msg.includes(`function ${fnName}`) ||
+    msg.includes("does not exist")
+  );
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    (msg.includes("column") && msg.includes("does not exist")) ||
+    (msg.includes("could not find") && msg.includes("column") && msg.includes("schema cache"))
+  );
+}
+
+function createServiceRoleAdminClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 export async function getAdminOverviewStats(
@@ -214,7 +247,22 @@ export async function updateAdminUserRole(
     new_role: newRole,
     new_is_admin: newIsAdmin,
   });
-  return { error: error?.message ?? null };
+  if (!error) return { error: null };
+
+  if (!isMissingRpcFunctionError(error, "admin_update_user_role")) {
+    return { error: error.message ?? null };
+  }
+
+  const admin = createServiceRoleAdminClient();
+  if (!admin) return { error: error.message ?? "SUPABASE_SERVICE_ROLE_KEY is missing" };
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ role: newRole, is_admin: newIsAdmin })
+    .eq("id", targetUserId);
+  if (profileError) return { error: profileError.message ?? null };
+
+  return { error: null };
 }
 
 export async function setAdminUserSuspension(
@@ -226,7 +274,38 @@ export async function setAdminUserSuspension(
     target_user_id: targetUserId,
     suspended,
   });
-  return { error: error?.message ?? null };
+  if (!error) return { error: null };
+
+  if (!isMissingRpcFunctionError(error, "admin_set_user_suspension")) {
+    return { error: error.message ?? null };
+  }
+
+  const admin = createServiceRoleAdminClient();
+  if (!admin) return { error: error.message ?? "SUPABASE_SERVICE_ROLE_KEY is missing" };
+
+  const { error: suspendedColError } = await admin
+    .from("profiles")
+    .update({ suspended })
+    .eq("id", targetUserId);
+
+  let profileError = suspendedColError;
+  if (isMissingColumnError(suspendedColError)) {
+    const { error: isSuspendedColError } = await admin
+      .from("profiles")
+      .update({ is_suspended: suspended })
+      .eq("id", targetUserId);
+    profileError = isSuspendedColError;
+  }
+  if (profileError && !isMissingColumnError(profileError)) {
+    return { error: profileError.message ?? null };
+  }
+
+  const { error: authError } = await admin.auth.admin.updateUserById(targetUserId, {
+    ban_duration: suspended ? "876000h" : "none",
+  });
+  if (authError) return { error: authError.message ?? null };
+
+  return { error: null };
 }
 
 export async function updateAdminBusinessStatus(

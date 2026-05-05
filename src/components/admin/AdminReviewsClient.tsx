@@ -36,14 +36,18 @@ function bodyPreview(row: AdminReviewRow): string {
   return s.length > 120 ? `${s.slice(0, 117)}…` : s;
 }
 
-function formatDate(date: string) {
+function formatDateTime(date: string) {
   const d = new Date(date);
   return (
     d.getFullYear() +
     "/" +
     String(d.getMonth() + 1).padStart(2, "0") +
     "/" +
-    String(d.getDate()).padStart(2, "0")
+    String(d.getDate()).padStart(2, "0") +
+    " " +
+    String(d.getHours()).padStart(2, "0") +
+    ":" +
+    String(d.getMinutes()).padStart(2, "0")
   );
 }
 
@@ -508,7 +512,16 @@ export default function AdminReviewsClient({
                     return (
                       <tr key={review.id || `r-${i}`} className="bg-white align-top">
                         <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
-                          {review.business_name?.trim() || "-"}
+                          {review.business_slug?.trim() ? (
+                            <Link
+                              href={`/b/${review.business_slug.trim()}`}
+                              className="text-teal-700 underline-offset-2 hover:underline"
+                            >
+                              {review.business_name?.trim() || review.business_slug.trim()}
+                            </Link>
+                          ) : (
+                            review.business_name?.trim() || "-"
+                          )}
                         </td>
                         <td
                           className="max-w-[220px] truncate px-3 py-2 text-neutral-700"
@@ -541,7 +554,7 @@ export default function AdminReviewsClient({
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                           {review.created_at &&
                           !Number.isNaN(new Date(review.created_at).getTime())
-                            ? formatDate(review.created_at)
+                            ? formatDateTime(review.created_at)
                             : "-"}
                         </td>
                         <td className="px-3 py-2">

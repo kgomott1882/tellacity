@@ -17,7 +17,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     sectionDesc: "New to Tellacity? Start here.",
     title: "What is Tellacity?",
     body:
-      "Tellacity is a customer review and feedback platform designed to help people make informed decisions and help businesses build trust through transparency. Reviews on Tellacity are tied to real users and are moderated to protect fairness for both customers and businesses.",
+      "Tellacity is a customer review and feedback platform designed to help people make informed decisions and help businesses build trust through transparency. Reviews on Tellacity are tied to real users and are moderated to protect fairness for both customers and businesses. All reviews on Tellacity must come from independent customers to ensure fairness and trust across the platform.",
   },
   {
     section: "Getting Started",
@@ -50,6 +50,13 @@ const HELP_ENTRIES: HelpEntry[] = [
   {
     section: "Reviews",
     sectionDesc: "Writing, editing, and managing reviews.",
+    title: "Can I review more than one product?",
+    body:
+      "Each product can be reviewed individually based on a real experience. However, reviews must reflect genuine interactions. Activity that appears automated, bulk-submitted, or inconsistent with normal customer behaviour may be temporarily restricted or reviewed.",
+  },
+  {
+    section: "Reviews",
+    sectionDesc: "Writing, editing, and managing reviews.",
     title: "When are reviews removed?",
     body:
       "Reviews are removed only if they breach our policies - such as containing abuse, false information, spam, or conflicts of interest. Negative reviews are not removed simply because a business disagrees with them.",
@@ -66,7 +73,14 @@ const HELP_ENTRIES: HelpEntry[] = [
     sectionDesc: "How we keep the platform safe.",
     title: "How does moderation work?",
     body:
-      "Moderation focuses on content quality and fairness, not opinions. Tellacity does not remove reviews for being critical. Moderation only applies when content breaks our rules.",
+      "Moderation focuses on content quality and fairness, not opinions. Tellacity does not remove reviews for being critical. Moderation only applies when content breaks our rules. Some reviews may be temporarily restricted or reviewed if activity patterns suggest unusual behaviour or potential conflicts of interest. This does not necessarily mean the review is invalid, but that it requires additional checks.",
+  },
+  {
+    section: "Trust, Verification & Moderation",
+    sectionDesc: "How we keep the platform safe.",
+    title: "Why can\u2019t I submit a review?",
+    body:
+      "You may be unable to submit a review if: you\u2019ve already reviewed the business or product; you\u2019re submitting reviews too quickly; the activity appears unusual or doesn\u2019t reflect typical customer behaviour; or there may be a conflict of interest (for example, a connection to the business). These safeguards help ensure that all reviews on Tellacity remain fair, independent, and trustworthy.",
   },
   {
     section: "Trust, Verification & Moderation",

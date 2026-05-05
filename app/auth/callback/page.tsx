@@ -7,7 +7,10 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
 import { handleRedirect } from "@/lib/postLoginRedirect";
 import { WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY } from "@/lib/writeReviewGoogleSession";
-import { WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY } from "@/lib/writeReviewItemGoogleSession";
+import {
+  GOOGLE_REVIEW_ITEM_CONTEXT_KEY,
+  WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY,
+} from "@/lib/writeReviewItemGoogleSession";
 
 /**
  * OAuth callback: Supabase redirects here with hash (#access_token=...).
@@ -71,7 +74,33 @@ function CallbackInner() {
             window.sessionStorage.getItem(WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY) === "1"
           ) {
             window.sessionStorage.removeItem(WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY);
-            window.location.href = `${window.location.origin}/write-review/item?google_continue=1`;
+            let businessSlug = "";
+            let photoId = "";
+            try {
+              const rawCtx = window.localStorage.getItem(GOOGLE_REVIEW_ITEM_CONTEXT_KEY);
+              if (rawCtx) {
+                const parsed = JSON.parse(rawCtx) as {
+                  business_slug?: string;
+                  photo_id?: string;
+                  product_photo_id?: string;
+                };
+                businessSlug =
+                  typeof parsed.business_slug === "string" ? parsed.business_slug.trim() : "";
+                photoId =
+                  typeof parsed.photo_id === "string" && parsed.photo_id.trim()
+                    ? parsed.photo_id.trim()
+                    : typeof parsed.product_photo_id === "string"
+                      ? parsed.product_photo_id.trim()
+                      : "";
+              }
+            } catch {
+              // ignore malformed local context; fallback route still supports retry
+            }
+            const q = new URLSearchParams();
+            q.set("google_continue", "1");
+            if (businessSlug) q.set("businessSlug", businessSlug);
+            if (photoId) q.set("photoId", photoId);
+            window.location.href = `${window.location.origin}/write-review/item?${q.toString()}`;
             return;
           }
           if (

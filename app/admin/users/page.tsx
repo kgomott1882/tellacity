@@ -3,8 +3,7 @@ import AdminDeleteUserButton from "@/components/admin/AdminDeleteUserButton";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
-import { type AdminUserRow } from "@/lib/admin";
-import { createClient } from "@supabase/supabase-js";
+import { getAdminUsers, type AdminUserRow } from "@/lib/admin";
 import {
   adminSetUserAdminAction,
   adminSetUserBusinessAction,
@@ -16,7 +15,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams: Promise<{ e?: string }>;
+  searchParams: Promise<{ e?: string; q?: string; role?: string }>;
 };
 
 function userId(row: AdminUserRow): string {
@@ -74,32 +73,20 @@ function ActionBtn({
 export default async function AdminUsersPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const err = searchParams.e;
+  const searchTerm = searchParams.q?.trim() || "";
+  const roleFilterRaw = searchParams.role?.trim().toLowerCase() || "";
+  const roleFilter =
+    roleFilterRaw === "consumer" || roleFilterRaw === "business" || roleFilterRaw === "admin"
+      ? roleFilterRaw
+      : "";
 
-  await requireAdminSession();
-  console.log("USING SERVICE ROLE:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-  const adminSupabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
-
-  const { data: usersData, error } = await adminSupabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("ADMIN USERS LOAD ERROR:", error);
-  }
-
-  const users = (usersData || []) as AdminUserRow[];
-  const listError = error?.message ?? null;
+  const { supabase } = await requireAdminSession("/admin/users");
+  const { data: users, error: listError } = await getAdminUsers(supabase, {
+    searchTerm: searchTerm || null,
+    roleFilter: roleFilter || null,
+    limitCount: 500,
+    offsetCount: 0,
+  });
 
   return (
     <div className="space-y-4">
@@ -107,23 +94,39 @@ export default async function AdminUsersPage(props: PageProps) {
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
 
       <AdminTableShell
-        title="All Users"
+        title={`All Users (${users.length})`}
         controls={
-          <div className="flex flex-wrap gap-2 opacity-60">
+          <form method="get" className="flex flex-wrap items-center gap-2">
             <input
+              name="q"
               type="search"
-              placeholder="Search (coming soon)"
-              disabled
-              className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500"
+              defaultValue={searchTerm}
+              placeholder="Search name or email"
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700"
             />
             <select
-              disabled
-              className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-500"
-              defaultValue=""
+              name="role"
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700"
+              defaultValue={roleFilter}
             >
-              <option value="">Role filter</option>
+              <option value="">All roles</option>
+              <option value="consumer">Consumer</option>
+              <option value="business">Business</option>
+              <option value="admin">Admin</option>
             </select>
-          </div>
+            <button
+              type="submit"
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+            >
+              Apply
+            </button>
+            <a
+              href="/admin/users"
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Reset
+            </a>
+          </form>
         }
       >
         {users.length === 0 ? (
@@ -149,7 +152,10 @@ export default async function AdminUsersPage(props: PageProps) {
                 if (!id) return null;
                 const r = role(row);
                 return (
-                  <tr key={id || `u-${i}`} className="bg-white align-top">
+                  <tr
+                    key={id || `u-${i}`}
+                    className={`align-top ${suspended(row) ? "bg-red-50/40" : "bg-white"}`}
+                  >
                     <td className="px-3 py-2 font-medium text-neutral-900">
                       {displayName(row)}
                     </td>
@@ -158,7 +164,17 @@ export default async function AdminUsersPage(props: PageProps) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-700">{r}</td>
                     <td className="px-3 py-2 text-neutral-700">{isAdmin(row) ? "Yes" : "No"}</td>
-                    <td className="px-3 py-2 text-neutral-700">{suspended(row) ? "Yes" : "No"}</td>
+                    <td className="px-3 py-2">
+                      {suspended(row) ? (
+                        <span className="inline-flex items-center rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          Suspended
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          Active
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                       {formatDate(row.created_at)}
                     </td>

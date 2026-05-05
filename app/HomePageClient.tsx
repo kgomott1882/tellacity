@@ -48,6 +48,8 @@ type HomeReview = {
   /** Used for verification badge next to business name (same logic as category cards). */
   review_count?: number | null;
   like_count?: number | null;
+  product_photo_id?: string | null;
+  product_name?: string | null;
 };
 
 /** Logo resolution from businesses.logo_url only. */
@@ -84,6 +86,14 @@ function mapHomeFeedRowToHomeReview(row: Record<string, unknown>): HomeReview {
     resolved_logo_url,
     review_count: row.review_count != null ? Number(row.review_count) : null,
     like_count: row.like_count != null ? Number(row.like_count) : null,
+    product_photo_id:
+      typeof row.product_photo_id === "string" && row.product_photo_id.trim() !== ""
+        ? row.product_photo_id
+        : null,
+    product_name:
+      typeof row.product_name === "string" && row.product_name.trim() !== ""
+        ? row.product_name
+        : null,
   };
 }
 

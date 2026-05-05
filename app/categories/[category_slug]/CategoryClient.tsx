@@ -8,7 +8,7 @@ import {
   type CategoryBusinessRow,
 } from "@/lib/categoryListingQueries";
 import { comparisonLinks } from "@/lib/comparisonLinks";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 import {
@@ -84,7 +84,6 @@ function buildCategoryPaginationItems(
 
 /** Top “rated” strip: `/api/category-listings?mode=top`; candidates fetched so every page shows the strip. */
 const TOP_RATED_DISPLAY_COUNT = 8;
-const TOP_RATED_CANDIDATE_LIMIT = 80;
 
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
@@ -284,6 +283,7 @@ export default function CategoryClient({
   const [rows, setRows] = useState<BusinessRow[]>((businesses ?? []) as BusinessRow[]);
   const [computedCount, setComputedCount] = useState<number>(companyCount ?? 0);
   const [computedHasNext, setComputedHasNext] = useState<boolean>(hasNextPage ?? false);
+  const [isRoutingPagination, startPaginationTransition] = useTransition();
 
   const listingPagePayloadCacheRef = useRef(
     new Map<number, { rows: BusinessRow[]; hasNext: boolean }>(),
@@ -297,6 +297,11 @@ export default function CategoryClient({
     () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
+  const queryCountry = searchParams.get("country");
+  // URL + server-provided country only during render to avoid hydration mismatch.
+  const derivedCountry = normalizeCountryCode(
+    queryCountry ?? initialCountryCode ?? undefined
+  );
 
   const pushSearchParams = useCallback(
     (mutate: (p: URLSearchParams) => void) => {
@@ -307,15 +312,38 @@ export default function CategoryClient({
     [router, searchParams, hrefFromMutatedSearchParams],
   );
 
+  const hrefForListingPage = useCallback(
+    (nextIndex: number) => {
+      const clamped = Math.max(0, nextIndex);
+      const params = new URLSearchParams(searchParams.toString());
+      if (clamped <= 0) params.delete("page");
+      else params.set("page", String(clamped + 1));
+      return hrefFromMutatedSearchParams(params);
+    },
+    [searchParams, hrefFromMutatedSearchParams],
+  );
+
   const goToListingPage = useCallback(
     (nextIndex: number) => {
       const clamped = Math.max(0, nextIndex);
-      pushSearchParams((p) => {
-        if (clamped <= 0) p.delete("page");
-        else p.set("page", String(clamped + 1));
+      if (clamped === listingPageIndex) return;
+
+      const scopeKey = `${listingKind}|${categorySlug}|${derivedCountry}`;
+      const cached = listingPagePayloadCacheRef.current.get(clamped);
+      if (cached && listingPayloadCacheScopeRef.current === scopeKey) {
+        // Optimistic paint from in-memory cache to avoid perceived freeze on mobile taps.
+        setRows(cached.rows);
+        setComputedHasNext(cached.hasNext);
+        setFetchError(null);
+        setLoading(false);
+      }
+
+      const href = hrefForListingPage(clamped);
+      startPaginationTransition(() => {
+        router.push(href, { scroll: false });
       });
     },
-    [pushSearchParams],
+    [listingPageIndex, listingKind, categorySlug, derivedCountry, hrefForListingPage, router],
   );
 
   const stripListingPageFromUrl = useCallback(() => {
@@ -323,6 +351,16 @@ export default function CategoryClient({
       p.delete("page");
     });
   }, [pushSearchParams]);
+
+  useEffect(() => {
+    const candidates = [listingPageIndex + 1, listingPageIndex + 2];
+    if (listingPageIndex > 0) candidates.push(listingPageIndex - 1);
+    for (const idx of candidates) {
+      if (idx < 0) continue;
+      const href = hrefForListingPage(idx);
+      void router.prefetch(href);
+    }
+  }, [listingPageIndex, hrefForListingPage, router]);
 
   const [categoryName, setCategoryName] = useState(() =>
     listingKind === "tag" ? formatBusinessTagLabel(categorySlug) : "",
@@ -334,12 +372,6 @@ export default function CategoryClient({
   const currentSort: "rating" | "reviews" | "recent" =
     sortParam === "reviews" ? "reviews" : sortParam === "recent" ? "recent" : "rating";
   const [sortOpen, setSortOpen] = useState(false);
-
-  const queryCountry = searchParams.get("country");
-  // URL + server-provided country only during render to avoid hydration mismatch.
-  const derivedCountry = normalizeCountryCode(
-    queryCountry ?? initialCountryCode ?? undefined
-  );
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
   const RECENTLY_REVIEWED_DISPLAY = 3;
@@ -394,79 +426,15 @@ export default function CategoryClient({
   const canGoNextListingPage =
     computedHasNext || listingPageIndex + 1 < listingTotalPages;
 
-  /** Leaderboard-order candidates for “Top rated” — fetched independently so deep pagination still shows the strip. */
-  const [topRatedSourceRows, setTopRatedSourceRows] = useState<BusinessRow[]>([]);
-  const [topRatedLoading, setTopRatedLoading] = useState(false);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    let cancelled = false;
-
-    const loadTopRated = async () => {
-      if (!categorySlug) {
-        setTopRatedSourceRows([]);
-        setTopRatedLoading(false);
-        return;
-      }
-      setTopRatedLoading(true);
-      try {
-        const q = new URLSearchParams();
-        q.set("slug", categorySlug);
-        q.set("country", derivedCountry ?? "US");
-        q.set("mode", "top");
-        q.set("candidateLimit", String(TOP_RATED_CANDIDATE_LIMIT));
-        q.set("minRating", "0");
-        if (listingKind === "tag") q.set("kind", "tag");
-        const res = await fetch(`/api/category-listings?${q.toString()}`, {
-          cache: "no-store",
-          signal: ac.signal,
-        });
-        const data = (await res.json()) as {
-          rows?: BusinessRow[];
-          error?: string | null;
-        };
-        if (cancelled || ac.signal.aborted) return;
-        const list = Array.isArray(data.rows) ? data.rows : [];
-        setTopRatedSourceRows(list.map((r) => ({ ...r })));
-      } catch {
-        if (!cancelled && !ac.signal.aborted) {
-          setTopRatedSourceRows([]);
-        }
-      } finally {
-        if (!cancelled && !ac.signal.aborted) {
-          setTopRatedLoading(false);
-        }
-      }
-    };
-
-    void loadTopRated();
-
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
-  }, [categorySlug, derivedCountry, listingKind]);
-
   const topRatedItems = useMemo(() => {
-    if (topRatedSourceRows.length === 0) return [];
-    const list = [...topRatedSourceRows].sort((a, b) => {
-      const ar = Number(a.trust_score ?? 0) || 0;
-      const br = Number(b.trust_score ?? 0) || 0;
-      const ac = Number(a.review_count ?? 0) || 0;
-      const bc = Number(b.review_count ?? 0) || 0;
-      if (br !== ar) return br - ar;
-      if (bc !== ac) return bc - ac;
-      return (a.name || "").localeCompare(b.name || "");
-    });
-    return list
-      .filter((r) => (Number(r.review_count ?? 0) || 0) > 0)
+    // Must mirror the first businesses shown on the current page.
+    return sortedBusinessesList
       .slice(0, TOP_RATED_DISPLAY_COUNT)
       .map((r, i) => mapRowToTopRatedItem(r, i))
       .filter((x): x is TopRatedDisplayItem => Boolean(x));
-  }, [topRatedSourceRows]);
+  }, [sortedBusinessesList]);
 
-  const showTopRatedSection =
-    topRatedItems.length > 0 || topRatedLoading;
+  const showTopRatedSection = topRatedItems.length > 0;
 
   // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
@@ -912,10 +880,7 @@ export default function CategoryClient({
           {showTopRatedSection && (
             <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
               <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              {topRatedLoading && topRatedItems.length === 0 ? (
-                <p className="mt-4 text-sm text-gray-500">Loading listings…</p>
-              ) : (
-                <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-2 gap-3">
                   {topRatedItems.map((business) => {
                     const pageCatNormTop = categorySlug.trim().toLowerCase();
                     return (
@@ -1019,7 +984,6 @@ export default function CategoryClient({
                     );
                   })}
                 </div>
-              )}
             </section>
           )}
 
@@ -1342,7 +1306,7 @@ export default function CategoryClient({
                   type="button"
                   className="touch-manipulation shrink-0 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
                   onClick={() => goToListingPage(listingPageIndex - 1)}
-                  disabled={listingPageIndex === 0}
+                  disabled={listingPageIndex === 0 || isRoutingPagination}
                 >
                   Previous
                 </button>
@@ -1379,6 +1343,7 @@ export default function CategoryClient({
                           type="button"
                           className={`touch-manipulation ${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
                           onClick={() => goToListingPage(item - 1)}
+                          disabled={isRoutingPagination}
                         >
                           {item}
                         </button>
@@ -1390,7 +1355,7 @@ export default function CategoryClient({
                   type="button"
                   className="touch-manipulation shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
                   onClick={() => goToListingPage(listingPageIndex + 1)}
-                  disabled={!canGoNextListingPage}
+                  disabled={!canGoNextListingPage || isRoutingPagination}
                 >
                   Next page
                 </button>

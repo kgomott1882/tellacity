@@ -690,6 +690,42 @@ function buildCheckDefinitions(): CheckDef[] {
       },
     },
     {
+      name: "http_reviews_verify_shape",
+      group: "reviews",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/reviews/verify",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Verify route reachable (400 missing draft_id/code)",
+        };
+      },
+    },
+    {
+      name: "http_reviews_helpful_invalid_review",
+      group: "reviews",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/reviews/helpful?reviewId=not-a-uuid",
+          { method: "GET" },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Helpful route reachable (400 invalid reviewId)",
+        };
+      },
+    },
+    {
       name: "http_widgets_payload_validation",
       group: "widgets",
       run: async ({ origin }) => {
@@ -738,6 +774,42 @@ function buildCheckDefinitions(): CheckDef[] {
         return {
           response_time_ms: r.response_time_ms,
           message: "Paystack webhook accepts non-charge events (200 received)",
+        };
+      },
+    },
+    {
+      name: "http_billing_overview_auth_required",
+      group: "payments",
+      run: async ({ origin }) => {
+        const businessId =
+          process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "00000000-0000-4000-8000-000000000001";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/billing/overview?businessId=${encodeURIComponent(businessId)}`,
+          { method: "GET" },
+          [401, 403],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Billing overview route reachable (auth required without session)",
+        };
+      },
+    },
+    {
+      name: "http_billing_plan_auth_required",
+      group: "payments",
+      run: async ({ origin }) => {
+        const businessId =
+          process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "00000000-0000-4000-8000-000000000001";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/billing/plan?businessId=${encodeURIComponent(businessId)}`,
+          { method: "GET" },
+          [401, 403],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Billing plan route reachable (auth required without session)",
         };
       },
     },
@@ -798,6 +870,26 @@ function buildCheckDefinitions(): CheckDef[] {
         return {
           response_time_ms: r.response_time_ms,
           message: "verify-domain route reachable (401 without session)",
+        };
+      },
+    },
+    {
+      name: "http_business_suggest_invalid_phase",
+      group: "business_signup",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/business/suggest",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phase: "unknown" }),
+          },
+          [400],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Business suggest route reachable (400 invalid phase)",
         };
       },
     },
@@ -904,6 +996,44 @@ function buildCheckDefinitions(): CheckDef[] {
         return {
           response_time_ms: r.response_time_ms,
           message: "dashboard/session reachable (401 without cookies)",
+        };
+      },
+    },
+    {
+      name: "http_business_photo_upload_auth_required",
+      group: "business_dashboard",
+      run: async ({ origin }) => {
+        const businessId =
+          process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "00000000-0000-4000-8000-000000000001";
+        const r = await expectHttpStatus(
+          origin,
+          `/api/business/${encodeURIComponent(businessId)}/photos/upload`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          [401, 403],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Photo upload route reachable (auth required without session)",
+        };
+      },
+    },
+    {
+      name: "http_team_access_accept_disabled",
+      group: "business_dashboard",
+      run: async ({ origin }) => {
+        const r = await expectHttpStatus(
+          origin,
+          "/api/business/team-access/accept",
+          { method: "POST" },
+          [410],
+        );
+        return {
+          response_time_ms: r.response_time_ms,
+          message: "Team access direct accept disabled (410 verify-and-accept required)",
         };
       },
     },

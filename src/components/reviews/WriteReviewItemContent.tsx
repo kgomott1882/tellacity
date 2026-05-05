@@ -104,6 +104,10 @@ export default function WriteReviewItemContent({
   const [otpDraftId, setOtpDraftId] = useState<string | null>(null);
   const [otpEmail, setOtpEmail] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [successFromInitialUrl] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("success") === "1";
+  });
   const googleHandledRef = useRef(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -113,6 +117,7 @@ export default function WriteReviewItemContent({
 
   const successFromUrl =
     variant === "page" && searchParams.get("success") === "1";
+  const isSubmittedState = submitted || successFromInitialUrl || successFromUrl;
 
   const titleForReview = useMemo(() => {
     if (!ctx) return "";
@@ -152,13 +157,13 @@ export default function WriteReviewItemContent({
   useEffect(() => {
     if (variant !== "page") return;
     if (!ctx) return;
-    if (!submitted && !successFromUrl) return;
+    if (!isSubmittedState) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [variant, ctx, submitted, successFromUrl]);
+  }, [variant, ctx, isSubmittedState]);
 
   useEffect(() => {
     if (!slug || !pid) {
@@ -391,7 +396,9 @@ export default function WriteReviewItemContent({
         GOOGLE_REVIEW_ITEM_CONTEXT_KEY,
         JSON.stringify({
           business_id: ctx.business.id,
+          business_slug: ctx.business.slug,
           product_photo_id: ctx.item.photoId,
+          photo_id: ctx.item.photoId,
           rating,
           title: titleForReview,
           body: body.trim(),
@@ -532,7 +539,7 @@ export default function WriteReviewItemContent({
     );
   }
 
-  if (submitted || successFromUrl) {
+  if (isSubmittedState) {
     if (variant === "page") {
       return (
         <main className="relative min-h-[min(100dvh,52rem)] bg-[#F8F4F0]">
@@ -633,10 +640,30 @@ export default function WriteReviewItemContent({
         style={itemReviewCardStyle}
       >
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <p className="text-xs font-semibold uppercase text-gray-500">Business</p>
-        <p className="text-lg font-semibold text-gray-900">{ctx.business.name}</p>
-        <p className="mt-3 text-xs font-semibold uppercase text-gray-500">Product</p>
-        <p className="text-base font-medium text-gray-800">{ctx.item.name}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase text-gray-500">Business</p>
+            <p className="truncate text-lg font-semibold text-gray-900">{ctx.business.name}</p>
+            <p className="mt-3 text-xs font-semibold uppercase text-gray-500">Product</p>
+            <p className="truncate text-base font-medium text-gray-800">{ctx.item.name}</p>
+          </div>
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+            {ctx.item.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={ctx.item.imageUrl}
+                alt={ctx.item.name ? `${ctx.item.name} preview` : "Product preview"}
+                className="h-full w-full object-contain bg-gray-50"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                No image
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {ctx.canSubmitItemReview === false ? (

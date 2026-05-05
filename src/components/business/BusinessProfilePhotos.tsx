@@ -646,17 +646,17 @@ export default function BusinessProfilePhotos({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setEmptyGalleryExampleOpen(true)}
-            className="rounded-lg border border-blue-600/35 bg-white px-2.5 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
-          >
-            Preview Example for gallery
-          </button>
-          <button
-            type="button"
             onClick={() => setEmptyProductsExampleOpen(true)}
             className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35"
           >
             Preview Example for products
+          </button>
+          <button
+            type="button"
+            onClick={() => setEmptyGalleryExampleOpen(true)}
+            className="rounded-lg border border-blue-600/35 bg-white px-2.5 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+          >
+            Preview Example for gallery
           </button>
         </div>
       ) : null}

@@ -35,6 +35,10 @@ import AdminTableShell from "@/components/admin/AdminTableShell";
 import type { AdminBusinessRow } from "@/lib/admin";
 import { COUNTRIES, adminCountryDisplay } from "@/lib/adminCountries";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import {
+  ADMIN_BUSINESS_SUSPENSION_REASON_OPTIONS,
+  type AdminBusinessSuspensionReasonKey,
+} from "@/lib/adminBusinessSuspensionReasons";
 
 function businessId(row: AdminBusinessRow): string {
   return String(row.business_id ?? row.id ?? "");
@@ -122,6 +126,94 @@ export default function AdminBusinessesTable() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const headerSelectRef = useRef<HTMLInputElement>(null);
+
+  type SuspendModalState =
+    | { mode: "single"; businessId: string; businessName: string }
+    | { mode: "bulk"; businessIds: string[] }
+    | null;
+  const [suspendModal, setSuspendModal] = useState<SuspendModalState>(null);
+  const [suspendReasonKey, setSuspendReasonKey] =
+    useState<AdminBusinessSuspensionReasonKey>("general");
+  const [suspendCustomNote, setSuspendCustomNote] = useState("");
+  const [suspending, setSuspending] = useState(false);
+
+  const openSuspendModalSingle = useCallback(
+    (id: string, name: string) => {
+      setSuspendReasonKey("general");
+      setSuspendCustomNote("");
+      setSuspendModal({ mode: "single", businessId: id, businessName: name });
+    },
+    []
+  );
+
+  const openSuspendModalBulk = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setSuspendReasonKey("general");
+    setSuspendCustomNote("");
+    setSuspendModal({ mode: "bulk", businessIds: ids });
+  }, []);
+
+  const closeSuspendModal = useCallback(() => {
+    if (suspending) return;
+    setSuspendModal(null);
+  }, [suspending]);
+
+  const handleConfirmSuspendWithNotice = useCallback(async () => {
+    if (!suspendModal) return;
+    const ids =
+      suspendModal.mode === "single"
+        ? [suspendModal.businessId]
+        : suspendModal.businessIds;
+    if (ids.length === 0) return;
+
+    setSuspending(true);
+    let failedCount = 0;
+    const warnings: string[] = [];
+    try {
+      for (const businessId of ids) {
+        try {
+          const res = await fetch("/api/admin/businesses/suspend-with-notice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              businessId,
+              reasonKey: suspendReasonKey,
+              customNote: suspendCustomNote.trim() || undefined,
+            }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            ok?: boolean;
+            error?: string;
+            warning?: string | null;
+            recipient?: string | null;
+          };
+          if (!res.ok) {
+            failedCount += 1;
+            console.error("[admin suspend-with-notice]", res.status, data);
+          } else if (data.warning) {
+            warnings.push(data.warning);
+          }
+        } catch (err) {
+          failedCount += 1;
+          console.error("[admin suspend-with-notice] fetch", err);
+        }
+      }
+
+      if (failedCount > 0) {
+        window.alert(`${failedCount} suspension(s) failed. Others may have succeeded.`);
+      } else if (warnings.length > 0) {
+        window.alert(warnings.slice(0, 3).join("\n\n"));
+      }
+
+      setSuspendModal(null);
+      setSelectedIds(new Set());
+      setListRefreshToken((t) => t + 1);
+      router.refresh();
+    } finally {
+      setSuspending(false);
+    }
+  }, [router, suspendCustomNote, suspendModal, suspendReasonKey]);
 
   const handleStatusUpdate = useCallback(
     async (
@@ -446,6 +538,106 @@ export default function AdminBusinessesTable() {
     <div className="space-y-4">
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
 
+      {suspendModal ? (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-suspend-modal-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !suspending) {
+              setSuspendModal(null);
+            }
+          }}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-neutral-200 bg-white p-5 shadow-xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="admin-suspend-modal-title"
+              className="text-lg font-semibold text-neutral-900"
+            >
+              Suspend business &amp; notify owner
+            </h2>
+            <p className="mt-1 text-sm text-neutral-600">
+              {suspendModal.mode === "single" ? (
+                <>
+                  This will suspend{" "}
+                  <span className="font-medium text-neutral-900">
+                    {suspendModal.businessName}
+                  </span>{" "}
+                  and email the registered owner explaining the reason you select
+                  below.
+                </>
+              ) : (
+                <>
+                  This will suspend{" "}
+                  <span className="font-medium text-neutral-900">
+                    {suspendModal.businessIds.length} business(es)
+                  </span>{" "}
+                  and email each registered owner with the reason you select below.
+                </>
+              )}
+            </p>
+
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Reason
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              value={suspendReasonKey}
+              disabled={suspending}
+              onChange={(e) =>
+                setSuspendReasonKey(
+                  e.target.value as AdminBusinessSuspensionReasonKey
+                )
+              }
+            >
+              {ADMIN_BUSINESS_SUSPENSION_REASON_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Additional details (optional)
+            </label>
+            <textarea
+              className="mt-1 min-h-[100px] w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              placeholder="Optional extra context for the owner (shown in the email if provided)."
+              maxLength={2000}
+              value={suspendCustomNote}
+              disabled={suspending}
+              onChange={(e) => setSuspendCustomNote(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Up to 2,000 characters. Leave blank if the preset reason is enough.
+            </p>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={suspending}
+                className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                onClick={closeSuspendModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={suspending}
+                className="rounded-md bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3834] disabled:opacity-50"
+                onClick={() => void handleConfirmSuspendWithNotice()}
+              >
+                {suspending ? "Suspending…" : "Suspend & send notice"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <AdminTableShell
         title="Businesses"
         controls={
@@ -572,7 +764,7 @@ export default function AdminBusinessesTable() {
               <button
                 type="button"
                 disabled={bulkUpdating}
-                onClick={() => void runBulkPreset("suspended")}
+                onClick={() => openSuspendModalBulk([...selectedIds])}
                 className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
               >
                 Suspended
@@ -756,7 +948,7 @@ export default function AdminBusinessesTable() {
                               type="button"
                               disabled={updatingId === id || deletingId === id}
                               onClick={() =>
-                                handleStatusUpdate(id, "suspended", "suspended")
+                                openSuspendModalSingle(id, row.name?.trim() || id)
                               }
                               className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
                             >
