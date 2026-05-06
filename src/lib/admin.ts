@@ -26,6 +26,14 @@ export type AdminRecentActivityItem = {
   created_at: string;
   /** ISO region code from `businesses.country_code` for review/business rows; null for user signups. */
   country_code?: string | null;
+  /** Signup source for the actor: google | email | seeded | first_review | other. Filled by client-side enrichment. */
+  source?:
+    | "google"
+    | "email"
+    | "seeded"
+    | "first_review"
+    | "other"
+    | null;
 };
 
 export type AdminActivityItem = AdminRecentActivityItem;

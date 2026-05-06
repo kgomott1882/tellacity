@@ -523,8 +523,7 @@ export default function BusinessProfilePhotos({
 }: Props) {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [ctaBusy, setCtaBusy] = useState(false);
-  const [emptyGalleryExampleOpen, setEmptyGalleryExampleOpen] = useState(false);
-  const [emptyProductsExampleOpen, setEmptyProductsExampleOpen] = useState(false);
+  const [previewExamplesOpen, setPreviewExamplesOpen] = useState(false);
 
   const galleryPhotos = useMemo(
     () =>
@@ -603,15 +602,14 @@ export default function BusinessProfilePhotos({
   }, [lightboxSrc]);
 
   useEffect(() => {
-    if (!emptyGalleryExampleOpen && !emptyProductsExampleOpen) return;
+    if (!previewExamplesOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setEmptyGalleryExampleOpen(false);
-      setEmptyProductsExampleOpen(false);
+      setPreviewExamplesOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [emptyGalleryExampleOpen, emptyProductsExampleOpen]);
+  }, [previewExamplesOpen]);
 
   return (
     <section
@@ -646,17 +644,11 @@ export default function BusinessProfilePhotos({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setEmptyProductsExampleOpen(true)}
+            onClick={() => setPreviewExamplesOpen(true)}
             className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35"
+            aria-label="Preview example layouts for products and gallery"
           >
-            Preview Example for products
-          </button>
-          <button
-            type="button"
-            onClick={() => setEmptyGalleryExampleOpen(true)}
-            className="rounded-lg border border-blue-600/35 bg-white px-2.5 py-1 text-xs font-semibold text-blue-800 shadow-sm transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
-          >
-            Preview Example for gallery
+            Preview Example
           </button>
         </div>
       ) : null}
@@ -762,81 +754,64 @@ export default function BusinessProfilePhotos({
         </div>
       ) : null}
 
-      {emptyGalleryExampleOpen ? (
+      {previewExamplesOpen ? (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="public-gallery-example-title"
+          aria-labelledby="public-preview-examples-title"
           className="fixed inset-0 z-[125] flex items-center justify-center bg-black/80 p-4 sm:p-6"
-          onClick={() => setEmptyGalleryExampleOpen(false)}
+          onClick={() => setPreviewExamplesOpen(false)}
         >
           <div
-            className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            className="relative max-h-[94vh] w-full max-w-[min(96vw,1400px)] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
               <h2
-                id="public-gallery-example-title"
+                id="public-preview-examples-title"
                 className="text-base font-semibold text-[#0E0E0E]"
               >
-                Gallery example
+                Profile preview examples
               </h2>
               <button
                 type="button"
-                onClick={() => setEmptyGalleryExampleOpen(false)}
+                onClick={() => setPreviewExamplesOpen(false)}
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
-            <div className="flex justify-center px-3 pb-6 pt-4 sm:px-6 sm:pb-8">
-              {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
-              <img
-                src={PUBLIC_GALLERY_EXAMPLE_SRC}
-                alt="Example of how a Gallery section can look on a public business profile"
-                className="max-h-[min(72vh,560px)] w-full max-w-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+            <div className="max-h-[calc(94vh-3.25rem)] overflow-y-auto px-3 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 lg:pb-10">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:gap-6">
+                <figure className="overflow-hidden rounded-xl border-2 border-[#0E0E0E] bg-white shadow-sm">
+                  <figcaption className="border-b-2 border-[#0E0E0E] px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base">
+                    Products example
+                  </figcaption>
+                  <div className="flex items-center justify-center bg-gray-50 p-3 sm:p-4 lg:p-5">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+                    <img
+                      src={PUBLIC_PRODUCTS_EXAMPLE_SRC}
+                      alt="Example of how a Products section can look on a public business profile"
+                      className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
+                    />
+                  </div>
+                </figure>
 
-      {emptyProductsExampleOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="public-products-example-title"
-          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/80 p-4 sm:p-6"
-          onClick={() => setEmptyProductsExampleOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
-              <h2
-                id="public-products-example-title"
-                className="text-base font-semibold text-[#0E0E0E]"
-              >
-                Products example
-              </h2>
-              <button
-                type="button"
-                onClick={() => setEmptyProductsExampleOpen(false)}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-            <div className="flex justify-center px-3 pb-6 pt-4 sm:px-6 sm:pb-8">
-              {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
-              <img
-                src={PUBLIC_PRODUCTS_EXAMPLE_SRC}
-                alt="Example of how a Products section can look on a public business profile"
-                className="max-h-[min(72vh,560px)] w-full max-w-full object-contain"
-              />
+                <figure className="overflow-hidden rounded-xl border-2 border-[#0E0E0E] bg-white shadow-sm">
+                  <figcaption className="border-b-2 border-[#0E0E0E] px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base">
+                    Gallery example
+                  </figcaption>
+                  <div className="flex items-center justify-center bg-gray-50 p-3 sm:p-4 lg:p-5">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+                    <img
+                      src={PUBLIC_GALLERY_EXAMPLE_SRC}
+                      alt="Example of how a Gallery section can look on a public business profile"
+                      className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
+                    />
+                  </div>
+                </figure>
+              </div>
             </div>
           </div>
         </div>

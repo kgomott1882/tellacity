@@ -215,6 +215,47 @@ export default function AdminBusinessesTable() {
     }
   }, [router, suspendCustomNote, suspendModal, suspendReasonKey]);
 
+  const handleApproveWithNotice = useCallback(
+    async (businessId: string) => {
+      if (!businessId) {
+        window.alert("Missing business ID");
+        return;
+      }
+      setUpdatingId(businessId);
+      try {
+        const res = await fetch("/api/admin/businesses/approve-with-notice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ businessId }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          warning?: string | null;
+          notified?: boolean;
+          wasSuspended?: boolean;
+        };
+        if (!res.ok) {
+          console.error("Failed to approve business", res.status, data);
+          window.alert(data.error ?? "Failed to approve business");
+          return;
+        }
+        if (data.warning) {
+          window.alert(data.warning);
+        }
+        setListRefreshToken((t) => t + 1);
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+        window.alert("Unexpected failure during approval.");
+      } finally {
+        setUpdatingId(null);
+      }
+    },
+    [router]
+  );
+
   const handleStatusUpdate = useCallback(
     async (
       businessId: string,
@@ -272,8 +313,34 @@ export default function AdminBusinessesTable() {
 
       setBulkUpdating(true);
       let failed = 0;
+      const warnings: string[] = [];
       try {
         for (const businessId of ids) {
+          if (preset === "activate" || preset === "approved") {
+            try {
+              const res = await fetch(
+                "/api/admin/businesses/approve-with-notice",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ businessId }),
+                }
+              );
+              const data = (await res.json().catch(() => ({}))) as {
+                ok?: boolean;
+                error?: string;
+                warning?: string | null;
+              };
+              if (!res.ok) failed += 1;
+              else if (data.warning) warnings.push(data.warning);
+            } catch (err) {
+              failed += 1;
+              console.error("[bulk approve-with-notice]", err);
+            }
+            continue;
+          }
+
           const res = await fetch("/api/admin/update-business-status", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -288,6 +355,8 @@ export default function AdminBusinessesTable() {
         }
         if (failed > 0) {
           window.alert(`${failed} update(s) failed. Others may have succeeded.`);
+        } else if (warnings.length > 0) {
+          window.alert(warnings.slice(0, 3).join("\n\n"));
         }
         setSelectedIds(new Set());
         setListRefreshToken((t) => t + 1);
@@ -757,7 +826,7 @@ export default function AdminBusinessesTable() {
                 type="button"
                 disabled={bulkUpdating}
                 onClick={() => void runBulkPreset("activate")}
-                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
               >
                 Activate
               </button>
@@ -765,7 +834,7 @@ export default function AdminBusinessesTable() {
                 type="button"
                 disabled={bulkUpdating}
                 onClick={() => openSuspendModalBulk([...selectedIds])}
-                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
               >
                 Suspended
               </button>
@@ -773,7 +842,7 @@ export default function AdminBusinessesTable() {
                 type="button"
                 disabled={bulkUpdating}
                 onClick={() => void runBulkPreset("under_review")}
-                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
               >
                 Under review
               </button>
@@ -781,7 +850,7 @@ export default function AdminBusinessesTable() {
                 type="button"
                 disabled={bulkUpdating}
                 onClick={() => void runBulkPreset("approved")}
-                className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 font-semibold text-teal-800 hover:bg-teal-100 disabled:opacity-50"
               >
                 Approved
               </button>
@@ -933,10 +1002,8 @@ export default function AdminBusinessesTable() {
                             <button
                               type="button"
                               disabled={updatingId === id || deletingId === id}
-                              onClick={() =>
-                                handleStatusUpdate(id, "active", "approved")
-                              }
-                              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                              onClick={() => handleApproveWithNotice(id)}
+                              className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
                             >
                               {updatingId === id
                                 ? "Updating..."
@@ -950,7 +1017,7 @@ export default function AdminBusinessesTable() {
                               onClick={() =>
                                 openSuspendModalSingle(id, row.name?.trim() || id)
                               }
-                              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                              className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Suspended"}
                             </button>
@@ -960,17 +1027,15 @@ export default function AdminBusinessesTable() {
                               onClick={() =>
                                 handleStatusUpdate(id, "under_review", "under_review")
                               }
-                              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                              className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Under review"}
                             </button>
                             <button
                               type="button"
                               disabled={updatingId === id || deletingId === id}
-                              onClick={() =>
-                                handleStatusUpdate(id, "active", "approved")
-                              }
-                              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+                              onClick={() => handleApproveWithNotice(id)}
+                              className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-100 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Approved"}
                             </button>
@@ -978,7 +1043,7 @@ export default function AdminBusinessesTable() {
                               type="button"
                               disabled={deletingId === id || updatingId === id}
                               onClick={() => handleDelete(id)}
-                              className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
                               {deletingId === id ? "Deleting..." : "Delete"}
                             </button>

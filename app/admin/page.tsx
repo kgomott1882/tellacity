@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin";
 import { getAdminPaymentsDashboard } from "@/lib/adminPayments";
 import { enrichAdminRecentActivity } from "@/lib/adminRecentActivityEnrich";
+import { attachActivitySource } from "@/lib/adminRecentActivitySource";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 
@@ -57,6 +58,42 @@ const ACTIVITY_REGION_NAMES: Intl.DisplayNames | null =
     : null;
 
 /** Country of the reviewed / created business (`businesses.country_code`); "—" when not applicable. */
+type ActivitySource = NonNullable<AdminRecentActivityItem["source"]>;
+
+function activitySourcePillClass(source: ActivitySource | null | undefined): string {
+  const base =
+    "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold whitespace-nowrap";
+  switch (source) {
+    case "google":
+      return `${base} border-rose-200 bg-rose-50 text-rose-800`;
+    case "email":
+      return `${base} border-sky-200 bg-sky-50 text-sky-800`;
+    case "seeded":
+      return `${base} border-amber-200 bg-amber-50 text-amber-900`;
+    case "first_review":
+      return `${base} border-violet-200 bg-violet-50 text-violet-800`;
+    default:
+      return `${base} border-neutral-200 bg-neutral-100 text-neutral-700`;
+  }
+}
+
+function activitySourceLabel(source: ActivitySource | null | undefined): string {
+  switch (source) {
+    case "google":
+      return "Google Auth";
+    case "email":
+      return "Email signup";
+    case "seeded":
+      return "Seeded";
+    case "first_review":
+      return "First review email";
+    case "other":
+      return "Other";
+    default:
+      return "—";
+  }
+}
+
 function activityCountryCell(row: AdminRecentActivityItem): string {
   const raw = row.country_code != null ? String(row.country_code).trim() : "";
   if (!raw) return "—";
@@ -121,6 +158,7 @@ export default async function AdminOverviewPage(props: {
   let activity = rawActivity;
   if (!recentActivityError && activity.length > 0) {
     activity = await enrichAdminRecentActivity(adminSupabase, activity);
+    activity = await attachActivitySource(adminSupabase, activity);
   }
   const hasNewerPage = activityPage > 1;
 
@@ -193,6 +231,7 @@ export default async function AdminOverviewPage(props: {
                 <th className="px-4 py-2 font-medium">Business</th>
                 <th className="px-4 py-2 font-medium">Country</th>
                 <th className="px-4 py-2 font-medium">Email</th>
+                <th className="px-4 py-2 font-medium">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -223,6 +262,15 @@ export default async function AdminOverviewPage(props: {
                           ? String(row.email).trim()
                           : "-"}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2">
+                      {row.source ? (
+                        <span className={activitySourcePillClass(row.source)}>
+                          {activitySourceLabel(row.source)}
+                        </span>
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
                     </td>
                   </tr>
                 );

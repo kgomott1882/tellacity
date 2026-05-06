@@ -1,4 +1,8 @@
 import { Resend } from "resend";
+import {
+  trustSafetyEmailSignatureHtml,
+  trustSafetyEmailSignatureText,
+} from "@/lib/trustSafetyEmailSignature";
 
 /**
  * Notify a business owner that one of their uploaded photos was rejected
@@ -112,6 +116,7 @@ export async function sendPhotoRejectedEmail(
             Questions or think this was a mistake? Reply to this email or contact
             <a href="mailto:${SUPPORT_EMAIL}" style="color:#1FAF9E;">${SUPPORT_EMAIL}</a>.
           </td></tr>
+          <tr><td>${trustSafetyEmailSignatureHtml({ siteUrl: baseUrl, guidelinesPath: "/help/photo-guidelines" })}</td></tr>
         </table>
       </td>
     </tr>
@@ -131,6 +136,8 @@ export async function sendPhotoRejectedEmail(
     `Photo guidelines: ${guidelinesUrl}`,
     "",
     `Questions? Email ${SUPPORT_EMAIL}.`,
+    "",
+    trustSafetyEmailSignatureText({ siteUrl: baseUrl, guidelinesPath: "/help/photo-guidelines" }),
   ]
     .filter((line): line is string => line !== null)
     .join("\n");

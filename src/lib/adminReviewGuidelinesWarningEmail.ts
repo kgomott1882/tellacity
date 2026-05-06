@@ -4,6 +4,7 @@ import {
   ADMIN_REVIEW_WARNING_REASON_OPTIONS,
   type AdminReviewWarningReasonKey,
 } from "@/lib/adminReviewWarningReasons";
+import { trustSafetyEmailSignatureHtml } from "@/lib/trustSafetyEmailSignature";
 
 const SITE = "https://tellacity.com";
 
@@ -79,6 +80,7 @@ export async function sendAdminReviewGuidelinesWarningEmail(
     This is an automated message and this inbox is not monitored. If you have questions, please visit the Help section in your Tellacity account.
   </p>
   <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">— Tellacity Trust &amp; Safety</p>
+  ${trustSafetyEmailSignatureHtml({ siteUrl: base, guidelinesPath: "/reviewer-guidelines" })}
 </body></html>`.trim();
 
   const resend = new Resend(apiKey);

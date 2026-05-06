@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 type Body = {
   businessId?: string;
   newStatus?: string | null;

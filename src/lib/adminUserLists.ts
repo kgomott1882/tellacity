@@ -1,8 +1,43 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
-import type { AdminUsersListRow } from "@/components/admin/AdminUsersListTable";
+import type {
+  AdminUserSource,
+  AdminUsersListRow,
+} from "@/components/admin/AdminUsersListTable";
 import { isLikelyCustomBusinessDomainEmail } from "@/lib/consumerEmailDomains";
+
+/** Infer how a user signed up (Google, Email, Seeded, etc.). */
+function inferUserSource(user: User | null | undefined): AdminUserSource {
+  if (!user) return "other";
+  const meta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  const metaProvidersRaw = meta.providers;
+  const metaProviderRaw = meta.provider;
+  const providers = new Set<string>();
+  if (Array.isArray(metaProvidersRaw)) {
+    for (const p of metaProvidersRaw) {
+      if (typeof p === "string" && p.trim()) {
+        providers.add(p.trim().toLowerCase());
+      }
+    }
+  }
+  if (typeof metaProviderRaw === "string" && metaProviderRaw.trim()) {
+    providers.add(metaProviderRaw.trim().toLowerCase());
+  }
+  const identities = (user as unknown as { identities?: Array<{ provider?: string | null }> }).identities;
+  if (Array.isArray(identities)) {
+    for (const i of identities) {
+      const p = i?.provider;
+      if (typeof p === "string" && p.trim()) {
+        providers.add(p.trim().toLowerCase());
+      }
+    }
+  }
+  if (providers.has("google")) return "google";
+  if (providers.has("email")) return "email";
+  if (providers.size === 0) return "seeded";
+  return "other";
+}
 
 type QueryResult = {
   data: AdminUsersListRow[];
@@ -51,12 +86,40 @@ export async function getNewUsersTodayRows(supabase: SupabaseClient): Promise<Qu
     created_at?: string | null;
   };
 
-  const rows = ((data ?? []) as RpcRow[]).map((r) => {
+  const rawRows = ((data ?? []) as RpcRow[]).filter((r) => Boolean(r.id));
+
+  const authIds = rawRows
+    .filter((r) => String(r.kind ?? "").trim() === "auth_signup")
+    .map((r) => String(r.id))
+    .filter(Boolean);
+
+  let sourceById = new Map<string, AdminUserSource>();
+  if (authIds.length > 0) {
+    const admin = adminServiceClient();
+    const lookups = await Promise.all(
+      authIds.map(async (uid) => {
+        try {
+          const { data: u } = await admin.auth.admin.getUserById(uid);
+          return [uid, inferUserSource(u?.user ?? null)] as [string, AdminUserSource];
+        } catch (e) {
+          console.warn("[getNewUsersTodayRows] getUserById failed", uid, e);
+          return [uid, "other"] as [string, AdminUserSource];
+        }
+      })
+    );
+    sourceById = new Map(lookups);
+  }
+
+  const rows: AdminUsersListRow[] = rawRows.map((r) => {
     const kind = String(r.kind ?? "").trim();
     const role =
       kind === "first_review_email"
         ? "guest (first review email)"
         : (r.role?.trim() || "consumer");
+    const source: AdminUserSource =
+      kind === "first_review_email"
+        ? "first_review"
+        : sourceById.get(String(r.id)) ?? "other";
 
     return {
       id: String(r.id ?? ""),
@@ -65,10 +128,11 @@ export async function getNewUsersTodayRows(supabase: SupabaseClient): Promise<Qu
       role,
       is_admin: r.is_admin ?? null,
       created_at: r.created_at ?? null,
+      source,
     };
   });
 
-  return { data: rows.filter((x) => x.id), error: null };
+  return { data: rows, error: null };
 }
 
 /** Business bucket: workspace team member/owner, or auth email on a non-webmail domain. */
@@ -159,6 +223,7 @@ export async function getConsumerUserRows(): Promise<QueryResult> {
   const rows: AdminUsersListRow[] = [];
   for (const u of consumers) {
     const p = profileById.get(u.id);
+    const source = inferUserSource(u);
     if (p) {
       rows.push({
         id: p.id,
@@ -167,6 +232,7 @@ export async function getConsumerUserRows(): Promise<QueryResult> {
         role: p.role,
         is_admin: p.is_admin,
         created_at: p.created_at ?? u.created_at ?? null,
+        source,
       });
     } else {
       const meta = u.user_metadata as Record<string, unknown> | undefined;
@@ -183,6 +249,7 @@ export async function getConsumerUserRows(): Promise<QueryResult> {
         role: null,
         is_admin: null,
         created_at: u.created_at ?? null,
+        source,
       });
     }
   }
@@ -259,6 +326,7 @@ export async function getBusinessUserRows(): Promise<QueryResult> {
   for (const id of idList) {
     const p = profileById.get(id);
     const u = authById.get(id);
+    const source = inferUserSource(u);
     if (p) {
       rows.push({
         id: p.id,
@@ -267,6 +335,7 @@ export async function getBusinessUserRows(): Promise<QueryResult> {
         role: p.role,
         is_admin: p.is_admin,
         created_at: p.created_at ?? u?.created_at ?? null,
+        source,
       });
     } else if (u) {
       const meta = u.user_metadata as Record<string, unknown> | undefined;
@@ -283,6 +352,7 @@ export async function getBusinessUserRows(): Promise<QueryResult> {
         role: businessTeamIds.has(id) ? null : "custom-domain email",
         is_admin: false,
         created_at: u.created_at ?? null,
+        source,
       });
     }
   }

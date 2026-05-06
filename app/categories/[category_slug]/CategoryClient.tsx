@@ -292,6 +292,26 @@ export default function CategoryClient({
   const listingPrefetchInflightRef = useRef<Set<number>>(new Set());
   const listingCacheMountSeededRef = useRef(false);
 
+  /**
+   * Scroll target for "go to top of listing" on pagination. Anchored to
+   * the "Best <category> companies in <country>" heading so users always
+   * land at the start of the new page, regardless of how far they scrolled.
+   */
+  const listingTopRef = useRef<HTMLHeadingElement | null>(null);
+  const scrollToListingTop = useCallback((behavior: ScrollBehavior = "smooth") => {
+    if (typeof window === "undefined") return;
+    const el = listingTopRef.current;
+    // Sticky-navbar offset; matches the spacing used elsewhere on the site.
+    const NAVBAR_OFFSET = 80;
+    if (el) {
+      const top =
+        el.getBoundingClientRect().top + window.scrollY - NAVBAR_OFFSET;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    } else {
+      window.scrollTo({ top: 0, behavior });
+    }
+  }, []);
+
   /** Listing page from `?page=` so browser back/forward and shared links preserve pagination. */
   const listingPageIndex = useMemo(
     () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
@@ -338,12 +358,25 @@ export default function CategoryClient({
         setLoading(false);
       }
 
+      // Scroll to the top of the listing as soon as the user requests a new
+      // page. Done before the route push so the user sees the smooth scroll
+      // start immediately, regardless of cache hit/miss or fetch latency.
+      scrollToListingTop("smooth");
+
       const href = hrefForListingPage(clamped);
       startPaginationTransition(() => {
         router.push(href, { scroll: false });
       });
     },
-    [listingPageIndex, listingKind, categorySlug, derivedCountry, hrefForListingPage, router],
+    [
+      listingPageIndex,
+      listingKind,
+      categorySlug,
+      derivedCountry,
+      hrefForListingPage,
+      router,
+      scrollToListingTop,
+    ],
   );
 
   const stripListingPageFromUrl = useCallback(() => {
@@ -1118,7 +1151,10 @@ export default function CategoryClient({
             </div>
           )}
 
-          <h2 className="text-lg font-semibold mt-6 mb-3">
+          <h2
+            ref={listingTopRef}
+            className="text-lg font-semibold mt-6 mb-3 scroll-mt-24"
+          >
             Best {categoryName} companies in {countryName}
           </h2>
           {listingKind === "category" && (
