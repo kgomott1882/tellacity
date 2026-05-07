@@ -2,10 +2,7 @@ export const dynamic = "force-static";
 
 import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
-import { normalizeBusinessTags } from "@/lib/businessTags";
 const PAGE_SIZE = 1000;
-const MAX_TAG_URLS = 5000;
-const MIN_TAG_USAGE = 3;
 const SUPPORTED_BEST_COUNTRIES = new Set([
   "US",
   "GB",
@@ -15,10 +12,6 @@ const SUPPORTED_BEST_COUNTRIES = new Set([
   "NZ",
   "IE",
 ]);
-
-function toTagSlug(tagName: string): string {
-  return tagName.trim().toLowerCase().replace(/\s+/g, "-");
-}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient();
@@ -47,14 +40,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter(Boolean),
   );
 
-  const tagUsageCounts = new Map<string, number>();
+  // /tags/[slug] pages are intentionally NOT submitted in the sitemap.
+  // Those routes return `<meta name="robots" content="noindex" />`
+  // (see app/tags/[tag_slug]/page.tsx). Submitting noindex URLs in the
+  // sitemap is contradictory — Google reports them as
+  // "Excluded by 'noindex' tag" in Search Console. Tag pages stay
+  // reachable via internal links from category and business pages;
+  // they just aren't asked to be crawled here.
   const bestPagePairs = new Set<string>();
   let offset = 0;
 
   while (true) {
     const { data, error } = await supabase
       .from("businesses")
-      .select("tags,category_slug,country_code")
+      .select("category_slug,country_code")
       .eq("status", "active")
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -62,19 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       break;
     }
 
-    for (const row of data as Array<{ tags: unknown; category_slug?: unknown; country_code?: unknown }>) {
-      const normalizedTags = normalizeBusinessTags(row.tags);
-      for (const tag of normalizedTags) {
-        const normalizedTag = tag.trim().toLowerCase();
-        if (!normalizedTag) {
-          continue;
-        }
-        tagUsageCounts.set(
-          normalizedTag,
-          (tagUsageCounts.get(normalizedTag) ?? 0) + 1,
-        );
-      }
-
+    for (const row of data as Array<{ category_slug?: unknown; country_code?: unknown }>) {
       const categorySlug = String(row.category_slug ?? "").trim().toLowerCase();
       if (!categorySlug || !existingCategorySlugs.has(categorySlug)) {
         continue;
@@ -92,25 +79,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     offset += PAGE_SIZE;
-  }
-
-  const tagPages: MetadataRoute.Sitemap = [];
-  const emittedTagSlugs = new Set<string>();
-  for (const [tagName, usageCount] of tagUsageCounts) {
-    if (usageCount < MIN_TAG_USAGE) {
-      continue;
-    }
-    const tagSlug = toTagSlug(tagName);
-    if (!tagSlug || emittedTagSlugs.has(tagSlug)) {
-      continue;
-    }
-    emittedTagSlugs.add(tagSlug);
-    tagPages.push({
-      url: `https://tellacity.com/tags/${tagSlug}`,
-    });
-    if (tagPages.length >= MAX_TAG_URLS) {
-      break;
-    }
   }
 
   const bestPages: MetadataRoute.Sitemap = Array.from(bestPagePairs)
@@ -138,7 +106,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: "https://tellacity.com/companies",
     },
-    ...tagPages,
     ...bestPages,
     ...sitemaps,
   ];

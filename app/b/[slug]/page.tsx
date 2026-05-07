@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import SuspendedBusinessPublicView from "@/components/public/SuspendedBusinessPublicView";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
@@ -82,26 +82,18 @@ export async function generateMetadata(
 
 export default async function BusinessPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  // searchParams intentionally not consumed: utm/fbclid pass-through is
+  // now handled by <link rel="canonical">, not by a redirect.
 }) {
   const { slug } = await params;
   const normalizedSlug = slug.trim().toLowerCase();
-  const resolvedSearchParams = searchParams ? await searchParams : {};
-  const isRedirected =
-    resolvedSearchParams.redirected === "1" ||
-    (Array.isArray(resolvedSearchParams.redirected) &&
-      resolvedSearchParams.redirected.includes("1"));
-  const hasSearchParams = Object.keys(resolvedSearchParams).length > 0;
-
-  if (hasSearchParams && !resolvedSearchParams.redirected) {
-    console.log("STRIPPING_QUERY_PARAMS_SAFE");
-
-    redirect(`/b/${normalizedSlug}?redirected=1`);
-  }
-
+  // Search params (utm/fbclid/etc.) are intentionally ignored for SEO.
+  // The <link rel="canonical"> in generateMetadata is the source of
+  // truth for Google; we don't redirect-strip query params anymore
+  // because the previous redirect produced a chained ?redirected=1
+  // URL that Google indexed as "Page with redirect".
   const supabase = createClient();
 
   // Always use normalized slug
@@ -145,7 +137,10 @@ export default async function BusinessPage({
       .maybeSingle();
 
     if (data?.slug) {
-      redirect(`/b/${data.slug}`);
+      // 308 Permanent: tells Google to drop the source URL from the index
+      // and pass link equity to the resolved canonical row. Previously
+      // this used `redirect()` (307) which kept both URLs in the index.
+      permanentRedirect(`/b/${data.slug}`);
     }
 
     return notFound();
@@ -210,9 +205,6 @@ export default async function BusinessPage({
       return null;
     })(),
   })).filter((p) => p.id && p.url);
-
-  const finalSlug = business.slug.toLowerCase();
-  const currentSlug = normalizedSlug;
 
   // Claimed = business has a registered owner. When false we show the
   // "Claim this profile" teaser in the photos section; when true we show a
@@ -308,24 +300,11 @@ export default async function BusinessPage({
     </>
   );
 
-  // 🚫 HARD LOOP PREVENTION
-  if (finalSlug === currentSlug) {
-    return renderBusinessClient();
-  }
-
-  // 🚫 DO NOT REDIRECT IF THIS SLUG ALREADY LOOKS CANONICAL
-  if (normalizedSlug === business.slug.toLowerCase()) {
-    return renderBusinessClient();
-  }
-
-  // 🚫 ONLY redirect if we are SURE this is a different valid slug
-  if (!isRedirected && finalSlug !== currentSlug) {
-    console.log("REDIRECT_DISABLED", {
-      currentSlug,
-      finalSlug,
-    });
-  }
-
-  console.log("Business found:", (business as { name?: string | null }).name);
+  // The canonical URL for any active row is its own `business.slug`.
+  // No redirect is performed when the row is already loaded — even if the
+  // requested URL slug differs (e.g. case mismatch), the canonical
+  // <link rel="canonical"> in <head> tells Google which URL to index.
+  // Multi-location chain rows (e.g. Greenleaf Tobacco & Vape across
+  // 11 Iowa towns) intentionally each keep their own URL.
   return renderBusinessClient();
 }

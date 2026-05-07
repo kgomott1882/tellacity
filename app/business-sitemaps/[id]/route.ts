@@ -10,6 +10,22 @@ const supabase = createClient(
 
 const PAGE_SIZE = 1000;
 
+/**
+ * Junk/placeholder slugs that occasionally make it through seed imports
+ * (e.g. `5`, `business`, `business2`, `unknown`, `unitedstates`). These
+ * URLs render but offer no SEO value and dilute the sitemap. Filtering
+ * them out keeps the sitemap honest about what we want indexed.
+ */
+const GARBAGE_SLUG_RE = /^(\d+|business\d*|unknown|unitedstates\d*)$/i;
+const MIN_SLUG_LENGTH = 3;
+
+function isIndexableSlug(slug: string | null | undefined): boolean {
+  const s = String(slug ?? "").trim().toLowerCase();
+  if (s.length < MIN_SLUG_LENGTH) return false;
+  if (GARBAGE_SLUG_RE.test(s)) return false;
+  return true;
+}
+
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -27,7 +43,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("businesses")
-      .select("canonical_slug, slug, updated_at")
+      .select("slug, updated_at")
       .eq("status", "active")
       .order("id", { ascending: true })
       .range(from, to);
@@ -37,17 +53,21 @@ export async function GET(
       return buildEmptySitemap();
     }
 
-    // ALWAYS return valid XML, even if empty
+    // Emit each row's actual `slug` (the one whose URL renders 200).
+    // Earlier the route emitted `canonical_slug || slug`, which produced
+    // sitemap URLs that didn't exist as their own row and triggered a
+    // soft-redirect chain when Google crawled them. Rows with junk or
+    // missing slugs are skipped so we don't pollute Google's view of
+    // site quality.
     const urls = (data || [])
-      .filter((b) => b.canonical_slug || b.slug)
+      .filter((b) => isIndexableSlug((b as { slug?: string | null }).slug))
       .map((b) => {
-        const finalSlug = b.canonical_slug || b.slug;
+        const slug = String((b as { slug?: string | null }).slug ?? "").trim().toLowerCase();
+        const updatedAt = (b as { updated_at?: string | null }).updated_at;
         return `
   <url>
-    <loc>https://tellacity.com/b/${finalSlug}</loc>
-    <lastmod>${new Date(
-      b.updated_at || Date.now()
-    ).toISOString()}</lastmod>
+    <loc>https://tellacity.com/b/${slug}</loc>
+    <lastmod>${new Date(updatedAt || Date.now()).toISOString()}</lastmod>
   </url>`;
       })
       .join("");
