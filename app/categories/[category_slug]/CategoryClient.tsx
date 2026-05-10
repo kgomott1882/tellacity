@@ -82,9 +82,6 @@ function buildCategoryPaginationItems(
   return [1, "ellipsis", c - 1, c, c + 1, "ellipsis", t];
 }
 
-/** Top “rated” strip: `/api/category-listings?mode=top`; candidates fetched so every page shows the strip. */
-const TOP_RATED_DISPLAY_COUNT = 8;
-
 function isValidSlug(slug: string) {
   if (!slug || typeof slug !== "string") return false;
   const clean = slug.trim().toLowerCase();
@@ -164,46 +161,6 @@ function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
     (Number(row.average_rating ?? 0) || 0) ||
     (Number(row.avg_rating ?? 0) || 0);
   return { trust, count: Number(row.review_count ?? 0) || 0 };
-}
-
-type TopRatedDisplayItem = {
-  id: string;
-  slug: string;
-  name: string;
-  logoUrl: string | null;
-  trustScore: number;
-  reviewCount: number;
-  /** Primary category slug for first pill (may differ from page filter). */
-  categorySlug: string | null;
-  tags: string[];
-};
-
-function mapRowToTopRatedItem(
-  business: BusinessRow,
-  index: number
-): TopRatedDisplayItem | null {
-  const safeSlug = (business.slug ?? "").trim().toLowerCase();
-  if (!isValidSlug(safeSlug)) return null;
-  const logoUrl = categoryListLogoUrl(business);
-  const trustScore =
-    typeof business.trust_score === "number" ? business.trust_score : 0;
-  const reviewCount =
-    typeof business.review_count === "number" ? business.review_count : 0;
-  const catSlug = (business.category_slug ?? "").trim().toLowerCase() || null;
-  return {
-    id: business.id ?? `top-${index}-${safeSlug}`,
-    slug: safeSlug,
-    name: (business.name ?? "").trim() || "Business",
-    logoUrl,
-    trustScore,
-    reviewCount,
-    categorySlug: catSlug,
-    tags: mergeTagsForDisplay(
-      business.tags,
-      business.secondary_category_slugs,
-      business.category_slug,
-    ),
-  };
 }
 
 const COUNTRIES: CountryOption[] = [
@@ -458,16 +415,6 @@ export default function CategoryClient({
   /** Prefer API `hasNext`; fall back to SSR total pages so Next is not wrongly disabled on mobile. */
   const canGoNextListingPage =
     computedHasNext || listingPageIndex + 1 < listingTotalPages;
-
-  const topRatedItems = useMemo(() => {
-    // Must mirror the first businesses shown on the current page.
-    return sortedBusinessesList
-      .slice(0, TOP_RATED_DISPLAY_COUNT)
-      .map((r, i) => mapRowToTopRatedItem(r, i))
-      .filter((x): x is TopRatedDisplayItem => Boolean(x));
-  }, [sortedBusinessesList]);
-
-  const showTopRatedSection = topRatedItems.length > 0;
 
   // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
@@ -910,116 +857,6 @@ export default function CategoryClient({
       />
       <main className="bg-white">
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          {showTopRatedSection && (
-            <section className="rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
-              <h2 className="text-xl font-semibold text-[#0E0E0E]">Top rated businesses in {title}</h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                  {topRatedItems.map((business) => {
-                    const pageCatNormTop = categorySlug.trim().toLowerCase();
-                    return (
-                      <div
-                        key={business.id}
-                        className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
-                      >
-                        <Link
-                          href={`/b/${business.slug}`}
-                          className="flex items-center gap-3 font-medium text-[#0E0E0E] no-underline"
-                        >
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
-                            {business.logoUrl ? (
-                              <img
-                                src={business.logoUrl}
-                                alt={`${sanitizeText(business.name)} logo`}
-                                className="h-full w-full object-contain"
-                                referrerPolicy="no-referrer"
-                                loading="lazy"
-                                decoding="async"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                }}
-                              />
-                            ) : null}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate">{sanitizeText(business.name)}</div>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                              <RatingStars
-                                rating={business.trustScore}
-                                reviewCount={business.reviewCount}
-                                size={11}
-                              />
-                              <span className="font-medium text-[#0E0E0E]">
-                                {business.trustScore.toFixed(1)}
-                              </span>
-                              <span>
-                                • {business.reviewCount.toLocaleString("en-US")} reviews
-                              </span>
-                            </div>
-                          </div>
-                        </Link>
-                        {(() => {
-                          const kwTop = filterKeywordTagsForPage(
-                            business.tags,
-                            listingKind,
-                            categorySlug,
-                          );
-                          const showPrimaryTop = shouldShowPrimaryCategoryChip(
-                            listingKind,
-                            categorySlug,
-                            business.categorySlug,
-                          );
-                          if (!showPrimaryTop && kwTop.length === 0) return null;
-                          return (
-                            <div className="mt-2 flex flex-wrap gap-1.5 pl-11">
-                              {showPrimaryTop &&
-                                business.categorySlug &&
-                                (() => {
-                                  const slug =
-                                    slugForTagChip(business.categorySlug) ??
-                                    business.categorySlug.trim().toLowerCase();
-                                  if (!isValidSlug(slug)) return null;
-                                  return (
-                                    <Link
-                                      href={categoryBrowseHref(slug, countryCode)}
-                                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
-                                    >
-                                      {formatBusinessTagLabel(business.categorySlug)}
-                                    </Link>
-                                  );
-                                })()}
-                              {kwTop.map((tag) => {
-                                const slug = slugForTagChip(tag);
-                                if (!slug) return null;
-                                const activeTag =
-                                  listingKind === "tag" && slug === pageCatNormTop;
-                                return activeTag ? (
-                                  <span
-                                    key={`${business.id}-${tag}`}
-                                    className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
-                                    aria-current="page"
-                                  >
-                                    {formatBusinessTagLabel(tag)}
-                                  </span>
-                                ) : (
-                                  <Link
-                                    key={`${business.id}-${tag}`}
-                                    href={tagBrowseHref(slug, countryCode)}
-                                    className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
-                                  >
-                                    {formatBusinessTagLabel(tag)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    );
-                  })}
-                </div>
-            </section>
-          )}
-
           {popularSearches.length > 0 && (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-[#0E0E0E]">Explore related categories</h2>
