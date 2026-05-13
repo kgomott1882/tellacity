@@ -41,6 +41,51 @@ function countryAliases(code: string): string[] {
   return FALLBACK_COUNTRY_ALIASES[normalized] ?? [normalized];
 }
 
+/** ISO + common aliases for `businesses.country_code` (home + category fallbacks). */
+export function countryCodesForHomeQueries(code: string): string[] {
+  return countryAliases(code);
+}
+
+/** Same slugs as `expand_catalog_category_slug_aliases` in Postgres (fallback path only). */
+export function categorySlugAliasesForFallback(slug: string): string[] {
+  const s = slug.trim().toLowerCase();
+  if (!s) return [];
+  if (s === "banking" || s === "banking-and-money") {
+    return ["banking", "banking-and-money"];
+  }
+  if (s === "internet-and-software") {
+    return ["internet-and-software", "it-and-communication"];
+  }
+  if (s === "insurance") {
+    return [
+      "insurance",
+      "insurance-agency",
+      "insurance-broker",
+      "insurance-company",
+      "life-insurance",
+      "car-insurance",
+      "home-insurance",
+      "health-insurance",
+      "travel-insurance",
+      "pet-insurance",
+      "business-insurance",
+    ];
+  }
+  return [s];
+}
+
+export function buildCategoryDirectoryBusinessesMatchOr(categorySlug: string): string {
+  const slugs = categorySlugAliasesForFallback(categorySlug);
+  if (slugs.length === 0) {
+    return pgQuotedEq("category_slug", "__invalid__");
+  }
+  const parts: string[] = [`category_slug.in.(${slugs.join(",")})`];
+  for (const s of slugs) {
+    parts.push(`secondary_category_slugs.cs.{${s}}`);
+  }
+  return parts.join(",");
+}
+
 function snapshotRpcRating(row: CategoryBusinessRow): {
   trust: number;
   count: number;
@@ -80,10 +125,7 @@ export async function fetchCategoryRowsWithFallback(
     return { rows, error: null };
   }
 
-  const categories =
-    categorySlug === "banking"
-      ? ["banking", "banking-and-money"]
-      : [categorySlug];
+  const categories = categorySlugAliasesForFallback(categorySlug);
   const countries = countryAliases(countryCode);
 
   const direct = await supabase
@@ -208,10 +250,7 @@ export async function fetchCategoryCount(
   categorySlug: string,
   countryCode: string,
 ): Promise<number | null> {
-  const categories =
-    categorySlug === "banking"
-      ? ["banking", "banking-and-money"]
-      : [categorySlug];
+  const categories = categorySlugAliasesForFallback(categorySlug);
   const countries = countryAliases(countryCode);
 
   const query = supabase
@@ -394,9 +433,7 @@ async function fetchRecentlyReviewedViaReviewsJoin(
           "category_slug",
           cleaned,
         )}`
-      : cleaned === "banking"
-        ? "category_slug.in.(banking,banking-and-money),secondary_category_slugs.cs.{banking},secondary_category_slugs.cs.{banking-and-money}"
-        : `${pgQuotedEq("category_slug", cleaned)},secondary_category_slugs.cs.{${cleaned}}`;
+      : buildCategoryDirectoryBusinessesMatchOr(cleaned);
 
   const scanLimit = Math.min(600, Math.max(lim * 40, 80));
 

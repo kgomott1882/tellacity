@@ -240,7 +240,19 @@ export default function CategoryClient({
   const [rows, setRows] = useState<BusinessRow[]>((businesses ?? []) as BusinessRow[]);
   const [computedCount, setComputedCount] = useState<number>(companyCount ?? 0);
   const [computedHasNext, setComputedHasNext] = useState<boolean>(hasNextPage ?? false);
-  const [isRoutingPagination, startPaginationTransition] = useTransition();
+  // `_isRoutingPagination` intentionally unused: we no longer disable pagination
+  // buttons on the pending flag — that was the root cause of "have to click a
+  // few times". The transition is still used so the route push is non-blocking.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_isRoutingPagination, startPaginationTransition] = useTransition();
+  /**
+   * The page the user just asked for, held until the URL/router catches up.
+   * Used for active highlight and Prev/Next enable so pagination feels instant
+   * even while Next.js is still committing the previous navigation. Without this,
+   * rapid clicks (e.g. 1 → 3 → 5) get dropped because the active state and
+   * disabled flags lag behind the URL.
+   */
+  const [pendingPageIndex, setPendingPageIndex] = useState<number | null>(null);
 
   const listingPagePayloadCacheRef = useRef(
     new Map<number, { rows: BusinessRow[]; hasNext: boolean }>(),
@@ -274,6 +286,8 @@ export default function CategoryClient({
     () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
+  /** Page index the UI should treat as "current" — user's intent first, URL as fallback. */
+  const effectivePageIndex = pendingPageIndex ?? listingPageIndex;
   const queryCountry = searchParams.get("country");
   // URL + server-provided country only during render to avoid hydration mismatch.
   const derivedCountry = normalizeCountryCode(
@@ -303,7 +317,15 @@ export default function CategoryClient({
   const goToListingPage = useCallback(
     (nextIndex: number) => {
       const clamped = Math.max(0, nextIndex);
-      if (clamped === listingPageIndex) return;
+      // Compare against the user's last-intended page, not just the URL.
+      // Otherwise rapid clicks during a pending transition all collapse to the
+      // same target because the URL has not yet caught up.
+      const fromIndex = pendingPageIndex ?? listingPageIndex;
+      if (clamped === fromIndex) return;
+
+      // Record intent immediately so active highlight and Prev/Next reflect
+      // the click before router.push resolves.
+      setPendingPageIndex(clamped);
 
       const scopeKey = `${listingKind}|${categorySlug}|${derivedCountry}`;
       const cached = listingPagePayloadCacheRef.current.get(clamped);
@@ -313,6 +335,10 @@ export default function CategoryClient({
         setComputedHasNext(cached.hasNext);
         setFetchError(null);
         setLoading(false);
+      } else {
+        // Cache miss: show the loading state immediately so the click registers
+        // even when the actual fetch will only kick off after the URL updates.
+        setLoading(true);
       }
 
       // Scroll to the top of the listing as soon as the user requests a new
@@ -326,6 +352,7 @@ export default function CategoryClient({
       });
     },
     [
+      pendingPageIndex,
       listingPageIndex,
       listingKind,
       categorySlug,
@@ -335,6 +362,14 @@ export default function CategoryClient({
       scrollToListingTop,
     ],
   );
+
+  // Clear the pending intent the moment the URL catches up, so subsequent
+  // renders read from `listingPageIndex` again (single source of truth).
+  useEffect(() => {
+    if (pendingPageIndex !== null && pendingPageIndex === listingPageIndex) {
+      setPendingPageIndex(null);
+    }
+  }, [pendingPageIndex, listingPageIndex]);
 
   const stripListingPageFromUrl = useCallback(() => {
     pushSearchParams((p) => {
@@ -404,17 +439,23 @@ export default function CategoryClient({
   const listingTotalPages = useMemo(() => {
     const fromCount = Math.ceil((Number(computedCount) || 0) / PAGE_SIZE);
     if (fromCount >= 1) return Math.max(1, fromCount);
-    return Math.max(1, listingPageIndex + 1 + (computedHasNext ? 1 : 0));
-  }, [computedCount, listingPageIndex, computedHasNext]);
+    return Math.max(1, effectivePageIndex + 1 + (computedHasNext ? 1 : 0));
+  }, [computedCount, effectivePageIndex, computedHasNext]);
 
   const listingPaginationItems = useMemo(
-    () => buildCategoryPaginationItems(listingPageIndex + 1, listingTotalPages),
-    [listingPageIndex, listingTotalPages],
+    () => buildCategoryPaginationItems(effectivePageIndex + 1, listingTotalPages),
+    [effectivePageIndex, listingTotalPages],
   );
 
-  /** Prefer API `hasNext`; fall back to SSR total pages so Next is not wrongly disabled on mobile. */
+  /**
+   * Prefer API `hasNext` only when the URL/data have already caught up to the
+   * effective page; otherwise trust the count-based total so Next does not
+   * incorrectly disable while a pending transition is still in flight.
+   */
   const canGoNextListingPage =
-    computedHasNext || listingPageIndex + 1 < listingTotalPages;
+    effectivePageIndex === listingPageIndex
+      ? computedHasNext || effectivePageIndex + 1 < listingTotalPages
+      : effectivePageIndex + 1 < listingTotalPages;
 
   // URL is source of truth; storage only fills missing URL country.
   useEffect(() => {
@@ -1178,8 +1219,8 @@ export default function CategoryClient({
                 <button
                   type="button"
                   className="touch-manipulation shrink-0 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
-                  onClick={() => goToListingPage(listingPageIndex - 1)}
-                  disabled={listingPageIndex === 0 || isRoutingPagination}
+                  onClick={() => goToListingPage(effectivePageIndex - 1)}
+                  disabled={effectivePageIndex === 0}
                 >
                   Previous
                 </button>
@@ -1198,7 +1239,7 @@ export default function CategoryClient({
                           </span>
                         );
                       }
-                      const isActive = item === listingPageIndex + 1;
+                      const isActive = item === effectivePageIndex + 1;
                       if (isActive) {
                         return (
                           <span
@@ -1216,7 +1257,6 @@ export default function CategoryClient({
                           type="button"
                           className={`touch-manipulation ${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
                           onClick={() => goToListingPage(item - 1)}
-                          disabled={isRoutingPagination}
                         >
                           {item}
                         </button>
@@ -1227,8 +1267,8 @@ export default function CategoryClient({
                 <button
                   type="button"
                   className="touch-manipulation shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
-                  onClick={() => goToListingPage(listingPageIndex + 1)}
-                  disabled={!canGoNextListingPage || isRoutingPagination}
+                  onClick={() => goToListingPage(effectivePageIndex + 1)}
+                  disabled={!canGoNextListingPage}
                 >
                   Next page
                 </button>

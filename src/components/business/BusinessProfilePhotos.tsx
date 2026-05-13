@@ -27,6 +27,20 @@ const EMPTY_PHOTOS_TEASER_SRC = "/brand/Business Profile.png" as const;
 const PUBLIC_GALLERY_EXAMPLE_SRC = "/brand/Gallery%20Photos.png" as const;
 const PUBLIC_PRODUCTS_EXAMPLE_SRC = "/brand/Products%20Photos.png" as const;
 
+const PREVIEW_EXAMPLES_SLIDE_INTERVAL_MS = 1500;
+const PREVIEW_EXAMPLE_SLIDES = [
+  {
+    caption: "Products example",
+    src: PUBLIC_PRODUCTS_EXAMPLE_SRC,
+    alt: "Example of how a Products section can look on a public business profile",
+  },
+  {
+    caption: "Gallery example",
+    src: PUBLIC_GALLERY_EXAMPLE_SRC,
+    alt: "Example of how a Gallery section can look on a public business profile",
+  },
+] as const;
+
 type Props = {
   photos: BusinessPhotoPublic[];
   /** Required for “Upload photos” owner vs claim routing. */
@@ -524,6 +538,16 @@ export default function BusinessProfilePhotos({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [ctaBusy, setCtaBusy] = useState(false);
   const [previewExamplesOpen, setPreviewExamplesOpen] = useState(false);
+  const [previewExampleSlideIndex, setPreviewExampleSlideIndex] = useState(0);
+
+  useEffect(() => {
+    if (!previewExamplesOpen) return;
+    setPreviewExampleSlideIndex(0);
+    const id = window.setInterval(() => {
+      setPreviewExampleSlideIndex((i) => (i + 1) % PREVIEW_EXAMPLE_SLIDES.length);
+    }, PREVIEW_EXAMPLES_SLIDE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [previewExamplesOpen]);
 
   const galleryPhotos = useMemo(
     () =>
@@ -611,6 +635,9 @@ export default function BusinessProfilePhotos({
     return () => window.removeEventListener("keydown", onKey);
   }, [previewExamplesOpen]);
 
+  const previewExampleSlide =
+    PREVIEW_EXAMPLE_SLIDES[previewExampleSlideIndex] ?? PREVIEW_EXAMPLE_SLIDES[0];
+
   return (
     <section
       className="business-photos-section space-y-3"
@@ -625,10 +652,10 @@ export default function BusinessProfilePhotos({
         </h2>
         {showPublicPreviewExamples ? (
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
-            Photos help customers understand the place or product before they commit.
-            Businesses upload from their Tellacity dashboard, organise images, and
-            publish the exact layout visitors see. If this profile has no photos,
-            claiming it and adding a few real images quickly builds trust.
+            Photos help customers understand a business, place, or product before they
+            commit. Businesses upload and organise images from their Tellacity
+            dashboard to showcase their brand and experience. If this profile has no
+            photos yet, adding real images can quickly help build customer trust.
           </p>
         ) : (
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
@@ -783,35 +810,22 @@ export default function BusinessProfilePhotos({
               </button>
             </div>
             <div className="max-h-[calc(94vh-3.25rem)] overflow-y-auto px-3 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 lg:pb-10">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:gap-6">
-                <figure className="overflow-hidden rounded-xl border-2 border-[#0E0E0E] bg-white shadow-sm">
-                  <figcaption className="border-b-2 border-[#0E0E0E] px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base">
-                    Products example
-                  </figcaption>
-                  <div className="flex items-center justify-center bg-gray-50 p-3 sm:p-4 lg:p-5">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
-                    <img
-                      src={PUBLIC_PRODUCTS_EXAMPLE_SRC}
-                      alt="Example of how a Products section can look on a public business profile"
-                      className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
-                    />
-                  </div>
-                </figure>
-
-                <figure className="overflow-hidden rounded-xl border-2 border-[#0E0E0E] bg-white shadow-sm">
-                  <figcaption className="border-b-2 border-[#0E0E0E] px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base">
-                    Gallery example
-                  </figcaption>
-                  <div className="flex items-center justify-center bg-gray-50 p-3 sm:p-4 lg:p-5">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
-                    <img
-                      src={PUBLIC_GALLERY_EXAMPLE_SRC}
-                      alt="Example of how a Gallery section can look on a public business profile"
-                      className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
-                    />
-                  </div>
-                </figure>
-              </div>
+              <figure className="overflow-hidden rounded-xl bg-gray-50">
+                <figcaption
+                  className="border-b border-gray-200/80 bg-white px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base"
+                  aria-live="polite"
+                >
+                  {previewExampleSlide.caption}
+                </figcaption>
+                <div className="flex items-center justify-center p-3 sm:p-4 lg:p-5">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+                  <img
+                    src={previewExampleSlide.src}
+                    alt={previewExampleSlide.alt}
+                    className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
+                  />
+                </div>
+              </figure>
             </div>
           </div>
         </div>

@@ -2,12 +2,14 @@ import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminCustomersTable from "@/components/admin/AdminCustomersTable";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
+import AdminTopRecentActivityPanel from "@/components/admin/AdminTopRecentActivityPanel";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
 import {
   emptyAdminCustomerMetrics,
   loadAdminCustomerMetricsMap,
 } from "@/lib/adminCustomerMetrics";
 import { loadPublishedReviewCountByBusinessIdMap } from "@/lib/adminPublishedReviewCounts";
+import { loadAdminTopRecentBusinessActivity } from "@/lib/adminTopRecentBusinessActivity";
 
 export const dynamic = "force-dynamic";
 
@@ -93,13 +95,16 @@ export default async function AdminCustomerBusinessesPage() {
     };
   });
 
-  const metricsMap = await loadAdminCustomerMetricsMap(
-    rawRows.map((b) => ({
-      id: b.id,
-      owner_id: b.owner_id,
-      created_at: b.created_at,
-    })),
-  );
+  const [metricsMap, topRecent] = await Promise.all([
+    loadAdminCustomerMetricsMap(
+      rawRows.map((b) => ({
+        id: b.id,
+        owner_id: b.owner_id,
+        created_at: b.created_at,
+      })),
+    ),
+    loadAdminTopRecentBusinessActivity(supabase, 15),
+  ]);
 
   const tableRows = customers.map((c) => ({
     ...c,
@@ -109,6 +114,11 @@ export default async function AdminCustomerBusinessesPage() {
   return (
     <div className="space-y-4">
       {listError ? <AdminActionMessage type="error" text={listError} /> : null}
+
+      <AdminTopRecentActivityPanel
+        rows={topRecent.rows}
+        error={topRecent.error}
+      />
 
       <AdminTableShell
         title={`Business Customers (${customers?.length || 0})`}

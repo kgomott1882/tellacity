@@ -153,7 +153,7 @@ function isSafeCategorySlug(slug: string) {
   return true;
 }
 
-/** Homepage Best-in row (from `home_best_in_cache`); alias for bundle type. */
+/** Homepage Best-in row (live scores via `loadHomeBestInLive`); alias for bundle type. */
 export type BestInBusiness = HomeBestInBusiness;
 
 type HomePageClientProps = {
@@ -480,7 +480,7 @@ export default function HomePageClient({
     (bestInCategoryLabels ?? {})[activeBestInSlug] ??
     (activeBestInSlug ?? "").replace(/-/g, " ");
 
-  // Best-in: `/api/home-best-in` — reads `home_best_in_cache` (single request per country).
+  // Best-in: `/api/home-best-in` — live PostgREST + `get_public_review_aggregates` per country.
   useEffect(() => {
     if (pathname !== "/") return;
     if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
@@ -181,9 +182,33 @@ function parseCount(v: unknown): number {
 }
 
 export default function AdminCategoriesClient() {
-  const [countryFilter, setCountryFilter] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const countryFromUrl = (searchParams.get("country") ?? "").trim().toUpperCase();
+  const [countryFilter, setCountryFilter] = useState(countryFromUrl);
   const [groupFilter, setGroupFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+
+  useEffect(() => {
+    setCountryFilter(countryFromUrl);
+  }, [countryFromUrl]);
+
+  const updateCountryInUrl = useCallback(
+    (next: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const trimmed = next.trim().toUpperCase();
+      if (trimmed) {
+        params.set("country", trimmed);
+      } else {
+        params.delete("country");
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const [groups, setGroups] = useState<CategoryGroupOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -364,7 +389,11 @@ export default function AdminCategoriesClient() {
               </label>
               <select
                 value={countryFilter}
-                onChange={(e) => setCountryFilter(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCountryFilter(next);
+                  updateCountryInUrl(next);
+                }}
                 className="min-w-[160px] rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
               >
                 {COUNTRIES.map((c) => (
@@ -372,6 +401,12 @@ export default function AdminCategoriesClient() {
                     {c.label}
                   </option>
                 ))}
+                {countryFilter &&
+                !COUNTRIES.some((c) => c.code === countryFilter) ? (
+                  <option key={countryFilter} value={countryFilter}>
+                    {countryFilter}
+                  </option>
+                ) : null}
               </select>
             </div>
             <div className="flex flex-col gap-0.5">

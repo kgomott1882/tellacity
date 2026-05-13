@@ -37,7 +37,7 @@ import {
   enrichMarqueeItemsWithDbNames,
 } from "@/lib/homeMarqueeCategories";
 import { HOME_ROTATING_BEST_IN_SLUGS } from "@/lib/homeBestInBundle";
-import { loadHomeBestInFromCache } from "@/lib/loadHomeBestInFromCache";
+import { loadHomeBestInLive } from "@/lib/loadHomeBestInLive";
 import { loadHomePageFeedRows } from "@/lib/homePageFeedServer";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -148,7 +148,7 @@ export default async function HomePage(props: PageProps) {
             .from("categories")
             .select("id, slug, name")
             .order("name", { ascending: true }),
-          loadHomeBestInFromCache(
+          loadHomeBestInLive(
             createSupabaseServerClientForHomeBestIn(),
             country,
           ),

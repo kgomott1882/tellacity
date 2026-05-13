@@ -1,3 +1,4 @@
+import AdminBusinessesByCountryPanel from "@/components/admin/AdminBusinessesByCountryPanel";
 import AdminCategoriesClient from "@/components/admin/AdminCategoriesClient";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default function AdminCategoriesPage() {
           and subcategory filters above—the same filters apply to the grid and the detailed table below.
         </p>
       </div>
+      <AdminBusinessesByCountryPanel />
       <AdminCategoriesClient />
     </div>
   );
