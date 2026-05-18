@@ -407,6 +407,13 @@ export default function RecentReviewCard({
         <ReviewReactionButtons
           reviewId={reviewId}
           initialLikeCount={review.like_count || 0}
+          /**
+           * Landing renders 60+ cards. The like_count from home_feed_v2 SSR
+           * is authoritative, so we skip the on-mount GET to avoid 60+ x ~1.3s
+           * helpful API calls. Other surfaces keep the refresh (e.g. business
+           * profile where freshness across reloads matters).
+           */
+          refreshOnMount={!isLanding}
         />
 
         <Popover open={isShareOpen} onOpenChange={setIsShareOpen}>

@@ -26,20 +26,39 @@ async function fetchPublicReviewAggregatesBatch(
 ): Promise<Map<string, { trust: number; count: number }>> {
   const out = new Map<string, { trust: number; count: number }>();
   const unique = [...new Set(ids.map((id) => normalizeBusinessIdKey(id)).filter(Boolean))];
+  const chunks: string[][] = [];
   for (let i = 0; i < unique.length; i += AGG_CHUNK) {
-    const chunk = unique.slice(i, i + AGG_CHUNK);
-    const { data, error } = await supabase.rpc("get_public_review_aggregates", {
-      p_business_ids: chunk,
-    } as never);
-    if (error) {
-      console.warn("[loadHomeBestInLive] get_public_review_aggregates:", error.message);
-      continue;
-    }
-    for (const row of (data ?? []) as {
-      business_id?: string;
-      average_rating?: number | null;
-      review_count?: number | null;
-    }[]) {
+    chunks.push(unique.slice(i, i + AGG_CHUNK));
+  }
+
+  // Run the aggregate RPC in parallel for each chunk (was sequential).
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      const { data, error } = await supabase.rpc(
+        "get_public_review_aggregates",
+        { p_business_ids: chunk } as never,
+      );
+      if (error) {
+        console.warn(
+          "[loadHomeBestInLive] get_public_review_aggregates:",
+          error.message,
+        );
+        return [] as {
+          business_id?: string;
+          average_rating?: number | null;
+          review_count?: number | null;
+        }[];
+      }
+      return (data ?? []) as {
+        business_id?: string;
+        average_rating?: number | null;
+        review_count?: number | null;
+      }[];
+    }),
+  );
+
+  for (const rows of results) {
+    for (const row of rows) {
       const id = normalizeBusinessIdKey(row.business_id);
       if (!id) continue;
       out.set(id, {
@@ -90,32 +109,38 @@ export async function loadHomeBestInLive(
   const norm = normalizeCountryCode(country);
   const rpcLimit = Math.max(finalLimit, Math.min(candidatePool, 40));
 
+  /**
+   * Run all per-slug RPC lookups in parallel — was a sequential `for` loop that
+   * stacked round-trips and made homepage SSR 5–10s slower than necessary.
+   * Each RPC is independent so Promise.all is safe.
+   */
+  const slugResults = await Promise.all(
+    slugList.map(async (slug) => {
+      const { data, error } = await supabase.rpc(
+        "get_top_businesses_for_category_global",
+        {
+          p_category_slug: slug,
+          p_country_code: norm,
+          p_min_rating: null,
+          p_limit: rpcLimit,
+          p_offset: 0,
+        } as never,
+      );
+      if (error) {
+        console.warn(
+          "[loadHomeBestInLive] get_top_businesses_for_category_global:",
+          slug,
+          error.message,
+        );
+        return { slug, rows: [] as RpcRow[] };
+      }
+      return { slug, rows: (data ?? []) as RpcRow[] };
+    }),
+  );
+
   const picksBySlug: Record<string, RpcRow[]> = {};
   const allIds: string[] = [];
-
-  for (const slug of slugList) {
-    const { data, error } = await supabase.rpc(
-      "get_top_businesses_for_category_global",
-      {
-        p_category_slug: slug,
-        p_country_code: norm,
-        p_min_rating: null,
-        p_limit: rpcLimit,
-        p_offset: 0,
-      } as never,
-    );
-
-    if (error) {
-      console.warn(
-        "[loadHomeBestInLive] get_top_businesses_for_category_global:",
-        slug,
-        error.message,
-      );
-      picksBySlug[slug] = [];
-      continue;
-    }
-
-    const rows = (data ?? []) as RpcRow[];
+  for (const { slug, rows } of slugResults) {
     picksBySlug[slug] = rows;
     for (const r of rows) {
       if (r.id) allIds.push(r.id);

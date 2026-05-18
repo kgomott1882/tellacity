@@ -38,11 +38,20 @@ function GoogleGIcon({ className }: { className?: string }) {
 type ReviewReactionButtonsProps = {
   reviewId: string | null | undefined;
   initialLikeCount?: number;
+  /**
+   * Skip the on-mount GET /api/reviews/helpful?reviewId=... refresh.
+   * The landing page renders 60+ cards and used to fire 60+ requests
+   * (~1.3s each) — pass `false` there because `initialLikeCount` is
+   * already accurate from SSR (home_feed_v2.like_count). The button still
+   * refreshes after a vote and on the helpful-signout event.
+   */
+  refreshOnMount?: boolean;
 };
 
 export default function ReviewReactionButtons({
   reviewId,
   initialLikeCount = 0,
+  refreshOnMount = true,
 }: ReviewReactionButtonsProps) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [hasVoted, setHasVoted] = useState(false);
@@ -91,8 +100,9 @@ export default function ReviewReactionButtons({
   }, [reviewId]);
 
   useEffect(() => {
+    if (!refreshOnMount) return;
     refreshStatus();
-  }, [refreshStatus]);
+  }, [refreshStatus, refreshOnMount]);
 
   useEffect(() => {
     const fn = () => {
