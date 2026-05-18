@@ -1,11 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  buildCategoryDirectoryBusinessesMatchOr,
-  categorySlugAliasesForFallback,
-  countryCodesForHomeQueries,
-} from "@/lib/categoryListingQueries";
-import {
   HOME_ROTATING_BEST_IN_SLUGS,
   type HomeBestInBusiness,
   normalizeHomeBestInBusiness,
@@ -13,15 +8,14 @@ import {
 import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
 import { normalizeCountryCode } from "@/lib/country";
 
-type BusinessPickRow = {
+type RpcRow = {
   id: string;
   name: string | null;
   slug: string | null;
   website: string | null;
-  website_display: string | null;
-  logo_url: string | null;
   trust_score: number | null;
   review_count: number | null;
+  resolved_logo_url: string | null;
 };
 
 const AGG_CHUNK = 80;
@@ -57,25 +51,28 @@ async function fetchPublicReviewAggregatesBatch(
   return out;
 }
 
-function websiteFromPick(r: BusinessPickRow): string | null {
-  const d = r.website_display?.trim();
-  if (d) return d;
-  const w = r.website?.trim();
-  return w || null;
-}
-
 /**
- * Homepage "Best in …" — avoids `get_home_best_in_bundle` (often hits Supabase
- * statement timeouts on large `businesses`). Uses indexed PostgREST filters +
- * alias expansion (same as category directory), then live scores from
- * `get_public_review_aggregates`.
+ * Homepage "Best in …" — uses the SAME RPC as the category directory
+ * (`get_top_businesses_for_category_global`), so the home top-8 is always the
+ * top-8 of the category first page. The previous PostgREST candidate query
+ * ordered by the stored `businesses.trust_score` / `review_count` columns,
+ * which are cached and can drift from the live `business_review_metrics_v`
+ * view (e.g. Clearpay had 1 live review but stored trust_score = 0, so it
+ * never entered the candidate pool and was missing from the carousel).
+ *
+ * The RPC already filters by `status = 'active'`, country aliases, slug
+ * aliases (banking ↔ banking-and-money, internet-and-software ↔
+ * it-and-communication, insurance variants) and live published+visible
+ * aggregates from `business_review_metrics_v`. We then merge per-business
+ * live aggregates from `get_public_review_aggregates` and re-sort with the
+ * same tiebreakers as the category page.
  */
 export async function loadHomeBestInLive(
   supabase: SupabaseClient,
   country: string,
   slugs: readonly string[] = HOME_ROTATING_BEST_IN_SLUGS,
   finalLimit = 8,
-  candidatePool = 24,
+  candidatePool = 20,
 ): Promise<Record<string, HomeBestInBusiness[]>> {
   const result: Record<string, HomeBestInBusiness[]> = {};
   for (const slug of slugs) {
@@ -90,36 +87,35 @@ export async function loadHomeBestInLive(
     return result;
   }
 
-  const countries = countryCodesForHomeQueries(normalizeCountryCode(country));
+  const norm = normalizeCountryCode(country);
+  const rpcLimit = Math.max(finalLimit, Math.min(candidatePool, 40));
 
-  const picksBySlug: Record<string, BusinessPickRow[]> = {};
+  const picksBySlug: Record<string, RpcRow[]> = {};
   const allIds: string[] = [];
 
   for (const slug of slugList) {
-    const aliases = categorySlugAliasesForFallback(slug);
-    if (aliases.length === 0) continue;
-
-    const orFilter = buildCategoryDirectoryBusinessesMatchOr(slug);
-    const { data, error } = await supabase
-      .from("businesses")
-      .select(
-        "id,name,slug,website,website_display,logo_url,trust_score,review_count",
-      )
-      .eq("status", "active")
-      .in("country_code", countries)
-      .or(orFilter)
-      .order("trust_score", { ascending: false, nullsFirst: false })
-      .order("review_count", { ascending: false, nullsFirst: false })
-      .order("name", { ascending: true })
-      .limit(Math.max(1, Math.min(candidatePool, 48)));
+    const { data, error } = await supabase.rpc(
+      "get_top_businesses_for_category_global",
+      {
+        p_category_slug: slug,
+        p_country_code: norm,
+        p_min_rating: null,
+        p_limit: rpcLimit,
+        p_offset: 0,
+      } as never,
+    );
 
     if (error) {
-      console.warn("[loadHomeBestInLive] businesses query:", slug, error.message);
+      console.warn(
+        "[loadHomeBestInLive] get_top_businesses_for_category_global:",
+        slug,
+        error.message,
+      );
       picksBySlug[slug] = [];
       continue;
     }
 
-    const rows = (data ?? []) as BusinessPickRow[];
+    const rows = (data ?? []) as RpcRow[];
     picksBySlug[slug] = rows;
     for (const r of rows) {
       if (r.id) allIds.push(r.id);
@@ -130,11 +126,14 @@ export async function loadHomeBestInLive(
 
   for (const slug of slugList) {
     const rows = picksBySlug[slug] ?? [];
+    // Same fallback as the category page: a business with no live
+    // published+visible reviews ranks as 0 / 0 (we never trust the stored
+    // `businesses.trust_score` / `review_count` columns here).
     const scored = rows.map((r) => {
       const id = normalizeBusinessIdKey(r.id);
       const agg = aggMap.get(id);
-      const trust = agg?.trust ?? (Number(r.trust_score ?? 0) || 0);
-      const count = agg?.count ?? (Number(r.review_count ?? 0) || 0);
+      const trust = agg ? agg.trust : 0;
+      const count = agg ? agg.count : 0;
       return { r, trust, count };
     });
 
@@ -153,11 +152,11 @@ export async function loadHomeBestInLive(
           id: r.id,
           name: r.name,
           slug: r.slug,
-          website: websiteFromPick(r),
+          website: r.website,
           trust_score: trust,
           review_count: count,
-          logo_url: r.logo_url,
-          resolved_logo_url: r.logo_url,
+          logo_url: r.resolved_logo_url,
+          resolved_logo_url: r.resolved_logo_url,
         }),
       )
       .filter((x): x is HomeBestInBusiness => x != null);

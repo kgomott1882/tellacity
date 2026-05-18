@@ -63,6 +63,12 @@ export type AdminBusinessRow = {
   submission_status?: string | null;
   category?: string | null;
   category_slug?: string | null;
+  /**
+   * Admin "Restrict reviews" flag. When true, /write-review and review APIs block
+   * new reviews for this business, but the business stays publicly visible.
+   * Returned by `admin_list_businesses_v2`.
+   */
+  is_review_restricted?: boolean | null;
   created_at?: string | null;
 } & Record<string, unknown>;
 

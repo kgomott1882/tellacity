@@ -21,6 +21,7 @@ import {
 import {
   BUSINESS_SUSPENDED_USER_MESSAGE,
   isBusinessPubliclyActive,
+  isBusinessReviewRestricted,
 } from "@/lib/businessPublicAccess";
 
 type WriteReviewFormProps = {
@@ -91,6 +92,11 @@ type Business = {
   reference_number_enabled?: boolean;
   reference_number_type?: ReferenceType | null;
   reference_number_label_custom?: string | null;
+  /**
+   * Admin "Restrict reviews" flag. When true, the business is publicly visible
+   * but new reviews are blocked; UI shows the restriction popup.
+   */
+  is_review_restricted?: boolean;
 };
 
 type PendingReviewDraft = {
@@ -259,6 +265,14 @@ export default function WriteReviewForm({
   const [business, setBusiness] = useState<Business | null>(null);
   const [businessLoading, setBusinessLoading] = useState(false);
   const [businessError, setBusinessError] = useState<string | null>(null);
+  /**
+   * Popup shown when the selected business has `is_review_restricted = true`.
+   * The business stays publicly visible but admin has blocked new reviews.
+   */
+  const [restrictedModal, setRestrictedModal] = useState<{
+    open: boolean;
+    businessName: string | null;
+  }>({ open: false, businessName: null });
 
   const normalizedInitialRating =
     typeof initialRating === "number" &&
@@ -597,7 +611,7 @@ export default function WriteReviewForm({
       const query = sb
         .from("businesses")
         .select(
-          "id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom, status"
+          "id, name, slug, website, website_display, reference_number_enabled, reference_number_type, reference_number_label_custom, status, is_review_restricted"
         )
         .limit(1);
 
@@ -625,6 +639,7 @@ export default function WriteReviewForm({
           reference_number_type?: string | null;
           reference_number_label_custom?: string | null;
           status?: string | null;
+          is_review_restricted?: boolean | null;
         };
         if (!isBusinessPubliclyActive(row.status)) {
           setBusiness(null);
@@ -635,6 +650,7 @@ export default function WriteReviewForm({
         const refType = REFERENCE_TYPES.includes(row.reference_number_type as ReferenceType)
           ? (row.reference_number_type as ReferenceType)
           : null;
+        const reviewRestricted = isBusinessReviewRestricted(row.is_review_restricted);
         setBusiness({
           id: row.id,
           name: row.name ?? (inviteId ? (initialBusinessName ?? "Loading…") : (initialBusinessName ?? "Business")),
@@ -643,7 +659,14 @@ export default function WriteReviewForm({
           reference_number_enabled: Boolean(row.reference_number_enabled),
           reference_number_type: refType,
           reference_number_label_custom: row.reference_number_label_custom ?? null,
+          is_review_restricted: reviewRestricted,
         });
+        if (reviewRestricted) {
+          setRestrictedModal({
+            open: true,
+            businessName: row.name ?? initialBusinessName ?? null,
+          });
+        }
       }
       setBusinessLoading(false);
     };
@@ -654,6 +677,39 @@ export default function WriteReviewForm({
       isMounted = false;
     };
   }, [initialBusinessId, initialBusinessSlug, initialBusinessName, inviteId, businessSlug]);
+
+  /**
+   * When the user picks a business via BusinessSearchInput, the search result
+   * doesn't include `is_review_restricted`. Fetch it once the business id is set,
+   * and open the popup if the admin has restricted new reviews.
+   */
+  useEffect(() => {
+    if (!business || !isUuid(business.id)) return;
+    if (business.is_review_restricted === true) return;
+    let cancelled = false;
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data, error } = await sb
+        .from("businesses")
+        .select("is_review_restricted")
+        .eq("id", business.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const restricted = isBusinessReviewRestricted(
+        (data as { is_review_restricted?: boolean | null }).is_review_restricted,
+      );
+      if (!restricted) return;
+      setBusiness((prev) =>
+        prev && prev.id === business.id
+          ? { ...prev, is_review_restricted: true }
+          : prev,
+      );
+      setRestrictedModal({ open: true, businessName: business.name ?? null });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [business?.id]);
 
   // Restore draft: Google payload (content only) OR guest email pending , mutually isolated
   useEffect(() => {
@@ -1094,6 +1150,14 @@ export default function WriteReviewForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!business) return;
+
+    if (business.is_review_restricted === true) {
+      setRestrictedModal({
+        open: true,
+        businessName: business.name ?? null,
+      });
+      return;
+    }
 
     setSubmitError(null);
     setCheckEmailState({ active: false, email: "" });
@@ -2558,6 +2622,92 @@ export default function WriteReviewForm({
                 className="text-sm font-semibold text-[#1FAF9E] hover:text-[#169786] hover:underline"
               >
                 Update your review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {restrictedModal.open && (
+        <div
+          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/55 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="write-review-restricted-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setRestrictedModal({ open: false, businessName: null });
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 border-b border-neutral-100 bg-fuchsia-50 px-5 py-4">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h2
+                  id="write-review-restricted-title"
+                  className="text-base font-semibold text-neutral-900"
+                >
+                  Reviews are temporarily paused
+                </h2>
+                <p className="mt-1 text-sm text-neutral-700">
+                  {restrictedModal.businessName?.trim()
+                    ? `${restrictedModal.businessName.trim()} is currently under review.`
+                    : "This business is currently under review."}{" "}
+                  We&apos;re not accepting new reviews for this business at this time.
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4 text-sm text-neutral-600">
+              <p>
+                The business profile is still publicly visible, but the Tellacity
+                team has paused new reviews while we look into things. Please check
+                back later.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-neutral-100 bg-neutral-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRestrictedModal({ open: false, businessName: null });
+                  try {
+                    router.push("/");
+                  } catch {
+                    if (typeof window !== "undefined") {
+                      window.location.href = "/";
+                    }
+                  }
+                }}
+                className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-100"
+              >
+                Back to home
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setRestrictedModal({ open: false, businessName: null })
+                }
+                className="rounded-md bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3834]"
+              >
+                Got it
               </button>
             </div>
           </div>

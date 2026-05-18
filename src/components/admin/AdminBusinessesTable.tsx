@@ -125,6 +125,7 @@ export default function AdminBusinessesTable() {
   const [adminActionPreset, setAdminActionPreset] = useState<AdminActionPreset>("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [restrictingId, setRestrictingId] = useState<string | null>(null);
   const headerSelectRef = useRef<HTMLInputElement>(null);
 
   type SuspendModalState =
@@ -366,6 +367,47 @@ export default function AdminBusinessesTable() {
       }
     },
     [router, selectedIds]
+  );
+
+  const handleToggleRestriction = useCallback(
+    async (id: string, name: string, currentlyRestricted: boolean) => {
+      if (!id) {
+        window.alert("Missing business ID");
+        return;
+      }
+      const nextRestricted = !currentlyRestricted;
+      const confirmed = window.confirm(
+        nextRestricted
+          ? `Restrict reviews for “${name}”?\n\nThe business stays publicly visible, but users will see a popup saying it's under review when they try to write a review.`
+          : `Lift the review restriction on “${name}”?\n\nUsers will be able to write reviews again.`
+      );
+      if (!confirmed) return;
+
+      setRestrictingId(id);
+      try {
+        const supabase = supabaseBrowser();
+        const { error } = await supabase.rpc(
+          "admin_set_business_review_restriction",
+          {
+            target_business_id: id,
+            restricted: nextRestricted,
+          }
+        );
+        if (error) {
+          console.error("admin_set_business_review_restriction:", error);
+          window.alert(error.message ?? "Failed to update review restriction");
+          return;
+        }
+        setListRefreshToken((t) => t + 1);
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+        window.alert("Unexpected failure while updating restriction.");
+      } finally {
+        setRestrictingId(null);
+      }
+    },
+    [router]
   );
 
   const handleDelete = useCallback(
@@ -922,6 +964,7 @@ export default function AdminBusinessesTable() {
                     const normalizedRowStatus =
                       row.status?.trim().toLowerCase() ?? "";
                     const isSuspended = normalizedRowStatus === "suspended";
+                    const isReviewRestricted = row.is_review_restricted === true;
 
                     return (
                       <tr
@@ -974,11 +1017,21 @@ export default function AdminBusinessesTable() {
                           {adminCountryDisplay(countryCode)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
-                          {statusLabel === "-" ? (
-                            "-"
-                          ) : (
-                            <StatusPill status={statusLabel} />
-                          )}
+                          <div className="flex flex-col gap-1">
+                            {statusLabel === "-" ? (
+                              "-"
+                            ) : (
+                              <StatusPill status={statusLabel} />
+                            )}
+                            {isReviewRestricted ? (
+                              <span
+                                title="Reviews are blocked for this business."
+                                className="inline-flex w-fit rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fuchsia-800"
+                              >
+                                Restricted
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                           {row.submission_status?.trim() || "-"}
@@ -1038,6 +1091,37 @@ export default function AdminBusinessesTable() {
                               className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-100 disabled:opacity-50"
                             >
                               {updatingId === id ? "Updating..." : "Approved"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={
+                                restrictingId === id ||
+                                updatingId === id ||
+                                deletingId === id
+                              }
+                              onClick={() =>
+                                handleToggleRestriction(
+                                  id,
+                                  row.name?.trim() || id,
+                                  isReviewRestricted
+                                )
+                              }
+                              title={
+                                isReviewRestricted
+                                  ? "Click to allow new reviews again."
+                                  : "Block new reviews for this business while keeping it publicly visible."
+                              }
+                              className={
+                                isReviewRestricted
+                                  ? "rounded-md border border-fuchsia-300 bg-fuchsia-100 px-2 py-1 text-xs font-semibold text-fuchsia-900 hover:bg-fuchsia-200 disabled:opacity-50"
+                                  : "rounded-md border border-fuchsia-200 bg-fuchsia-50 px-2 py-1 text-xs font-semibold text-fuchsia-800 hover:bg-fuchsia-100 disabled:opacity-50"
+                              }
+                            >
+                              {restrictingId === id
+                                ? "Updating..."
+                                : isReviewRestricted
+                                  ? "Unrestrict"
+                                  : "Restrict"}
                             </button>
                             <button
                               type="button"
