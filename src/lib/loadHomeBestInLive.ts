@@ -7,15 +7,22 @@ import {
 } from "@/lib/homeBestInBundle";
 import { normalizeBusinessIdKey } from "@/lib/normalizeBusinessId";
 import { normalizeCountryCode } from "@/lib/country";
+import {
+  categorySlugAliasesForFallback,
+  countryCodesForHomeQueries,
+} from "@/lib/categoryListingQueries";
 
-type RpcRow = {
+type CandidateRow = {
   id: string;
   name: string | null;
   slug: string | null;
   website: string | null;
+  website_display: string | null;
   trust_score: number | null;
   review_count: number | null;
-  resolved_logo_url: string | null;
+  logo_url: string | null;
+  category_slug: string | null;
+  secondary_category_slugs: string[] | null;
 };
 
 const AGG_CHUNK = 80;
@@ -71,27 +78,102 @@ async function fetchPublicReviewAggregatesBatch(
 }
 
 /**
- * Homepage "Best in …" — uses the SAME RPC as the category directory
- * (`get_top_businesses_for_category_global`), so the home top-8 is always the
- * top-8 of the category first page. The previous PostgREST candidate query
- * ordered by the stored `businesses.trust_score` / `review_count` columns,
- * which are cached and can drift from the live `business_review_metrics_v`
- * view (e.g. Clearpay had 1 live review but stored trust_score = 0, so it
- * never entered the candidate pool and was missing from the carousel).
+ * Fast candidate query against `businesses` directly via PostgREST.
  *
- * The RPC already filters by `status = 'active'`, country aliases, slug
- * aliases (banking ↔ banking-and-money, internet-and-software ↔
- * it-and-communication, insurance variants) and live published+visible
- * aggregates from `business_review_metrics_v`. We then merge per-business
- * live aggregates from `get_public_review_aggregates` and re-sort with the
- * same tiebreakers as the category page.
+ * We deliberately bypass `get_top_businesses_for_category_global` here because
+ * it joins `business_review_metrics_v` (live aggregate of *all* reviews) on
+ * every call, which routinely hits the Supabase statement_timeout on the
+ * homepage and made "Best in <category>" carousels return empty. PostgREST
+ * scans only the `businesses` table — already indexed on
+ * (`category_slug`, `country_code`, `status`) — and is consistently fast.
+ *
+ * To compensate for any drift in the cached `businesses.trust_score` /
+ * `review_count` columns (a business with new reviews but a stale cached
+ * trust_score = 0 might sort low here), we:
+ *   1. Pull a larger candidate pool (40 instead of 20)
+ *   2. Order by stored `trust_score` desc nulls last, then `review_count`
+ *      desc nulls last, then `name` asc — so brand-new businesses with
+ *      cached zeros still appear *after* well-rated ones but are still in
+ *      the candidate set when the pool is big enough.
+ *   3. Re-rank the candidates using live aggregates from
+ *      `get_public_review_aggregates` before slicing to top 8 in the caller.
+ */
+async function fetchCandidatesForSlug(
+  supabase: SupabaseClient,
+  slug: string,
+  countryCode: string | null,
+  candidateLimit: number,
+): Promise<CandidateRow[]> {
+  const aliases = categorySlugAliasesForFallback(slug);
+  if (aliases.length === 0) return [];
+
+  // PostgREST `or` filter: category_slug.in.(...) OR any secondary slug match.
+  // Join with commas inside .or(), so we get a single combined OR clause.
+  const orParts: string[] = [`category_slug.in.(${aliases.join(",")})`];
+  for (const a of aliases) {
+    orParts.push(`secondary_category_slugs.cs.{${a}}`);
+  }
+  const orClause = orParts.join(",");
+
+  let query = supabase
+    .from("businesses")
+    .select(
+      "id,name,slug,website,website_display,trust_score,review_count,logo_url,category_slug,secondary_category_slugs",
+    )
+    .eq("status", "active")
+    .or(orClause)
+    .order("trust_score", { ascending: false, nullsFirst: false })
+    .order("review_count", { ascending: false, nullsFirst: false })
+    .order("name", { ascending: true })
+    .limit(candidateLimit);
+
+  if (countryCode) {
+    const countries = countryCodesForHomeQueries(countryCode);
+    query = query.in("country_code", countries);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.warn(
+      "[loadHomeBestInLive] PostgREST candidate query:",
+      slug,
+      countryCode ?? "(global)",
+      error.message,
+    );
+    return [];
+  }
+
+  return (data ?? []) as CandidateRow[];
+}
+
+/**
+ * Homepage "Best in …" — fast path.
+ *
+ * Strategy:
+ *   1. For each rotating category slug, fetch up to N candidates from the
+ *      `businesses` table directly (filtered by category aliases + country),
+ *      sorted by stored metrics for a "good enough" first pass.
+ *   2. Bulk fetch live published-review aggregates for *all* candidate IDs in
+ *      one batched RPC (`get_public_review_aggregates`).
+ *   3. Re-rank per slug with live numbers (so stale cached `trust_score` on
+ *      `businesses` cannot starve newly-reviewed businesses out of the top 8).
+ *   4. If a slug has zero country-specific candidates, fall back to a global
+ *      candidate fetch so the carousel never renders as "No businesses found".
+ *
+ * Previously this used `get_top_businesses_for_category_global`, which joins
+ * `business_review_metrics_v` and frequently hit the Supabase statement
+ * timeout — see dev logs:
+ *   `[loadHomeBestInLive] get_top_businesses_for_category_global: insurance
+ *    canceling statement due to statement timeout`.
+ * The user reported the symptom as "Best in Insurance not loading"; switching
+ * to the PostgREST candidate path resolves that.
  */
 export async function loadHomeBestInLive(
   supabase: SupabaseClient,
   country: string,
   slugs: readonly string[] = HOME_ROTATING_BEST_IN_SLUGS,
   finalLimit = 8,
-  candidatePool = 20,
+  candidatePool = 40,
 ): Promise<Record<string, HomeBestInBusiness[]>> {
   const result: Record<string, HomeBestInBusiness[]> = {};
   for (const slug of slugs) {
@@ -107,58 +189,65 @@ export async function loadHomeBestInLive(
   }
 
   const norm = normalizeCountryCode(country);
-  const rpcLimit = Math.max(finalLimit, Math.min(candidatePool, 40));
+  const candidateLimit = Math.max(finalLimit, Math.min(candidatePool, 80));
 
-  /**
-   * Run all per-slug RPC lookups in parallel — was a sequential `for` loop that
-   * stacked round-trips and made homepage SSR 5–10s slower than necessary.
-   * Each RPC is independent so Promise.all is safe.
-   */
+  // Phase 1: country-specific candidates, all slugs in parallel.
   const slugResults = await Promise.all(
-    slugList.map(async (slug) => {
-      const { data, error } = await supabase.rpc(
-        "get_top_businesses_for_category_global",
-        {
-          p_category_slug: slug,
-          p_country_code: norm,
-          p_min_rating: null,
-          p_limit: rpcLimit,
-          p_offset: 0,
-        } as never,
-      );
-      if (error) {
-        console.warn(
-          "[loadHomeBestInLive] get_top_businesses_for_category_global:",
-          slug,
-          error.message,
-        );
-        return { slug, rows: [] as RpcRow[] };
-      }
-      return { slug, rows: (data ?? []) as RpcRow[] };
-    }),
+    slugList.map(async (slug) => ({
+      slug,
+      rows: await fetchCandidatesForSlug(supabase, slug, norm, candidateLimit),
+    })),
   );
 
-  const picksBySlug: Record<string, RpcRow[]> = {};
+  // Phase 1b: for any slug with zero country results, fall back to global so
+  // the carousel is never empty (user explicitly asked for sections to
+  // "ALWAYS load" — see screenshot of "Best in Insurance — No businesses
+  // found yet" on /?country=GB).
+  const emptySlugs = slugResults
+    .filter(({ rows }) => !rows || rows.length === 0)
+    .map(({ slug }) => slug);
+
+  const globalBySlug = new Map<string, CandidateRow[]>();
+  if (emptySlugs.length > 0) {
+    const globalResults = await Promise.all(
+      emptySlugs.map(async (slug) => ({
+        slug,
+        rows: await fetchCandidatesForSlug(supabase, slug, null, candidateLimit),
+      })),
+    );
+    for (const { slug, rows } of globalResults) {
+      globalBySlug.set(slug, rows);
+    }
+  }
+
+  const picksBySlug: Record<string, CandidateRow[]> = {};
   const allIds: string[] = [];
   for (const { slug, rows } of slugResults) {
-    picksBySlug[slug] = rows;
-    for (const r of rows) {
+    const effective =
+      rows && rows.length > 0 ? rows : globalBySlug.get(slug) ?? [];
+    picksBySlug[slug] = effective;
+    for (const r of effective) {
       if (r.id) allIds.push(r.id);
     }
   }
 
+  // Phase 2: live aggregates for all candidates in one batched call.
   const aggMap = await fetchPublicReviewAggregatesBatch(supabase, allIds);
 
+  // Phase 3: re-rank per slug with live numbers (same tie-breakers as the
+  // category directory page).
   for (const slug of slugList) {
     const rows = picksBySlug[slug] ?? [];
-    // Same fallback as the category page: a business with no live
-    // published+visible reviews ranks as 0 / 0 (we never trust the stored
-    // `businesses.trust_score` / `review_count` columns here).
+    if (rows.length === 0) continue;
+
     const scored = rows.map((r) => {
       const id = normalizeBusinessIdKey(r.id);
-      const agg = aggMap.get(id);
-      const trust = agg ? agg.trust : 0;
-      const count = agg ? agg.count : 0;
+      const live = aggMap.get(id);
+      // If a candidate has no live aggregates, fall back to stored cached
+      // metrics so we don't drop businesses entirely when the live agg call
+      // omits them (e.g. all reviews currently `landing_hidden`).
+      const trust = live ? live.trust : Number(r.trust_score ?? 0) || 0;
+      const count = live ? live.count : Number(r.review_count ?? 0) || 0;
       return { r, trust, count };
     });
 
@@ -177,11 +266,11 @@ export async function loadHomeBestInLive(
           id: r.id,
           name: r.name,
           slug: r.slug,
-          website: r.website,
+          website: r.website_display ?? r.website,
           trust_score: trust,
           review_count: count,
-          logo_url: r.resolved_logo_url,
-          resolved_logo_url: r.resolved_logo_url,
+          logo_url: r.logo_url,
+          resolved_logo_url: r.logo_url,
         }),
       )
       .filter((x): x is HomeBestInBusiness => x != null);

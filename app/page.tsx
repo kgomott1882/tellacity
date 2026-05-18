@@ -217,8 +217,15 @@ export default async function HomePage(props: PageProps) {
           }}
         />
         <Suspense fallback={<HomePageShellFallback />}>
+          {/*
+           * IMPORTANT: do NOT add `key={country}` here.
+           * HomePageClient handles country switches client-side (re-fetches
+           * `/api/home-best-in` and `/api/home-feed`). Keying on `country`
+           * would unmount/remount the whole page on every dropdown change,
+           * resetting carousels, scroll positions, and reintroducing the
+           * empty-state flicker the user reported.
+           */}
           <HomePageClient
-            key={country}
             initialSelectedCountry={country ?? "US"}
             rotatingCategorySlugs={safeRotatingSlugs}
             bestInByCategory={safeBestInByCategory}

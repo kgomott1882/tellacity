@@ -178,7 +178,9 @@ export default function HomePageClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  const [homeFeedRawRows] = useState<Record<string, unknown>[]>(() =>
+  const [homeFeedRawRows, setHomeFeedRawRows] = useState<
+    Record<string, unknown>[]
+  >(() =>
     sortHomeFeedRowsByDateDesc(
       Array.isArray(initialHomeFeedRows) ? [...initialHomeFeedRows] : [],
     ),
@@ -203,6 +205,9 @@ export default function HomePageClient({
   const bestInFetchGenRef = useRef(0);
   const [clientBestInByCategory, setClientBestInByCategory] =
     useState<Record<string, BestInBusiness[]>>(bestInByCategory ?? {});
+  /** Set only after a successful `/api/home-feed` fetch (or SSR skip on initial). */
+  const lastCompletedHomeFeedKeyRef = useRef<string | null>(null);
+  const homeFeedFetchGenRef = useRef(0);
 
   const { countryCode, setCountryAndSync } = useUnifiedCountry({
     initialCountry: initialSelectedCountry,
@@ -570,6 +575,74 @@ export default function HomePageClient({
       bestInController.abort();
     };
   }, [bestInEffectSyncKey, rotatingCategorySlugs]);
+
+  // Recent reviews: `/api/home-feed` — keep the "What people are saying" rail in
+  // sync with the active country instantly when the user switches in the navbar
+  // dropdown, without waiting for the full SSR re-render of `/`.
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    const ac = activeCountryCode;
+    const feedKey = `${pathname}:${ac}`;
+
+    if (lastCompletedHomeFeedKeyRef.current === feedKey) return;
+
+    // Skip the first fetch when SSR already returned the matching country: the
+    // initial `homeFeedRawRows` are correct and re-fetching would just churn UI.
+    const initialNorm = normalizeHomeCountry(initialSelectedCountry ?? "US");
+    if (
+      lastCompletedHomeFeedKeyRef.current === null &&
+      ac === initialNorm
+    ) {
+      lastCompletedHomeFeedKeyRef.current = feedKey;
+      return;
+    }
+
+    const fetchId = ++homeFeedFetchGenRef.current;
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const q = new URLSearchParams();
+        q.set("country", ac);
+        const res = await fetch(`/api/home-feed?${q.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (fetchId !== homeFeedFetchGenRef.current) return;
+
+        if (res.ok) {
+          try {
+            const raw = (await res.json()) as unknown;
+            const rows: Record<string, unknown>[] = Array.isArray(raw)
+              ? (raw as Record<string, unknown>[])
+              : Array.isArray((raw as { data?: unknown[] } | null)?.data)
+                ? ((raw as { data: Record<string, unknown>[] }).data)
+                : [];
+            setHomeFeedRawRows(sortHomeFeedRowsByDateDesc(rows));
+            setReviewPage(0);
+            lastCompletedHomeFeedKeyRef.current = feedKey;
+          } catch {
+            // Bad JSON — leave whatever we had instead of clearing the rail.
+            lastCompletedHomeFeedKeyRef.current = feedKey;
+          }
+        } else {
+          // Non-OK: leave the rail as-is rather than emptying it; the next
+          // country switch / page reload will retry. Still mark complete so
+          // we don't tight-loop on a broken endpoint.
+          lastCompletedHomeFeedKeyRef.current = feedKey;
+        }
+      } catch {
+        if (fetchId !== homeFeedFetchGenRef.current) return;
+        if (controller.signal.aborted) return;
+        lastCompletedHomeFeedKeyRef.current = feedKey;
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [pathname, activeCountryCode, initialSelectedCountry]);
 
   useEffect(() => {
     if (pathname !== "/" || reviews.length === 0) {

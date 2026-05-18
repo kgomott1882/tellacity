@@ -14,12 +14,15 @@ export async function GET(req: Request) {
     const country = normalizeCountryCode(url.searchParams.get("country"));
 
     const supabase = createSupabaseServerClient();
-    const { data, error } = await supabase
+    // Must mirror `loadHomePageFeedRows` (64) so the client country-switch
+    // refetch in HomePageClient doesn't shrink the carousel from 64 → 16 rows.
+    const supabaseRes = await supabase
       .from("home_feed_v2")
       .select("*")
       .eq("country_code", country)
       .order("created_at", { ascending: false })
-      .limit(16);
+      .limit(64);
+    const { data, error } = supabaseRes;
 
     if (error) {
       throw new Error(error.message);
