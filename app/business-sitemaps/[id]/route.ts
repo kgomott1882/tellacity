@@ -43,7 +43,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("businesses")
-      .select("slug, updated_at")
+      .select("slug, canonical_slug, updated_at")
       .eq("status", "active")
       .order("id", { ascending: true })
       .range(from, to);
@@ -53,23 +53,48 @@ export async function GET(
       return buildEmptySitemap();
     }
 
-    // Emit each row's actual `slug` (the one whose URL renders 200).
-    // Earlier the route emitted `canonical_slug || slug`, which produced
-    // sitemap URLs that didn't exist as their own row and triggered a
-    // soft-redirect chain when Google crawled them. Rows with junk or
-    // missing slugs are skipped so we don't pollute Google's view of
-    // site quality.
+    // Emit `canonical_slug` (brand-clean, e.g. "elite-closing-academy")
+    // with `slug` as a fallback. This is the URL form we declare as the
+    // canonical in `<link rel="canonical">` from /b/[slug]/page.tsx.
+    //
+    // History: the route briefly emitted `slug` (city-suffixed, e.g.
+    // "elite-closing-academy-newyork") because an OLDER version of the
+    // page handler did `permanentRedirect()` from canonical_slug → slug,
+    // which caused soft-redirect chains. That redirect was removed; both
+    // `/b/<slug>` and `/b/<canonical_slug>` now serve 200 with identical
+    // payload and a canonical pointing to canonical_slug. Submitting the
+    // canonical form directly skips one Google round-trip per business
+    // and matches Google's documented recommendation for canonicalised
+    // URL pairs.
+    //
+    // Junk / placeholder slugs (numeric, "business", "unknown", etc.)
+    // are still filtered so we don't dilute the sitemap.
+    const seenSlugs = new Set<string>();
     const urls = (data || [])
-      .filter((b) => isIndexableSlug((b as { slug?: string | null }).slug))
       .map((b) => {
-        const slug = String((b as { slug?: string | null }).slug ?? "").trim().toLowerCase();
+        const rawCanonical = String(
+          (b as { canonical_slug?: string | null }).canonical_slug ?? "",
+        )
+          .trim()
+          .toLowerCase();
+        const rawSlug = String((b as { slug?: string | null }).slug ?? "")
+          .trim()
+          .toLowerCase();
+        const chosen = rawCanonical || rawSlug;
+        if (!isIndexableSlug(chosen)) return null;
+        // Multi-location chains can share the same canonical_slug across
+        // siblings; emit it once. `<loc>` URIs in a sitemap should be
+        // unique to keep Google's crawl budget clean.
+        if (seenSlugs.has(chosen)) return null;
+        seenSlugs.add(chosen);
         const updatedAt = (b as { updated_at?: string | null }).updated_at;
         return `
   <url>
-    <loc>https://tellacity.com/b/${slug}</loc>
+    <loc>https://tellacity.com/b/${chosen}</loc>
     <lastmod>${new Date(updatedAt || Date.now()).toISOString()}</lastmod>
   </url>`;
       })
+      .filter(Boolean)
       .join("");
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

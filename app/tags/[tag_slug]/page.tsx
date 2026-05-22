@@ -110,21 +110,77 @@ async function fetchGlobalRelatedTagFallback(
   }
 }
 
+/**
+ * SEO contract for /tags/[tag_slug]:
+ *
+ *   1. INDEXABLE when the tag has >= TAG_INDEX_THRESHOLD businesses in the
+ *      requested country. Thin pages (0-2 businesses) stay `noindex, follow`
+ *      so Google can still crawl through them but won't list them as
+ *      separate search results — which is what was tripping the
+ *      "Excluded by 'noindex' tag" warnings on healthy listings.
+ *
+ *   2. SELF-CANONICAL per country variant. `/tags/foo` and
+ *      `/tags/foo?country=US` collapse to the bare `/tags/foo` canonical
+ *      (US is the default country in the handler below). Non-US country
+ *      variants (`?country=GB`, `?country=ZA`, ...) self-canonical with
+ *      the country query string so each country's healthy listing can be
+ *      indexed independently — instead of being consolidated to a US
+ *      canonical that may have no matching businesses.
+ *
+ *   3. `getCachedTagListingPage(...)` is also called in the page handler
+ *      below with identical args, so this is a free cache hit at request
+ *      time — we don't pay an extra DB roundtrip for the metadata.
+ */
+const TAG_INDEX_THRESHOLD = 3;
+
 export async function generateMetadata(
   props: PageProps
 ): Promise<Metadata> {
   const { tag_slug } = await props.params;
+  const searchParams = (await (props.searchParams ?? Promise.resolve({}))) as {
+    country?: string;
+  };
   const safeTagSlug = sanitizeTagSlug(tag_slug);
   const tag = toReadableTag(safeTagSlug);
+  const readableTagTitle = toTitleCase(tag);
+
+  const normalizedCountryCode = searchParams.country
+    ? normalizeCountryCode(searchParams.country)
+    : null;
+  const countryCodeForQuery = normalizedCountryCode ?? "US";
+
+  let businessCount = 0;
+  try {
+    const listing = await getCachedTagListingPage(
+      safeTagSlug,
+      countryCodeForQuery,
+      0,
+      0,
+    );
+    businessCount =
+      typeof listing.totalCount === "number"
+        ? listing.totalCount
+        : (listing.rows?.length ?? 0);
+  } catch {
+    businessCount = 0;
+  }
+
+  const indexable = businessCount >= TAG_INDEX_THRESHOLD;
+
+  const isNonDefaultCountry =
+    normalizedCountryCode != null && normalizedCountryCode !== "US";
+  const canonical = isNonDefaultCountry
+    ? `https://tellacity.com/tags/${safeTagSlug}?country=${normalizedCountryCode}`
+    : `https://tellacity.com/tags/${safeTagSlug}`;
 
   return {
-    title: `${tag} Reviews & Companies | Tellacity`,
+    title: `${readableTagTitle} Reviews & Companies | Tellacity`,
     description: `Explore ${tag} businesses. Read customer reviews, compare companies, and find trusted providers on Tellacity.`,
     alternates: {
-      canonical: `https://tellacity.com/tags/${safeTagSlug}`,
+      canonical,
     },
     robots: {
-      index: false,
+      index: indexable,
       follow: true,
     },
   };

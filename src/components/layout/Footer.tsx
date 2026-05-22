@@ -29,7 +29,6 @@ export default function Footer() {
   const companiesCountrySegment = countryCode === "GB" ? "uk" : countryCode.toLowerCase();
   const categoriesHref = `/categories?country=${countryCode}`;
   const companiesHref = `/companies/${companiesCountrySegment}?country=${countryCode}`;
-  const compareBaseQuery = `?country=${countryCode}`;
 
   const openCountryMenu = () => {
     if (closeTimeoutRef.current) {
@@ -239,36 +238,46 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h4 className="mb-4 text-sm font-semibold">COMPARE</h4>
-              <ul className="space-y-2 text-sm text-neutral-400">
+              <h4 className="mb-4 text-sm font-semibold">SOLUTIONS</h4>
+              <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link href={`/compare/tellacity-vs-trustpilot${compareBaseQuery}`} className="hover:text-white">
-                    Tellacity vs Trustpilot
+                  <Link
+                    href="/solutions/review-invitations"
+                    className="hover:text-white"
+                  >
+                    Review Invitations
                   </Link>
                 </li>
                 <li>
-                  <Link href={`/compare/tellacity-vs-yelp${compareBaseQuery}`} className="hover:text-white">
-                    Tellacity vs Yelp
+                  <Link
+                    href="/solutions/review-widgets"
+                    className="hover:text-white"
+                  >
+                    Review Widgets
                   </Link>
                 </li>
                 <li>
-                  <Link href={`/compare/tellacity-vs-feefo${compareBaseQuery}`} className="hover:text-white">
-                    Tellacity vs Feefo
+                  <Link
+                    href="/solutions/business-analytics"
+                    className="hover:text-white"
+                  >
+                    Business Analytics
                   </Link>
                 </li>
                 <li>
-                  <Link href={`/compare/tellacity-vs-hellopeter${compareBaseQuery}`} className="hover:text-white">
-                    Tellacity vs HelloPeter
+                  <Link
+                    href="/solutions/reputation-management"
+                    className="hover:text-white"
+                  >
+                    Reputation Management
                   </Link>
                 </li>
                 <li>
-                  <Link href={`/compare/tellacity-vs-google${compareBaseQuery}`} className="hover:text-white">
-                    Tellacity vs Google Reviews
-                  </Link>
-                </li>
-                <li>
-                  <Link href={`/compare${compareBaseQuery}`} className="hover:text-white">
-                    All comparisons
+                  <Link
+                    href="/solutions/photo-uploads"
+                    className="hover:text-white"
+                  >
+                    Photo Uploads
                   </Link>
                 </li>
               </ul>

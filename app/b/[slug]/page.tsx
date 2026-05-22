@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import SuspendedBusinessPublicView from "@/components/public/SuspendedBusinessPublicView";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
@@ -13,18 +13,36 @@ export const dynamic = "force-dynamic";
 type BusinessMetaRow = {
   name?: string | null;
   slug?: string | null;
+  canonical_slug?: string | null;
 };
+
+/**
+ * Resolve the canonical URL slug for a business row.
+ *
+ * SEO contract: every business has ONE canonical URL, regardless of how
+ * many slug variants exist (city-suffixed, legacy concatenated, query
+ * params, etc.). When `canonical_slug` is populated (the brand-clean
+ * version), we always advertise `/b/<canonical_slug>` as the canonical.
+ * Otherwise we fall back to the row's own slug.
+ */
+function pickCanonicalSlug(row: BusinessMetaRow): string {
+  const canonical = String(row.canonical_slug ?? "").trim().toLowerCase();
+  if (canonical) return canonical;
+  const slug = String(row.slug ?? "").trim().toLowerCase();
+  return slug;
+}
 
 export async function generateMetadata(
   props: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await props.params;
   const supabase = createClient();
+  const normalized = slug.trim().toLowerCase();
 
   const { data: statusProbe } = await supabase
     .from("businesses")
     .select("status")
-    .eq("slug", slug.trim().toLowerCase())
+    .eq("slug", normalized)
     .maybeSingle();
 
   if (
@@ -42,25 +60,38 @@ export async function generateMetadata(
 
   const { data: businessBySlug } = await supabase
     .from("businesses")
-    .select("name, slug")
-    .eq("slug", slug)
+    .select("name, slug, canonical_slug")
+    .eq("slug", normalized)
     .eq("status", "active")
     .maybeSingle();
 
   let business: BusinessMetaRow | null = businessBySlug;
 
   if (!business) {
-    const normalized = slug.trim().toLowerCase();
     const cleanSlug = cleanSlugForRedirect(slug);
     if (cleanSlug && cleanSlug !== normalized) {
       const { data: fallbackRow } = await supabase
         .from("businesses")
-        .select("name, slug")
+        .select("name, slug, canonical_slug")
         .eq("slug", cleanSlug)
         .eq("status", "active")
         .maybeSingle();
       business = fallbackRow ?? null;
     }
+  }
+
+  // Canonical-slug fallback: when the URL happens to be the brand-clean
+  // canonical (e.g. `/b/tadibrothers` while the row lives at
+  // `/b/tadibrothers-reseda`), resolve via `canonical_slug` so the page
+  // still serves 200 and emits a clean canonical tag.
+  if (!business) {
+    const { data: byCanonical } = await supabase
+      .from("businesses")
+      .select("name, slug, canonical_slug")
+      .eq("canonical_slug", normalized)
+      .eq("status", "active")
+      .maybeSingle();
+    business = byCanonical ?? null;
   }
 
   if (!business) {
@@ -70,12 +101,13 @@ export async function generateMetadata(
   }
 
   const name = String(business.name ?? "").trim() || slug;
+  const canonicalSlug = pickCanonicalSlug(business);
 
   return {
     title: `${name} Reviews | Tellacity`,
     description: `Read verified customer reviews of ${name}. See ratings, feedback and real experiences from customers on Tellacity.`,
     alternates: {
-      canonical: `https://tellacity.com/b/${business.slug}`,
+      canonical: `https://tellacity.com/b/${canonicalSlug}`,
     },
   };
 }
@@ -129,21 +161,23 @@ export default async function BusinessPage({
   }
 
   if (!business) {
-    const { data } = await supabase
+    // Canonical-slug fallback: `/b/<canonical_slug>` should ALSO serve 200
+    // so the canonical advertised in <head> resolves cleanly. We no longer
+    // 308 here because that contradicts the canonical tag (loop) and Google
+    // refuses to index either side. Both URLs return 200 with the same row
+    // data; the canonical tag tells Google which to index.
+    const { data: byCanonical } = await supabase
       .from("businesses")
-      .select("slug")
+      .select("*")
       .eq("canonical_slug", cleanSlug)
       .eq("status", "active")
       .maybeSingle();
 
-    if (data?.slug) {
-      // 308 Permanent: tells Google to drop the source URL from the index
-      // and pass link equity to the resolved canonical row. Previously
-      // this used `redirect()` (307) which kept both URLs in the index.
-      permanentRedirect(`/b/${data.slug}`);
+    if (byCanonical) {
+      business = byCanonical;
+    } else {
+      return notFound();
     }
-
-    return notFound();
   }
 
   const primaryPhotosRes = await applyBusinessPhotosOrdering(
@@ -269,11 +303,16 @@ export default async function BusinessPage({
     normalizedReviewCount > 0 &&
     normalizedAverageRating > 0;
 
+  const canonicalSlugForJsonLd = pickCanonicalSlug({
+    slug: (business as { slug?: string | null }).slug ?? null,
+    canonical_slug: (business as { canonical_slug?: string | null }).canonical_slug ?? null,
+  });
+
   const businessJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: String((business as { name?: string | null }).name ?? ""),
-    url: `https://tellacity.com/b/${business.slug}`,
+    url: `https://tellacity.com/b/${canonicalSlugForJsonLd}`,
     ...(shouldIncludeReviewData
       ? {
           aggregateRating: {

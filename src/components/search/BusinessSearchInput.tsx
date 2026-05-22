@@ -48,6 +48,47 @@ function sanitizeSearchToken(q: string): string {
     .replace(/\s+/g, " ");
 }
 
+/**
+ * Normalise a website URL to a bare domain (no protocol, no `www.`, no path)
+ * so "AMAZON.COM" / "https://www.amazon.com/" / "amazon.com" all compare equal.
+ */
+function normaliseDomain(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0];
+}
+
+/**
+ * Relevance score for a candidate row against the user's query.
+ * Higher wins. Ensures the *exact* business (e.g. "amazon" / "amazon.com")
+ * outranks subsidiaries and partial matches with higher trust scores.
+ */
+function rankBusinessMatch(
+  row: {
+    name?: string | null;
+    website?: string | null;
+    website_display?: string | null;
+  },
+  qLower: string
+): number {
+  const name = (row.name ?? "").toLowerCase().trim();
+  const domain = normaliseDomain(row.website_display ?? row.website ?? "");
+  const qNoTld = qLower.replace(/\.[a-z]{2,}$/i, "");
+
+  if (name === qLower) return 1000;
+  if (domain && (domain === qLower || domain === `${qNoTld}.com`)) return 950;
+  if (domain && domain.startsWith(`${qNoTld}.`)) return 800;
+  if (name.startsWith(qLower)) return 700;
+  if (domain && domain.startsWith(qLower)) return 600;
+  if (name.includes(qLower)) return 200;
+  if (domain && domain.includes(qLower)) return 100;
+  return 0;
+}
+
 export default function BusinessSearchInput({
   onSelect,
   placeholder,
@@ -85,20 +126,40 @@ export default function BusinessSearchInput({
         return;
       }
       const supabase = supabaseBrowser();
+      // Pull a wide candidate set (100) so freshly-seeded canonical brands
+      // with no reviews are not chopped off by the LIMIT before relevance
+      // ranking runs. The dropdown still only renders the top 12.
       const { data, error } = await supabase
         .from("businesses")
-        .select("id, name, slug, website, website_display, status")
+        .select(
+          "id, name, slug, website, website_display, status, trust_score, review_count"
+        )
         .eq("status", "active")
         .or(`name.ilike.%${q}%,website_display.ilike.%${q}%,website.ilike.%${q}%`)
         .order("trust_score", { ascending: false, nullsFirst: false })
         .order("review_count", { ascending: false })
-        .limit(6);
+        .limit(100);
 
       if (!isMounted) return;
       if (error || !data) {
         setSearchResults([]);
       } else {
-        const results: BusinessSearchResult[] = (data as any[]).map((row) => ({
+        const qLower = q.toLowerCase();
+        const ranked = (data as any[])
+          .map((row) => ({ row, score: rankBusinessMatch(row, qLower) }))
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            const aTrust = Number(a.row.trust_score ?? 0);
+            const bTrust = Number(b.row.trust_score ?? 0);
+            if (bTrust !== aTrust) return bTrust - aTrust;
+            return (
+              Number(b.row.review_count ?? 0) -
+              Number(a.row.review_count ?? 0)
+            );
+          })
+          .slice(0, 12);
+
+        const results: BusinessSearchResult[] = ranked.map(({ row }) => ({
           id: row.id,
           name: row.name ?? "Business",
           slug: row.slug,
@@ -222,7 +283,7 @@ export default function BusinessSearchInput({
             heroLayout ? "" : ""
           }`}
         >
-          <ul className="max-h-80 overflow-y-auto">
+          <ul className="max-h-[28rem] overflow-y-auto">
             {searchResults.map((item) => (
               <li key={item.id}>
                 <button
