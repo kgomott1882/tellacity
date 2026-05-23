@@ -1,29 +1,9 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
-export const metadata = {
-  title: "Tellacity Reviews | Customer Reviews & Trusted Business Feedback",
-  description:
-    "Discover and share real customer reviews across 200,000+ businesses worldwide. Tellacity helps you make informed decisions with trusted feedback and ratings.",
-  alternates: {
-    canonical: "https://tellacity.com",
-  },
-  openGraph: {
-    title: "Tellacity Reviews | Customer Reviews & Trusted Business Feedback",
-    description:
-      "Discover and share real customer reviews across 200,000+ businesses worldwide.",
-    url: "https://tellacity.com",
-    siteName: "Tellacity",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Tellacity Reviews",
-    description: "Read and write real customer reviews on Tellacity.",
-  },
-};
 
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import HomePageClient from "./HomePageClient";
 import type { BestInBusiness } from "./HomePageClient";
 import {
@@ -47,9 +27,130 @@ const CATEGORY_LABELS: Record<string, string> = {
   telecom: "Telecommunications",
 };
 
+const COUNTRY_LABELS: Record<string, string> = {
+  US: "United States",
+  GB: "United Kingdom",
+  CA: "Canada",
+  AU: "Australia",
+  NZ: "New Zealand",
+  IE: "Ireland",
+  ZA: "South Africa",
+};
+
+const COUNTRY_LANGUAGES: Record<string, string> = {
+  US: "en-US",
+  GB: "en-GB",
+  CA: "en-CA",
+  AU: "en-AU",
+  NZ: "en-NZ",
+  IE: "en-IE",
+  ZA: "en-ZA",
+};
+
 type PageProps = {
   searchParams: Promise<{ country?: string }>;
 };
+
+function readCountryFromSearchParams(
+  raw: string | string[] | undefined,
+): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return normalizeCountryCode(value);
+}
+
+/** True only when `?country=...` is actually present in the URL with a non-empty value. */
+function hasExplicitCountryParam(
+  raw: string | string[] | undefined,
+): boolean {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Canonical URL for SEO. `?country=US` consolidates back to the global home
+ * to avoid duplicate-content; every other explicit country gets its own
+ * canonical URL.
+ */
+function homeCanonicalUrl(countryCode: string): string {
+  return countryCode === "US"
+    ? "https://tellacity.com/"
+    : `https://tellacity.com/?country=${countryCode}`;
+}
+
+/**
+ * Actual URL of the rendered page for use in WebPage JSON-LD. Differs from
+ * the canonical because `/?country=US` should describe itself, not the
+ * global home it canonicalizes to.
+ */
+function homePageJsonLdUrl(countryCode: string): string {
+  return `https://tellacity.com/?country=${countryCode}`;
+}
+
+const GLOBAL_HOME_TITLE =
+  "Customer Reviews & Feedback for Businesses Worldwide | Tellacity";
+const GLOBAL_HOME_DESCRIPTION =
+  "Read and write real customer reviews for businesses worldwide. Discover trusted feedback, verified reviews, and business insights on Tellacity.";
+const GLOBAL_HOME_CANONICAL = "https://tellacity.com/";
+
+export async function generateMetadata(
+  props: PageProps,
+): Promise<Metadata> {
+  let countryCode = "US";
+  let isGlobal = true;
+  try {
+    const searchParams = await props.searchParams;
+    isGlobal = !hasExplicitCountryParam(searchParams?.country);
+    countryCode = readCountryFromSearchParams(searchParams?.country);
+  } catch {
+    countryCode = "US";
+    isGlobal = true;
+  }
+
+  if (isGlobal) {
+    return {
+      title: GLOBAL_HOME_TITLE,
+      description: GLOBAL_HOME_DESCRIPTION,
+      alternates: { canonical: GLOBAL_HOME_CANONICAL },
+      openGraph: {
+        title: GLOBAL_HOME_TITLE,
+        description: GLOBAL_HOME_DESCRIPTION,
+        url: GLOBAL_HOME_CANONICAL,
+        siteName: "Tellacity",
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: GLOBAL_HOME_TITLE,
+        description: GLOBAL_HOME_DESCRIPTION,
+      },
+      robots: { index: true, follow: true },
+    };
+  }
+
+  const countryName = COUNTRY_LABELS[countryCode] ?? "United States";
+  const canonical = homeCanonicalUrl(countryCode);
+  const title = `Customer Reviews & Feedback for ${countryName} Businesses | Tellacity`;
+  const description = `Read and write real customer reviews for ${countryName} businesses. Discover trusted feedback, verified reviews, and business insights on Tellacity.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "Tellacity",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    robots: { index: true, follow: true },
+  };
+}
 
 type HomeCategoryRow = { id: string; name: string; slug: string };
 
@@ -125,18 +226,76 @@ export default async function HomePage(props: PageProps) {
   };
 
   let country = "US";
+  let isGlobalHome = true;
+  let webPageJsonLd: Record<string, unknown> = {};
+  let rawCountrySearchParam: string | string[] | undefined;
+  try {
+    const sp = await props.searchParams;
+    rawCountrySearchParam = sp?.country;
+    isGlobalHome = !hasExplicitCountryParam(rawCountrySearchParam);
+    country = readCountryFromSearchParams(rawCountrySearchParam);
+
+    if (isGlobalHome) {
+      webPageJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: GLOBAL_HOME_TITLE,
+        description:
+          "Browse and write verified customer reviews for businesses around the world on Tellacity.",
+        url: GLOBAL_HOME_CANONICAL,
+        inLanguage: "en",
+        breadcrumb: {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            {
+              "@type": "ListItem",
+              position: 1,
+              name: "Home",
+              item: "https://tellacity.com/",
+            },
+          ],
+        },
+      };
+    } else {
+      const ccName = COUNTRY_LABELS[country] ?? "United States";
+      const ccLang = COUNTRY_LANGUAGES[country] ?? "en-US";
+      const ccPageUrl = homePageJsonLdUrl(country);
+      webPageJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: `Customer Reviews & Feedback for ${ccName} Businesses | Tellacity`,
+        description: `Browse and write verified customer reviews for ${ccName} businesses on Tellacity.`,
+        url: ccPageUrl,
+        inLanguage: ccLang,
+        breadcrumb: {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            {
+              "@type": "ListItem",
+              position: 1,
+              name: "Home",
+              item: "https://tellacity.com/",
+            },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: ccName,
+              item: ccPageUrl,
+            },
+          ],
+        },
+      };
+    }
+  } catch {
+    webPageJsonLd = {};
+    isGlobalHome = true;
+  }
   let bestInByCategory: Record<string, unknown[]> = {};
   let homeFeedRows: Record<string, unknown>[] = [];
   let marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   let categoryRowsForHome: HomeCategoryRow[] = [];
 
   try {
-    const searchParams = await props.searchParams;
-    const rawCountry = searchParams?.country;
-    const countryParam = Array.isArray(rawCountry)
-      ? rawCountry[0]
-      : rawCountry;
-    country = normalizeCountryCode(countryParam);
 
     const supabase = createSupabaseServerClient();
     if (!supabase) {
@@ -216,6 +375,14 @@ export default async function HomePage(props: PageProps) {
             __html: JSON.stringify(websiteJsonLd),
           }}
         />
+        {Object.keys(webPageJsonLd).length > 0 && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(webPageJsonLd),
+            }}
+          />
+        )}
         <Suspense fallback={<HomePageShellFallback />}>
           {/*
            * IMPORTANT: do NOT add `key={country}` here.
@@ -227,6 +394,7 @@ export default async function HomePage(props: PageProps) {
            */}
           <HomePageClient
             initialSelectedCountry={country ?? "US"}
+            initialIsGlobalHome={isGlobalHome}
             rotatingCategorySlugs={safeRotatingSlugs}
             bestInByCategory={safeBestInByCategory}
             bestInCategoryLabels={safeLabels}
@@ -252,6 +420,14 @@ export default async function HomePage(props: PageProps) {
             __html: JSON.stringify(websiteJsonLd),
           }}
         />
+        {Object.keys(webPageJsonLd).length > 0 && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(webPageJsonLd),
+            }}
+          />
+        )}
         <main className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
           <h1 className="text-2xl font-semibold text-[#0E0E0E]">Tellacity</h1>
           <p className="mt-2 text-gray-600">Customer Reviews &amp; Feedback</p>

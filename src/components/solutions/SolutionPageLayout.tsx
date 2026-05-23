@@ -61,14 +61,18 @@ export type VerifiedTrustBlock = {
   bullets: string[];
   /**
    * Which inline product-surface mock to render on the right column.
-   * Defaults to "invitation-queue" so existing pages keep their current visual.
+   * When omitted, the section renders either as a single centered column
+   * (kicker, title, description and bullets only) or as a two-column
+   * layout if `image` is provided.
    */
-  surface?:
-    | "invitation-queue"
-    | "widget-preview"
-    | "analytics"
-    | "moderation"
-    | "media";
+  surface?: "widget-preview" | "analytics" | "moderation" | "media";
+  /**
+   * Optional image displayed on the right column. Used on pages that
+   * don't have a built-in product-surface mock but still want a visual
+   * companion next to the trust copy. Ignored when `surface` is set
+   * (the mock takes precedence).
+   */
+  image?: { src: string; alt: string };
 };
 
 export type PlatformChip = {
@@ -153,9 +157,29 @@ export type SolutionPageContent = {
   heroImage: { src: string; alt: string };
 
   /** Three customer pain points covered in the Problem section. */
-  problems: { title: string; description: string }[];
+  problems: { title: string; description: string; icon?: string }[];
 
-  /** "How Tellacity solves it" — short paragraph + bullet list. */
+  /**
+   * Optional override for the Problem section's H2 and supporting copy.
+   * When omitted, the layout falls back to its generic defaults.
+   */
+  problemSectionTitle?: string;
+  problemSectionDescription?: string;
+  problemSectionKicker?: string;
+
+  /**
+   * Optional override for the Features ("Real capabilities") section's H2
+   * and supporting copy. Defaults are used when omitted.
+   */
+  featuresSectionTitle?: string;
+  featuresSectionDescription?: string;
+  featuresSectionKicker?: string;
+
+  /** Optional override for the FAQ section's H2 and intro paragraph. */
+  faqSectionTitle?: string;
+  faqSectionDescription?: string;
+
+  /** "How Tellacity solves it". Short paragraph plus bullet list. */
   solution: {
     title: string;
     description: string;
@@ -163,10 +187,20 @@ export type SolutionPageContent = {
     screenshot: { src: string; alt: string };
   };
 
-  /** Capabilities grid — pulled from the live dashboard. */
+  /** Capabilities grid, pulled from the live dashboard. */
   features: SolutionFeature[];
 
-  /** Trust block — neutral, scale-focused, no inflated numbers. */
+  /**
+   * Optional image displayed to the right of the features card on large
+   * screens. When set, the "Real capabilities, not promises" section
+   * switches from a single centered card to a two-column layout: the
+   * features card on the left, the image on the right. Used on pages
+   * where we have a polished product screenshot that pairs well with the
+   * capabilities list.
+   */
+  featuresImage?: { src: string; alt: string };
+
+  /** Trust block. Neutral, scale-focused, no inflated numbers. */
   trust: {
     title: string;
     description: string;
@@ -184,7 +218,7 @@ export type SolutionPageContent = {
 
   /**
    * Optional compact trust strip rendered immediately below the hero CTAs.
-   * Small inline list with check glyphs — keep entries short (2–4 words).
+   * Small inline list with check glyphs. Keep entries short (2 to 4 words).
    */
   heroTrustStrip?: string[];
 
@@ -197,7 +231,8 @@ export type SolutionPageContent = {
   /**
    * Optional "Why verified invitations matter" trust block, rendered
    * between Features and the dark Trust band. Renders the copy on the
-   * left and an inline invitation-queue product-surface mock on the right.
+   * left and an inline product-surface mock on the right when a `surface`
+   * is set; otherwise renders as a single centered column.
    */
   verifiedTrust?: VerifiedTrustBlock;
 
@@ -294,12 +329,19 @@ function BigCardRows({
   variant = "light",
   numbered = false,
   defaultIcon,
+  compact = false,
 }: {
   items: BigCardRowsItem[];
   accent?: BigCardRowsAccent;
   variant?: "light" | "dark";
   numbered?: boolean;
   defaultIcon?: string;
+  /**
+   * When true the outer wrapper drops its `mt-12 mx-auto max-w-5xl` so the
+   * card fills its parent column exactly. Used inside the side-by-side
+   * features-with-image layout where the parent grid controls placement.
+   */
+  compact?: boolean;
 }) {
   const isDark = variant === "dark";
 
@@ -344,10 +386,14 @@ function BigCardRows({
     darkIconColor = "#5EE0CF";
   }
 
+  const wrapperLayout = compact
+    ? "relative w-full"
+    : "relative mx-auto mt-12 w-full max-w-5xl";
   return (
     <div
       className={
-        "relative mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border " +
+        wrapperLayout +
+        " overflow-hidden rounded-3xl border " +
         (isDark
           ? "border-white/10 bg-white/[0.03] backdrop-blur-sm"
           : "border-gray-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.06)]")
@@ -452,7 +498,19 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
       <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
         <div className="grid gap-10 md:grid-cols-2 md:items-center">
           <div className="max-w-xl">
-            <p className="text-sm font-medium uppercase tracking-wider text-gray-400">
+            <Link
+              href="/reputation-platform"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-300 transition-colors hover:border-[#1FAF9E]/50 hover:text-white"
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+                aria-hidden
+              />
+              Part of the Tellacity Reputation Platform
+              <span aria-hidden>→</span>
+            </Link>
+            <p className="mt-4 text-sm font-medium uppercase tracking-wider text-gray-400">
               {content.kicker}
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
@@ -501,7 +559,7 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="relative w-full max-w-xl rounded-3xl border border-white/10 bg-white/[0.03] p-3 shadow-[0_25px_70px_rgba(0,0,0,0.4)] backdrop-blur-sm">
+            <div className="relative w-full max-w-2xl rounded-3xl border border-white/10 bg-white/[0.03] p-3 shadow-[0_25px_70px_rgba(0,0,0,0.4)] backdrop-blur-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={content.heroImage.src}
@@ -516,29 +574,40 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
   );
 }
 
-function ProblemSection({ problems }: { problems: SolutionPageContent["problems"] }) {
+function ProblemSection({
+  problems,
+  title,
+  description,
+  kicker,
+}: {
+  problems: SolutionPageContent["problems"];
+  title?: string;
+  description?: string;
+  kicker?: string;
+}) {
   return (
     <section className="relative w-full bg-white">
       <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-medium uppercase tracking-wider text-amber-700">
-            The challenge
+            {kicker ?? "The challenge"}
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0E0E0E] sm:text-4xl">
-            Most teams already feel this pain.
+            {title ?? "Most teams already feel this pain."}
           </h2>
           <p className="mt-3 text-base leading-relaxed text-gray-600">
-            Without a structured way to collect, surface, and respond to customer
-            feedback, the same operational problems keep showing up.
+            {description ??
+              "Without a structured way to collect, surface, and respond to customer feedback, the same operational problems keep showing up."}
           </p>
         </div>
         <BigCardRows
           items={problems.map((p) => ({
+            icon: p.icon,
             title: p.title,
             description: p.description,
           }))}
           accent="amber"
-          defaultIcon="!"
+          defaultIcon="⚠️"
         />
       </div>
     </section>
@@ -598,7 +667,24 @@ function SolutionSection({
   );
 }
 
-function FeaturesSection({ features }: { features: SolutionFeature[] }) {
+function FeaturesSection({
+  features,
+  featuresImage,
+  title,
+  description,
+  kicker,
+}: {
+  features: SolutionFeature[];
+  featuresImage?: { src: string; alt: string };
+  title?: string;
+  description?: string;
+  kicker?: string;
+}) {
+  const cardItems = features.map((f) => ({
+    icon: f.badge,
+    title: f.title,
+    description: f.description,
+  }));
   return (
     <section className="relative w-full bg-white">
       <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
@@ -607,24 +693,28 @@ function FeaturesSection({ features }: { features: SolutionFeature[] }) {
             className="text-sm font-medium uppercase tracking-wider"
             style={{ color: ACCENT }}
           >
-            Built into the dashboard
+            {kicker ?? "Built into the dashboard"}
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0E0E0E] sm:text-4xl">
-            Real capabilities, not promises.
+            {title ?? "Real capabilities, not promises."}
           </h2>
           <p className="mt-3 text-base leading-relaxed text-gray-600">
-            Every feature below is part of the live Tellacity business dashboard
-            and is available the moment you claim your profile.
+            {description ??
+              "Every feature below is part of the live Tellacity business dashboard and is available the moment you claim your profile."}
           </p>
         </div>
-        <BigCardRows
-          items={features.map((f) => ({
-            icon: f.badge,
-            title: f.title,
-            description: f.description,
-          }))}
-          accent="teal"
-        />
+        {featuresImage ? (
+          <div className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.08)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={featuresImage.src}
+              alt={featuresImage.alt}
+              className="block h-auto w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+        <BigCardRows items={cardItems} accent="teal" />
       </div>
     </section>
   );
@@ -757,122 +847,6 @@ function WorkflowSection({
 }
 
 /**
- * Lightweight, on-brand mock of the invitation queue surface — built in pure
- * Tailwind so it stays sharp at any resolution and never ships a placeholder
- * PNG.  Used inside the VerifiedTrustSection.
- */
-function InvitationQueueSurface() {
-  const rows: Array<{
-    name: string;
-    status: "Reviewed" | "Reminded" | "Delivered" | "Pending";
-    channel: "Email" | "SMS";
-    when: string;
-  }> = [
-    { name: "Lisa Park", status: "Reviewed", channel: "Email", when: "2d" },
-    { name: "Mark Chen", status: "Reminded", channel: "SMS", when: "3d" },
-    { name: "Aisha Khan", status: "Delivered", channel: "Email", when: "4d" },
-    { name: "Tom Wilson", status: "Pending", channel: "Email", when: "5d" },
-    { name: "Mei Lin", status: "Reviewed", channel: "Email", when: "1w" },
-  ];
-  const statusStyle: Record<
-    (typeof rows)[number]["status"],
-    { dot: string; text: string; pill: string }
-  > = {
-    Reviewed: {
-      dot: "bg-[#1FAF9E]",
-      text: "text-[#0F766E]",
-      pill: "bg-[#E5F4F2]",
-    },
-    Reminded: {
-      dot: "bg-amber-500",
-      text: "text-amber-700",
-      pill: "bg-amber-100",
-    },
-    Delivered: {
-      dot: "bg-sky-500",
-      text: "text-sky-700",
-      pill: "bg-sky-100",
-    },
-    Pending: {
-      dot: "bg-gray-400",
-      text: "text-gray-600",
-      pill: "bg-gray-100",
-    },
-  };
-  return (
-    <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-            Invitations
-          </p>
-          <p className="text-sm font-semibold text-[#0E0E0E]">This week</p>
-        </div>
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600"
-          aria-hidden
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-[#1FAF9E]" />
-          Live
-        </span>
-      </div>
-      <ul className="divide-y divide-gray-100">
-        {rows.map((r) => {
-          const s = statusStyle[r.status];
-          return (
-            <li
-              key={r.name}
-              className="flex items-center justify-between gap-3 px-5 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-700"
-                  aria-hidden
-                >
-                  {r.name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </span>
-                <span className="text-sm font-medium text-[#0E0E0E]">
-                  {r.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.pill} ${s.text}`}
-                >
-                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                  {r.status}
-                </span>
-                <span className="hidden text-[11px] text-gray-500 sm:inline">
-                  {r.channel}
-                </span>
-                <span className="text-[11px] tabular-nums text-gray-400">
-                  {r.when}
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="grid grid-cols-2 gap-3 border-t border-gray-100 bg-[#F8FAFC] px-5 py-4 text-[11px]">
-        <div>
-          <p className="text-gray-500">Delivery rate</p>
-          <p className="text-sm font-semibold text-[#0E0E0E]">98.4%</p>
-        </div>
-        <div>
-          <p className="text-gray-500">Review rate</p>
-          <p className="text-sm font-semibold text-[#0E0E0E]">41.2%</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Lightweight, on-brand mock of a Tellacity review widget embedded on a
  * customer's website.  Used inside the VerifiedTrustSection for the
  * /solutions/review-widgets page.
@@ -889,7 +863,7 @@ function WidgetPreviewSurface() {
       name: "Sarah K.",
       stars: 5,
       snippet:
-        "Fast shipping, exactly as described. Will buy again — already recommended to two colleagues.",
+        "Fast shipping, exactly as described. Will buy again. Already recommended to two colleagues.",
     },
     {
       initials: "DR",
@@ -924,13 +898,6 @@ function WidgetPreviewSurface() {
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
             Customer Reviews
           </p>
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#E5F4F2] px-2.5 py-1 text-[11px] font-semibold text-[#0F766E]"
-            aria-hidden
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1FAF9E]" />
-            Live
-          </span>
         </div>
         <div className="mt-3 flex items-baseline gap-3">
           <p className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
@@ -978,7 +945,7 @@ function WidgetPreviewSurface() {
           ))}
         </div>
         <div className="mt-5 flex items-center justify-between text-[11px] text-gray-500">
-          <span>Live updates · powered by Tellacity</span>
+          <span>Powered by Tellacity</span>
           <span className="font-semibold text-[#1FAF9E]">View all →</span>
         </div>
       </div>
@@ -987,7 +954,7 @@ function WidgetPreviewSurface() {
 }
 
 /**
- * Lightweight, on-brand mock of the analytics dashboard — Tailwind-only so it
+ * Lightweight, on-brand mock of the analytics dashboard. Tailwind-only so it
  * stays sharp at any resolution. Used inside the VerifiedTrustSection for the
  * /solutions/business-analytics page.
  */
@@ -1019,13 +986,6 @@ function AnalyticsSurface() {
           </p>
           <p className="text-sm font-semibold text-[#0E0E0E]">Last 30 days</p>
         </div>
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600"
-          aria-hidden
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-[#1FAF9E]" />
-          Live
-        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-3 px-5 py-5">
@@ -1146,7 +1106,7 @@ function ModerationSurface() {
       statusClass: "bg-amber-100 text-amber-800",
     },
     {
-      label: "Address mismatch — Branch 04",
+      label: "Address mismatch on Branch 04",
       detail: "Profile dispute · raised by owner",
       badge: "Dispute",
       icon: "📝",
@@ -1172,13 +1132,6 @@ function ModerationSurface() {
           </p>
           <p className="text-sm font-semibold text-[#0E0E0E]">Moderation queue</p>
         </div>
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600"
-          aria-hidden
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-[#1FAF9E]" />
-          Live
-        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-3 px-5 py-4">
@@ -1258,7 +1211,7 @@ function ModerationSurface() {
  * Lightweight mock of the visual review queue used inside the
  * VerifiedTrustSection for /solutions/photo-uploads. Renders four tasteful
  * gradient thumbnails (no external images) with verified / queued status and
- * product attribution chips — Tailwind only.
+ * product attribution chips. Tailwind only.
  */
 function MediaSurface() {
   const tiles: Array<{
@@ -1269,28 +1222,28 @@ function MediaSurface() {
     gradient: string;
   }> = [
     {
-      product: "Headphones — Studio Pro",
+      product: "Headphones, Studio Pro",
       rating: 5,
       statusText: "Verified",
       statusClass: "bg-[#1FAF9E]/15 text-[#0F766E]",
       gradient: "from-[#0E0E0E] via-[#1F2937] to-[#0F766E]",
     },
     {
-      product: "Café — Branch 04",
+      product: "Café, Branch 04",
       rating: 4,
       statusText: "Verified",
       statusClass: "bg-[#1FAF9E]/15 text-[#0F766E]",
       gradient: "from-amber-700 via-amber-500 to-orange-400",
     },
     {
-      product: "Backpack — Trail 30L",
+      product: "Backpack, Trail 30L",
       rating: 5,
       statusText: "Awaiting moderation",
       statusClass: "bg-amber-100 text-amber-800",
       gradient: "from-slate-700 via-slate-500 to-slate-300",
     },
     {
-      product: "Espresso machine — Atlas",
+      product: "Espresso machine, Atlas",
       rating: 4,
       statusText: "Verified",
       statusClass: "bg-[#1FAF9E]/15 text-[#0F766E]",
@@ -1307,13 +1260,6 @@ function MediaSurface() {
           </p>
           <p className="text-sm font-semibold text-[#0E0E0E]">Media moderation</p>
         </div>
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600"
-          aria-hidden
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-[#1FAF9E]" />
-          Live
-        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-3 px-5 py-4">
@@ -1397,12 +1343,40 @@ function VerifiedTrustSection({
   block: VerifiedTrustBlock | undefined;
 }) {
   if (!block) return null;
-  const surface = block.surface ?? "invitation-queue";
+  const surface = block.surface;
+  const surfaceElement =
+    surface === "widget-preview" ? (
+      <WidgetPreviewSurface />
+    ) : surface === "analytics" ? (
+      <AnalyticsSurface />
+    ) : surface === "moderation" ? (
+      <ModerationSurface />
+    ) : surface === "media" ? (
+      <MediaSurface />
+    ) : null;
+  // `surface` takes precedence; `image` is used only when no surface mock
+  // is configured but the page still wants a visual companion.
+  const imageBlock = !surfaceElement && block.image ? block.image : null;
+  const hasVisual = Boolean(surfaceElement || imageBlock);
   return (
     <section className="w-full border-y border-gray-100 bg-[#F8FAFC]">
       <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
-        <div className="grid gap-10 md:grid-cols-2 md:items-center">
-          <div className="max-w-xl">
+        <div
+          className={
+            imageBlock
+              ? "grid gap-10 md:grid-cols-2 md:items-center"
+              : surfaceElement
+                ? "grid gap-10 md:grid-cols-2 md:items-center"
+                : "grid gap-10"
+          }
+        >
+          <div
+            className={
+              hasVisual
+                ? "flex max-w-xl flex-col"
+                : "mx-auto max-w-3xl text-center"
+            }
+          >
             <p
               className="text-sm font-medium uppercase tracking-wider"
               style={{ color: ACCENT }}
@@ -1415,7 +1389,13 @@ function VerifiedTrustSection({
             <p className="mt-3 text-base leading-relaxed text-gray-600">
               {block.description}
             </p>
-            <ul className="mt-6 space-y-3">
+            <ul
+              className={
+                hasVisual
+                  ? "mt-6 space-y-3"
+                  : "mt-6 space-y-3 text-left sm:mx-auto sm:max-w-2xl"
+              }
+            >
               {block.bullets.map((bullet) => (
                 <li key={bullet} className="flex items-start gap-3">
                   <span
@@ -1432,19 +1412,21 @@ function VerifiedTrustSection({
               ))}
             </ul>
           </div>
-          <div className="md:justify-self-end">
-            {surface === "widget-preview" ? (
-              <WidgetPreviewSurface />
-            ) : surface === "analytics" ? (
-              <AnalyticsSurface />
-            ) : surface === "moderation" ? (
-              <ModerationSurface />
-            ) : surface === "media" ? (
-              <MediaSurface />
-            ) : (
-              <InvitationQueueSurface />
-            )}
-          </div>
+          {surfaceElement ? (
+            <div className="md:justify-self-end">{surfaceElement}</div>
+          ) : imageBlock ? (
+            <div className="flex w-full md:justify-self-end">
+              <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageBlock.src}
+                  alt={imageBlock.alt}
+                  className="block h-auto w-full"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -1660,7 +1642,15 @@ function OutcomesSection({
   );
 }
 
-function FaqSection({ faqs }: { faqs: SolutionFaq[] | undefined }) {
+function FaqSection({
+  faqs,
+  title,
+  description,
+}: {
+  faqs: SolutionFaq[] | undefined;
+  title?: string;
+  description?: string;
+}) {
   if (!faqs || faqs.length === 0) return null;
   return (
     <section className="w-full border-t border-gray-100 bg-white">
@@ -1670,11 +1660,11 @@ function FaqSection({ faqs }: { faqs: SolutionFaq[] | undefined }) {
             FAQ
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0E0E0E] sm:text-4xl">
-            Frequently asked questions
+            {title ?? "Frequently asked questions"}
           </h2>
           <p className="mt-3 text-base leading-relaxed text-gray-600">
-            Quick answers to the most common questions about this part of the
-            Tellacity platform.
+            {description ??
+              "Quick answers to the most common questions about this part of the Tellacity platform."}
           </p>
         </div>
         <div className="mx-auto mt-10 max-w-3xl space-y-3">
@@ -1779,10 +1769,21 @@ export default function SolutionPageLayout({
       <SolutionStyles />
       {jsonLd}
       <HeroSection content={content} />
-      <ProblemSection problems={content.problems} />
+      <ProblemSection
+        problems={content.problems}
+        title={content.problemSectionTitle}
+        description={content.problemSectionDescription}
+        kicker={content.problemSectionKicker}
+      />
       <SolutionSection solution={content.solution} />
       <WorkflowSection workflow={content.workflow} />
-      <FeaturesSection features={content.features} />
+      <FeaturesSection
+        features={content.features}
+        featuresImage={content.featuresImage}
+        title={content.featuresSectionTitle}
+        description={content.featuresSectionDescription}
+        kicker={content.featuresSectionKicker}
+      />
       <VerifiedTrustSection block={content.verifiedTrust} />
       <TrustSection trust={content.trust} />
       <PlatformsSection block={content.platforms} />
@@ -1791,7 +1792,11 @@ export default function SolutionPageLayout({
       <TeamsSection block={content.teams} />
       <OutcomesSection block={content.outcomes} />
       <FinalCtaSection />
-      <FaqSection faqs={content.faqs} />
+      <FaqSection
+        faqs={content.faqs}
+        title={content.faqSectionTitle}
+        description={content.faqSectionDescription}
+      />
       <FaqJsonLd faqs={content.faqs} />
       <RelatedSection related={content.related} />
     </main>

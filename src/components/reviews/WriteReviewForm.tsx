@@ -532,7 +532,7 @@ export default function WriteReviewForm({
 
   // Restore guest info from localStorage once per session (email flow only).
   // Do not depend on `guestName` / `guestEmail`: when the user clears a field,
-  // a re-run would see the old value still in storage and repopulate — blocking
+  // a re-run would see the old value still in storage and repopulate, blocking
   // normal backspace/delete. Storage is cleared when fields go empty (below).
   useEffect(() => {
     if (isSuccessReviewPage) return;

@@ -346,10 +346,10 @@ export default function Navbar() {
                   Pricing
                 </Link>
                 <Link
-                  href="/solution"
+                  href="/reputation-platform"
                   className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
-                  Solution
+                  Reputation Platform
                 </Link>
                 <Link
                   href="/resources"
@@ -504,11 +504,13 @@ export default function Navbar() {
                     Pricing
                   </Link>
                   <Link
-                    href="/solution"
+                    href="/reputation-platform"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={pathname === "/solution" ? "text-[#1FAF9E]" : ""}
+                    className={
+                      pathname === "/reputation-platform" ? "text-[#1FAF9E]" : ""
+                    }
                   >
-                    Solution
+                    Reputation Platform
                   </Link>
                   <Link
                     href="/resources"

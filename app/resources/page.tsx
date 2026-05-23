@@ -42,6 +42,26 @@ export default function ResourcesPage() {
           </button>
         </div>
 
+        <div className="relative mt-10 overflow-hidden rounded-xl border border-[#1FAF9E]/20 bg-gradient-to-r from-[#0E3B36] via-[#0F766E] to-[#1FAF9E] p-8 text-white shadow-md">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+            The Tellacity Reputation Platform
+          </p>
+          <h2 className="mt-3 text-xl font-semibold sm:text-2xl">
+            Explore the Tellacity Reputation Platform
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-white/90">
+            See how review invitations, widgets, analytics, reputation
+            management, and photo uploads work together as one centralised
+            system for verified customer trust.
+          </p>
+          <Link
+            href="/reputation-platform"
+            className="mt-6 inline-flex items-center rounded-lg bg-white px-5 py-2 text-sm font-medium text-[#0F766E] shadow transition-opacity hover:opacity-90"
+          >
+            Explore the platform →
+          </Link>
+        </div>
+
         <section className="relative mt-10 block overflow-hidden rounded-xl shadow-md">
           <img
             src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2000"

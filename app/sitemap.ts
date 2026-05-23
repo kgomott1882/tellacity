@@ -43,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // /tags/[slug] pages are intentionally NOT submitted in the sitemap.
   // Those routes return `<meta name="robots" content="noindex" />`
   // (see app/tags/[tag_slug]/page.tsx). Submitting noindex URLs in the
-  // sitemap is contradictory — Google reports them as
+  // sitemap is contradictory. Google reports them as
   // "Excluded by 'noindex' tag" in Search Console. Tag pages stay
   // reachable via internal links from category and business pages;
   // they just aren't asked to be crawled here.

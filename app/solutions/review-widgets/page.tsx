@@ -3,37 +3,38 @@ import SolutionPageLayout, {
 } from "@/components/solutions/SolutionPageLayout";
 
 export const metadata = {
-  title:
-    "Review Widgets | Verified Review Display Infrastructure | Tellacity",
+  title: "Live Verified Review Widgets for Every Page of Your Site | Tellacity",
   description:
-    "Tellacity Review Widgets are a live verified-review display layer for modern websites. Embed real customer reviews on product, pricing, checkout, and landing pages with one snippet — synchronised with your Tellacity dashboard, accessible, SEO-friendly, and built for performance.",
+    "Show real, verified customer reviews directly on product pages, pricing, checkout, and marketing pages. Tellacity widgets stay in sync with your dashboard and update automatically. Start free.",
   alternates: {
     canonical: "https://tellacity.com/solutions/review-widgets",
   },
   openGraph: {
-    title: "Review Widgets | Tellacity",
+    title:
+      "Live Verified Review Widgets for Every Page of Your Site | Tellacity",
     description:
-      "Live verified-review display infrastructure for modern websites — one snippet, multiple layouts, brand-matched, accessible, real-time.",
+      "Show real, verified customer reviews directly on product pages, pricing, checkout, and marketing pages. Tellacity widgets stay in sync with your dashboard and update automatically.",
     url: "https://tellacity.com/solutions/review-widgets",
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Review Widgets | Tellacity",
+    title:
+      "Live Verified Review Widgets for Every Page of Your Site | Tellacity",
     description:
-      "Verified-review display infrastructure for modern websites and storefronts.",
+      "Live, verified review widgets for product, pricing, checkout, and marketing pages. Synced with your dashboard automatically.",
   },
 };
 
 const content: SolutionPageContent = {
   kicker: "Review Widgets",
   headline: {
-    lead: "Show real trust",
-    accent: "on every page of your site.",
+    lead: "Live Verified Review Widgets",
+    accent: "for Every Page of Your Site",
   },
   valueProp:
-    "Display verified customer reviews directly across your storefront, product pages, landing pages, checkout flows, and marketing campaigns using Tellacity's live widget infrastructure. Every widget stays synchronised with your Tellacity dashboard automatically — including review counts, trust score, recent reviews, verified badges, and moderation updates — without manual maintenance or rebuilding pages.",
+    "Display verified customer reviews directly across your storefront, product pages, landing pages, checkout flows, and marketing campaigns using Tellacity's live widget infrastructure. Every widget stays synchronised with your Tellacity dashboard automatically (review counts, trust score, recent reviews, verified badges, and moderation updates) without manual maintenance or rebuilding pages.",
   primaryCta: { label: "Start free", href: "/business/signup" },
   secondaryCta: { label: "Open dashboard", href: "/business/dashboard" },
   heroImage: {
@@ -49,38 +50,50 @@ const content: SolutionPageContent = {
     "Accessible & SEO-friendly",
   ],
 
+  problemSectionKicker: "The challenge",
+  problemSectionTitle: "Why most businesses lose trust where it matters",
+  problemSectionDescription:
+    "Verified reviews only convert when visitors actually see them inside the buying journey. Without live, on-page trust signals, businesses lose conversions exactly where the customer is making the decision.",
+
   problems: [
     {
+      icon: "👁️",
       title: "Visitors can't see your reviews where it matters",
       description:
-        "Customers compare and decide on your product, checkout, and pricing pages — not on a third-party site. Without on-page social proof, you lose conversions exactly where you need them.",
+        "Customers compare and decide on your product, checkout, and pricing pages, not on a third-party site. Without on-page social proof, you lose conversions exactly where you need them.",
     },
     {
+      icon: "📋",
       title: "Embedding reviews usually means copy-pasting forever",
       description:
         "Manual screenshots, static HTML blocks, or hand-edited testimonials go stale the moment a new review comes in and never reflect your live reputation.",
     },
     {
+      icon: "🎨",
       title: "Generic widgets break your brand",
       description:
         "Most widget libraries don't match your typography, spacing, or palette and end up looking like an ad rather than a native part of your product.",
     },
     {
+      icon: "🛒",
       title: "Trust signals disappear during checkout",
       description:
         "Many businesses collect reviews successfully but fail to surface trust signals during high-conversion moments like pricing, cart, and checkout flows.",
     },
     {
+      icon: "🪦",
       title: "Static testimonials lose credibility",
       description:
         "Hardcoded testimonials quickly become outdated and don't reflect current customer sentiment, recent reviews, or changing trust scores.",
     },
     {
+      icon: "🧩",
       title: "Different websites create inconsistent trust experiences",
       description:
         "When reviews are embedded manually across multiple sites, brands lose consistency in messaging, styling, and review freshness.",
     },
     {
+      icon: "🐢",
       title: "Most widgets aren't optimised for performance",
       description:
         "Heavy third-party scripts, bloated embeds, and poorly optimised review widgets can negatively affect page speed and user experience.",
@@ -88,13 +101,13 @@ const content: SolutionPageContent = {
   ],
 
   solution: {
-    title: "Embeddable widgets that stay in sync with your dashboard.",
+    title: "How Tellacity turns live reviews into on-page trust signals",
     description:
-      "Every Tellacity widget reads directly from your verified review feed, so the rating, count, and most recent reviews update automatically. You configure styling once in the dashboard and ship the same lightweight snippet to every site you run.",
+      "Every Tellacity widget reads directly from your verified review feed, so the rating, count, and most recent reviews update automatically. You configure styling once in the dashboard and ship the same lightweight, performance-friendly snippet to every site you run.",
     bullets: [
       "Multiple layouts: rating badge, floating button, sidebar, and full carousel.",
       "Theme controls for colours, radius, density, and dark/light mode.",
-      "Single-tag install — copy from the dashboard, paste into your site.",
+      "Single-tag install. Copy from the dashboard, paste into your site.",
       "Live updates: new reviews appear without rebuilding the page.",
       "Accessible markup with ARIA labels and keyboard navigation built in.",
     ],
@@ -106,7 +119,7 @@ const content: SolutionPageContent = {
 
   workflow: {
     kicker: "How the widget system works",
-    title: "From verified review to live trust signal — automatically.",
+    title: "How the widget system works",
     description:
       "Every Tellacity widget pulls from the same verified review pipeline so the rating, count, and recent reviews are always current. No redeploys, no manual sync, no stale testimonials.",
     steps: [
@@ -114,39 +127,49 @@ const content: SolutionPageContent = {
         icon: "📥",
         title: "Reviews collected in Tellacity",
         description:
-          "Verified reviews flow in from invitations, profile submissions, and authenticated review forms — all tied to a customer record.",
+          "Verified reviews flow in from invitations, profile submissions, and authenticated review forms. Every review is tied to a real customer record, which is what makes the trust signal credible in the first place.",
       },
       {
         icon: "🛡",
         title: "Reviews verified & moderated",
         description:
-          "Identity checks, proof-of-purchase signals, and policy moderation run automatically before reviews are eligible to display.",
+          "Identity checks, proof-of-purchase signals, and policy moderation run automatically before reviews are eligible to display. Centralised moderation is what keeps the on-page trust signal consistent across every widget.",
       },
       {
         icon: "🔄",
         title: "Widget feed updates automatically",
         description:
-          "Approved reviews enter the live widget feed, with the trust score, count, and recent reviews refreshing within a minute.",
+          "Approved reviews enter the live widget feed, with the trust score, count, and recent reviews refreshing within a minute. Real-time synchronisation preserves trust and reduces stale content signals for search engines and LLMs.",
       },
       {
         icon: "🌐",
         title: "Widgets sync across all websites",
         description:
-          "The same snippet on every domain, storefront, and landing page reads from the same feed — so trust signals stay consistent.",
+          "The same snippet on every domain, storefront, and landing page reads from the same centralised feed. Cross-site consistency is what makes your reputation citable for both buyers and AI search engines.",
       },
       {
         icon: "🛒",
         title: "Customers see live trust signals",
         description:
-          "Visitors see verified social proof on product, pricing, cart, and checkout pages — exactly where decisions are made.",
+          "Visitors see verified social proof on product, pricing, cart, and checkout pages, exactly where decisions are made. Trust placed at the moment of decision is where it actually moves the conversion needle.",
       },
       {
         icon: "📊",
         title: "Analytics & engagement tracked",
         description:
-          "Impressions, clicks, conversions, and engagement metrics flow back into the dashboard for every widget placement.",
+          "Impressions, clicks, conversions, and engagement metrics flow back into the dashboard for every widget placement. A closed feedback loop tells you which placements pay off and which to retire.",
       },
     ],
+  },
+
+  featuresSectionKicker: "Built into the dashboard",
+  featuresSectionTitle: "Key widget features at a glance",
+  featuresSectionDescription:
+    "Every widget capability below is part of the live Tellacity business dashboard and is available the moment you claim your profile. Lightweight, conversion-driven, and centralised, so you ship the same on-page trust signals across every property you run.",
+
+  featuresImage: {
+    src: "/brand/Real%20capabilities.jpeg",
+    alt: "Tellacity review widgets displayed across web and mobile storefronts",
   },
 
   features: [
@@ -232,24 +255,24 @@ const content: SolutionPageContent = {
 
   verifiedTrust: {
     kicker: "Why live verified widgets matter",
-    title: "Trust customers can see at the moment of decision.",
+    title: "Why live verified widgets matter",
     description:
-      "Modern customers expect trust signals directly inside the buying journey — not hidden on separate review pages. Tellacity widgets surface verified customer experiences exactly where customers make decisions, while keeping review data synchronised automatically across every page.",
+      "Proof-of-purchase reviews are what earn the verified badge that visitors trust on sight. Centralised moderation is what keeps that badge meaningful by enforcing the same policy across every widget. And cross-site synchronisation is what turns those trust signals into reliable, citable data that holds up for both human buyers and AI search engines.",
     bullets: [
       "Live review synchronisation across every domain you run.",
       "Verified review signals tied to authenticated customer accounts.",
       "Centralised moderation with policy enforcement on every widget.",
       "Real-time trust visibility on product, pricing, and checkout pages.",
-      "Consistent reputation display — same data, same brand, every site.",
+      "Consistent reputation display. Same data, same brand, every site.",
       "Cross-site review consistency that holds up under public scrutiny.",
     ],
     surface: "widget-preview",
   },
 
   trust: {
-    title: "Verified-review display infrastructure, built to scale.",
+    title: "Built for scale: Widgets across high-traffic sites",
     description:
-      "From single landing pages to global storefront ecosystems, Tellacity widgets are designed to deliver verified review data consistently across high-traffic environments. Every widget is optimised for lightweight delivery, centralised management, and live synchronisation across multiple sites and teams.",
+      "From single landing pages to global storefront ecosystems, Tellacity widgets deliver verified review data consistently across high-traffic environments. Every embed is performance-friendly, edge-cached, and centrally managed, so trust signals stay live without burning your page speed budget.",
     stats: [
       { value: "Live", label: "Widget feed" },
       { value: "1-tag", label: "Drop-in install" },
@@ -261,9 +284,9 @@ const content: SolutionPageContent = {
 
   platforms: {
     kicker: "Built for modern websites",
-    title: "Drop into any frontend stack without slowing it down.",
+    title: "Built for modern websites (any frontend stack)",
     description:
-      "Tellacity widgets are designed to integrate cleanly into modern frontend stacks without compromising speed, accessibility, or visual consistency. The same single snippet works across stacks and ships only what each page needs.",
+      "Tellacity widgets integrate cleanly into modern frontend stacks without compromising speed, accessibility, or visual consistency. The same single snippet works across stacks and ships only what each page needs.",
     frameworks: [
       { name: "HTML", icon: "🧾" },
       { name: "React", icon: "⚛" },
@@ -287,9 +310,9 @@ const content: SolutionPageContent = {
 
   controlPlane: {
     kicker: "One dashboard, every widget",
-    title: "Configure once. Deploy everywhere.",
+    title: "One dashboard, every widget",
     description:
-      "All Tellacity widgets share one control plane. Update branding, layouts, review rules, or moderation policies in the dashboard and every embed across every site reflects the change in real time — no redeploys, no per-site code changes, no drift.",
+      "All Tellacity widgets share one centralised control plane. Update branding, layouts, review rules, or moderation policies in the dashboard and every embed on every site reflects the change in real time. No redeploys, no per-site code changes, no drift.",
     tagline: "Configure once. Deploy everywhere.",
     capabilities: [
       {
@@ -314,7 +337,7 @@ const content: SolutionPageContent = {
         icon: "🔄",
         title: "Live updates",
         description:
-          "Configuration changes propagate to live widgets immediately — no redeploys, no cache busting.",
+          "Configuration changes propagate to live widgets immediately, with no redeploys and no cache busting.",
       },
       {
         icon: "🛡",
@@ -339,9 +362,9 @@ const content: SolutionPageContent = {
 
   outcomes: {
     kicker: "Designed for conversion",
-    title: "Trust placed where decisions actually happen.",
+    title: "Designed for conversion: Trust at the point of decision",
     description:
-      "Trust works best when customers see it during decision-making moments. Tellacity widgets place verified customer feedback directly inside product pages, pricing flows, and conversion paths where reputation has the highest impact.",
+      "Trust works best when customers see it during decision-making moments. Tellacity widgets place verified customer feedback directly inside product pages, pricing flows, and conversion paths, where on-page reputation has the highest conversion-driven impact.",
     items: [
       {
         icon: "💳",
@@ -377,7 +400,7 @@ const content: SolutionPageContent = {
         icon: "🔎",
         title: "Surface real customer experience",
         description:
-          "Live, recent, authenticated reviews — not stale testimonials picked years ago.",
+          "Live, recent, authenticated reviews, not stale testimonials picked years ago.",
       },
     ],
   },
@@ -408,6 +431,10 @@ const content: SolutionPageContent = {
         "Surface product-level reviews and verified customer photos in the same widget.",
     },
   ],
+
+  faqSectionTitle: "Common questions about review widgets",
+  faqSectionDescription:
+    "Short answers to the most common questions about Tellacity's live, verified review widgets and how they integrate into modern websites.",
 
   faqs: [
     {
@@ -443,7 +470,7 @@ const content: SolutionPageContent = {
     {
       question: "Can I display only verified reviews?",
       answer:
-        "Yes. Widgets can be configured to show only verified reviews — those tied to authenticated customer accounts or proof-of-purchase signals — so visitors see only the most credible feedback.",
+        "Yes. Widgets can be configured to show only verified reviews (those tied to authenticated customer accounts or proof-of-purchase signals) so visitors see only the most credible feedback.",
     },
     {
       question: "Can widgets be filtered by product or location?",
@@ -493,14 +520,14 @@ const content: SolutionPageContent = {
   ],
 };
 
-const productJsonLd = {
+const softwareJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Tellacity Review Widgets",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "Verified-review display infrastructure for modern websites. Embed live, brand-matched, accessible review widgets on product, pricing, and checkout pages with one snippet.",
+    "Show live, verified customer reviews directly on storefronts, product pages, pricing, checkout, and marketing pages using lightweight, embeddable widgets.",
   brand: { "@type": "Organization", name: "Tellacity" },
   url: "https://tellacity.com/solutions/review-widgets",
   offers: {
@@ -508,6 +535,7 @@ const productJsonLd = {
     price: "0",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
+    url: "https://tellacity.com/business/signup",
   },
 };
 
@@ -539,40 +567,46 @@ const breadcrumbJsonLd = {
 const howToJsonLd = {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  name: "How to install a Tellacity review widget on your website",
+  name: "How Tellacity review widgets turn verified reviews into live trust signals",
   description:
-    "Add live, verified Tellacity review widgets to any page in five steps using a single snippet of JavaScript.",
+    "The six-step pipeline that turns verified customer reviews into live, on-page trust signals across every Tellacity widget placement.",
   totalTime: "PT5M",
   step: [
     {
       "@type": "HowToStep",
       position: 1,
-      name: "Open the Tellacity dashboard",
-      text: "Sign in to your Tellacity business dashboard and open the Widgets section.",
+      name: "Reviews collected in Tellacity",
+      text: "Verified reviews flow in from invitations, profile submissions, and authenticated review forms. Every review is tied to a real customer record.",
     },
     {
       "@type": "HowToStep",
       position: 2,
-      name: "Pick a widget layout",
-      text: "Choose the layout — rating badge, carousel, sidebar list, floating button, or product block — and configure brand colours and review filters.",
+      name: "Reviews verified and moderated",
+      text: "Identity checks, proof-of-purchase signals, and policy moderation run automatically before reviews are eligible to display in a widget.",
     },
     {
       "@type": "HowToStep",
       position: 3,
-      name: "Copy the install snippet",
-      text: "Copy the single-line JavaScript snippet generated by the dashboard for that widget.",
+      name: "Widget feed updates automatically",
+      text: "Approved reviews enter the live widget feed; trust score, count, and recent reviews refresh within a minute, with no redeploys.",
     },
     {
       "@type": "HowToStep",
       position: 4,
-      name: "Paste the snippet into your site",
-      text: "Paste the snippet into your site's HTML before the closing </body> tag. Works in plain HTML, React, Next.js, Shopify, WordPress, Webflow, Wix, and custom stacks.",
+      name: "Widgets sync across all websites",
+      text: "The same snippet on every domain, storefront, and landing page reads from the same centralised feed, so trust signals stay consistent everywhere.",
     },
     {
       "@type": "HowToStep",
       position: 5,
-      name: "Publish and watch it update live",
-      text: "Save and publish the page. The widget renders on load and stays synchronised with your Tellacity dashboard — new reviews and moderation changes appear automatically.",
+      name: "Customers see live trust signals",
+      text: "Visitors see verified social proof on product, pricing, cart, and checkout pages, exactly where buying decisions are made.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 6,
+      name: "Analytics and engagement tracked",
+      text: "Impressions, clicks, conversions, and engagement metrics flow back into the Tellacity dashboard for every widget placement.",
     },
   ],
 };
@@ -585,7 +619,9 @@ export default function ReviewWidgetsSolutionPage() {
         <>
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(softwareJsonLd),
+            }}
           />
           <script
             type="application/ld+json"

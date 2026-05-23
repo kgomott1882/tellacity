@@ -3,37 +3,36 @@ import SolutionPageLayout, {
 } from "@/components/solutions/SolutionPageLayout";
 
 export const metadata = {
-  title:
-    "Photo Uploads | Verified Visual Customer Proof Infrastructure | Tellacity",
+  title: "Photo Uploads for Verified Visual Feedback | Tellacity",
   description:
-    "Tellacity Photo Uploads is a structured visual customer proof and verified feedback infrastructure — moderated photos, product attribution, threaded conversations, and visual reputation insights in one operational system.",
+    "Turn customer photos into verified visual proof with structured feedback, product attribution, and automated moderation. Show real customer experiences to build trust and improve SEO. Start free.",
   alternates: {
     canonical: "https://tellacity.com/solutions/photo-uploads",
   },
   openGraph: {
-    title: "Photo Uploads | Tellacity",
+    title: "Photo Uploads for Verified Visual Feedback | Tellacity",
     description:
-      "Structured visual customer proof — verified uploads, automatic moderation, product attribution, and visual reputation insights in one platform.",
+      "Turn customer photos into verified visual proof with structured feedback, product attribution, and automated moderation. Show real customer experiences to build trust and improve SEO.",
     url: "https://tellacity.com/solutions/photo-uploads",
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Photo Uploads | Tellacity",
+    title: "Photo Uploads for Verified Visual Feedback | Tellacity",
     description:
-      "Verified visual customer proof infrastructure — moderated photos, product attribution, and visual reputation insights.",
+      "Verified, moderated photo uploads with product attribution and ImageObject schema for SEO-ready visual proof.",
   },
 };
 
 const content: SolutionPageContent = {
   kicker: "Photo Uploads",
   headline: {
-    lead: "Real photos.",
-    accent: "Real feedback. Real proof.",
+    lead: "Photo Uploads for",
+    accent: "Verified Visual Feedback",
   },
   valueProp:
-    "Tellacity combines verified customer photos, structured review content, product attribution, threaded follow-ups, and moderation systems into one unified visual feedback workflow. Capture authentic customer experiences at the moment they happen — then transform them into trusted public proof, actionable operational insights, and richer reputation signals across your business profile.",
+    "Tellacity combines verified customer photos, structured review content, product attribution, threaded follow-ups, and moderation systems into one unified visual feedback workflow. Capture authentic customer experiences at the moment they happen, then transform them into trusted public proof, actionable operational insights, and richer reputation signals across your business profile.",
   primaryCta: { label: "Start free", href: "/business/signup" },
   secondaryCta: { label: "Open dashboard", href: "/business/dashboard" },
   heroImage: {
@@ -49,38 +48,50 @@ const content: SolutionPageContent = {
     "SEO-ready visual proof",
   ],
 
+  problemSectionKicker: "The challenge",
+  problemSectionTitle: "Why most teams struggle with visual feedback",
+  problemSectionDescription:
+    "Verified visual feedback only builds trust when uploads, structured reviews, product attribution, and moderation all live in one centralised system. Without that, the same operational blind spots keep showing up where buyer confidence is decided.",
+
   problems: [
     {
+      icon: "📝",
       title: "Text-only reviews leave doubt",
       description:
         "Without visual proof, prospective customers wonder whether a review reflects reality. Photos turn a paragraph of text into something a buyer can verify with their own eyes.",
     },
     {
+      icon: "⭐",
       title: "Star ratings hide what's actually going on",
       description:
-        "A 4.2 average can mean almost everyone is happy — or that you have very polarised customers. Without structured content behind the score, you can't tell the difference.",
+        "A 4.2 average can mean almost everyone is happy, or that you have very polarised customers. Without structured content behind the score, you can't tell the difference.",
     },
     {
+      icon: "📭",
       title: "Great photos and product-level signal get lost",
       description:
         "Customers send brilliant photos by email, WhatsApp, and DM, and product-specific feedback gets buried under business-level scores. Almost none of it ever reaches your public profile.",
     },
     {
+      icon: "📷",
       title: "Customers trust visuals more than text alone",
       description:
         "Modern buyers increasingly rely on visual proof before making decisions. Text-only reviews often lack the credibility customers need to feel confident.",
     },
     {
+      icon: "🧷",
       title: "Valuable customer content stays fragmented",
       description:
         "Photos, screenshots, videos, and customer feedback are often scattered across emails, social media, messaging apps, and support tickets instead of centralised in one review system.",
     },
     {
+      icon: "🗃️",
       title: "Businesses struggle to organise visual feedback",
       description:
         "Without structured attribution and moderation workflows, businesses cannot reliably connect customer photos to products, services, locations, or operational issues.",
     },
     {
+      icon: "🚫",
       title: "Unmoderated uploads create trust risks",
       description:
         "Without moderation systems, visual uploads can introduce spam, abuse, privacy issues, and off-policy content into public business profiles.",
@@ -88,9 +99,9 @@ const content: SolutionPageContent = {
   ],
 
   solution: {
-    title: "Verified photos and structured feedback in one review form.",
+    title: "How Tellacity turns photos into structured visual proof",
     description:
-      "Every Tellacity review is a structured record — title, body, rating, optional product, and customer photos that pass automatic moderation. Customers prove what happened, your team gets ready-to-act feedback, and everything publishes straight to your verified business profile.",
+      "Every Tellacity review is a structured record with a title, body, rating, optional product attribution, and EXIF-stripped customer photos that pass automated moderation. Customers prove what happened, your team gets ready-to-act feedback, and everything publishes straight to your verified business profile.",
     bullets: [
       "Multiple photos per review with drag-and-drop on web and mobile.",
       "Title, full body, rating, and optional product or service attribution.",
@@ -107,47 +118,57 @@ const content: SolutionPageContent = {
 
   workflow: {
     kicker: "How the visual review system works",
-    title: "Every customer photo flows through one structured lifecycle.",
+    title: "How the visual review system works",
     description:
-      "Visual reviews on Tellacity are not loose attachments — they move through a documented operational pipeline from submission to publication, with verification, moderation, attribution, and reputation reporting at every stage.",
+      "Visual reviews on Tellacity are not loose attachments. They move through a documented operational pipeline from submission to publication, with verification, moderation, product attribution, and reputation reporting at every stage.",
     steps: [
       {
         icon: "📝",
         title: "Customer submits review",
         description:
-          "Verified customers complete a structured review form — title, body, rating, optional product, and photos — from web or mobile.",
+          "Verified customers complete a structured review form (title, body, rating, optional product, and photos) from web or mobile. A structured form is what makes the feedback easy to search, slice, and report on later.",
       },
       {
         icon: "📷",
         title: "Photos uploaded & verified",
         description:
-          "Uploads are tied to the customer account, with EXIF and GPS metadata stripped and originating device fingerprints checked.",
+          "Uploads are tied to the customer account, with EXIF and GPS metadata stripped and originating device fingerprints checked. Verified uploads tied to real accounts are what make visual proof defensible against fraud.",
       },
       {
         icon: "🛡",
         title: "Automated moderation runs",
         description:
-          "Every photo passes through NSFW, malware, size, format, duplicate, and policy checks before it can be published.",
+          "Every photo passes through NSFW, malware, size, format, duplicate, and policy checks before it can be published. EXIF-stripped, moderated uploads help Google and LLMs see your images as safe, trustworthy, and product-relevant.",
       },
       {
         icon: "🛒",
         title: "Review linked to product/service",
         description:
-          "Reviews are attributed to the right product, service, location, or branch so visual proof is searchable and actionable.",
+          "Reviews are attributed to the right product, service, location, or branch so visual proof is searchable and actionable. Product attribution is what turns a generic photo into a buying-decision asset for the right SKU.",
       },
       {
         icon: "✅",
         title: "Approved content published",
         description:
-          "Cleared photos publish to your verified business profile gallery and into widgets — with the review thread fully intact.",
+          "Cleared photos publish to your verified business profile gallery and into widgets, with the review thread fully intact. Published, threaded visual reviews are what build cumulative social proof across every touchpoint.",
       },
       {
         icon: "📊",
         title: "Analytics & reputation signals updated",
         description:
-          "Every approved upload flows into reputation analytics and SEO-ready image schema for richer search snippets.",
+          "Every approved upload flows into reputation analytics and SEO-ready ImageObject schema for richer search snippets. Structured image schema is what makes your visual reputation citable for both search engines and AI systems.",
       },
     ],
+  },
+
+  featuresSectionKicker: "Built into the dashboard",
+  featuresSectionTitle: "Key visual feedback features at a glance",
+  featuresSectionDescription:
+    "Every capability below is part of the live Tellacity business dashboard and is available the moment you claim your profile. Built for centralised visual reputation across verified uploads, product attribution, moderated images, and SEO-friendly ImageObject schema.",
+
+  featuresImage: {
+    src: "/brand/Multimedia%20Hub.jpeg",
+    alt: "Tellacity photo uploads workspace with multi-photo review submissions, moderation, and product attribution",
   },
 
   features: [
@@ -239,9 +260,9 @@ const content: SolutionPageContent = {
 
   verifiedTrust: {
     kicker: "Why verified visual feedback matters",
-    title: "Move customers from uncertainty to confidence.",
+    title: "Why verified visual feedback matters",
     description:
-      "Visual customer proof helps buyers move from uncertainty to confidence. Tellacity combines verified customer accounts, structured review data, moderated uploads, and product attribution to create more trustworthy public feedback systems.",
+      "Verified uploads are what turn customer photos into authentic, search-friendly proof rather than anonymous attachments. Moderated images are what make those photos trustworthy and policy-compliant before they ever reach a public profile. And ImageObject schema with descriptive alt text is what turns visual feedback into richer image snippets and AI-citable content.",
     bullets: [
       "Verified customer uploads tied to authenticated accounts.",
       "Moderated visual content cleared before it appears publicly.",
@@ -254,9 +275,9 @@ const content: SolutionPageContent = {
   },
 
   trust: {
-    title: "Visual review infrastructure, built for scale.",
+    title: "Built for scale: Visual review infrastructure at scale",
     description:
-      "From single storefronts to multi-location brands, Tellacity Photo Uploads are designed to support high-volume visual review collection without sacrificing moderation quality, customer privacy, or operational visibility.",
+      "From single storefronts to multi-location brands, Tellacity Photo Uploads support high-volume verified visual review collection without sacrificing moderation quality, customer privacy, or operational visibility. Every EXIF-stripped, product-attributed upload feeds the same centralised visual reputation pipeline.",
     stats: [
       { value: "Verified", label: "Reviewer & photo origin" },
       { value: "Auto-moderated", label: "Before publish" },
@@ -268,9 +289,9 @@ const content: SolutionPageContent = {
 
   controlPlane: {
     kicker: "One structured feedback system",
-    title: "Every photo, every review — one unified system.",
+    title: "One structured feedback system: Every photo, every review",
     description:
-      "Every Tellacity photo upload becomes part of a structured review system designed for moderation, transparency, analytics, and long-term customer trust — not a stand-alone attachment.",
+      "Every Tellacity photo upload becomes part of a structured review system designed for moderation, transparency, analytics, and long-term customer trust, not a stand-alone attachment. One centralised system means every photo carries the same schema, attribution, and policy controls.",
     tagline: "One system. Every visual review.",
     capabilities: [
       {
@@ -301,7 +322,7 @@ const content: SolutionPageContent = {
         icon: "📐",
         title: "Structured review schema",
         description:
-          "Title, body, rating, attribution, and media live in one consistent record — easy to search, slice, and report.",
+          "Title, body, rating, attribution, and media live in one consistent record that is easy to search, slice, and report.",
       },
       {
         icon: "💬",
@@ -313,16 +334,16 @@ const content: SolutionPageContent = {
         icon: "🔄",
         title: "Synchronised reputation workflows",
         description:
-          "Visual reviews feed analytics, widgets, and reputation dashboards — same dataset, one source of truth.",
+          "Visual reviews feed analytics, widgets, and reputation dashboards from the same dataset, one source of truth.",
       },
     ],
   },
 
   decisions: {
     kicker: "Designed for customer trust",
-    title: "Customers trust experiences they can actually see.",
+    title: "Designed for customer trust",
     description:
-      "Tellacity visual reviews help businesses replace generic testimonials with authentic customer proof connected to real products, services, and experiences — the kind of evidence buyers actually act on.",
+      "Customers trust experiences they can actually see. Tellacity visual reviews replace generic testimonials with verified, moderated, product-attributed customer proof, the kind of evidence buyers actually act on.",
     items: [
       {
         icon: "🖼",
@@ -371,9 +392,9 @@ const content: SolutionPageContent = {
 
   teams: {
     kicker: "Designed for modern teams",
-    title: "A visual customer intelligence platform, every team can use.",
+    title: "Designed for modern teams",
     description:
-      "Tellacity Photo Uploads isn't just a feature for marketing. Support, operations, marketing, leadership, moderation, and product teams all work from the same structured visual feedback dataset.",
+      "Tellacity Photo Uploads isn't just a feature for marketing. Support, operations, marketing, leadership, moderation, and product teams all work from the same centralised, structured visual feedback dataset.",
     audiences: [
       {
         icon: "🛠",
@@ -416,9 +437,9 @@ const content: SolutionPageContent = {
 
   outcomes: {
     kicker: "More than photo uploads",
-    title: "From scattered attachments to structured visual reputation.",
+    title: "More than photo uploads: Structured visual reputation",
     description:
-      "Tellacity Photo Uploads transforms customer media from scattered attachments into structured visual reputation infrastructure — measurable, defensible, and aligned across the business.",
+      "Tellacity Photo Uploads transforms customer media from scattered attachments into structured visual reputation infrastructure that is measurable, defensible, and aligned across the business. Verified, moderated, product-attributed photos compound into long-term, SEO-friendly trust signals.",
     items: [
       {
         icon: "🛡",
@@ -466,7 +487,7 @@ const content: SolutionPageContent = {
         icon: "🌟",
         title: "Surface authentic customer experiences",
         description:
-          "Real moments stay visible to future buyers — turning customer satisfaction into long-term proof.",
+          "Real moments stay visible to future buyers, turning customer satisfaction into long-term proof.",
       },
     ],
   },
@@ -497,6 +518,10 @@ const content: SolutionPageContent = {
         "Reply, hide, or escalate any flagged photo or review from one queue.",
     },
   ],
+
+  faqSectionTitle: "Common questions about photo uploads",
+  faqSectionDescription:
+    "Short answers to the most common questions about Tellacity's verified, moderated photo uploads and how they turn customer images into structured visual reputation.",
 
   faqs: [
     {
@@ -582,14 +607,14 @@ const content: SolutionPageContent = {
   ],
 };
 
-const productJsonLd = {
+const softwareJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Tellacity Photo Uploads",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "Structured visual customer proof infrastructure — verified customer photos, automatic moderation, product attribution, threaded follow-ups, and visual reputation insights in one platform.",
+    "Capture verified customer photos, product-attributed reviews, and moderated visual feedback that feed into Google image snippets, widgets, and analytics.",
   brand: { "@type": "Organization", name: "Tellacity" },
   url: "https://tellacity.com/solutions/photo-uploads",
   offers: {
@@ -597,6 +622,7 @@ const productJsonLd = {
     price: "0",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
+    url: "https://tellacity.com/business/signup",
   },
 };
 
@@ -628,9 +654,9 @@ const breadcrumbJsonLd = {
 const howToJsonLd = {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  name: "How the Tellacity visual review system works",
+  name: "How Tellacity turns customer photos into structured visual feedback",
   description:
-    "Tellacity Photo Uploads processes every customer photo through a six-stage operational lifecycle — submission, verification, moderation, attribution, publication, and reputation reporting.",
+    "Tellacity Photo Uploads processes every customer photo through a six-stage operational lifecycle: submission, verification, moderation, attribution, publication, and reputation reporting.",
   totalTime: "PT5M",
   step: [
     {
@@ -680,7 +706,9 @@ export default function PhotoUploadsSolutionPage() {
         <>
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(softwareJsonLd),
+            }}
           />
           <script
             type="application/ld+json"

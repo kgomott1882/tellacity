@@ -11,7 +11,7 @@ type PageProps = {
   params: Promise<{ category_slug: string }>;
   searchParams?: Promise<{ page?: string; country?: string }>;
 };
-/** Cap tag scan per request — avoids heavy reads on huge categories. */
+/** Cap tag scan per request. Avoids heavy reads on huge categories. */
 const TAG_FETCH_LIMIT = 500;
 const GLOBAL_TAG_FALLBACK_LIMIT = 400;
 function getSupabase(): SupabaseClient | null {

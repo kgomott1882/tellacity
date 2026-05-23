@@ -310,7 +310,7 @@ export default function WriteReviewItemContent({
   const validateCoreFields = useCallback((): string | null => {
     if (!ctx) return "Missing context.";
     if (ctx.canSubmitItemReview === false) {
-      return "Publish this photo first — product reviews go live only for published photos.";
+      return "Publish this photo first. Product reviews go live only for published photos.";
     }
     if (rating < 1 || rating > 5) return "Pick a star rating.";
     if (!body.trim()) return "Please write your review.";

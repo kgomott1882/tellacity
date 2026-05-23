@@ -241,7 +241,7 @@ export default function CategoryClient({
   const [computedCount, setComputedCount] = useState<number>(companyCount ?? 0);
   const [computedHasNext, setComputedHasNext] = useState<boolean>(hasNextPage ?? false);
   // `_isRoutingPagination` intentionally unused: we no longer disable pagination
-  // buttons on the pending flag — that was the root cause of "have to click a
+  // buttons on the pending flag. That was the root cause of "have to click a
   // few times". The transition is still used so the route push is non-blocking.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_isRoutingPagination, startPaginationTransition] = useTransition();
@@ -286,7 +286,7 @@ export default function CategoryClient({
     () => listingPageIndexFromSearch(new URLSearchParams(searchParams.toString())),
     [searchParams],
   );
-  /** Page index the UI should treat as "current" — user's intent first, URL as fallback. */
+  /** Page index the UI should treat as "current". User's intent first, URL as fallback. */
   const effectivePageIndex = pendingPageIndex ?? listingPageIndex;
   const queryCountry = searchParams.get("country");
   // URL + server-provided country only during render to avoid hydration mismatch.
@@ -965,7 +965,7 @@ export default function CategoryClient({
                     <span>
                       <span className="block font-medium text-gray-900">Leaderboard (highest rated)</span>
                       <span className="block text-xs text-gray-500">
-                        Star average first, then review count — same ordering as the category directory in Supabase.
+                        Star average first, then review count. Same ordering as the category directory in Supabase.
                       </span>
                     </span>
                   </button>

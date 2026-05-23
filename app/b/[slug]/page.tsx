@@ -188,7 +188,7 @@ export default async function BusinessPage({
       .eq("status", "published")
       // Publish-first visibility: rows are live as soon as the owner
       // publishes them, and an admin `Reject` / `Flag` flips `is_live`
-      // back to false to pull them down. RLS also enforces this — the
+      // back to false to pull them down. RLS also enforces this; the
       // explicit filter lets the planner use
       // `business_photos_public_live_idx` and documents the intent.
       .eq("is_live", true)
@@ -340,7 +340,7 @@ export default async function BusinessPage({
   );
 
   // The canonical URL for any active row is its own `business.slug`.
-  // No redirect is performed when the row is already loaded — even if the
+  // No redirect is performed when the row is already loaded, even if the
   // requested URL slug differs (e.g. case mismatch), the canonical
   // <link rel="canonical"> in <head> tells Google which URL to index.
   // Multi-location chain rows (e.g. Greenleaf Tobacco & Vape across

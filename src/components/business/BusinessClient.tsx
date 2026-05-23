@@ -1605,7 +1605,7 @@ export default function BusinessClient({
             </div>
 
               <div className="mt-10 space-y-6 text-sm text-gray-600">
-                {/* Company description — owner text only; no SEO filler or category fallback */}
+                {/* Company description. Owner text only; no SEO filler or category fallback */}
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-base font-semibold text-[#0E0E0E]">
                     Company description

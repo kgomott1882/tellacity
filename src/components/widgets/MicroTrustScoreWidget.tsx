@@ -37,7 +37,7 @@ function StarSVG({ size, color }: { size: number; color: string }) {
   );
 }
 
-/** Tellacity tier block stars — compact for ~20–24px row height (Micro TrustScore). */
+/** Tellacity tier block stars. Compact for around 20 to 24px row height (Micro TrustScore). */
 function ScoreStarBlock({
   fill,
   tierColor,
@@ -122,7 +122,7 @@ function trustWordForRating(rating: number, hasStats: boolean): string {
 
 /**
  * Trustpilot-style Micro TrustScore: one short word, “X.X out of 5”, Tellacity block stars, Trust Stacked mark.
- * Transparent, ~20–25px row — for headers and tight footers.
+ * Transparent, around 20 to 25px row. For headers and tight footers.
  */
 export default function MicroTrustScoreWidget({
   payload,
@@ -138,7 +138,7 @@ export default function MicroTrustScoreWidget({
   const rating = Number.isFinite(raw) ? Math.min(5, Math.max(0, raw)) : 0;
   const reviewCount = Math.max(0, Math.floor(Number(payload.review_count) || 0));
   const hasStats = reviewCount > 0 && rating > 0;
-  const display = hasStats ? rating.toFixed(1) : "—";
+  const display = hasStats ? rating.toFixed(1) : "0.0";
 
   const roundedTier = Math.max(0, Math.min(5, Math.round(rating)));
   const tierColor =

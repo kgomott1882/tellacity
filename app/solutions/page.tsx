@@ -83,7 +83,7 @@ const SOLUTIONS: SolutionCard[] = [
     title: "Photo Uploads",
     href: "/solutions/photo-uploads",
     description:
-      "Verified customer photos and structured feedback — title, rating, product attribution, and follow-ups — published to your profile.",
+      "Verified customer photos and structured feedback (title, rating, product attribution, and follow-ups) published to your profile.",
     image: {
       src: "/brand/Gallery%20Photos.png",
       alt: "Tellacity review photos and structured feedback on a verified profile",
@@ -98,7 +98,19 @@ export default function SolutionsHubPage() {
       <section className="w-full bg-[#1a1a1a]">
         <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-wider text-gray-400">
+            <Link
+              href="/reputation-platform"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-300 transition-colors hover:border-[#1FAF9E]/50 hover:text-white"
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+                aria-hidden
+              />
+              Part of the Tellacity Reputation Platform
+              <span aria-hidden>→</span>
+            </Link>
+            <p className="mt-4 text-sm font-medium uppercase tracking-wider text-gray-400">
               The Tellacity platform
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
@@ -110,7 +122,7 @@ export default function SolutionsHubPage() {
             <p className="mt-4 text-base leading-relaxed text-gray-300">
               Tellacity is built for businesses that take customer feedback
               seriously. Every solution below ships as part of the same
-              dashboard — no add-ons, no glue code, no separate logins.
+              dashboard, with no add-ons, no glue code, and no separate logins.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -171,6 +183,35 @@ export default function SolutionsHubPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="w-full border-t border-gray-100 bg-[#F8FAFC]">
+        <div className="mx-auto w-full max-w-5xl px-6 py-14 md:py-16">
+          <div className="rounded-3xl border border-[#1FAF9E]/20 bg-white p-8 text-center shadow-[0_22px_60px_rgba(31,175,158,0.08)]">
+            <p
+              className="text-sm font-medium uppercase tracking-wider"
+              style={{ color: ACCENT }}
+            >
+              The Tellacity Reputation Platform
+            </p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#0E0E0E] sm:text-3xl">
+              See how every solution works together
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
+              Review invitations, widgets, analytics, reputation management,
+              and photo uploads are five modules on one verified review
+              infrastructure. The Reputation Platform hub explains how they
+              connect and how teams use them together.
+            </p>
+            <Link
+              href="/reputation-platform"
+              className="mt-6 inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_rgba(251,191,36,0)] transition-all duration-300 hover:shadow-[0_0_20px_rgba(251,191,36,0.6),0_0_40px_rgba(251,191,36,0.3)] active:scale-[0.98]"
+              style={{ backgroundColor: ACCENT_BG }}
+            >
+              Explore the Reputation Platform →
+            </Link>
           </div>
         </div>
       </section>

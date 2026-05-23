@@ -71,7 +71,7 @@ export default function RecentReviewCard({
       : hasProductPhotoId && titleTrim.length > 0
         ? titleTrim
         : "";
-  /** Item reviews often set `title` to the product name — avoid "Product: X" + bold "X". */
+  /** Item reviews often set `title` to the product name. Avoid "Product: X" + bold "X". */
   const titleDuplicatesProduct =
     productLabelForDisplay.length > 0 &&
     titleTrim.length > 0 &&

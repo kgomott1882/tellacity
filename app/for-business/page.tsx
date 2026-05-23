@@ -175,7 +175,7 @@ export default function ForBusinessPage() {
               {
                 title: "Business Profile Infrastructure",
                 copy:
-                  "Maintain a structured public business profile that supports long-term trust. Upload and organize business photos from your dashboard—then showcase them on your public profile so customers see the real you.",
+                  "Maintain a structured public business profile that supports long-term trust. Upload and organize business photos from your dashboard, then showcase them on your public profile so customers see the real you.",
               },
             ].map((item) => (
               <div

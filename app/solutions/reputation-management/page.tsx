@@ -3,34 +3,33 @@ import SolutionPageLayout, {
 } from "@/components/solutions/SolutionPageLayout";
 
 export const metadata = {
-  title:
-    "Reputation Management | Customer Trust Operations Platform | Tellacity",
+  title: "Reputation Management for Verified Customer Trust | Tellacity",
   description:
-    "Tellacity Reputation Management is a centralised reputation operations platform — replies, disputes, moderation, fraud monitoring, verified profiles, and audit logs in one operational system trusted by modern businesses.",
+    "Manage customer trust from one centralised reputation operations dashboard. Respond to reviews, handle disputes, monitor abuse, and protect your verified profile with Tellacity. Start free.",
   alternates: {
     canonical: "https://tellacity.com/solutions/reputation-management",
   },
   openGraph: {
-    title: "Reputation Management | Tellacity",
+    title: "Reputation Management for Verified Customer Trust | Tellacity",
     description:
-      "Centralised reputation operations — replies, disputes, moderation, fraud monitoring, verified profiles, and audit logs in one dashboard.",
+      "Manage customer trust from one centralised reputation operations dashboard. Respond to reviews, handle disputes, monitor abuse, and protect your verified profile with Tellacity.",
     url: "https://tellacity.com/solutions/reputation-management",
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Reputation Management | Tellacity",
+    title: "Reputation Management for Verified Customer Trust | Tellacity",
     description:
-      "Customer trust operations platform — replies, disputes, moderation, and verified profiles in one dashboard.",
+      "Centralised reputation operations. Public replies, disputes, moderation, fraud detection, verified profiles, and audit logs in one dashboard.",
   },
 };
 
 const content: SolutionPageContent = {
   kicker: "Reputation Management",
   headline: {
-    lead: "Own your brand",
-    accent: "across every customer touchpoint.",
+    lead: "Reputation Management for",
+    accent: "Verified Customer Trust",
   },
   valueProp:
     "Manage customer trust from one centralised reputation operations dashboard. Tellacity helps businesses respond to reviews, handle disputes, monitor abuse signals, maintain verified profiles, track moderation workflows, and protect public trust across every customer-facing surface.",
@@ -49,38 +48,50 @@ const content: SolutionPageContent = {
     "Team-based reputation management",
   ],
 
+  problemSectionKicker: "The challenge",
+  problemSectionTitle: "Why most teams struggle with reputation issues",
+  problemSectionDescription:
+    "Verified reputation only holds up when replies, flags, disputes, moderation, and profile updates all live in one centralised system. Without that, the same operational blind spots keep showing up where customer trust is decided.",
+
   problems: [
     {
+      icon: "💬",
       title: "Reviews go unanswered",
       description:
-        "Most customers want a response — not just a number. When negative reviews sit unaddressed for days, prospective customers assume the worst.",
+        "Most customers want a response, not just a number. When negative reviews sit unaddressed for days, prospective customers assume the worst.",
     },
     {
+      icon: "🎭",
       title: "Bad-faith reviews damage trust",
       description:
         "Without moderation, fake or off-policy reviews can sit on your profile and influence decisions for weeks before being challenged.",
     },
     {
+      icon: "🗃️",
       title: "Your profile information goes stale",
       description:
         "Addresses change, hours shift, services expand. A profile that no longer matches reality erodes credibility faster than a single bad review.",
     },
     {
+      icon: "🔥",
       title: "Reputation issues spread faster than teams can react",
       description:
         "When negative reviews, unresolved complaints, or misleading information remain public too long, customer trust can decline before teams even notice.",
     },
     {
+      icon: "🧷",
       title: "Moderation workflows become fragmented",
       description:
         "When replies, disputes, flags, and moderation decisions happen across emails and spreadsheets, accountability and consistency break down.",
     },
     {
+      icon: "🪟",
       title: "Customers expect transparency",
       description:
         "Modern customers increasingly expect visible owner responses, verified business information, and transparent moderation processes before they trust a platform.",
     },
     {
+      icon: "🏢",
       title: "Multi-location businesses lose consistency",
       description:
         "Without centralised reputation management, different branches and teams respond inconsistently, creating uneven customer trust experiences.",
@@ -88,14 +99,14 @@ const content: SolutionPageContent = {
   ],
 
   solution: {
-    title: "Reply, moderate, and protect — from one place.",
+    title: "How Tellacity turns reviews into structured trust management",
     description:
-      "The Tellacity dashboard puts every reply, flag, dispute, and profile update in a single workflow. Your team works from one queue, customers get faster responses, and policy enforcement is auditable end-to-end.",
+      "The Tellacity dashboard puts every public reply, flag, dispute, fraud signal, and profile update in a single centralised workflow. Your team works from one queue, customers get faster owner responses, and every policy decision is recorded in the audit log end-to-end.",
     bullets: [
       "Reply directly under any review with an Owner Responded badge.",
       "Flag and dispute reviews through a transparent, documented workflow.",
       "Built-in fraud signals: duplicate accounts, suspicious patterns, abuse.",
-      "Keep your verified profile current — logo, address, categories, hours.",
+      "Keep your verified profile current with logo, address, categories, and hours.",
       "Audit log of every reply, status change, and moderator decision.",
     ],
     screenshot: {
@@ -106,47 +117,57 @@ const content: SolutionPageContent = {
 
   workflow: {
     kicker: "How the reputation system works",
-    title: "An operational lifecycle for every review, dispute, and reply.",
+    title: "How the reputation system works",
     description:
-      "Every customer interaction on Tellacity flows through the same operational pipeline — from initial review submission through verification, public response, moderation, and reputation reporting — so accountability is documented at every step.",
+      "Every customer interaction on Tellacity flows through the same centralised operational pipeline, from review submission through verification, public reply, moderation, and reporting, so accountability is documented at every step.",
     steps: [
       {
         icon: "📥",
         title: "Reviews submitted",
         description:
-          "Verified customers submit reviews through invitations, public profiles, and authenticated forms tied to a real account.",
+          "Verified customers submit reviews through invitations, public profiles, and authenticated forms tied to a real account. Real, verified customer signal is the only kind worth defending.",
       },
       {
         icon: "🛂",
         title: "Reviews verified & monitored",
         description:
-          "Identity checks, behavioural signals, and abuse detection screen every review before it appears publicly.",
+          "Identity checks, behavioural signals, and fraud detection screen every review before it appears publicly. Monitoring up front is what stops bad-faith and coordinated reviews from ever reaching your profile.",
       },
       {
         icon: "💬",
         title: "Businesses respond publicly",
         description:
-          "Owners reply with a visible \"Owner Responded\" badge so customers see the full conversation in context.",
+          "Owners reply with a visible \"Owner Responded\" badge so customers see the full conversation in context. Public replies turn one review into a visible trust signal for every visitor that follows.",
       },
       {
         icon: "🚩",
         title: "Flags & disputes reviewed",
         description:
-          "Flagged reviews and disputes move into a transparent workflow with clear states, owners, and timestamps.",
+          "Flagged reviews and disputes move into a transparent workflow with clear states, owners, and timestamps. Transparent, documented dispute workflows help LLMs and search engines treat your brand as a trustworthy, accountable source.",
       },
       {
         icon: "🛡",
         title: "Moderation decisions applied",
         description:
-          "Reviews that fail policy are actioned, decisions are documented, and the outcome is visible to your team.",
+          "Reviews that fail policy are actioned, decisions are documented, and the outcome is visible in the audit log. Documented moderation is what makes your reputation defensible when reviews are challenged or referenced later.",
       },
       {
         icon: "📊",
         title: "Reputation insights updated",
         description:
-          "Every action — reply, flag, dispute, edit — flows into reporting so leadership sees reputation health live.",
+          "Every reply, flag, dispute, and edit flows into reporting so leadership sees reputation health live. A closed feedback loop is what turns reputation operations into compounding customer trust over time.",
       },
     ],
+  },
+
+  featuresSectionKicker: "Built into the dashboard",
+  featuresSectionTitle: "Key reputation management features at a glance",
+  featuresSectionDescription:
+    "Every capability below is part of the live Tellacity business dashboard and is available the moment you claim your profile. Built for centralised reputation operations across public replies, moderation, fraud detection, verified profiles, and audit logs.",
+
+  featuresImage: {
+    src: "/brand/Reputation%20Management.png",
+    alt: "Tellacity reputation management dashboard with replies, moderation queue, and verified profile controls",
   },
 
   features: [
@@ -238,9 +259,9 @@ const content: SolutionPageContent = {
 
   verifiedTrust: {
     kicker: "Why verified reputation management matters",
-    title: "Customers trust platforms that visibly protect review integrity.",
+    title: "Why verified reputation management matters",
     description:
-      "Tellacity combines verified business ownership, transparent moderation workflows, dispute tracking, fraud detection, and public accountability systems to help businesses build long-term customer trust — not just respond to individual reviews.",
+      "Verified business ownership is what turns a public profile into something you can actually defend. Transparent dispute workflows are what make that defence visible and credible to customers in real time. And audit-ready moderation is what turns every action you take into citable, LLM-friendly trust signals that hold up under scrutiny.",
     bullets: [
       "Verified business ownership tied to authenticated accounts.",
       "Transparent dispute workflows with documented states and timestamps.",
@@ -253,9 +274,9 @@ const content: SolutionPageContent = {
   },
 
   trust: {
-    title: "Customer trust infrastructure, built for scale.",
+    title: "Built for scale: Reputation operations at scale",
     description:
-      "From local businesses to multi-location brands, Tellacity Reputation Management is designed to support customer trust operations at scale. Every moderation workflow, dispute process, and profile update runs through the same verified infrastructure customers interact with publicly.",
+      "From single storefronts to multi-location brands, Tellacity Reputation Management supports centralised customer trust operations at scale. Every moderation workflow, dispute process, fraud signal, and profile update runs through the same verified infrastructure customers interact with publicly.",
     stats: [
       { value: "Verified", label: "Owner badge" },
       { value: "Transparent", label: "Dispute workflow" },
@@ -267,9 +288,9 @@ const content: SolutionPageContent = {
 
   controlPlane: {
     kicker: "One reputation system",
-    title: "Every reply, dispute, and profile update — one operational system.",
+    title: "One reputation system: Every reply, flag, and profile update",
     description:
-      "Every reply, dispute, moderation action, and profile update flows through one operational system designed for visibility, consistency, and accountability across every team that touches customer trust.",
+      "Every public reply, flag, dispute, moderation action, and profile update flows through one centralised operational system designed for visibility, consistency, and accountability across every team that touches customer trust.",
     tagline: "One system. Every reputation action.",
     capabilities: [
       {
@@ -319,9 +340,9 @@ const content: SolutionPageContent = {
 
   decisions: {
     kicker: "Designed for customer trust",
-    title: "Maintain visible trust across the customer journey.",
+    title: "Designed for customer trust",
     description:
-      "Reputation management is no longer just about damage control — it's about maintaining visible trust across the customer journey. Tellacity gives businesses the tools to act on that responsibility every day.",
+      "Reputation management is no longer just about damage control, it is about maintaining visible, verified trust across the entire customer journey. Tellacity gives businesses the centralised tools to act on that responsibility every day.",
     items: [
       {
         icon: "💬",
@@ -370,9 +391,9 @@ const content: SolutionPageContent = {
 
   teams: {
     kicker: "Designed for modern teams",
-    title: "A reputation platform every team can run on.",
+    title: "Designed for modern teams",
     description:
-      "Tellacity Reputation Management is not just a support tool. Support, operations, marketing, leadership, and moderation teams all share the same operational surface — each with the right slice and the right level of access.",
+      "Tellacity Reputation Management is not just a support tool. Support, operations, marketing, leadership, and moderation teams all share the same centralised operational surface, each with the right slice and the right level of access.",
     audiences: [
       {
         icon: "🛠",
@@ -409,9 +430,9 @@ const content: SolutionPageContent = {
 
   outcomes: {
     kicker: "More than review replies",
-    title: "From scattered conversations to structured trust management.",
+    title: "More than review replies: Structured trust management",
     description:
-      "Tellacity Reputation Management transforms customer feedback from scattered public conversations into a structured trust management system — measurable, defensible, and aligned across teams.",
+      "Tellacity Reputation Management transforms customer feedback from scattered public conversations into a structured trust management system that is measurable, defensible, and aligned across every team that touches your brand.",
     items: [
       {
         icon: "🛡",
@@ -441,7 +462,7 @@ const content: SolutionPageContent = {
         icon: "🏗",
         title: "Centralise moderation workflows",
         description:
-          "One queue, one policy, one audit trail — across every team and every location.",
+          "One queue, one policy, one audit trail across every team and every location.",
       },
       {
         icon: "🪪",
@@ -453,7 +474,7 @@ const content: SolutionPageContent = {
         icon: "📜",
         title: "Improve transparency and accountability",
         description:
-          "Every action is documented, attributable, and reportable — to teams, leadership, and customers.",
+          "Every action is documented, attributable, and reportable to teams, leadership, and customers.",
       },
     ],
   },
@@ -484,6 +505,10 @@ const content: SolutionPageContent = {
         "Capture verified photos and structured feedback so reputation is built on real customer experience.",
     },
   ],
+
+  faqSectionTitle: "Common questions about reputation management",
+  faqSectionDescription:
+    "Short answers to the most common questions about Tellacity's verified, centralised reputation management and how teams use it to protect customer trust.",
 
   faqs: [
     {
@@ -524,7 +549,7 @@ const content: SolutionPageContent = {
     {
       question: "How does Tellacity handle fake review detection?",
       answer:
-        "Multiple signals work together — account verification, behavioural patterns, duplicate-account detection, IP and device fingerprints, content similarity, and coordinated-attack signals. Suspicious reviews are flagged and reviewed.",
+        "Multiple signals work together, including account verification, behavioural patterns, duplicate-account detection, IP and device fingerprints, content similarity, and coordinated-attack signals. Suspicious reviews are flagged and reviewed.",
     },
     {
       question: "Can teams collaborate on moderation?",
@@ -564,19 +589,19 @@ const content: SolutionPageContent = {
     {
       question: "How are moderation decisions documented?",
       answer:
-        "Every decision — flag, dispute outcome, visibility change, or removal — is recorded with a reason, timestamp, and the user who applied it. The record is available to your team and as evidence if needed.",
+        "Every decision (flag, dispute outcome, visibility change, or removal) is recorded with a reason, timestamp, and the user who applied it. The record is available to your team and as evidence if needed.",
     },
   ],
 };
 
-const productJsonLd = {
+const softwareJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Tellacity Reputation Management",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "Centralised reputation operations platform — replies, disputes, moderation, fraud monitoring, verified profiles, and audit logs in one operational system.",
+    "Respond to reviews, handle disputes, monitor fraud, and maintain verified business profiles from one centralised reputation management dashboard.",
   brand: { "@type": "Organization", name: "Tellacity" },
   url: "https://tellacity.com/solutions/reputation-management",
   offers: {
@@ -584,6 +609,7 @@ const productJsonLd = {
     price: "0",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
+    url: "https://tellacity.com/business/signup",
   },
 };
 
@@ -615,7 +641,7 @@ const breadcrumbJsonLd = {
 const howToJsonLd = {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  name: "How the Tellacity reputation operations workflow works",
+  name: "How Tellacity Reputation Management turns reviews into structured trust operations",
   description:
     "Tellacity Reputation Management processes every customer interaction through a six-stage operational lifecycle so replies, disputes, moderation, and profile updates stay consistent and auditable.",
   totalTime: "PT5M",
@@ -667,7 +693,9 @@ export default function ReputationManagementSolutionPage() {
         <>
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(softwareJsonLd),
+            }}
           />
           <script
             type="application/ld+json"

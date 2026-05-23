@@ -3,26 +3,25 @@ import SolutionPageLayout, {
 } from "@/components/solutions/SolutionPageLayout";
 
 export const metadata = {
-  title:
-    "Review Invitations | Verified Review Collection Infrastructure | Tellacity",
+  title: "Automated Verified Review Invitations for Businesses | Tellacity",
   description:
-    "Tellacity is a verified review operations platform. Send branded invitations after purchases, appointments, or services, run delivery + reminders + verification + attribution, and manage every review workflow from one centralised dashboard.",
+    "Automatically invite customers to leave verified, proof-of-purchase reviews. Turn every purchase into a trusted review with Tellacity's invitation engine. Start free.",
   alternates: {
     canonical: "https://tellacity.com/solutions/review-invitations",
   },
   openGraph: {
-    title: "Review Invitations | Tellacity",
+    title: "Automated Verified Review Invitations for Businesses | Tellacity",
     description:
-      "Verified review collection infrastructure — invitations, reminders, proof-of-purchase, attribution, and analytics from one dashboard.",
+      "Automatically invite customers to leave verified, proof-of-purchase reviews. Turn every purchase into a trusted review with Tellacity's invitation engine.",
     url: "https://tellacity.com/solutions/review-invitations",
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Review Invitations | Tellacity",
+    title: "Automated Verified Review Invitations for Businesses | Tellacity",
     description:
-      "Verified review collection infrastructure with delivery, verification, attribution, and analytics built in.",
+      "Verified, proof-of-purchase review invitations with delivery, verification, attribution, and analytics built in.",
   },
 };
 
@@ -33,12 +32,12 @@ const content: SolutionPageContent = {
     accent: "into a verified review.",
   },
   valueProp:
-    "Send branded review invitations automatically after purchases, appointments, or completed services. Tellacity handles delivery, reminders, verification, proof-of-purchase collection, and review attribution from one centralised dashboard. Built for businesses that need scalable, trustworthy review collection — not manual follow-ups and spreadsheets.",
+    "Send branded review invitations automatically after purchases, appointments, or completed services. Tellacity handles delivery, reminders, verification, proof-of-purchase collection, and review attribution from one centralised dashboard. Built for businesses that need scalable, trustworthy review collection, not manual follow-ups and spreadsheets.",
   primaryCta: { label: "Start free", href: "/business/signup" },
   secondaryCta: { label: "Open dashboard", href: "/business/dashboard" },
   heroImage: {
-    src: "/brand/Review%20Form.png",
-    alt: "Tellacity review invitation and submission form",
+    src: "/brand/Tellacity%20Dash.png",
+    alt: "Tellacity dashboard showing review invitations, delivery, and verification at a glance",
   },
 
   heroTrustStrip: [
@@ -49,33 +48,44 @@ const content: SolutionPageContent = {
     "Centralised invitation tracking",
   ],
 
+  problemSectionKicker: "The challenge",
+  problemSectionTitle: "Why most businesses lose reviews",
+  problemSectionDescription:
+    "Most reviews never get written, not because customers are unhappy, but because nothing prompts them. Without an automated, verified, centralised invitation flow, the same operational gaps keep showing up.",
+
   problems: [
     {
+      icon: "🤫",
       title: "Most happy customers never leave a review",
       description:
-        "Without a structured invitation, the customers who had a great experience usually move on quietly while the loudest voices dominate your public profile.",
+        "Without a structured invitation, satisfied customers move on quietly and the loudest voices dominate your public profile.",
     },
     {
+      icon: "🧮",
       title: "Manual outreach doesn't scale",
       description:
         "Asking for reviews by hand works for the first 10 customers and breaks at the hundredth. Spreadsheets and one-off emails create gaps and missed follow-ups.",
     },
     {
+      icon: "🕵️",
       title: "Reviews without proof feel risky",
       description:
-        "Without a verified transaction, every review is just a claim. Customers — and search engines — are increasingly looking for proof that a review is real.",
+        "Without a verified transaction, every review is just a claim. Customers and search engines are increasingly looking for proof that a review is real.",
     },
     {
+      icon: "⏰",
       title: "Reviews arrive too late",
       description:
-        "By the time a customer remembers to leave feedback, the experience is already cold. Delayed reviews reduce response rates and often overrepresent negative experiences.",
+        "By the time a customer remembers to leave feedback, the experience is cold. Delayed reviews reduce response rates and overrepresent negative experiences.",
     },
     {
+      icon: "🗺️",
       title: "Teams lose visibility across locations",
       description:
-        "When invitations are managed manually across branches or teams, businesses lose visibility into who was contacted, which customers responded, and where reputation gaps exist.",
+        "When invitations are managed manually across branches or teams, businesses lose visibility into who was contacted, who responded, and where reputation gaps exist.",
     },
     {
+      icon: "🧵",
       title: "No centralised workflow",
       description:
         "Without one system managing invitations, reminders, verification, and review status, customer feedback becomes fragmented across inboxes, spreadsheets, and teams.",
@@ -83,13 +93,13 @@ const content: SolutionPageContent = {
   ],
 
   solution: {
-    title: "A repeatable invitation flow that respects your customers.",
+    title: "How Tellacity turns every purchase into a verified review",
     description:
-      "Tellacity's invitation engine sends a short, branded request shortly after the customer interaction, attaches their order or receipt as proof, and follows up only when it's useful. Every invitation routes through one shared inbox you can manage from the dashboard.",
+      "Tellacity's invitation engine sends a short, branded request shortly after the customer interaction, attaches their order or receipt as proof, and follows up only when it's useful. Every invitation routes through one shared dashboard, so the whole team works from one centralised source of truth.",
     bullets: [
       "Branded email invitations with your logo, sender name, and reply-to.",
       "Shareable invitation links and QR codes for in-store, packaging, and receipts.",
-      "Optional proof-of-purchase upload — receipts, invoices, order IDs.",
+      "Optional proof-of-purchase upload for receipts, invoices, or order IDs.",
       "Smart reminders that respect unsubscribe and quiet hours.",
       "One dashboard view of who was invited, who reviewed, and who's pending.",
     ],
@@ -101,47 +111,57 @@ const content: SolutionPageContent = {
 
   workflow: {
     kicker: "How it works",
-    title: "From completed transaction to verified review — automatically.",
+    title: "How automated review invitations work",
     description:
-      "Every Tellacity invitation runs through the same six-stage pipeline so review collection is repeatable, auditable, and easy to operate at scale.",
+      "Every Tellacity invitation runs through the same six-stage pipeline, so review collection is repeatable, auditable, and easy to operate at scale.",
     steps: [
       {
         icon: "🛒",
         title: "Customer completes purchase",
         description:
-          "Trigger fires the moment an order, appointment, or service is marked complete in your dashboard or via API.",
+          "The trigger fires the moment an order, appointment, or service is marked complete in your dashboard or via API. Capturing the moment of intent is what makes invitations feel timely instead of cold outreach.",
       },
       {
         icon: "✉️",
         title: "Invitation automatically sent",
         description:
-          "A branded email — and optionally SMS — goes out within minutes, in the customer's language, from your verified sender.",
+          "A branded email (and optionally SMS) goes out within minutes, in the customer's language, from your verified sender. Automation removes the bottleneck of manual follow-ups so no completed transaction is forgotten.",
       },
       {
         icon: "✅",
         title: "Customer verifies experience",
         description:
-          "Verified reviewer accounts and optional proof-of-purchase confirm the review comes from a real customer interaction.",
+          "Verified reviewer accounts and optional proof-of-purchase confirm the review comes from a real customer interaction. Verification reduces fake reviews and strengthens the SEO trust signals search engines look for.",
       },
       {
         icon: "📝",
         title: "Review submitted",
         description:
-          "Customer rates, writes, and optionally uploads photos through a clean, mobile-friendly review form.",
+          "Customer rates, writes, and optionally uploads photos through a clean, mobile-friendly review form. A structured form keeps feedback rich, comparable, and useful for both customers and your internal teams.",
       },
       {
         icon: "🌐",
         title: "Review published",
         description:
-          "Live on your verified Tellacity profile and on your own site through widgets, with the verified badge attached.",
+          "The review goes live on your verified Tellacity profile and on your own site through widgets, with the verified badge attached. Public, verified content is what converts new visitors into customers.",
       },
       {
         icon: "📊",
         title: "Insights & analytics updated",
         description:
-          "Trust score, conversion rates, channel attribution, and per-product performance refresh in your dashboard.",
+          "Trust score, conversion rates, channel attribution, and per-product performance refresh in your dashboard. A closed feedback loop is what turns reviews from a marketing artefact into operational intelligence.",
       },
     ],
+  },
+
+  featuresSectionKicker: "Built into the dashboard",
+  featuresSectionTitle: "Key dashboard features at a glance",
+  featuresSectionDescription:
+    "Every feature below is part of the live Tellacity business dashboard and is available the moment you claim your profile. Built for businesses that want automated, verified, and centralised review workflows that scale.",
+
+  featuresImage: {
+    src: "/brand/Presentation.png",
+    alt: "Tellacity review invitations dashboard with email and SMS delivery, reminders, and verification controls",
   },
 
   features: [
@@ -209,7 +229,7 @@ const content: SolutionPageContent = {
       badge: "🕒",
       title: "Invitation history",
       description:
-        "Audit-friendly timeline of every invitation sent, opened, completed, or ignored — by user and timestamp.",
+        "Audit-friendly timeline of every invitation sent, opened, completed, or ignored, with user and timestamp on each event.",
     },
     {
       badge: "📬",
@@ -221,22 +241,31 @@ const content: SolutionPageContent = {
 
   verifiedTrust: {
     kicker: "Why verified invitations matter",
-    title: "Reviews customers — and search engines — can actually trust.",
+    title: "Why verified invitations matter for trust and SEO",
     description:
-      "Modern customers increasingly look for proof that reviews come from real experiences. Tellacity invitation workflows support proof-of-purchase collection, invitation attribution, and verification signals that help businesses build more trustworthy public profiles.",
+      "Proof-of-purchase is what turns a star rating into something a buyer (and a search engine) can rely on. Verified badges make it visible to the reader that the review is tied to a real transaction, not just an anonymous opinion. That same audit trail backs you up when reviews are challenged, disputed, or referenced in compliance reporting.",
+    image: {
+      src: "/brand/Review%20Form.png",
+      alt: "Tellacity verified review form completed by a customer after a verified purchase",
+    },
     bullets: [
       "Reduce fake reviews through verified reviewer accounts and proof-of-purchase signals.",
       "Strengthen customer trust with a verified badge on reviews tied to real transactions.",
       "Support moderation workflows with transparent dispute and flagging tools.",
       "Improve review quality through structured forms and authenticated customer identity.",
       "Build transparent reputation signals that hold up under public, legal, and SEO scrutiny.",
+      "Tie every invitation to a specific order, appointment, or service so each review has a documented origin.",
+      "Throttle invitations per domain and per recipient so deliverability stays high and customers do not feel spammed.",
+      "Capture review language and country alongside the rating, so analytics show how trust varies across markets.",
+      "Keep a permanent audit trail of every invitation sent, opened, completed, or ignored for compliance and reporting.",
+      "Make verification visible to customers reading reviews, so the verified badge actually means something to a buyer.",
     ],
   },
 
   trust: {
-    title: "Built to scale across every business size.",
+    title: "Built for scale: From local shops to multi-location brands",
     description:
-      "Whether you manage a local business or a multi-location brand, Tellacity's invitation infrastructure is designed to support high-volume review collection without losing visibility or control. From single review requests to automated invitation pipelines, you manage delivery, reminders, verification, moderation, and analytics from one platform.",
+      "Whether you run a single storefront or a multi-location brand, Tellacity's invitation infrastructure is designed for high-volume, verified review collection without losing visibility or control. Delivery, reminders, verification, moderation, and analytics all live on one centralised, scalable platform.",
     stats: [
       { value: "600K+", label: "Businesses indexed" },
       { value: "200+", label: "Industry categories" },
@@ -248,9 +277,9 @@ const content: SolutionPageContent = {
 
   teams: {
     kicker: "Designed for modern teams",
-    title: "One invitation infrastructure, every team it touches.",
+    title: "Designed for modern teams (Marketing, Support, Ops, Leadership)",
     description:
-      "Tellacity is not just a tool for the marketing team. The same invitation pipeline serves support, operations, and leadership — each with the right slice of data and the right level of access.",
+      "Tellacity is not just a tool for the marketing team. The same automated, verified, centralised invitation pipeline serves support, operations, and leadership, each with the right slice of data and the right level of access.",
     audiences: [
       {
         icon: "📣",
@@ -281,33 +310,33 @@ const content: SolutionPageContent = {
 
   outcomes: {
     kicker: "More than review collection",
-    title: "Tellacity helps businesses build measurable trust.",
+    title: "More than review collection: Building measurable trust",
     description:
-      "Every part of the invitation pipeline is designed to convert customer interactions into durable, public, business outcomes — not just stars on a profile.",
+      "Every part of the invitation pipeline is designed to convert customer interactions into durable, public, business outcomes, not just stars on a profile.",
     items: [
       {
         icon: "📈",
-        title: "Increase verified review volume",
+        title: "Increasing verified review volume",
         description:
           "Move from ad-hoc manual follow-ups to a steady, automated invitation engine that runs continuously.",
+      },
+      {
+        icon: "📍",
+        title: "Improving local search visibility",
+        description:
+          "More verified reviews drive better local search, discovery, and category visibility for your business.",
+      },
+      {
+        icon: "🏗",
+        title: "Centralising reputation operations",
+        description:
+          "One platform for invitations, replies, moderation, analytics, and team access, with no more tool sprawl.",
       },
       {
         icon: "🛡",
         title: "Improve public trust",
         description:
           "Verified reviewer accounts and proof-of-purchase signals make every star carry more weight.",
-      },
-      {
-        icon: "📍",
-        title: "Strengthen local visibility",
-        description:
-          "More verified reviews drive better local search, discovery, and category visibility.",
-      },
-      {
-        icon: "🏗",
-        title: "Centralise reputation operations",
-        description:
-          "One platform for invitations, replies, moderation, analytics, and team access — no more tool sprawl.",
       },
       {
         icon: "🚫",
@@ -319,10 +348,14 @@ const content: SolutionPageContent = {
         icon: "🤝",
         title: "Improve customer confidence",
         description:
-          "Consistent, structured feedback that customers — and partners — actually trust when deciding.",
+          "Consistent, structured feedback that customers and partners actually trust when deciding.",
       },
     ],
   },
+
+  faqSectionTitle: "Common questions about review invitations",
+  faqSectionDescription:
+    "Short answers to the most common questions about how Tellacity's automated, verified review invitations work.",
 
   related: [
     {
@@ -360,7 +393,7 @@ const content: SolutionPageContent = {
     {
       question: "Can I import my existing customer list in bulk?",
       answer:
-        "Yes. Upload a CSV with at least an email column — name, purchase reference, and language are optional. Tellacity queues the invitations, throttles per domain to protect deliverability, and skips suppression and bounced addresses.",
+        "Yes. Upload a CSV with at least an email column. Name, purchase reference, and language are optional. Tellacity queues the invitations, throttles per domain to protect deliverability, and skips suppression and bounced addresses.",
     },
     {
       question: "Are reminders sent automatically?",
@@ -420,19 +453,75 @@ const content: SolutionPageContent = {
     {
       question: "Can teams collaborate inside the dashboard?",
       answer:
-        "Yes. Invite teammates as Admin, Manager, or Viewer with role-based access. Every action — invitation, reply, moderation — is attributable in the audit log.",
+        "Yes. Invite teammates as Admin, Manager, or Viewer with role-based access. Every action (invitation, reply, moderation) is attributable in the audit log.",
     },
   ],
 };
 
-const jsonLd = {
+const softwareJsonLd = {
   "@context": "https://schema.org",
-  "@type": "Product",
+  "@type": "SoftwareApplication",
   name: "Tellacity Review Invitations",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
   description:
-    "Verified review collection infrastructure with branded invitations, smart reminders, proof-of-purchase verification, multi-location management, and per-channel attribution.",
+    "Automated, verified review invitation engine. Send branded invitations after purchases, appointments, or services, with delivery, reminders, proof-of-purchase verification, multi-location management, and per-channel attribution from one centralised dashboard.",
   brand: { "@type": "Organization", name: "Tellacity" },
   url: "https://tellacity.com/solutions/review-invitations",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+    availability: "https://schema.org/InStock",
+    url: "https://tellacity.com/business/signup",
+  },
+};
+
+const howToJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  name: "How automated Tellacity review invitations work",
+  description:
+    "A six-step automated flow that turns every completed customer interaction into a verified, proof-of-purchase review.",
+  totalTime: "PT5M",
+  step: [
+    {
+      "@type": "HowToStep",
+      position: 1,
+      name: "Customer completes purchase",
+      text: "The trigger fires the moment an order, appointment, or service is marked complete in your Tellacity dashboard or via API.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 2,
+      name: "Invitation automatically sent",
+      text: "A branded email (and optionally SMS) goes out within minutes, in the customer's language, from your verified sender.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 3,
+      name: "Customer verifies experience",
+      text: "Verified reviewer accounts and optional proof-of-purchase confirm the review comes from a real customer interaction.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 4,
+      name: "Review submitted",
+      text: "The customer rates, writes, and optionally uploads photos through a clean, mobile-friendly verified review form.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 5,
+      name: "Review published",
+      text: "The review goes live on your verified Tellacity profile and on your own site through widgets, with the verified badge attached.",
+    },
+    {
+      "@type": "HowToStep",
+      position: 6,
+      name: "Insights and analytics updated",
+      text: "Trust score, conversion rates, channel attribution, and per-product performance refresh in your dashboard.",
+    },
+  ],
 };
 
 export default function ReviewInvitationsSolutionPage() {
@@ -440,10 +529,18 @@ export default function ReviewInvitationsSolutionPage() {
     <SolutionPageLayout
       content={content}
       jsonLd={
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(softwareJsonLd),
+            }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+          />
+        </>
       }
     />
   );

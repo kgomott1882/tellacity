@@ -116,7 +116,7 @@ async function fetchGlobalRelatedTagFallback(
  *   1. INDEXABLE when the tag has >= TAG_INDEX_THRESHOLD businesses in the
  *      requested country. Thin pages (0-2 businesses) stay `noindex, follow`
  *      so Google can still crawl through them but won't list them as
- *      separate search results — which is what was tripping the
+ *      separate search results, which is what was tripping the
  *      "Excluded by 'noindex' tag" warnings on healthy listings.
  *
  *   2. SELF-CANONICAL per country variant. `/tags/foo` and
@@ -124,12 +124,12 @@ async function fetchGlobalRelatedTagFallback(
  *      (US is the default country in the handler below). Non-US country
  *      variants (`?country=GB`, `?country=ZA`, ...) self-canonical with
  *      the country query string so each country's healthy listing can be
- *      indexed independently — instead of being consolidated to a US
+ *      indexed independently, instead of being consolidated to a US
  *      canonical that may have no matching businesses.
  *
  *   3. `getCachedTagListingPage(...)` is also called in the page handler
  *      below with identical args, so this is a free cache hit at request
- *      time — we don't pay an extra DB roundtrip for the metadata.
+ *      time, so we don't pay an extra DB roundtrip for the metadata.
  */
 const TAG_INDEX_THRESHOLD = 3;
 

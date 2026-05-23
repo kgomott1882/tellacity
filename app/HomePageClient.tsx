@@ -158,6 +158,13 @@ export type BestInBusiness = HomeBestInBusiness;
 
 type HomePageClientProps = {
   initialSelectedCountry: string | null;
+  /**
+   * True when the user landed on `/` with no `?country=` param. Drives the
+   * country-agnostic hero/H2/About copy and matching JSON-LD. Once the user
+   * picks a country from the dropdown we flip this to false so country-aware
+   * copy takes over without a server roundtrip.
+   */
+  initialIsGlobalHome?: boolean;
   rotatingCategorySlugs: string[];
   bestInByCategory: Record<string, BestInBusiness[]>;
   bestInCategoryLabels: Record<string, string>;
@@ -169,6 +176,7 @@ type HomePageClientProps = {
 
 export default function HomePageClient({
   initialSelectedCountry = null,
+  initialIsGlobalHome = false,
   rotatingCategorySlugs = [],
   bestInByCategory = {},
   bestInCategoryLabels = {},
@@ -192,6 +200,9 @@ export default function HomePageClient({
     string | null
   >(null);
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
+  const [isGlobalHome, setIsGlobalHome] = useState<boolean>(
+    Boolean(initialIsGlobalHome),
+  );
   const [openFaqKey, setOpenFaqKey] = useState<string | null>(null);
   const categoryScrollRef = useRef<HTMLDivElement | null>(null);
   const reviewsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -219,7 +230,7 @@ export default function HomePageClient({
     COUNTRIES.find((country) => country.code === activeCountryCode) ??
     COUNTRIES[0];
 
-  /** Stable primitive for hooks — avoids effect dependency array length / identity churn. */
+  /** Stable primitive for hooks. Avoids effect dependency array length and identity churn. */
   const rotatingBestInSlugsKey = useMemo(() => {
     if (!Array.isArray(rotatingCategorySlugs)) return "";
     return rotatingCategorySlugs
@@ -293,6 +304,7 @@ export default function HomePageClient({
   const handleCountryChange = (code: CountryCode) => {
     setCountryAndSync(code);
     setIsCountryMenuOpen(false);
+    if (isGlobalHome) setIsGlobalHome(false);
   };
 
   const faqItems = [
@@ -485,7 +497,7 @@ export default function HomePageClient({
     (bestInCategoryLabels ?? {})[activeBestInSlug] ??
     (activeBestInSlug ?? "").replace(/-/g, " ");
 
-  // Best-in: `/api/home-best-in` — live PostgREST + `get_public_review_aggregates` per country.
+  // Best-in: `/api/home-best-in`. Live PostgREST + `get_public_review_aggregates` per country.
   useEffect(() => {
     if (pathname !== "/") return;
     if (!rotatingCategorySlugs || rotatingCategorySlugs.length === 0) return;
@@ -576,7 +588,7 @@ export default function HomePageClient({
     };
   }, [bestInEffectSyncKey, rotatingCategorySlugs]);
 
-  // Recent reviews: `/api/home-feed` — keep the "What people are saying" rail in
+  // Recent reviews: `/api/home-feed`. Keep the "What people are saying" rail in
   // sync with the active country instantly when the user switches in the navbar
   // dropdown, without waiting for the full SSR re-render of `/`.
   useEffect(() => {
@@ -623,7 +635,7 @@ export default function HomePageClient({
             setReviewPage(0);
             lastCompletedHomeFeedKeyRef.current = feedKey;
           } catch {
-            // Bad JSON — leave whatever we had instead of clearing the rail.
+            // Bad JSON. Leave whatever we had instead of clearing the rail.
             lastCompletedHomeFeedKeyRef.current = feedKey;
           }
         } else {
@@ -1050,8 +1062,22 @@ export default function HomePageClient({
     );
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  };
+
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       {/* HERO */}
       <section
         className="relative overflow-hidden bg-[#0E0E0E] bg-cover bg-center bg-no-repeat"
@@ -1088,7 +1114,9 @@ export default function HomePageClient({
             }}
             className="mt-5 text-sm font-normal tracking-wide text-[#F9FAFB]/90 sm:mt-6 sm:text-base"
           >
-            Discover honest experiences. Read and write real customer reviews. Gain trusted business insights.
+            {isGlobalHome
+              ? "Discover honest experiences. Read and write real customer reviews. Gain trusted insights for businesses around the world on Tellacity."
+              : `Discover honest experiences. Read and write real customer reviews. Gain trusted insights for ${activeCountry.name} businesses on Tellacity.`}
           </motion.p>
           <FadeUp delay={0.2}>
             <div className="mt-5 w-full sm:mt-6 max-w-3xl mx-auto">
@@ -1262,7 +1290,9 @@ export default function HomePageClient({
                     <span className="relative z-10">Recent</span>
                     <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                   </span>
-                  {" "}reviews
+                  {isGlobalHome
+                    ? " customer reviews from around the world"
+                    : ` customer reviews in ${activeCountry.name}`}
                 </span>
                 <div className="relative">
                   <button
@@ -1319,8 +1349,9 @@ export default function HomePageClient({
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Real customer reviews in {activeCountry.name}, moderated for authenticity, newest
-              first. The same country applies to categories and rankings on this page.
+              {isGlobalHome
+                ? `Real customer reviews from businesses around the world, moderated for authenticity, newest first. Showing reviews from ${activeCountry.name} by default — switch country to update categories and rankings.`
+                : `Real customer reviews in ${activeCountry.name}, moderated for authenticity, newest first. The same country applies to categories and rankings on this page.`}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -1404,13 +1435,13 @@ export default function HomePageClient({
                   <span className="relative z-10">Frequently</span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
-                {" "}Asked Questions
+                {" "}asked questions about Tellacity
               </span>
             </h2>
             <p className="mt-3 max-w-2xl text-sm text-gray-600">
-              Got questions? We've got answers. Delve into our Frequently Asked
-              Questions (FAQs) section to find comprehensive information about
-              your inquiries.
+              {isGlobalHome
+                ? "Got questions? We've got answers about verified reviews, reputation, and how Tellacity helps businesses worldwide build customer trust."
+                : `Got questions? We've got answers about verified reviews, reputation, and how Tellacity helps ${activeCountry.name} businesses build customer trust.`}
             </p>
           </div>
 
@@ -1562,12 +1593,12 @@ export default function HomePageClient({
                   <span className="relative z-10">Latest</span>
                   <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                 </span>
-                {" "}Blog Posts
+                {" "}blog posts about trust and reviews
               </span>
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Insights, guides, and stories on building trust and growing your
-              business.
+              Insights, guides, and stories on verified reviews, reputation,
+              and growing your business with customer trust.
             </p>
             <Link
               href="/blog"
@@ -1682,22 +1713,27 @@ export default function HomePageClient({
           <div className="rounded-[28px] bg-[#D9FAEF] px-8 py-8 sm:px-10 sm:py-10">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-3xl">
-                <h3 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
+                <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
                   <span className="relative inline-block">
                     <span className="relative z-10">
-                      Looking to grow your business?
+                      For businesses: Build trust with customer reviews
                     </span>
                     <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
                   </span>
-                </h3>
+                </h2>
                 <p className="mt-3 text-sm text-[#0E0E0E]/80">
-                  Grow your business with trusted customer reviews on Tellacity.
-                  Collect authentic customer feedback, strengthen your online
-                  reputation, and build trust with new customers by showcasing
-                  real experiences from verified customers. Tellacity helps
-                  businesses stand out in search results, earn credibility
-                  through transparent reviews, and attract more customers who
-                  are looking for reliable companies they can trust.
+                  Grow your business with verified customer reviews on
+                  Tellacity. Collect authentic feedback, strengthen your
+                  online reputation, and build trust with new customers by
+                  showcasing real experiences. Part of the{" "}
+                  <Link
+                    href="/reputation-platform"
+                    className="font-semibold text-[#0F766E] hover:underline"
+                  >
+                    Tellacity Reputation Platform
+                  </Link>{" "}
+                  for verified customer reviews and trust signals across every
+                  surface.
                 </p>
               </div>
               <Link
@@ -1707,6 +1743,36 @@ export default function HomePageClient({
                 Get Started →
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT TELLACITY */}
+      <section className="bg-white">
+        <div className="mx-auto w-full max-w-4xl px-6 pb-10 sm:pb-12 md:pb-14">
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
+            <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl">
+              <span className="relative inline-block">
+                <span className="relative z-10">About</span>
+                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+              </span>{" "}
+              Tellacity
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-gray-700">
+              {isGlobalHome
+                ? "Tellacity is a platform for verified customer reviews that connects consumers with trustworthy businesses worldwide. Businesses use Tellacity to collect verified reviews, protect against fake feedback, and build long-term trust with tools like Review Invitations, Review Widgets, Business Analytics, Reputation Management, and Photo Uploads."
+                : `Tellacity is a platform for verified customer reviews that connects consumers with trustworthy ${activeCountry.name} businesses. Businesses use Tellacity to collect verified reviews, protect against fake feedback, and build long-term trust with tools like Review Invitations, Review Widgets, Business Analytics, Reputation Management, and Photo Uploads.`}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-gray-700">
+              Part of the{" "}
+              <Link
+                href="/reputation-platform"
+                className="font-semibold text-[#0F766E] hover:underline"
+              >
+                Tellacity Reputation Platform
+              </Link>{" "}
+              for verified customer reviews and trust.
+            </p>
           </div>
         </div>
       </section>

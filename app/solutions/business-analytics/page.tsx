@@ -3,34 +3,33 @@ import SolutionPageLayout, {
 } from "@/components/solutions/SolutionPageLayout";
 
 export const metadata = {
-  title:
-    "Business Analytics | Customer Reputation Intelligence | Tellacity",
+  title: "Business Analytics for Verified Customer Trust | Tellacity",
   description:
-    "Tellacity Business Analytics is a centralised customer reputation intelligence dashboard. Track trust score trends, sentiment, response performance, location-level reputation, review attribution, and verified-review quality signals in one operational system.",
+    "See exactly what's driving your trust score with Tellacity Business Analytics. Track verified reviews, trust trends, response performance, and customer sentiment from one centralised dashboard. Start free.",
   alternates: {
     canonical: "https://tellacity.com/solutions/business-analytics",
   },
   openGraph: {
-    title: "Business Analytics | Tellacity",
+    title: "Business Analytics for Verified Customer Trust | Tellacity",
     description:
-      "Centralised customer reputation intelligence — trust score trends, sentiment, response performance, and multi-location visibility.",
+      "See exactly what's driving your trust score with Tellacity Business Analytics. Track verified reviews, trust trends, response performance, and customer sentiment from one centralised dashboard.",
     url: "https://tellacity.com/solutions/business-analytics",
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Business Analytics | Tellacity",
+    title: "Business Analytics for Verified Customer Trust | Tellacity",
     description:
-      "Customer reputation intelligence and trust analytics infrastructure for modern teams.",
+      "Centralised, verified analytics for trust score trends, sentiment, response performance, and multi-location visibility.",
   },
 };
 
 const content: SolutionPageContent = {
   kicker: "Business Analytics",
   headline: {
-    lead: "See exactly what's",
-    accent: "driving your trust score.",
+    lead: "Business Analytics for",
+    accent: "Verified Customer Trust",
   },
   valueProp:
     "Tellacity Business Analytics transforms verified customer reviews, response activity, sentiment patterns, and operational feedback into a centralised reputation intelligence dashboard. Track trust score movement, customer satisfaction trends, response performance, review attribution, location-level reputation, and review quality signals from one unified system.",
@@ -49,48 +48,60 @@ const content: SolutionPageContent = {
     "Export-ready reporting",
   ],
 
+  problemSectionKicker: "The challenge",
+  problemSectionTitle: "Why most teams struggle with trust signals",
+  problemSectionDescription:
+    "Verified customer trust only compounds when teams can see what's moving the score in real time. Without centralised, trended, multi-location analytics, the same operational blind spots keep showing up.",
+
   problems: [
     {
+      icon: "🗂️",
       title: "Review data lives in too many places",
       description:
         "Marketing reads one number, support reads another, leadership tracks a third. Without a single source of truth, decisions are made on partial evidence.",
     },
     {
+      icon: "❓",
       title: "It's unclear what's actually moving the score",
       description:
         "A rating that ticks up or down doesn't tell you why. Without trend, category, and product breakdowns, fixes turn into guesses.",
     },
     {
+      icon: "📊",
       title: "Reporting eats the team's week",
       description:
         "Manually building review reports from spreadsheets and exports steals hours from the work that would actually improve customer experience.",
     },
     {
+      icon: "🐌",
       title: "Teams react too late to reputation changes",
       description:
         "Without trend visibility and real-time monitoring, businesses often discover reputation problems only after customer trust has already declined.",
     },
     {
+      icon: "🧭",
       title: "Review data lacks operational context",
       description:
         "A star rating alone rarely explains what customers are struggling with. Teams need structured context behind sentiment, products, locations, and service quality.",
     },
     {
+      icon: "🔭",
       title: "Leadership lacks a unified trust view",
       description:
         "When customer reputation metrics are fragmented across teams, executives lose visibility into overall brand trust and operational consistency.",
     },
     {
+      icon: "📈",
       title: "Positive and negative trends are hard to isolate",
       description:
-        "Without proper analytics, businesses struggle to identify which products, locations, campaigns, or support channels are improving — or hurting — customer trust.",
+        "Without proper analytics, businesses struggle to identify which products, locations, campaigns, or support channels are improving, or hurting, customer trust.",
     },
   ],
 
   solution: {
-    title: "Every review metric, ready in one dashboard.",
+    title: "How Tellacity turns reviews into reputation intelligence",
     description:
-      "The analytics view in the Tellacity dashboard plots your trust score over time, breaks reviews down by rating, channel, and product, and surfaces response performance — so you can see the story behind every change.",
+      "The analytics view in the Tellacity dashboard plots your trust score over time, breaks verified reviews down by rating, channel, and product, and surfaces response performance, so you can see the story behind every change in real time.",
     bullets: [
       "Trust score trend with rolling 7-, 30-, and 90-day views.",
       "Review volume by rating, category, and country.",
@@ -106,47 +117,57 @@ const content: SolutionPageContent = {
 
   workflow: {
     kicker: "How the analytics system works",
-    title: "From verified review to operational insight — automatically.",
+    title: "How the analytics system works",
     description:
-      "Every metric in the analytics dashboard is generated from the same verified review infrastructure that powers your public Tellacity profile, so leadership, marketing, support, and operations all read from one consistent source.",
+      "Every metric in the analytics dashboard is generated from the same verified review infrastructure that powers your public Tellacity profile, so leadership, marketing, support, and operations all read from one consistent, centralised source.",
     steps: [
       {
         icon: "📥",
         title: "Reviews collected",
         description:
-          "Verified reviews flow in from invitations, profile submissions, and authenticated review forms — tied to a customer record.",
+          "Verified reviews flow in from invitations, profile submissions, and authenticated review forms, each tied to a real customer record. Capturing the right inputs is what makes every downstream metric trustworthy.",
       },
       {
         icon: "✅",
         title: "Reviews verified & categorised",
         description:
-          "Identity checks, proof-of-purchase signals, and moderation classify each review by product, location, language, and rating.",
+          "Identity checks, proof-of-purchase signals, and moderation classify every review by product, location, language, and rating. Categorisation is what unlocks multi-location and product-level reputation analytics later in the pipeline.",
       },
       {
         icon: "🧮",
         title: "Metrics aggregated",
         description:
-          "Trust score, sentiment, response performance, and channel attribution are computed from the live review pipeline.",
+          "Trust score, sentiment, response performance, and channel attribution are computed from the verified review pipeline. Aggregation in one place removes the spreadsheet drift that quietly distorts most reporting.",
       },
       {
         icon: "📈",
         title: "Trends analysed",
         description:
-          "Rolling 7-, 30-, and 90-day trends, plus event overlays, surface patterns that one review can't show on its own.",
+          "Rolling 7-, 30-, and 90-day trends plus event overlays surface patterns no single review can show. Real-time trends help LLMs and search engines see your business as a trustworthy, data-driven source.",
       },
       {
         icon: "🖥",
         title: "Dashboard updates live",
         description:
-          "The analytics view refreshes continuously so leadership, marketing, support, and ops see the same numbers in real time.",
+          "The analytics view refreshes continuously so leadership, marketing, support, and ops see the same numbers in real time. A shared, live view is what stops teams arguing about which number is correct.",
       },
       {
         icon: "🎯",
         title: "Teams act on insights",
         description:
-          "Alerts, filters, and exports help teams move from data to action without leaving the Tellacity platform.",
+          "Alerts, operational filters, and exports help teams move from data to action without leaving the platform. A closed feedback loop is what turns analytics into measurable trust gains over time.",
       },
     ],
+  },
+
+  featuresSectionKicker: "Built into the dashboard",
+  featuresSectionTitle: "Key analytics features at a glance",
+  featuresSectionDescription:
+    "Every analytics capability below is part of the live Tellacity business dashboard and is available the moment you claim your profile. Built for centralised, real-time operational visibility across trust score, sentiment, response performance, and multi-location analytics.",
+
+  featuresImage: {
+    src: "/brand/Analytics%20PC.jpeg",
+    alt: "Tellacity business analytics dashboard showing trust score trends, review breakdowns, and response performance",
   },
 
   features: [
@@ -178,7 +199,7 @@ const content: SolutionPageContent = {
       badge: "🧭",
       title: "Channel attribution",
       description:
-        "Understand which invitation channels — email, QR, link — bring the highest-quality reviews.",
+        "Understand which invitation channels (email, QR, link) bring the highest-quality reviews.",
     },
     {
       badge: "📤",
@@ -238,9 +259,9 @@ const content: SolutionPageContent = {
 
   verifiedTrust: {
     kicker: "Why verified analytics matter",
-    title: "Reliable signal you can build decisions on.",
+    title: "Why verified analytics matter",
     description:
-      "Analytics are only useful when the underlying feedback is trustworthy. Tellacity analytics are built on verified customer reviews, structured invitation workflows, moderation systems, and review attribution signals — helping businesses make decisions using cleaner, more reliable reputation data.",
+      "Verified reviews are what turn customer feedback into structured trust signals you can actually measure. Trended metrics with event overlays are what make trust score movement explainable, not just observable. And centralised, export-ready data is what turns those signals into citable, LLM-friendly customer-intelligence that holds up across teams, tools, and time.",
     bullets: [
       "Verified review sources, not anonymous or unattributed feedback.",
       "Structured reputation signals across rating, sentiment, and context.",
@@ -253,9 +274,9 @@ const content: SolutionPageContent = {
   },
 
   trust: {
-    title: "Customer intelligence infrastructure, built for scale.",
+    title: "Built for scale: Analytics across high-volume reviews",
     description:
-      "From local businesses to multi-location brands, Tellacity Analytics is designed to surface trustworthy customer intelligence across high-volume review environments. Every metric updates from the same live review infrastructure that powers your public reputation presence.",
+      "From single storefronts to multi-location brands, Tellacity Analytics is designed to surface trustworthy customer intelligence across high-volume verified review environments. Every metric updates from the same live, centralised review infrastructure that powers your public reputation presence.",
     stats: [
       { value: "Real-time", label: "Live dashboard refresh" },
       { value: "Verified", label: "Reviews only" },
@@ -267,16 +288,16 @@ const content: SolutionPageContent = {
 
   controlPlane: {
     kicker: "One source of truth",
-    title: "Every team reads the same reputation data.",
+    title: "One source of truth: Every team reads the same data",
     description:
-      "Every Tellacity analytics view is powered by the same verified review infrastructure that customers see publicly — helping teams work from one consistent reputation dataset across marketing, support, operations, and leadership.",
+      "Every Tellacity analytics view is powered by the same verified review infrastructure that customers see publicly, so marketing, support, operations, and leadership all work from one consistent, centralised reputation dataset.",
     tagline: "One dataset. Every team.",
     capabilities: [
       {
         icon: "🧾",
         title: "Unified reputation data",
         description:
-          "One verified review pipeline feeds every chart, KPI, and export — no parallel spreadsheets, no drift.",
+          "One verified review pipeline feeds every chart, KPI, and export, with no parallel spreadsheets and no drift.",
       },
       {
         icon: "📐",
@@ -319,9 +340,9 @@ const content: SolutionPageContent = {
 
   decisions: {
     kicker: "Designed for decision making",
-    title: "Move beyond stars. Understand the story behind them.",
+    title: "Designed for decision making",
     description:
-      "Tellacity Analytics helps teams move beyond star ratings and understand the operational story behind customer trust — so decisions are grounded in evidence, not assumptions.",
+      "Tellacity Analytics helps teams move beyond star ratings and understand the operational story behind customer trust, so decisions are grounded in verified, trended evidence rather than assumptions.",
     items: [
       {
         icon: "🩺",
@@ -351,7 +372,7 @@ const content: SolutionPageContent = {
         icon: "🧪",
         title: "Track product & service quality",
         description:
-          "Product-level analytics reveal which SKUs and services are driving — or dragging — your reputation.",
+          "Product-level analytics reveal which SKUs and services are driving, or dragging, your reputation.",
       },
       {
         icon: "📨",
@@ -370,9 +391,9 @@ const content: SolutionPageContent = {
 
   teams: {
     kicker: "Designed for modern teams",
-    title: "One analytics platform, every team it serves.",
+    title: "Designed for modern teams",
     description:
-      "Tellacity Analytics is not just a tool for the marketing team. Marketing, support, operations, leadership, and product all use the same data — each with the right slice and the right level of access.",
+      "Tellacity Analytics is not just a tool for the marketing team. Marketing, support, operations, leadership, and product all use the same centralised data, each with the right slice and the right level of access.",
     audiences: [
       {
         icon: "📣",
@@ -409,9 +430,9 @@ const content: SolutionPageContent = {
 
   outcomes: {
     kicker: "More than reporting",
-    title: "Customer feedback as operational visibility.",
+    title: "More than reporting: Customer feedback as operational visibility",
     description:
-      "Tellacity Analytics turns customer feedback into operational visibility businesses can actually act on — not a slide for the monthly review.",
+      "Tellacity Analytics turns customer feedback into operational visibility businesses can actually act on, not a slide for the monthly review. Verified, trended, multi-location analytics keep response performance and trust health visible to the teams who can do something about them.",
     items: [
       {
         icon: "🛡",
@@ -429,7 +450,7 @@ const content: SolutionPageContent = {
         icon: "📡",
         title: "Monitor reputation consistently",
         description:
-          "Every team sees the same trust health every day — not just at quarterly reviews.",
+          "Every team sees the same trust health every day, not just at quarterly reviews.",
       },
       {
         icon: "⚠️",
@@ -485,11 +506,15 @@ const content: SolutionPageContent = {
     },
   ],
 
+  faqSectionTitle: "Common questions about business analytics",
+  faqSectionDescription:
+    "Short answers to the most common questions about Tellacity's verified, centralised business analytics and how teams use them across the organisation.",
+
   faqs: [
     {
       question: "Which metrics does Tellacity Analytics track?",
       answer:
-        "Trust score trends, rating distribution, response rate, time-to-reply, channel attribution, country breakdown, sentiment signals, and product-level performance — all from a single dashboard.",
+        "Trust score trends, rating distribution, response rate, time-to-reply, channel attribution, country breakdown, sentiment signals, and product-level performance, all from a single dashboard.",
     },
     {
       question: "How fresh is the data?",
@@ -519,7 +544,7 @@ const content: SolutionPageContent = {
     {
       question: "Can analytics be filtered by product or location?",
       answer:
-        "Yes. Filters work across product, service, country, branch, invitation channel, language, and review status — and combinations can be saved as views.",
+        "Yes. Filters work across product, service, country, branch, invitation channel, language, and review status, and combinations can be saved as views.",
     },
     {
       question: "Are analytics based only on verified reviews?",
@@ -534,7 +559,7 @@ const content: SolutionPageContent = {
     {
       question: "Can teams share analytics access?",
       answer:
-        "Yes. Invite teammates with role-based permissions — Admin, Manager, or Viewer. All access is logged in the audit trail for governance.",
+        "Yes. Invite teammates with role-based permissions (Admin, Manager, or Viewer). All access is logged in the audit trail for governance.",
     },
     {
       question: "Can I export analytics reports?",
@@ -569,14 +594,14 @@ const content: SolutionPageContent = {
   ],
 };
 
-const productJsonLd = {
+const softwareJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Tellacity Business Analytics",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "Centralised customer reputation intelligence dashboard. Trust score trends, sentiment, response performance, multi-location reputation, review attribution, and verified-review quality signals in one operational system.",
+    "Transform verified customer reviews, sentiment, and response activity into centralised trust-score analytics and operational insights for marketing, support, operations, and leadership.",
   brand: { "@type": "Organization", name: "Tellacity" },
   url: "https://tellacity.com/solutions/business-analytics",
   offers: {
@@ -584,6 +609,7 @@ const productJsonLd = {
     price: "0",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
+    url: "https://tellacity.com/business/signup",
   },
 };
 
@@ -615,7 +641,7 @@ const breadcrumbJsonLd = {
 const howToJsonLd = {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  name: "How Tellacity Business Analytics turns reviews into operational insights",
+  name: "How Tellacity Business Analytics turns verified reviews into operational insights",
   description:
     "Tellacity Business Analytics processes every verified review through a six-stage intelligence pipeline so teams get reliable customer reputation data they can act on.",
   totalTime: "PT5M",
@@ -624,7 +650,7 @@ const howToJsonLd = {
       "@type": "HowToStep",
       position: 1,
       name: "Reviews collected",
-      text: "Verified reviews flow in from invitations, profile submissions, and authenticated review forms — each tied to a customer record.",
+      text: "Verified reviews flow in from invitations, profile submissions, and authenticated review forms, each tied to a customer record.",
     },
     {
       "@type": "HowToStep",
@@ -667,7 +693,9 @@ export default function BusinessAnalyticsSolutionPage() {
         <>
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(softwareJsonLd),
+            }}
           />
           <script
             type="application/ld+json"

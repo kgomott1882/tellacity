@@ -140,8 +140,11 @@ export default function Footer() {
               </h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link href="/solution" className="hover:text-white">
-                    Solutions
+                  <Link
+                    href="/reputation-platform"
+                    className="hover:text-white"
+                  >
+                    Reputation Platform
                   </Link>
                 </li>
                 <li>

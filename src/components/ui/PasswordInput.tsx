@@ -9,7 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
  * show/hide eye toggle on the right. The component forwards every standard
  * input prop (value, onChange, name, autoComplete, placeholder, id, className,
  * disabled, required, minLength, etc.) so callers can swap it in without
- * changing their existing auth / form flows — the only thing this owns is the
+ * changing their existing auth / form flows. The only thing this owns is the
  * `type` attribute, which flips between `password` and `text` locally.
  *
  * We intentionally inject a `relative` wrapper so the toggle can be absolutely

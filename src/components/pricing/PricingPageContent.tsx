@@ -259,7 +259,7 @@ export function PricingPageContent({
 
   return (
     <Root className={rootSurfaceClass}>
-      {/* HERO (hidden on dashboard billing — cards + comparison only) */}
+      {/* HERO (hidden on dashboard billing. Cards + comparison only) */}
       {!dashboardHideMarketingHero ? (
       <section className="mx-auto w-full max-w-6xl px-6 py-16 grid gap-10 md:grid-cols-2 items-center">
         <motion.div
@@ -460,7 +460,7 @@ export function PricingPageContent({
              * Dashboard embed renders the pricing cards inside a narrow
              * billing column. The public page uses `scale-*` and thicker
              * borders to visually pop the recommended card, but those
-             * transforms break grid alignment in the embed — neighbours
+             * transforms break grid alignment in the embed. Neighbours
              * look shorter/narrower even though the grid cells are equal.
              * When embedded we keep highlights via border/glow only and
              * normalise border widths so every card occupies its grid

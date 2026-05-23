@@ -41,7 +41,7 @@ type ReviewReactionButtonsProps = {
   /**
    * Skip the on-mount GET /api/reviews/helpful?reviewId=... refresh.
    * The landing page renders 60+ cards and used to fire 60+ requests
-   * (~1.3s each) — pass `false` there because `initialLikeCount` is
+   * (around 1.3s each). Pass `false` there because `initialLikeCount` is
    * already accurate from SSR (home_feed_v2.like_count). The button still
    * refreshes after a vote and on the helpful-signout event.
    */

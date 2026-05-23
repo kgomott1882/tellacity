@@ -7,7 +7,7 @@ type Props = {
   href?: string;
   size?: "sm" | "md";
   showTellacityLogo?: boolean;
-  /** Transparent minimal embed — no extra padding chrome. */
+  /** Transparent minimal embed. No extra padding chrome. */
   minimal?: boolean;
 };
 
