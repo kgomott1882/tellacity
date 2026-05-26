@@ -194,6 +194,7 @@ export default function LocationProfilePage({
               ratingValue: trustScore,
               reviewCount: reviews.length,
               bestRating: 5,
+              worstRating: 1,
             }
           : undefined,
     };

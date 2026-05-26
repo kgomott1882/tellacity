@@ -6,6 +6,8 @@ import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
+import { getCountryName } from "@/lib/address";
+import { buildBusinessProfileJsonLdScripts } from "@/lib/businessReviewJsonLd";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,8 @@ type BusinessMetaRow = {
   name?: string | null;
   slug?: string | null;
   canonical_slug?: string | null;
+  country_code?: string | null;
+  city?: string | null;
 };
 
 /**
@@ -60,7 +64,7 @@ export async function generateMetadata(
 
   const { data: businessBySlug } = await supabase
     .from("businesses")
-    .select("name, slug, canonical_slug")
+    .select("name, slug, canonical_slug, country_code, city")
     .eq("slug", normalized)
     .eq("status", "active")
     .maybeSingle();
@@ -72,7 +76,7 @@ export async function generateMetadata(
     if (cleanSlug && cleanSlug !== normalized) {
       const { data: fallbackRow } = await supabase
         .from("businesses")
-        .select("name, slug, canonical_slug")
+        .select("name, slug, canonical_slug, country_code, city")
         .eq("slug", cleanSlug)
         .eq("status", "active")
         .maybeSingle();
@@ -87,7 +91,7 @@ export async function generateMetadata(
   if (!business) {
     const { data: byCanonical } = await supabase
       .from("businesses")
-      .select("name, slug, canonical_slug")
+      .select("name, slug, canonical_slug, country_code, city")
       .eq("canonical_slug", normalized)
       .eq("status", "active")
       .maybeSingle();
@@ -102,13 +106,33 @@ export async function generateMetadata(
 
   const name = String(business.name ?? "").trim() || slug;
   const canonicalSlug = pickCanonicalSlug(business);
+  const countryCode = String(business.country_code ?? "").trim();
+  const countryLabel =
+    getCountryName(countryCode) ||
+    String(business.city ?? "").trim() ||
+    countryCode ||
+    "your region";
+  const pageTitle = `${name} Reviews | Ratings, Photos & TrustScore | Tellacity`;
+  const pageDescription = `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, TrustScore, and real customer experiences on Tellacity.`;
+  const canonicalUrl = `https://tellacity.com/b/${canonicalSlug}`;
 
   return {
-    title: `${name} Reviews | Tellacity`,
-    description: `Read verified customer reviews of ${name}. See ratings, feedback and real experiences from customers on Tellacity.`,
-    alternates: {
-      canonical: `https://tellacity.com/b/${canonicalSlug}`,
+    title: pageTitle,
+    description: pageDescription,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title: `${name} Reviews | Tellacity`,
+      description: `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, and TrustScore on Tellacity.`,
+      url: canonicalUrl,
+      siteName: "Tellacity",
+      type: "website",
     },
+    twitter: {
+      card: "summary_large_image",
+      title: `${name} Reviews | Tellacity`,
+      description: `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, and TrustScore on Tellacity.`,
+    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -247,90 +271,37 @@ export default async function BusinessPage({
     (business as { owner_id?: string | null }).owner_id
   );
 
-  const averageRating = (business as { average_rating?: number | null })
-    .average_rating;
-  const reviewCount = (business as { review_count?: number | null })
-    .review_count;
-
-  type JsonLdReviewRow = {
-    rating?: number | null;
-    title?: string | null;
-    body?: string | null;
-    guest_name?: string | null;
-  };
-
-  let jsonLdReviewRows: JsonLdReviewRow[] = [];
-
-  if (Number(reviewCount ?? 0) > 0) {
-    const { data: reviewRows } = await supabase
-      .from("reviews")
-      .select("rating, title, body, guest_name, status")
-      .eq("business_id", String(business.id))
-      .in("status", ["published", "live"])
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    jsonLdReviewRows = Array.isArray(reviewRows) ? reviewRows : [];
-  }
-
-  const jsonLdReviews = jsonLdReviewRows
-    .map((r) => {
-      const reviewBody =
-        String(r.body ?? "").trim() ||
-        String(r.title ?? "").trim();
-      if (!reviewBody) return null;
-      if (!r.rating || Number(r.rating) <= 0) return null;
-      return {
-        "@type": "Review" as const,
-        author: {
-          "@type": "Person" as const,
-          name: String(r.guest_name ?? "").trim() || "Customer",
-        },
-        reviewRating: {
-          "@type": "Rating" as const,
-          ratingValue: Math.min(5, Math.max(1, Number(r.rating))),
-        },
-        reviewBody,
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 3);
-
-  const normalizedReviewCount = Number(reviewCount ?? 0);
-  const normalizedAverageRating = Number(averageRating ?? 0);
-  const shouldIncludeReviewData =
-    jsonLdReviews.length > 0 &&
-    normalizedReviewCount > 0 &&
-    normalizedAverageRating > 0;
-
   const canonicalSlugForJsonLd = pickCanonicalSlug({
     slug: (business as { slug?: string | null }).slug ?? null,
     canonical_slug: (business as { canonical_slug?: string | null }).canonical_slug ?? null,
   });
 
-  const businessJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+  const businessJsonLdScripts = await buildBusinessProfileJsonLdScripts(supabase, {
+    businessId: String(business.id),
     name: String((business as { name?: string | null }).name ?? ""),
     url: `https://tellacity.com/b/${canonicalSlugForJsonLd}`,
-    ...(shouldIncludeReviewData
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: normalizedAverageRating,
-            reviewCount: normalizedReviewCount,
-          },
-          review: jsonLdReviews,
-        }
-      : {}),
-  };
+    logoUrl: (business as { logo_url?: string | null }).logo_url,
+    phone: (business as { phone?: string | null }).phone,
+    email: (business as { email?: string | null }).email,
+    address: (business as { address?: string | null }).address,
+    city: (business as { city?: string | null }).city,
+    postcode: (business as { postcode?: string | null }).postcode,
+    countryCode: (business as { country_code?: string | null }).country_code,
+    photos: initialBusinessPhotos.map((photo) => ({
+      id: photo.id,
+      url: photo.url,
+    })),
+  });
 
   const renderBusinessClient = () => (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
-      />
+      {businessJsonLdScripts.map((script, index) => (
+        <script
+          key={`business-jsonld-${index}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(script) }}
+        />
+      ))}
       <BusinessClient
         initialBusiness={business}
         initialBusinessPhotos={initialBusinessPhotos}

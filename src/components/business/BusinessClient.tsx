@@ -1072,6 +1072,8 @@ export default function BusinessClient({
   const rankingsCountryCode =
     (business?.countryCode || "US").trim().toUpperCase() || "US";
 
+  const rankingsCountryName = getCountryName(rankingsCountryCode) || rankingsCountryCode;
+
   /** Navbar / URL preference first so category directory matches the user’s selected region. */
   const categoryBrowseCountryCode = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -1324,8 +1326,11 @@ export default function BusinessClient({
                   Review summary
                 </h2>
                 <p className="mt-3 text-sm text-gray-600">
-                  {business?.description ||
-                    "Reviews are written by real customers and moderated for authenticity."}
+                  Reviews are written by real customers and moderated for authenticity.
+                  This breakdown shows how many reviews fall into each star level,
+                  helping you see the overall pattern of feedback. The TrustScore
+                  summary is calculated from verified reviews, response behaviour, and
+                  other platform signals.
                 </p>
 
                 <div className="mt-8 rounded-2xl border border-gray-200 p-5">
@@ -1407,7 +1412,11 @@ export default function BusinessClient({
                 </span>
               </div>
               <p className="mt-2 text-sm text-gray-600">
-                Read real experiences from customers who have interacted with {sanitizeText(business?.name ?? "this business")}.
+                Read real experiences from customers who have interacted with{" "}
+                {sanitizeText(business?.name ?? "this business")}. Reviews are
+                moderated for authenticity and can be reported if they violate
+                platform rules. Reading several reviews helps you understand
+                patterns in service, quality, and reliability before you decide.
               </p>
               <div className="mt-4 space-y-4">
                 {isLoadingReviews && (
@@ -1518,6 +1527,18 @@ export default function BusinessClient({
                     </button>
                   </div>
                 )}
+                {!isLoadingReviews && reviews.length > 0 && (
+                  <p className="mt-4 text-xs text-gray-500">
+                    See all reviews and trust signals on the{" "}
+                    <Link
+                      href="/reputation-platform"
+                      className="font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]"
+                    >
+                      Tellacity Review Platform
+                    </Link>
+                    .
+                  </p>
+                )}
                 {!isLoadingReviews && hasMoreReviews && (
                   <div className="flex justify-center">
                     <button
@@ -1605,6 +1626,17 @@ export default function BusinessClient({
             </div>
 
               <div className="mt-10 space-y-6 text-sm text-gray-600">
+                <div className="border-b border-gray-200 pb-6">
+                  <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                    About {sanitizeText(business?.name ?? "Business")}
+                  </h2>
+                  <p className="mt-3 text-sm text-gray-600">
+                    Business owners can use this section to describe their services,
+                    opening hours, and what makes them unique. Add a description,
+                    hours, services, and contact details to make this profile more
+                    useful for customers and search engines.
+                  </p>
+                </div>
                 {/* Company description. Owner text only; no SEO filler or category fallback */}
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-base font-semibold text-[#0E0E0E]">
@@ -1686,9 +1718,17 @@ export default function BusinessClient({
 
               {business?.categorySlug?.trim() && (
                 <div className="mt-10">
-                  <h3 className="text-lg font-semibold text-[#0E0E0E]">
-                    Explore Rankings
-                  </h3>
+                  <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                    Explore rankings for{" "}
+                    {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)} in{" "}
+                    {rankingsCountryName}
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm text-gray-600">
+                    Compare {sanitizeText(business.name)} with other highly rated
+                    businesses in the same category and country. Visitors can use these
+                    rankings to discover nearby options and see how different businesses
+                    perform on Tellacity.
+                  </p>
                   <div className="mt-4 rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
@@ -1926,7 +1966,9 @@ export default function BusinessClient({
                     )}?country=${encodeURIComponent(rankingsCountryCode)}`}
                     className="text-gray-600 hover:text-[#0E0E0E]"
                   >
-                    More in {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)}
+                    See more in{" "}
+                    {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)} in{" "}
+                    {rankingsCountryName}
                   </Link>
                   {business.countryCode ? (
                     <Link

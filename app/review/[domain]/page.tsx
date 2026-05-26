@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
+import { buildBusinessLocalBusinessJsonLd } from "@/lib/businessReviewJsonLd";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -139,77 +140,11 @@ export default async function DomainReviewPage({
     (business as { owner_id?: string | null }).owner_id
   );
 
-  const averageRating = (business as { average_rating?: number | null })
-    .average_rating;
-  const reviewCount = (business as { review_count?: number | null }).review_count;
-
-  type JsonLdReviewRow = {
-    rating?: number | null;
-    title?: string | null;
-    body?: string | null;
-    guest_name?: string | null;
-  };
-
-  let jsonLdReviewRows: JsonLdReviewRow[] = [];
-  if (Number(reviewCount ?? 0) > 0) {
-    const { data: reviewRows } = await supabase
-      .from("reviews")
-      .select("rating, title, body, guest_name, status")
-      .eq("business_id", String(business.id))
-      .in("status", ["published", "live"])
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    jsonLdReviewRows = Array.isArray(reviewRows) ? reviewRows : [];
-  }
-
-  const jsonLdReviews = jsonLdReviewRows
-    .map((review) => {
-      const reviewBody =
-        String(review.body ?? "").trim() ||
-        String(review.title ?? "").trim();
-      if (!reviewBody) return null;
-      if (!review.rating || Number(review.rating) <= 0) return null;
-
-      return {
-        "@type": "Review" as const,
-        author: {
-          "@type": "Person" as const,
-          name: String(review.guest_name ?? "").trim() || "Customer",
-        },
-        reviewRating: {
-          "@type": "Rating" as const,
-          ratingValue: Math.min(5, Math.max(1, Number(review.rating))),
-        },
-        reviewBody,
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 3);
-
-  const normalizedReviewCount = Number(reviewCount ?? 0);
-  const normalizedAverageRating = Number(averageRating ?? 0);
-  const shouldIncludeReviewData =
-    jsonLdReviews.length > 0 &&
-    normalizedReviewCount > 0 &&
-    normalizedAverageRating > 0;
-
-  const businessJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+  const businessJsonLd = await buildBusinessLocalBusinessJsonLd(supabase, {
+    businessId: String(business.id),
     name: String((business as { name?: string | null }).name ?? ""),
     url: `https://tellacity.com/review/${normalizedDomain}`,
-    ...(shouldIncludeReviewData
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: normalizedAverageRating,
-            reviewCount: normalizedReviewCount,
-          },
-          review: jsonLdReviews,
-        }
-      : {}),
-  };
+  });
 
   return (
     <>

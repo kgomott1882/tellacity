@@ -1,10 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import CategoryClient from "./CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
-import { normalizeBusinessTags, mergeTagsForDisplay } from "@/lib/businessTags";
+import { buildCategoryPageJsonLdScripts } from "@/lib/categoryPageJsonLd";
+import { normalizeBusinessTags } from "@/lib/businessTags";
 import { getCachedCategoryListingPage } from "@/lib/cachedCategoryListing";
 
 type PageProps = {
@@ -143,53 +145,12 @@ async function loadPopularTagsForCategory(
   return popularTags;
 }
 
-function countryAliasesForQuery(countryCode: string | null): string[] | null {
-  if (!countryCode) return null;
-  return countryCode === "GB" ? ["GB", "UK", "GBR"] : [countryCode];
-}
-
-async function loadCategoryCountsForMetadata(
-  supabase: SupabaseClient | null,
-  safeCategorySlug: string,
-  requestedCountry: string | undefined,
-): Promise<{ businessCount: number; reviewCount: number }> {
-  if (!supabase) return { businessCount: 0, reviewCount: 0 };
-  try {
-    const normalizedCountry = requestedCountry
-      ? normalizeCountryCode(requestedCountry)
-      : null;
-    const aliases = countryAliasesForQuery(normalizedCountry);
-
-    let countQuery = supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active")
-      .eq("category_slug", safeCategorySlug);
-    if (aliases && aliases.length > 0) {
-      countQuery = countQuery.in("country_code", aliases);
-    }
-
-    const { count, error: countErr } = await countQuery;
-    if (countErr) {
-      console.warn("[category page] business count (metadata):", countErr.message);
-    }
-    const businessCount = count ?? 0;
-    // Summing review_count row-by-row across thousands of businesses caused
-    // statement timeouts and slow metadata. Title uses company count; true
-    // review totals stay on business pages.
-    return { businessCount, reviewCount: 0 };
-  } catch (e) {
-    console.error("[category page] loadCategoryCountsForMetadata:", e);
-    return { businessCount: 0, reviewCount: 0 };
-  }
-}
-
 // ----------------------------
 // METADATA (Next 16 compliant)
 // ----------------------------
 export async function generateMetadata(props: {
   params: Promise<{ category_slug: string }>;
-  searchParams?: Promise<{ page?: string }>;
+  searchParams?: Promise<{ page?: string; country?: string }>;
 }) {
   let safeCategorySlug = "category";
   try {
@@ -211,29 +172,12 @@ export async function generateMetadata(props: {
     );
     const countryCode = normalizeCountryCode(searchParams?.country);
     const countryName = countryNameFromCode(countryCode);
+    const canonicalUrl = `https://tellacity.com/categories/${safeCategorySlug}?country=${countryCode}`;
     const supabase = getSupabase();
-    if (!supabase) {
-      const fallbackTitle =
-        safeCategorySlug
-          .split("-")
-          .filter(Boolean)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" ") || "Category";
-      return {
-        title: `Best ${fallbackTitle} Companies | Tellacity`,
-        alternates: {
-          canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
-        },
-        robots: {
-          index: true,
-          follow: true,
-        },
-      };
-    }
 
     let categoryName: string | null = null;
 
-    if (safeCategorySlug) {
+    if (supabase && safeCategorySlug) {
       try {
         const { data } = await supabase
           .from("categories")
@@ -249,45 +193,53 @@ export async function generateMetadata(props: {
 
     const fallbackTitle = safeCategorySlug
       .split("-")
+      .filter(Boolean)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
     const categoryNameFinal = categoryName ?? fallbackTitle;
-    const popularTags = await loadPopularTagsForCategory(
-      supabase,
-      safeCategorySlug,
-      searchParams?.country,
-    );
-    const { reviewCount, businessCount } = await loadCategoryCountsForMetadata(
-      supabase,
-      safeCategorySlug,
-      searchParams?.country,
-    );
-    const topTags = popularTags
-      .slice(0, 5)
-      .map((item) => item.label.toLowerCase())
-      .join(", ");
-
-    const countLabel =
-      reviewCount > 0
-        ? `${reviewCount.toLocaleString()} Reviews`
-        : `${businessCount.toLocaleString()} Companies`;
-    const baseTitle = `Best ${categoryNameFinal} Companies in ${countryName} (${countLabel})`;
+    const baseTitle = `Best ${categoryNameFinal} in ${countryName} | Tellacity`;
     const metaTitle = pageNum > 1 ? `${baseTitle} – Page ${pageNum}` : baseTitle;
-    const description = topTags
-      ? `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Explore top providers including ${topTags}. Compare ratings, read real experiences, and find trusted businesses.`
-      : `Browse verified customer reviews for ${categoryNameFinal} companies in ${countryName}. Compare ratings, read real experiences, and find trusted businesses.`;
+    const description = `Browse the best ${categoryNameFinal} providers in ${countryName}. Compare TrustScores, read real customer reviews, and choose trusted companies based on verified feedback on Tellacity.`;
+
+    if (!supabase) {
+      return {
+        title: metaTitle,
+        description,
+        alternates: { canonical: canonicalUrl },
+        openGraph: {
+          title: metaTitle,
+          description,
+          url: canonicalUrl,
+          siteName: "Tellacity",
+          type: "website",
+        },
+        twitter: {
+          card: "summary_large_image",
+          title: metaTitle,
+          description,
+        },
+        robots: { index: true, follow: true },
+      };
+    }
 
     return {
       title: metaTitle,
       description,
-      alternates: {
-        canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
+      alternates: { canonical: canonicalUrl },
+      openGraph: {
+        title: metaTitle,
+        description,
+        url: canonicalUrl,
+        siteName: "Tellacity",
+        type: "website",
       },
-      robots: {
-        index: true,
-        follow: true,
+      twitter: {
+        card: "summary_large_image",
+        title: metaTitle,
+        description,
       },
+      robots: { index: true, follow: true },
     };
   } catch {
     const fallbackTitle =
@@ -297,14 +249,11 @@ export async function generateMetadata(props: {
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ") || "Category";
     return {
-      title: `Best ${fallbackTitle} Companies | Tellacity`,
+      title: `Best ${fallbackTitle} | Tellacity`,
       alternates: {
         canonical: `https://tellacity.com/categories/${safeCategorySlug}`,
       },
-      robots: {
-        index: true,
-        follow: true,
-      },
+      robots: { index: true, follow: true },
     };
   }
 }
@@ -378,8 +327,10 @@ export default async function Page(props: PageProps) {
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
+    let categoryGroupSlug = "";
     let categoryGroupName = "Business Services";
     if (supabase && categoryRow?.group_slug) {
+      categoryGroupSlug = String(categoryRow.group_slug).trim();
       try {
         const { data: groupData, error: groupError } = await supabase
           .from("category_groups")
@@ -429,35 +380,79 @@ export default async function Page(props: PageProps) {
       console.error("[category page] popularTags:", e);
     }
 
+    const jsonLdScripts = buildCategoryPageJsonLdScripts({
+      categoryName,
+      categorySlug: safeCategorySlug,
+      categoryGroupName,
+      categoryGroupSlug,
+      countryCode,
+      countryName,
+      businesses: (businesses as Array<{ name?: string | null; slug?: string | null }>)
+        .map((row) => ({
+          name: String(row.name ?? "").trim(),
+          slug: String(row.slug ?? "").trim().toLowerCase(),
+        }))
+        .filter((row) => row.name && row.slug),
+      totalCount: companyCount,
+    });
+
     return (
       <>
+        {jsonLdScripts.map((script, index) => (
+          <script
+            key={`category-jsonld-${index}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(script) }}
+          />
+        ))}
         <section className="mx-auto w-full max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <p className="text-xs text-[#1FAF9E]">
-              Categories <span className="mx-1">›</span> {categoryGroupName}{" "}
-              <span className="mx-1">›</span> {categoryName}
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-[#0E0E0E]">
-              Best {categoryName} companies in {countryName}
+            <nav className="text-xs text-[#1FAF9E]" aria-label="Breadcrumb">
+              <Link href="/categories" className="hover:underline">
+                Categories
+              </Link>
+              <span className="mx-1">›</span>
+              {categoryGroupSlug ? (
+                <>
+                  <Link
+                    href={`/categories/${categoryGroupSlug}?country=${countryCode}`}
+                    className="hover:underline"
+                  >
+                    {categoryGroupName}
+                  </Link>
+                  <span className="mx-1">›</span>
+                </>
+              ) : null}
+              <span className="text-gray-700">{categoryName}</span>
+            </nav>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#0E0E0E]">
+              Best {categoryName} in {countryName}
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              Find the best {categoryName} companies in {countryName}. Compare
-              ratings, read real customer reviews, and choose trusted providers
-              based on real experiences.
+            <h2 className="mt-4 text-lg font-semibold text-[#0E0E0E]">
+              Find the best {categoryName} providers in {countryName}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+              Compare ratings, read real customer reviews, and choose trusted
+              providers based on verified experiences on Tellacity.
             </p>
-            <div style={{ marginTop: "10px" }}>
-              <a
+            <h2 className="mt-6 text-base font-semibold text-[#0E0E0E]">
+              Top {categoryName} companies in {countryName}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+              This leaderboard shows the highest-rated {categoryName} providers in{" "}
+              {countryName}, ranked by TrustScore, review volume, and recent feedback.
+              You can click through to any business to read reviews, see photos, and
+              compare services.
+            </p>
+            <div className="mt-3">
+              <Link
                 href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
-                style={{
-                  fontSize: "13px",
-                  color: "#1FAF9E",
-                  textDecoration: "none",
-                }}
+                className="text-sm font-medium text-[#1FAF9E] hover:underline"
               >
                 View best {categoryName} companies in {countryName} →
-              </a>
+              </Link>
             </div>
-            <div className="text-sm text-gray-500 flex flex-wrap gap-4 mt-2">
+            <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
               <span>• Ranked by TrustScore</span>
               <span>• Filter by rating &amp; country</span>
               <span>• Read &amp; share experiences</span>
@@ -469,6 +464,9 @@ export default async function Page(props: PageProps) {
           key={`${safeCategorySlug}-${countryCode}`}
           categorySlug={safeCategorySlug}
           initialCountryCode={countryCode}
+          initialCategoryName={categoryName}
+          initialCategoryGroupName={categoryGroupName}
+          initialCategoryGroupSlug={categoryGroupSlug}
           businesses={businesses}
           companyCount={companyCount}
           hasNextPage={hasNextPage}

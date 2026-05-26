@@ -652,17 +652,14 @@ export default function BusinessProfilePhotos({
         </h2>
         {showPublicPreviewExamples ? (
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
-            Photos help customers understand a business, place, or product before they
-            commit. Businesses upload and organise images from their Tellacity
-            dashboard to showcase their brand and experience. If this profile has no
-            photos yet, adding real images can quickly help build customer trust.
+            Photos help customers visualise the shop, products, and experience before
+            they commit. Businesses can upload photos from their Tellacity dashboard to
+            showcase their brand and build trust quickly.
           </p>
         ) : (
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
-            Photos give customers a clear feel for the place or product before they
-            commit. This business has uploaded and organised real images from their
-            Tellacity dashboard, so what you see reflects the experience you can
-            expect.
+            Photos help customers visualise the shop, products, and experience before
+            they commit.
           </p>
         )}
       </div>

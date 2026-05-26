@@ -207,6 +207,9 @@ export type CategoryClientProps = {
   companyCount: number;
   hasNextPage: boolean;
   initialCountryCode: string;
+  initialCategoryName?: string;
+  initialCategoryGroupName?: string;
+  initialCategoryGroupSlug?: string;
   popularTags?: Array<{ label: string; slug: string }>;
   /** When `tag`, `categorySlug` is a tag slug and listings use `/api/category-listings?kind=tag`. */
   listingKind?: "category" | "tag";
@@ -218,6 +221,9 @@ export default function CategoryClient({
   companyCount = 0,
   hasNextPage = false,
   initialCountryCode,
+  initialCategoryName = "",
+  initialCategoryGroupName = "",
+  initialCategoryGroupSlug = "",
   popularTags: serverPopularTags = [],
   listingKind = "category",
 }: CategoryClientProps) {
@@ -388,9 +394,15 @@ export default function CategoryClient({
   }, [listingPageIndex, hrefForListingPage, router]);
 
   const [categoryName, setCategoryName] = useState(() =>
-    listingKind === "tag" ? formatBusinessTagLabel(categorySlug) : "",
+    listingKind === "tag"
+      ? formatBusinessTagLabel(categorySlug)
+      : initialCategoryName.trim() ||
+        categorySlug
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" "),
   );
-  const [groupName, setGroupName] = useState("");
+  const [groupName, setGroupName] = useState(initialCategoryGroupName);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; slug: string }[]>([]);
 
   const sortParam = searchParams.get("sort");
@@ -844,8 +856,10 @@ export default function CategoryClient({
     };
   }, [categorySlug, listingPageIndex, derivedCountry, listingKind]);
 
-  // Page title/meta
+  // Page title/meta (tag listings only; category pages use server generateMetadata)
   useEffect(() => {
+    if (listingKind !== "tag") return;
+
     const pageTitle = `${title} Businesses | Tellacity`;
     const description = `Explore top rated businesses in ${title}. Read verified customer feedback on Tellacity.`;
 
@@ -861,9 +875,24 @@ export default function CategoryClient({
         document.head.appendChild(meta);
       }
     }
-  }, [siteUrl, title]);
+  }, [siteUrl, title, listingKind]);
 
-  const collectionJsonLd = {
+  const isHealthRelatedCategory = useMemo(() => {
+    const slug = categorySlug.trim().toLowerCase();
+    const group = initialCategoryGroupSlug.trim().toLowerCase();
+    return (
+      group.includes("health") ||
+      slug.includes("medical") ||
+      slug.includes("health") ||
+      slug.includes("clinic") ||
+      slug.includes("hospital")
+    );
+  }, [categorySlug, initialCategoryGroupSlug]);
+
+  const collectionJsonLd =
+    listingKind === "category"
+      ? null
+      : {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: `${title} Reviews & Ratings`,
@@ -892,10 +921,12 @@ export default function CategoryClient({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
-      />
+      {collectionJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+        />
+      ) : null}
       <main className="bg-white">
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
           {popularSearches.length > 0 && (
@@ -1031,9 +1062,9 @@ export default function CategoryClient({
 
           <h2
             ref={listingTopRef}
-            className="text-lg font-semibold mt-6 mb-3 scroll-mt-24"
+            className="sr-only scroll-mt-24"
           >
-            Best {categoryName} companies in {countryName}
+            Top {categoryName} companies in {countryName}
           </h2>
           {listingKind === "category" && (
             <div className="mb-4">
@@ -1416,6 +1447,50 @@ export default function CategoryClient({
             )}
           </section>
 
+          {/* How categories work */}
+          {listingKind === "category" && (
+            <section className="mt-10 rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-700">
+              <h2 className="text-base font-semibold text-[#0E0E0E]">
+                How categories work
+              </h2>
+              <p className="mt-3 leading-relaxed">
+                Tellacity groups businesses into categories so you can compare trusted
+                providers in one place. Each directory is ranked using verified review
+                signals, not paid placement.
+              </p>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                    Ranked by TrustScore
+                  </h3>
+                  <p className="mt-1 leading-relaxed">
+                    TrustScore summarises verified reviews, response behaviour, and
+                    policy-compliance signals so higher-ranked businesses reflect
+                    consistent, authentic feedback.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                    Filter by rating &amp; country
+                  </h3>
+                  <p className="mt-1 leading-relaxed">
+                    Use rating and country filters to narrow results to the providers
+                    most relevant to your needs and region.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                    Read &amp; share experiences
+                  </h3>
+                  <p className="mt-1 leading-relaxed">
+                    Open any business profile to read detailed reviews or share your
+                    own experience to help others make better decisions.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* How this page works (desktop / tablet only) */}
           <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
             <div>
@@ -1423,8 +1498,9 @@ export default function CategoryClient({
                 Ranked by trust
               </h2>
               <p>
-                Listings are ordered using a combination of TrustScore, review volume, and recent activity in this
-                category.
+                Listings are ordered using a combination of TrustScore, review volume,
+                and recent activity in this category. Comparing several providers helps
+                you spot consistent patterns in service quality.
               </p>
             </div>
             <div>
@@ -1432,7 +1508,8 @@ export default function CategoryClient({
                 Filter by rating & location
               </h2>
               <p>
-                Use rating and country filters to focus on the businesses most relevant to your needs and region.
+                Use rating and country filters to focus on the businesses most relevant
+                to your situation and region.
               </p>
             </div>
             <div>
@@ -1440,28 +1517,83 @@ export default function CategoryClient({
                 Read & share experiences
               </h2>
               <p>
-                Click into a business to read detailed reviews or share your own experience to help others decide.
+                Click into a business to read detailed reviews or share your own
+                experience to help others decide.
               </p>
             </div>
           </section>
 
-          <div style={{ marginTop: "40px", fontSize: "14px", lineHeight: "1.6" }}>
-            <h2>About {categoryName} businesses</h2>
-            <p>
-              Explore trusted {categoryName} businesses on Tellacity. Read real customer reviews, compare services, and find the best companies based on authentic feedback.
+          <div className="mt-10 text-sm leading-relaxed text-gray-700">
+            <h2 className="text-base font-semibold text-[#0E0E0E]">
+              About {categoryName} businesses
+            </h2>
+            <p className="mt-3">
+              Businesses in the {categoryName} category offer specialised services in
+              this sector. Tellacity helps you compare providers using verified customer
+              reviews, TrustScores, and transparent feedback.
             </p>
-            <p>
-              Whether you're looking for reliable providers or sharing your experience, Tellacity helps you make informed decisions across {categoryName} services worldwide.
+            {isHealthRelatedCategory ? (
+              <p className="mt-3">
+                Verified reviews are especially important for health-related services,
+                where trust, clarity, and service quality matter most.
+              </p>
+            ) : null}
+            <p className="mt-3">
+              Cross-check the headline TrustScore with individual reviews to understand
+              both the overall pattern and specific customer experiences.
+            </p>
+
+            <h3 className="mt-6 text-sm font-semibold text-[#0E0E0E]">
+              Trusted {categoryName} providers
+            </h3>
+            <p className="mt-2">
+              Explore ranked businesses with published reviews and public TrustScores on
+              Tellacity.
+            </p>
+
+            <h3 className="mt-4 text-sm font-semibold text-[#0E0E0E]">
+              Reliable customer feedback
+            </h3>
+            <p className="mt-2">
+              Reviews are moderated for authenticity and can be reported if they violate
+              platform rules.
+            </p>
+
+            <h3 className="mt-4 text-sm font-semibold text-[#0E0E0E]">
+              How to choose the right provider
+            </h3>
+            <p className="mt-2">
+              Read multiple reviews, compare ratings, and use category rankings to find
+              a provider that fits your needs.
             </p>
           </div>
 
-          <div className="mt-10 border-t pt-6 text-sm">
-            <a
+          <div className="mt-10 border-t pt-6 text-sm space-y-3">
+            <p className="text-gray-600">
+              See more reviews and categories on the{" "}
+              <Link href="/" className="font-medium text-[#1FAF9E] hover:underline">
+                Tellacity Home
+              </Link>{" "}
+              page.
+            </p>
+            <Link
               href={`/companies/${countryCode.toLowerCase()}`}
-              className="text-blue-600 hover:underline"
+              className="inline-block text-[#1FAF9E] hover:underline"
             >
               Browse more businesses in {countryName}
-            </a>
+            </Link>
+            {listingKind === "category" && categorySlug.trim() ? (
+              <p className="text-gray-600">
+                See more in{" "}
+                <Link
+                  href={categoryBrowseHref(categorySlug.trim(), countryCode)}
+                  className="font-medium text-[#1FAF9E] hover:underline"
+                >
+                  {categoryName}
+                </Link>{" "}
+                in {countryName}.
+              </p>
+            ) : null}
           </div>
 
         </section>
