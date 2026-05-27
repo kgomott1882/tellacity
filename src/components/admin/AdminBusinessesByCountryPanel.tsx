@@ -220,9 +220,9 @@ export default function AdminBusinessesByCountryPanel() {
                   } ${isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
                   title={
                     isDisabled
-                      ? `${name}: ${row.business_count.toLocaleString("en-US")} businesses (no country code — can't filter)`
+                      ? `${name}: ${row.business_count.toLocaleString("en-US")} businesses (no country code, can't filter)`
                       : isActive
-                        ? `Showing ${name} only — click to clear`
+                        ? `Showing ${name} only, click to clear`
                         : `Click to show only ${name} businesses`
                   }
                 >

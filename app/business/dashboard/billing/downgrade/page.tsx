@@ -220,7 +220,7 @@ export default function BillingDowngradePage() {
                   : <span className="font-semibold text-[#0E0E0E]">{periodEndLabel}</span>
                 </>
               ) : (
-                <span className="text-amber-800"> — not set yet. Complete a paid checkout first, or contact support.</span>
+                <span className="text-amber-800">, not set yet. Complete a paid checkout first, or contact support.</span>
               )}
             </p>
           </section>

@@ -220,7 +220,7 @@ export async function POST(req: Request) {
       returnPath: returnTo,
     });
 
-    // Paystack verify reconciles charge amount using metadata.billing_cycle — always send explicit "monthly" | "annual".
+    // Paystack verify reconciles charge amount using metadata.billing_cycle, always send explicit "monthly" | "annual".
     const billingCycleMetadata: "monthly" | "annual" = cycle;
 
     const paystackRequestBody = {
@@ -276,7 +276,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Paystack refused the charge — release any credits we reserved so the
+    // Paystack refused the charge, release any credits we reserved so the
     // user can retry without losing their pro-ration.
     if (selection.totalAppliedUsdMinor > 0) {
       await releasePendingCredits(creditDb, reference);

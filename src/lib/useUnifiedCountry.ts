@@ -42,7 +42,7 @@ export function useUnifiedCountry(
   const pendingCountryRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // On `/`, prefer the real address bar first — Next `useSearchParams()` can lag one
+    // On `/`, prefer the real address bar first, Next `useSearchParams()` can lag one
     // frame behind `?country=`, which used to fall through to localStorage (wrong country).
     let queryCountryRaw: string | null = null;
     if (

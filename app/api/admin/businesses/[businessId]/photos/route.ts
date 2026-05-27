@@ -11,7 +11,7 @@ import { getServerEnv } from "@/lib/serverEnv";
  * render a review queue without a second round-trip.
  *
  * Requires profiles.is_admin = true. Reads go through the service role to
- * bypass RLS — admins must see photos regardless of ownership or moderation
+ * bypass RLS, admins must see photos regardless of ownership or moderation
  * state.
  */
 export const dynamic = "force-dynamic";

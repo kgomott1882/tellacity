@@ -42,7 +42,7 @@ export function normalizeHomeBestInBusiness(raw: unknown): HomeBestInBusiness | 
         : null;
   if (!id) return null;
 
-  const name = strOrNull(r.name) ?? "—";
+  const name = strOrNull(r.name) ?? "-";
   const slugRaw = strOrNull(r.slug);
   const slug = (slugRaw ?? "").toLowerCase() || id;
 

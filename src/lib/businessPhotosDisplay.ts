@@ -146,7 +146,7 @@ export function groupBusinessPhotosWithConfig(
     } else if (buckets.has("gallery")) {
       buckets.get("gallery")!.push(p);
     }
-    // else: no gallery either — drop the photo (shouldn't happen with built-ins seeded).
+    // else: no gallery either, drop the photo (shouldn't happen with built-ins seeded).
   }
 
   const sortedSlugs = [...enabled]

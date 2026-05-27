@@ -12,7 +12,7 @@ export const BILLING_PLAN_PHOTOS_LABEL: Record<PlanKey, string> = {
 };
 
 /**
- * Photo section upload access. Sections are no longer plan-gated — every plan
+ * Photo section upload access. Sections are no longer plan-gated, every plan
  * can publish to any section (including user-defined custom ones). The labels
  * convey the cross-section nature of the new photo cap.
  */

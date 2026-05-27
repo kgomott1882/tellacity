@@ -393,7 +393,7 @@ export default function AdminReviewsClient({
             <p className="mt-1 text-sm text-neutral-600">
               No-reply email to{" "}
               <span className="font-medium text-neutral-900">
-                {warningModalReview.reviewer_email?.trim() || "—"}
+                {warningModalReview.reviewer_email?.trim() || "-"}
               </span>
               . They will see your selected reason and any note below.
             </p>

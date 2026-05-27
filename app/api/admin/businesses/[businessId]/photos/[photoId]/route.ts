@@ -18,7 +18,7 @@ import { getServerEnv } from "@/lib/serverEnv";
  *         table to decrement).
  *   - Best-effort cleanup of the underlying object in the
  *     `business_media` storage bucket so we don't leak blobs. A failure
- *     to delete the blob does NOT fail the request — the DB row is the
+ *     to delete the blob does NOT fail the request, the DB row is the
  *     source of truth for visibility.
  *
  * Admin-only. Bypasses the Free-plan 30-day edit lock because this is an
@@ -139,7 +139,7 @@ export async function DELETE(_req: Request, ctx: RouteParams) {
   }
 
   // --- best-effort storage cleanup ----------------------------------------
-  // A failure here must not fail the request — the visible state is
+  // A failure here must not fail the request, the visible state is
   // already correct (row gone, caps freed). Log so we can reconcile.
   let storagePath: string | null = null;
   let storageCleanup: "ok" | "skipped" | "failed" = "skipped";

@@ -11,7 +11,7 @@ export const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
 
 /**
  * Maximum TOTAL number of profile photos allowed per plan, across ALL sections.
- * Users can freely distribute photos across categories — we only enforce the total.
+ * Users can freely distribute photos across categories, we only enforce the total.
  */
 export const PLAN_PHOTO_LIMITS: Record<PlanKey, number> = {
   free: 4,

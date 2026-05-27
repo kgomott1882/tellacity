@@ -10,7 +10,7 @@
  *   inside the staging page itself, navigating to checkout (and back) would
  *   unmount everything and discard the queue. Hoisting the state into a
  *   provider that wraps the whole dashboard keeps the queue alive for the
- *   entire session — SPA navigations preserve it, and the only paths that
+ *   entire session, SPA navigations preserve it, and the only paths that
  *   destroy it are the ones the user explicitly triggers (Cancel + confirm,
  *   successful upgrade, full page reload / sign-out).
  *
@@ -96,7 +96,7 @@ export function StagedPhotosProvider({ children }: { children: React.ReactNode }
   const setBusinessId = useCallback(
     (id: string | null) => {
       setBusinessIdState((current) => {
-        // If the user switches workspaces we can't keep the queue — it was
+        // If the user switches workspaces we can't keep the queue, it was
         // gathered in the context of a specific business.
         if (current && id && current !== id) {
           stagedRef.current.forEach((p) => {

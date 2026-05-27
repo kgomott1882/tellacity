@@ -76,7 +76,7 @@ export async function loadAdminTopRecentBusinessActivity(
   const list = Array.isArray(data) ? (data as RawRow[]) : [];
   const rows: AdminTopRecentBusinessActivity[] = list.map((r) => ({
     business_id: asString(r.business_id),
-    business_name: asString(r.business_name) || "—",
+    business_name: asString(r.business_name) || "-",
     business_slug: asString(r.business_slug),
     business_website: asString(r.business_website),
     business_logo_url: asString(r.business_logo_url),
@@ -88,7 +88,7 @@ export async function loadAdminTopRecentBusinessActivity(
     owner_display_name:
       asString(r.owner_display_name) ||
       asString(r.owner_email) ||
-      "—",
+      "-",
     last_activity_at: asNullableString(r.last_activity_at),
     last_activity_kind: normalizeKind(r.last_activity_kind),
     last_review_at: asNullableString(r.last_review_at),

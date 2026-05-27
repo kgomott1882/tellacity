@@ -49,7 +49,7 @@ function sourceLabel(source: AdminUserSource): string {
     case "other":
       return "Other";
     default:
-      return "—";
+      return "-";
   }
 }
 
@@ -116,7 +116,7 @@ export default function AdminUsersListTable({
                       {sourceLabel(row.source)}
                     </span>
                   ) : (
-                    <span className="text-neutral-400">—</span>
+                    <span className="text-neutral-400">-</span>
                   )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-neutral-600">

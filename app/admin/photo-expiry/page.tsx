@@ -18,7 +18,7 @@ export default function AdminPhotoExpiryPage() {
             Free-plan photos are automatically removed 30 calendar days after
             upload. Use this queue to send the 24-hour reminder email to the
             business owner and to sweep any photos that have already crossed
-            the retention window. Upgrades clear the list automatically — paid
+            the retention window. Upgrades clear the list automatically, paid
             plans never expire.
           </p>
         </div>

@@ -3,7 +3,7 @@ import { Resend } from "resend";
 /**
  * Notify a business owner on the free plan that their uploaded photos are
  * about to be removed under the 30-day retention policy. This email is
- * triggered by an admin from `/admin/photo-expiry` — the DB / deletion job
+ * triggered by an admin from `/admin/photo-expiry`, the DB / deletion job
  * remains the source of truth, so a failed email must never block the
  * underlying retention logic.
  *
@@ -87,7 +87,7 @@ export async function sendPhotoExpiryReminderEmail(
     process.env.NEXT_PUBLIC_APP_URL ?? "https://tellacity.com"
   ).replace(/\/$/, "");
   // `source=upload_limit` tells the billing page to show the "upload more
-  // photos" upgrade framing — same context we already use for the
+  // photos" upgrade framing, same context we already use for the
   // upload-limit-reached nudge.
   const upgradeUrl = `${baseUrl}/business/dashboard/billing?source=upload_limit`;
   const photosUrl = `${baseUrl}/business/dashboard/settings/photos`;
@@ -167,7 +167,7 @@ export async function sendPhotoExpiryReminderEmail(
     const send = await resend.emails.send({
       from,
       to: email,
-      subject: "Your photos will be removed in 24 hours — upgrade to keep them",
+      subject: "Your photos will be removed in 24 hours, upgrade to keep them",
       html,
       text,
     });

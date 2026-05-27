@@ -84,15 +84,15 @@ async function fetchPublicReviewAggregatesBatch(
  * it joins `business_review_metrics_v` (live aggregate of *all* reviews) on
  * every call, which routinely hits the Supabase statement_timeout on the
  * homepage and made "Best in <category>" carousels return empty. PostgREST
- * scans only the `businesses` table — already indexed on
- * (`category_slug`, `country_code`, `status`) — and is consistently fast.
+ * scans only the `businesses` table, already indexed on
+ * (`category_slug`, `country_code`, `status`), and is consistently fast.
  *
  * To compensate for any drift in the cached `businesses.trust_score` /
  * `review_count` columns (a business with new reviews but a stale cached
  * trust_score = 0 might sort low here), we:
  *   1. Pull a larger candidate pool (40 instead of 20)
  *   2. Order by stored `trust_score` desc nulls last, then `review_count`
- *      desc nulls last, then `name` asc — so brand-new businesses with
+ *      desc nulls last, then `name` asc, so brand-new businesses with
  *      cached zeros still appear *after* well-rated ones but are still in
  *      the candidate set when the pool is big enough.
  *   3. Re-rank the candidates using live aggregates from
@@ -147,7 +147,7 @@ async function fetchCandidatesForSlug(
 }
 
 /**
- * Homepage "Best in …" — fast path.
+ * Homepage "Best in …", fast path.
  *
  * Strategy:
  *   1. For each rotating category slug, fetch up to N candidates from the
@@ -162,7 +162,7 @@ async function fetchCandidatesForSlug(
  *
  * Previously this used `get_top_businesses_for_category_global`, which joins
  * `business_review_metrics_v` and frequently hit the Supabase statement
- * timeout — see dev logs:
+ * timeout, see dev logs:
  *   `[loadHomeBestInLive] get_top_businesses_for_category_global: insurance
  *    canceling statement due to statement timeout`.
  * The user reported the symptom as "Best in Insurance not loading"; switching
@@ -201,7 +201,7 @@ export async function loadHomeBestInLive(
 
   // Phase 1b: for any slug with zero country results, fall back to global so
   // the carousel is never empty (user explicitly asked for sections to
-  // "ALWAYS load" — see screenshot of "Best in Insurance — No businesses
+  // "ALWAYS load", see screenshot of "Best in Insurance, No businesses
   // found yet" on /?country=GB).
   const emptySlugs = slugResults
     .filter(({ rows }) => !rows || rows.length === 0)

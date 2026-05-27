@@ -10,7 +10,7 @@ import { getServerEnv } from "@/lib/serverEnv";
  * a final admin decision (moderation_status = 'pending'). The admin
  * sidebar polls this endpoint so the "Photo Uploads" tab can show an
  * active notification badge that only clears once every pending photo has
- * been approved or rejected — viewing the queue doesn't reset it.
+ * been approved or rejected, viewing the queue doesn't reset it.
  *
  * Admin-only. Uses the service role so the count isn't limited by the
  * caller's RLS view of other businesses' photos.

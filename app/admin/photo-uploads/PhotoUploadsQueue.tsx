@@ -50,7 +50,7 @@ type RejectTarget = { group: QueueGroup; photo: QueuePhoto };
 const MAX_ADMIN_BULK_SELECTION = 50;
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
@@ -268,9 +268,9 @@ export default function PhotoUploadsQueue() {
 
         let suffix = "";
         if (action === "reject") {
-          if (result.emailStatus === "sent") suffix = " — owner notified by email";
+          if (result.emailStatus === "sent") suffix = ", owner notified by email";
           else if (result.emailStatus === "no_owner_email")
-            suffix = " — no owner email on file";
+            suffix = ", no owner email on file";
         }
         setFlash({
           type: "success",
@@ -334,11 +334,11 @@ export default function PhotoUploadsQueue() {
         }
         const cleanupSuffix =
           result.storageCleanup === "failed"
-            ? " — storage file kept (logged for cleanup)"
+            ? ", storage file kept (logged for cleanup)"
             : "";
         setFlash({
           type: "success",
-          text: `Photo deleted — slot returned to the business${cleanupSuffix}.`,
+          text: `Photo deleted, slot returned to the business${cleanupSuffix}.`,
         });
         removePhotoLocally(photo.id);
         void load(true);
@@ -647,7 +647,7 @@ export default function PhotoUploadsQueue() {
                       </>
                     ) : (
                       <span className="text-amber-700">
-                        No claimed owner — rejection emails will be skipped.
+                        No claimed owner, rejection emails will be skipped.
                       </span>
                     )}
                   </p>

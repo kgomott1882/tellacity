@@ -1203,50 +1203,57 @@ export default function HomePageClient({
                     ? " customer reviews from around the world"
                     : ` customer reviews in ${activeCountry.name}`}
                 </span>
-                <div className="relative">
+                <div className="relative shrink-0">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white px-2 py-1 text-sm shadow-sm hover:border-gray-300"
+                    className="inline-flex min-h-9 min-w-[3.25rem] items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 shadow-sm hover:border-gray-400 sm:min-h-10 sm:min-w-[3.5rem] sm:px-3 sm:py-2"
                     onClick={() => setIsCountryMenuOpen((prev) => !prev)}
-                    aria-label="Change country for recent reviews, categories, and rankings"
+                    aria-label={`Change country for recent reviews, categories, and rankings (currently ${activeCountry.name})`}
+                    aria-expanded={isCountryMenuOpen}
+                    aria-haspopup="listbox"
                   >
                     <img
                       src={activeCountry.flagUrl}
-                      alt={activeCountry.name}
-                      className="h-3 w-5 object-cover"
+                      alt=""
+                      className="h-4 w-6 shrink-0 rounded-sm object-cover ring-1 ring-black/10 sm:h-[18px] sm:w-[27px]"
                       aria-hidden="true"
                     />
-                    <span className="sr-only">Open country selection</span>
                     <svg
                       viewBox="0 0 24 24"
-                      className="ml-1 h-3 w-3 text-gray-500"
+                      className="h-4 w-4 shrink-0 text-[#0E0E0E] sm:h-[18px] sm:w-[18px]"
                       aria-hidden="true"
                     >
                       <path
                         d="M6 9l6 6 6-6"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2"
+                        strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                     </svg>
                   </button>
                   {isCountryMenuOpen && (
-                    <div className="absolute right-0 z-10 mt-1 w-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                    <div
+                      className="absolute right-0 z-10 mt-1.5 max-h-64 w-auto overflow-y-auto rounded-md border border-gray-300 bg-white py-1 shadow-lg"
+                      role="listbox"
+                      aria-label="Select country"
+                    >
                       {COUNTRIES.map((country) => (
                         <button
                           key={country.code}
                           type="button"
-                          className="flex w-full items-center justify-center px-2 py-1 hover:bg-gray-50"
+                          role="option"
+                          aria-selected={country.code === activeCountryCode}
+                          className="flex w-full min-h-10 items-center justify-center px-3 py-2 hover:bg-gray-50 aria-selected:bg-[#E5F4F2]"
                           onClick={() =>
                             handleCountryChange(country.code as CountryCode)
                           }
                         >
                           <img
                             src={country.flagUrl}
-                            alt={country.name}
-                            className="h-3 w-5 object-cover"
+                            alt=""
+                            className="h-4 w-6 shrink-0 rounded-sm object-cover ring-1 ring-black/10"
                             aria-hidden="true"
                           />
                           <span className="sr-only">{country.name}</span>
@@ -1259,7 +1266,7 @@ export default function HomePageClient({
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               {isGlobalHome
-                ? `Real customer reviews from businesses around the world, moderated for authenticity, newest first. Showing reviews from ${activeCountry.name} by default — switch country to update categories and rankings.`
+                ? `Real customer reviews from businesses around the world, moderated for authenticity, newest first. Showing reviews from ${activeCountry.name} by default, switch country to update categories and rankings.`
                 : `Real customer reviews in ${activeCountry.name}, moderated for authenticity, newest first. The same country applies to categories and rankings on this page.`}
             </p>
           </div>

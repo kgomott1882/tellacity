@@ -304,7 +304,7 @@ export default function SuggestBusinessForm() {
               </p>
               <p>
                 Website, country code, and primary group are especially
-                important—they help us confirm operations, region, and where the
+                important, they help us confirm operations, region, and where the
                 business belongs on Tellacity.
               </p>
             </div>
@@ -708,7 +708,7 @@ export default function SuggestBusinessForm() {
             <p className="mt-3">
               Business owners, employees, and customers may suggest a missing
               business, but the details should reflect the real operating
-              business—not a test entry or duplicate listing.
+              business, not a test entry or duplicate listing.
             </p>
           </div>
         </section>

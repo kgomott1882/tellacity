@@ -166,7 +166,7 @@ const PLAN_INCLUSIONS = [
 
 const COMPARISON_CATEGORY_EXPLAIN: Record<string, string> = {
   COLLECT:
-    "How your business invites customers to leave reviews—via email, QR codes, templates, and monthly invite limits.",
+    "How your business invites customers to leave reviews, via email, QR codes, templates, and monthly invite limits.",
   VERIFY:
     "Trust signals and badges that show customers your profile and feedback meet Tellacity verification standards.",
   MANAGE:
@@ -183,7 +183,7 @@ const faqs = [
   {
     question: "Can I start on the Free plan and upgrade later?",
     answer:
-      "Yes. You can start on the Free plan to claim your profile and collect initial reviews, then upgrade to Grow, Premium, or Elite whenever your review volume or team needs grow. Plan changes are designed to match how your business scales—there is no requirement to pick a paid plan on day one.",
+      "Yes. You can start on the Free plan to claim your profile and collect initial reviews, then upgrade to Grow, Premium, or Elite whenever your review volume or team needs grow. Plan changes are designed to match how your business scales, there is no requirement to pick a paid plan on day one.",
   },
   {
     question: "Do you charge extra fees for integrations?",
@@ -334,7 +334,7 @@ export function PricingPageContent({
           </p>
           <p className="max-w-xl text-sm text-gray-600 md:text-base">
             Each plan is designed for a different stage of growth and review
-            volume—so you pay for the features and invite limits you actually
+            volume, so you pay for the features and invite limits you actually
             need, not a one-size-fits-all bundle.{" "}
             <Link href="/for-business" className={linkClass}>
               See what Tellacity offers for business
@@ -457,7 +457,7 @@ export function PricingPageContent({
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Paid plan prices are shown per month. Use the Monthly and Annual
-            toggle on this page to compare billing options—annual billing
+            toggle on this page to compare billing options, annual billing
             reflects approximately 20% savings versus paying month to month.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
@@ -469,7 +469,7 @@ export function PricingPageContent({
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Businesses can switch plans as review volume and team needs change.
             Pricing stays transparent and tied to invite limits, analytics depth,
-            team access, and integrations—not surprise add-ons.
+            team access, and integrations, not surprise add-ons.
           </p>
         </section>
       ) : null}
@@ -491,7 +491,7 @@ export function PricingPageContent({
               analytics, and team tools as your reputation program matures.
             </p>
             <p className="mt-3 text-sm text-gray-600">
-              You can move between plans when review volume changes—upgrade when
+              You can move between plans when review volume changes, upgrade when
               you need more invites or downgrade through billing when your needs
               shift. No hidden fees, and every tier lists its limits clearly.
             </p>
@@ -904,7 +904,7 @@ export function PricingPageContent({
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Below is a plain-language summary of the most important inclusions
-            across plans—review invites, verified business tools, widgets,
+            across plans, review invites, verified business tools, widgets,
             analytics, team access, integrations, and photo uploads.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
@@ -951,7 +951,7 @@ export function PricingPageContent({
                 customer feedback.
               </p>
               <p className="mx-auto mt-3 max-w-3xl text-sm text-gray-600">
-                The table is here to help you choose the right plan—not to hide
+                The table is here to help you choose the right plan, not to hide
                 limits in fine print. If you need help interpreting a row, visit
                 the{" "}
                 <Link href="/help-center" className={linkClass}>
@@ -1114,7 +1114,7 @@ export function PricingPageContent({
             </h2>
             <p className="mt-3 max-w-3xl text-sm text-gray-600">
               Custom pricing exists for teams that need more than standard plan
-              limits—higher review volume, bespoke integrations, or enterprise
+              limits, higher review volume, bespoke integrations, or enterprise
               compliance requirements. The custom path is for organisations whose
               needs outgrow Elite.
             </p>
@@ -1135,8 +1135,8 @@ export function PricingPageContent({
                   Enterprise needs
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Enterprise requirements—custom integrations, SSO, dedicated
-                  support, or non-standard SLAs—are handled through a Custom Plan
+                  Enterprise requirements, custom integrations, SSO, dedicated
+                  support, or non-standard SLAs, are handled through a Custom Plan
                   quote rather than self-serve checkout.
                 </p>
               </div>

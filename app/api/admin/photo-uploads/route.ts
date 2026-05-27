@@ -11,7 +11,7 @@ import { getServerEnv } from "@/lib/serverEnv";
  * published (status='published'), grouped by business, along with the
  * owner's email / display name so the admin can reach out.
  *
- * Only approving or rejecting a photo removes it from this list — merely
+ * Only approving or rejecting a photo removes it from this list, merely
  * viewing the page does not.
  *
  * Admin-only. Runs with the service role to bypass per-business RLS.
@@ -155,7 +155,7 @@ export async function GET() {
   }
 
   // Group photos under their owning business so the UI can render a
-  // section per business — easier for the admin to triage than a flat
+  // section per business, easier for the admin to triage than a flat
   // cross-business grid.
   const groupedMap = new Map<string, BusinessQueueEntry>();
   for (const photo of rows) {

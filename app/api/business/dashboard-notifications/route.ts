@@ -192,7 +192,7 @@ export async function GET(req: Request) {
           .select("id", { count: "exact", head: true })
           .eq("business_id", businessId)
           .eq("source", "email_widget"),
-        // Total photos uploaded to `business_photos` for this business — matches
+        // Total photos uploaded to `business_photos` for this business, matches
         // the upload API's plan-cap check (`status`-agnostic). Drives both the
         // "no photos yet" nudge and the Free-plan "upgrade for more photos" nudge.
         auth.db
@@ -323,9 +323,9 @@ export async function GET(req: Request) {
       let description: string;
       if (latestInviteAt) {
         const since = timeSinceLabel(latestInviteAt);
-        description = `No invites sent in the last 48 hours (last sent ${since} ago). Monthly allocations don't roll over — send more to keep collecting reviews.`;
+        description = `No invites sent in the last 48 hours (last sent ${since} ago). Monthly allocations don't roll over, send more to keep collecting reviews.`;
       } else if (inviteCadenceQuiet) {
-        description = `You haven't sent any invites yet (${timeSinceLabel(createdAt)} since setup). Invites reset each calendar month — use them to grow reviews and visibility.`;
+        description = `You haven't sent any invites yet (${timeSinceLabel(createdAt)} since setup). Invites reset each calendar month, use them to grow reviews and visibility.`;
       } else {
         description =
           "Review invites reset each calendar month and don't roll over. Send invitations now to start collecting reviews and strengthen your online presence.";
@@ -362,8 +362,8 @@ export async function GET(req: Request) {
     }
 
     // Photo-upload nudges:
-    //  1) "No photos uploaded yet" — any plan, no rows in `business_photos`.
-    //  2) "Upgrade for more photos" — Free plan, hit the free cap, AND the
+    //  1) "No photos uploaded yet", any plan, no rows in `business_photos`.
+    //  2) "Upgrade for more photos", Free plan, hit the free cap, AND the
     //     owner has logged in a few times (engaged, not a drive-by signup).
     // `photoCountResult` / `loginLifetimeCount` already handle their own
     // errors below via `parseIntCount` + explicit `.error` checks so a
@@ -390,7 +390,7 @@ export async function GET(req: Request) {
             : `Fill your photo gallery (${remainingLabel} left)`,
         description:
           photoCount === 0
-            ? "You haven't uploaded any photos yet. Add images of your team, workspace, or work — profiles with photos get more trust and engagement."
+            ? "You haven't uploaded any photos yet. Add images of your team, workspace, or work, profiles with photos get more trust and engagement."
             : `You've used ${photoCount} of ${photoCapForPlan} photos on your plan (${remainingLabel} remaining). Add more to stand out while you still have room.`,
         href: "/business/dashboard/settings/photos",
         priority: 75,
@@ -406,9 +406,9 @@ export async function GET(req: Request) {
     ) {
       notifications.push({
         key: "photos_free_limit_upgrade",
-        title: "Unlock more photos — your profile is getting noticed",
+        title: "Unlock more photos, your profile is getting noticed",
         description:
-          "You've used all of your free photo slots. Visitors are viewing your business page — upgrade your plan to upload more photos and keep them engaged.",
+          "You've used all of your free photo slots. Visitors are viewing your business page, upgrade your plan to upload more photos and keep them engaged.",
         href: "/business/dashboard/billing?source=upload_limit",
         priority: 78,
         created_at: new Date().toISOString(),
@@ -417,15 +417,15 @@ export async function GET(req: Request) {
     }
 
     // Free-plan 30-day photo retention notices:
-    //   1) `photos_free_retention_policy` — informational nudge shown to
+    //   1) `photos_free_retention_policy`, informational nudge shown to
     //      any free-plan business that has uploaded at least one photo but
     //      nothing is in the final warning window yet. Dismissible.
-    //   2) `photos_free_expiring_24h` — urgent, always-visible warning
+    //   2) `photos_free_expiring_24h`, urgent, always-visible warning
     //      once any photo crosses the 29-day threshold. Copy names the
     //      count and the earliest cutoff so the owner can decide before
     //      the deletion sweep runs.
     // Photo retention is re-evaluated at query time from `created_at` +
-    // the resolved plan — upgrading to any paid plan instantly hides both
+    // the resolved plan, upgrading to any paid plan instantly hides both
     // nudges on the next refresh.
     const expiringPhotoRows = expiringPhotosResult.error
       ? []
@@ -470,7 +470,7 @@ export async function GET(req: Request) {
           expiringPhotoCount === 1 ? "is" : "are"
         } about to hit the ${FREE_PLAN_PHOTO_RETENTION_DAYS}-day retention cutoff (earliest on ${cutoffLabel}). Upgrade now to keep ${
           expiringPhotoCount === 1 ? "it" : "them"
-        } live — otherwise the photo${
+        } live, otherwise the photo${
           expiringPhotoCount === 1 ? "" : "s"
         } will be removed and you'll need to re-upload after the window rolls over.`,
         href: "/business/dashboard/billing?source=upload_limit",

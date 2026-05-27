@@ -12,7 +12,7 @@ import {
  * GET /api/admin/photo-expiry/count
  *
  * Returns the number of business photos that are currently in the "final
- * 24 hour warning" window — uploaded by a business whose resolved plan is
+ * 24 hour warning" window, uploaded by a business whose resolved plan is
  * `free` and that crossed the 29-day retention threshold but hasn't yet
  * hit the 30-day deletion cutoff.
  *
@@ -64,7 +64,7 @@ export async function GET() {
   const hardExpiryCutoff = expiryCutoffIso(now); // created_at <= this → ≥30d old
 
   // Pull photos in the warning window ([29d, 30d)). We grab business_id so
-  // we can gate on the current plan key in a second pass — doing the plan
+  // we can gate on the current plan key in a second pass, doing the plan
   // filter here (instead of SQL) keeps this endpoint in sync with the
   // shared plan-resolution helper.
   const { data: rows, error: rowsErr } = await admin

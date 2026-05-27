@@ -18,10 +18,10 @@ import { sendPhotoExpiryReminderEmail } from "@/lib/businessPhotoExpiryEmail";
  * server (so a newly upgraded business can't be pinged by accident), count
  * their currently expiring photos, and send the owner an email via Resend.
  *
- * The endpoint is idempotent — calling it twice just sends a second
+ * The endpoint is idempotent, calling it twice just sends a second
  * reminder; it does not mutate any DB row. The photo deletion sweep is
  * still driven by `/api/admin/photo-expiry/delete-expired` (or the cron
- * equivalent) — this endpoint only sends the email.
+ * equivalent), this endpoint only sends the email.
  *
  * Admin-only.
  */
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Paid plans can't receive this email — it would be misleading. Re-check
+  // Paid plans can't receive this email, it would be misleading. Re-check
   // the plan here so admin UI that's out of date can't send the wrong
   // message.
   const planKey = await getActivePlanKeyForBusiness(businessId, admin);
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Recount the expiring window server-side — never trust the client.
+  // Recount the expiring window server-side, never trust the client.
   const now = new Date();
   const warningCutoff = finalWarningCutoffIso(now);
   const { data: expiringRows, error: rowsErr } = await admin
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
   if (expiringCount === 0) {
     return NextResponse.json(
       {
-        error: "Nothing to notify — no photos in the expiry window",
+        error: "Nothing to notify, no photos in the expiry window",
         emailStatus: "no_expiring_photos",
       },
       { status: 409 }

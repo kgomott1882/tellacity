@@ -110,7 +110,7 @@ export default function BillingPage() {
   /**
    * Inline pricing disclosure. We intentionally avoid navigating to the
    * standalone pricing page (`/business/dashboard/settings/usage`) from
-   * here — a full route change unmounts dashboard-scoped contexts like
+   * here, a full route change unmounts dashboard-scoped contexts like
    * the "Upload more photos" staging queue, which would lose queued files.
    * Rendering <PricingPageContent /> inline keeps every dashboard context
    * mounted while still giving the user the full comparison + checkout UX.
@@ -317,7 +317,7 @@ export default function BillingPage() {
 
   const billingHeaderSubtitle =
     billingUpgradeContext === "upload_limit"
-      ? `Free includes ${PLAN_PHOTO_LIMITS.free} photos. Grow raises it to ${PLAN_PHOTO_LIMITS.grow}, Premium to ${PLAN_PHOTO_LIMITS.premium}, and Elite to ${PLAN_PHOTO_LIMITS.elite} — spread across any category you like.`
+      ? `Free includes ${PLAN_PHOTO_LIMITS.free} photos. Grow raises it to ${PLAN_PHOTO_LIMITS.grow}, Premium to ${PLAN_PHOTO_LIMITS.premium}, and Elite to ${PLAN_PHOTO_LIMITS.elite}, spread across any category you like.`
       : billingUpgradeContext === "section_locked"
         ? "Every plan can upload to any section (and add custom ones). Higher tiers simply give you more photo slots to fill them with."
         : billingUpgradeContext === "general"
@@ -532,7 +532,7 @@ export default function BillingPage() {
                             </span>
                           ) : isFree ? (
                             <span className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-white px-3 py-1 text-[11px] font-medium text-gray-500">
-                              —
+                              -
                             </span>
                           ) : (
                             <Link
@@ -558,7 +558,7 @@ export default function BillingPage() {
             {planKey !== "free" ? (
               <p className="text-xs text-gray-500">
                 Upgrading mid-cycle? We credit the unused days on your current plan
-                against today&apos;s charge — you only pay the difference.
+                against today&apos;s charge, you only pay the difference.
               </p>
             ) : null}
 
@@ -647,7 +647,7 @@ export default function BillingPage() {
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
                       Compare plans, switch billing cadence, and choose the best
-                      fit for your workspace — anything you&apos;re working on
+                      fit for your workspace, anything you&apos;re working on
                       elsewhere stays saved.
                     </p>
                   </div>

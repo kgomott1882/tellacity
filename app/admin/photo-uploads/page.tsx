@@ -17,7 +17,7 @@ export default function AdminPhotoUploadsPage() {
           <p className="text-sm text-neutral-600">
             Central review queue for every business photo awaiting an admin
             decision. Photos are live on the public page the moment the owner
-            publishes them — approving a photo keeps it live, rejecting pulls
+            publishes them, approving a photo keeps it live, rejecting pulls
             it down and emails the owner. Opening this page doesn&apos;t clear
             the sidebar notification; only approving or rejecting does.
           </p>

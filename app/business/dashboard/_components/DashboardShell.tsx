@@ -228,7 +228,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     }
   }, [authLoading, user, router, pathname]);
 
-  // Consumer accounts (account_kind) must not stay on business URLs — same rule as post-login redirect.
+  // Consumer accounts (account_kind) must not stay on business URLs, same rule as post-login redirect.
   useEffect(() => {
     if (authLoading || !user?.id) return;
     let cancelled = false;

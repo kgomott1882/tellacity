@@ -121,11 +121,11 @@ export default async function AdminPaymentsPage() {
                   {d.transactionsThisMonth.map((row) => (
                     <tr key={`${row.reference}-${row.created_at}`} className="bg-white">
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                        {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
+                        {row.created_at ? new Date(row.created_at).toLocaleString() : "-"}
                       </td>
                       <td className="px-3 py-2">
                         <span className="font-medium text-neutral-900">
-                          {row.business_name?.trim() || "—"}
+                          {row.business_name?.trim() || "-"}
                         </span>
                         <div className="text-xs text-neutral-500">{row.business_id}</div>
                       </td>
@@ -146,7 +146,7 @@ export default async function AdminPaymentsPage() {
         </AdminTableShell>
 
         <AdminTableShell
-          title={`Paid workspaces — no successful charge this month (${d.paidActiveNoSuccessTxThisMonth.length} shown)`}
+          title={`Paid workspaces, no successful charge this month (${d.paidActiveNoSuccessTxThisMonth.length} shown)`}
         >
           {d.paidActiveNoSuccessTxThisMonth.length === 0 ? (
             <div className="p-4 text-sm text-neutral-600">
@@ -176,9 +176,9 @@ export default async function AdminPaymentsPage() {
                         </Link>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">{row.plan_code}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{row.provider ?? "—"}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-neutral-600">{row.provider ?? "-"}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                        {row.current_period_end ? new Date(row.current_period_end).toLocaleString() : "—"}
+                        {row.current_period_end ? new Date(row.current_period_end).toLocaleString() : "-"}
                       </td>
                     </tr>
                   ))}
@@ -209,11 +209,11 @@ export default async function AdminPaymentsPage() {
                   {d.webhookNonSuccessSample.map((row, i) => (
                     <tr key={`${row.reference ?? "ref"}-${i}`} className="bg-white">
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                        {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
+                        {row.created_at ? new Date(row.created_at).toLocaleString() : "-"}
                       </td>
                       <td className="px-3 py-2 font-medium text-neutral-900">{row.event}</td>
                       <td className="max-w-[240px] truncate px-3 py-2 font-mono text-xs text-neutral-600" title={row.reference ?? ""}>
-                        {row.reference?.trim() || "—"}
+                        {row.reference?.trim() || "-"}
                       </td>
                     </tr>
                   ))}
@@ -252,7 +252,7 @@ export default async function AdminPaymentsPage() {
                           </Link>
                         </td>
                         <td className="px-3 py-2 text-xs text-neutral-700">
-                          {row.old_plan ?? "—"} → {row.new_plan}
+                          {row.old_plan ?? "-"} → {row.new_plan}
                         </td>
                       </tr>
                     ))}
@@ -290,7 +290,7 @@ export default async function AdminPaymentsPage() {
                           </Link>
                         </td>
                         <td className="px-3 py-2 text-xs text-neutral-700">
-                          {row.old_plan ?? "—"} → {row.new_plan}
+                          {row.old_plan ?? "-"} → {row.new_plan}
                         </td>
                       </tr>
                     ))}

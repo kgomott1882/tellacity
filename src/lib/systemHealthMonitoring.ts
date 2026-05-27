@@ -1077,7 +1077,7 @@ function buildCheckDefinitions(): CheckDef[] {
         if (!slug) {
           return {
             response_time_ms: 0,
-            message: "Skipped — set SYSTEM_CHECK_WIDGET_BUSINESS_SLUG to assert 200 widget payload",
+            message: "Skipped, set SYSTEM_CHECK_WIDGET_BUSINESS_SLUG to assert 200 widget payload",
           };
         }
         const r = await expectHttpStatus(

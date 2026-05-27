@@ -27,7 +27,7 @@ export async function upsertActiveSubscriptionForBusiness(
   args: UpsertArgs
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = new Date().toISOString();
-  /** DB requires NOT NULL `provider` on this project — always send a value. */
+  /** DB requires NOT NULL `provider` on this project, always send a value. */
   const provider =
     args.provider != null && String(args.provider).trim() !== ""
       ? String(args.provider).trim()

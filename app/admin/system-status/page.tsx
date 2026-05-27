@@ -38,7 +38,7 @@ type TimelineCheckRow = {
 };
 
 function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
@@ -46,7 +46,7 @@ function formatWhen(iso: string | null | undefined): string {
 
 /** Compact timestamp for dense tables. */
 function formatWhenShort(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString(undefined, {
@@ -88,7 +88,7 @@ function statusBadge(status: string, compact?: boolean) {
     );
   }
   return (
-    <span className={`inline-flex bg-amber-100 text-amber-900 ${cls}`}>{s || "—"}</span>
+    <span className={`inline-flex bg-amber-100 text-amber-900 ${cls}`}>{s || "-"}</span>
   );
 }
 
@@ -97,8 +97,8 @@ function timelineDotTitle(row: TimelineCheckRow): string {
   const ms =
     row.response_time_ms != null && Number.isFinite(Number(row.response_time_ms))
       ? `${row.response_time_ms} ms`
-      : "—";
-  const msg = (row.message ?? "").trim() || "—";
+      : "-";
+  const msg = (row.message ?? "").trim() || "-";
   return `When: ${ts}\nResponse: ${ms}\nMessage: ${msg}`;
 }
 
@@ -212,7 +212,7 @@ export default async function AdminSystemStatusPage() {
           <span className="font-medium">All monitored flows passed on the latest run.</span>
         ) : (
           <span className="font-medium">
-            {failing} of {totalChecks} checks failing on the latest run — see the list below.
+            {failing} of {totalChecks} checks failing on the latest run, see the list below.
           </span>
         )}
       </div>
@@ -282,7 +282,7 @@ export default async function AdminSystemStatusPage() {
                   return (
                     <tr key={row.check_name} className="bg-white align-top">
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-neutral-600">
-                        {row.check_group?.trim() ? row.check_group : "—"}
+                        {row.check_group?.trim() ? row.check_group : "-"}
                       </td>
                       <td className="max-w-[min(42vw,280px)] px-3 py-2 font-mono text-xs font-medium leading-snug text-neutral-900 lg:max-w-[320px]">
                         <span className="break-all">{row.check_name}</span>
@@ -291,13 +291,13 @@ export default async function AdminSystemStatusPage() {
                         <div className="flex flex-col items-start gap-1">
                           {statusBadge(row.status, true)}
                           <span className="tabular-nums text-xs text-neutral-500">
-                            {row.response_time_ms != null ? `${row.response_time_ms} ms` : "—"}
+                            {row.response_time_ms != null ? `${row.response_time_ms} ms` : "-"}
                           </span>
                         </div>
                       </td>
                       <td className="max-w-[min(40vw,380px)] px-3 py-2 text-sm leading-snug text-neutral-700">
                         <span className="line-clamp-2" title={row.message ?? ""}>
-                          {row.message?.trim() ? row.message : "—"}
+                          {row.message?.trim() ? row.message : "-"}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-neutral-600">
@@ -305,7 +305,7 @@ export default async function AdminSystemStatusPage() {
                       </td>
                       <td className="px-3 py-2">
                         {points.length === 0 ? (
-                          <span className="text-xs text-neutral-400">—</span>
+                          <span className="text-xs text-neutral-400">-</span>
                         ) : (
                           <div className="flex flex-col gap-1">
                             <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
@@ -364,11 +364,11 @@ export default async function AdminSystemStatusPage() {
                     {formatWhenShort(inc.started_at)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums text-sm text-neutral-800">
-                    {inc.fail_count != null ? inc.fail_count : "—"}
+                    {inc.fail_count != null ? inc.fail_count : "-"}
                   </td>
                   <td className="max-w-lg px-3 py-2 text-sm text-neutral-800">
                     <span className="line-clamp-2" title={inc.last_error_message ?? ""}>
-                      {inc.last_error_message?.trim() ? inc.last_error_message : "—"}
+                      {inc.last_error_message?.trim() ? inc.last_error_message : "-"}
                     </span>
                   </td>
                 </tr>

@@ -126,7 +126,7 @@ const investmentReasons = [
     description:
       "Trust remains essential across economic cycles and purchase categories.",
     detail:
-      "Consumers continue to rely on credible feedback when choosing providers—trust infrastructure remains relevant through market cycles.",
+      "Consumers continue to rely on credible feedback when choosing providers, trust infrastructure remains relevant through market cycles.",
   },
   {
     title: "Network Effects",
@@ -267,7 +267,7 @@ export default function InvestorRelationsPage() {
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Tellacity is building infrastructure for verified trust in online
-            reputation—not a surface-level ratings site, but software, moderation,
+            reputation, not a surface-level ratings site, but software, moderation,
             and trust signals designed to scale with businesses and consumers.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
@@ -345,7 +345,7 @@ export default function InvestorRelationsPage() {
               </p>
               <p className="mt-3 text-sm text-gray-600">
                 That $4T trust gap reflects economic loss from decisions made on
-                manipulated or unverified feedback—from wasted spend to fraud and
+                manipulated or unverified feedback, from wasted spend to fraud and
                 reduced conversion for honest businesses.
               </p>
               <p className="mt-3 text-sm text-gray-600">
@@ -379,7 +379,7 @@ export default function InvestorRelationsPage() {
           </p>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">
             The themes below summarise why verification infrastructure, network
-            effects, and brand neutrality matter to long-term investors—not as
+            effects, and brand neutrality matter to long-term investors, not as
             marketing slogans, but as structural advantages in a trust-driven
             market.
           </p>
@@ -411,7 +411,7 @@ export default function InvestorRelationsPage() {
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Transparent moderation and verification are core to Tellacity&apos;s
-            business model—not optional product features. Trust is both the market
+            business model, not optional product features. Trust is both the market
             need we address and the principle that governs how the platform
             operates.
           </p>
@@ -435,7 +435,7 @@ export default function InvestorRelationsPage() {
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             These milestones are operational proof points showing execution
-            across product, AI, expansion, and partnerships—not aspirations alone.
+            across product, AI, expansion, and partnerships, not aspirations alone.
           </p>
           <ol className="mt-8 space-y-6 border-l-2 border-[#1FAF9E]/40 pl-6">
             {progressTimeline.map((item, index) => (
@@ -482,7 +482,7 @@ export default function InvestorRelationsPage() {
             </button>
           </div>
           <p className="mt-4 text-xs text-gray-500">
-            Q4 2025 Earnings Report Available — request access via{" "}
+            Q4 2025 Earnings Report Available, request access via{" "}
             <Link href="/investor-relations/contact" className={linkClass}>
               investor relations contact
             </Link>{" "}

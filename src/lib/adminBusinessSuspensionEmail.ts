@@ -87,7 +87,7 @@ export async function sendAdminBusinessSuspensionEmail(
   <p>
     This is an automated message and this inbox is not monitored.
   </p>
-  <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">— Tellacity Trust &amp; Safety</p>
+  <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">,  Tellacity Trust &amp; Safety</p>
   ${trustSafetyEmailSignatureHtml({ siteUrl: base, guidelinesPath: "/business-guidelines" })}
 </body></html>`.trim();
 

@@ -160,14 +160,14 @@ export async function getAdminPaymentsDashboard(): Promise<AdminPaymentsDashboar
       return {
         business_id: bid,
         business_name: nameById.get(bid) ?? null,
-        reference: String(r.reference ?? "").trim() || "—",
+        reference: String(r.reference ?? "").trim() || "-",
         amount_minor: amount,
         currency: String(r.currency ?? "USD")
           .trim()
           .toUpperCase()
           .slice(0, 3) || "USD",
-        plan_code: String(r.plan_code ?? "").trim() || "—",
-        status: String(r.status ?? "").trim() || "—",
+        plan_code: String(r.plan_code ?? "").trim() || "-",
+        status: String(r.status ?? "").trim() || "-",
         created_at: String(r.created_at ?? ""),
       };
     });
@@ -233,7 +233,7 @@ export async function getAdminPaymentsDashboard(): Promise<AdminPaymentsDashboar
     paidActiveNoSuccessTxThisMonth.push({
       business_id: bid,
       business_name: null,
-      plan_code: String(s.plan_code ?? "").trim() || "—",
+      plan_code: String(s.plan_code ?? "").trim() || "-",
       current_period_end: s.current_period_end ?? null,
       provider: s.provider ?? null,
     });
@@ -328,7 +328,7 @@ export async function getAdminPaymentsDashboard(): Promise<AdminPaymentsDashboar
     webhookNonSuccessSample = whSample.map((r) => {
       const row = r as { event?: string; reference?: string | null; created_at?: string | null };
       return {
-        event: String(row.event ?? "").trim() || "—",
+        event: String(row.event ?? "").trim() || "-",
         reference: row.reference != null ? String(row.reference).trim() : null,
         created_at: row.created_at != null ? String(row.created_at) : null,
       };

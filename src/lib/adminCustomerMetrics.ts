@@ -35,7 +35,7 @@ const OWNER_DASHBOARD_ENGAGEMENT_ACTIONS = new Set([
   "settings_viewed",
 ]);
 
-/** Max `created_at` for "Last active" — real dashboard work only (no recipient-only noise). */
+/** Max `created_at` for "Last active", real dashboard work only (no recipient-only noise). */
 const LAST_SEEN_DASHBOARD_ACTIONS = new Set<string>([
   ...OWNER_DASHBOARD_ENGAGEMENT_ACTIONS,
   "widget_generated",
@@ -200,7 +200,7 @@ export async function loadAdminCustomerMetricsMap(
   // Activity rows are scoped per business (ordered newest-first). Count
   // **any** authenticated dashboard user: `canAccessBusiness` already
   // restricts who can POST /api/business/activity-log, but only
-  // `businesses.owner_id` matched before — co-owners / members never
+  // `businesses.owner_id` matched before, co-owners / members never
   // advanced "Last active" or login counts.
   for (const { bid, rows } of activityChunks) {
     if (!out.has(bid)) continue;

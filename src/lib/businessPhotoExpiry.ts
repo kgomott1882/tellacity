@@ -9,7 +9,7 @@ import type { PlanKey } from "@/lib/plans";
  * window, it becomes eligible for automatic hard-deletion.
  *
  * Upgrading the business to any paid plan immediately removes the photo from
- * the expiry queue — the plan key is re-evaluated at query / deletion time
+ * the expiry queue, the plan key is re-evaluated at query / deletion time
  * so there's no row state to mutate on upgrade.
  *
  * The {@link FREE_PLAN_PHOTO_FINAL_WARNING_DAYS} threshold drives the "final
@@ -69,7 +69,7 @@ export function photoHoursUntilExpiry(
 }
 
 /**
- * True when a free-plan photo is in the final warning window — old enough
+ * True when a free-plan photo is in the final warning window, old enough
  * to show the "will be deleted within 24 hours" warning but not yet
  * eligible for deletion. Paid plans always return false.
  */

@@ -11,7 +11,7 @@
  *                          (recovery: reinstatement, appeal-approved, restored)
  *
  * Designed for HTML email clients (table layout, inline styles, no external
- * CSS, no web fonts). Tone is intentionally minimal and neutral — closer to
+ * CSS, no web fonts). Tone is intentionally minimal and neutral, closer to
  * Stripe / Supabase / OpenAI automated notices than to marketing copy.
  *
  * Wired into:
@@ -61,8 +61,8 @@ export type TrustSafetySignatureOptions = {
   guidelinesPath?: string;
   /**
    * Which signature persona to render.
-   *   - "trust_safety"     (default) — enforcement emails
-   *   - "business_support" — recovery / reinstatement emails
+   *   - "trust_safety"     (default), enforcement emails
+   *   - "business_support", recovery / reinstatement emails
    * Visual layout, asset, colors, and disclaimer remain identical
    * across variants; only the team name and subline change.
    */
@@ -143,7 +143,7 @@ export function trustSafetyEmailSignatureText(
   const guidelinesUrl = resolveGuidelinesUrl(base, options.guidelinesPath);
   const { teamName, teamSubline } = resolveVariantCopy(options.variant);
   return [
-    "—",
+    "-",
     teamName,
     teamSubline,
     SUPPORT_EMAIL,

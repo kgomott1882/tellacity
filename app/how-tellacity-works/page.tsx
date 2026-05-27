@@ -2,36 +2,37 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 
+const PAGE_URL = "https://tellacity.com/how-tellacity-works";
+
 export const metadata: Metadata = {
-  title:
-    "How Tellacity Works: From search to trust and verified reviews | Tellacity",
+  title: "How Tellacity Works | Customer Reviews & Reputation Management Platform",
   description:
-    "Learn how Tellacity connects consumers and businesses through verified reviews, trust scores, and transparent feedback loops. See how to write, verify, and respond to reviews on the platform.",
-  alternates: { canonical: "https://tellacity.com/how-tellacity-works" },
+    "Learn how Tellacity works as a customer reviews and feedback platform and reputation management platform with verified reviews, trust signals, and business responses.",
+  alternates: { canonical: PAGE_URL },
   openGraph: {
-    title: "How Tellacity Works | Tellacity",
+    title: "How Tellacity Works | Customer Reviews & Reputation Management Platform",
     description:
-      "Learn how Tellacity connects consumers and businesses through verified reviews, trust scores, and transparent feedback loops.",
-    url: "https://tellacity.com/how-tellacity-works",
+      "Learn how Tellacity works as a customer reviews and feedback platform and reputation management platform with verified reviews, trust signals, and business responses.",
+    url: PAGE_URL,
     siteName: "Tellacity",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "How Tellacity Works | Tellacity",
+    title: "How Tellacity Works | Customer Reviews & Reputation Management Platform",
     description:
-      "Verified reviews, trust scores, and transparent feedback loops on Tellacity.",
+      "Learn how Tellacity works as a customer reviews and feedback platform and reputation management platform with verified reviews, trust signals, and business responses.",
   },
   robots: { index: true, follow: true },
 };
 
-const webPageJsonLd = {
+const howItWorksJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebPage",
-  name: "How Tellacity Works",
+  name: "How Tellacity Works | Customer Reviews & Reputation Management Platform",
   description:
-    "Learn how Tellacity connects consumers and businesses through verified reviews, trust scores, and transparent feedback loops.",
-  url: "https://tellacity.com/how-tellacity-works",
+    "Learn how Tellacity works as a customer reviews and feedback platform and reputation management platform with verified reviews, trust signals, and business responses.",
+  url: PAGE_URL,
   inLanguage: "en",
   breadcrumb: {
     "@type": "BreadcrumbList",
@@ -46,11 +47,14 @@ const webPageJsonLd = {
         "@type": "ListItem",
         position: 2,
         name: "How Tellacity Works",
-        item: "https://tellacity.com/how-tellacity-works",
+        item: PAGE_URL,
       },
     ],
   },
 };
+
+const linkClass =
+  "font-medium text-[#0E3B36] underline underline-offset-2 hover:text-[#1FAF9E]";
 
 const howToJsonLd = {
   "@context": "https://schema.org",
@@ -188,13 +192,6 @@ const trustScoreItems = [
   },
 ];
 
-const feedbackLoop = [
-  "Customers share experiences",
-  "Businesses respond and improve",
-  "Trust indicators update automatically",
-  "Community benefits from transparency",
-];
-
 const consumerSteps = [
   {
     title: "Write a review",
@@ -252,7 +249,68 @@ const businessSteps = [
   {
     title: "Build and showcase trust",
     description:
-      "Display your Trust Score and verified reviews via dashboards, widgets, and SEO-ready content. Reputation built here also shows up where future customers are searching.",
+      "Display your Trust Score and verified reviews via dashboards, widgets, and SEO-ready content. The Tellacity Reputation Management Platform helps you showcase verified reputation where future customers are searching.",
+  },
+];
+
+const platformIncludes = [
+  {
+    title: "Public business profile",
+    detail:
+      "Verified reviews, Trust Score, photos, and business details in one place customers and search systems can cite.",
+  },
+  {
+    title: "Review submission form",
+    detail:
+      "A guided path for ratings, narrative feedback, and optional proof of purchase.",
+  },
+  {
+    title: "Business dashboard",
+    detail:
+      "Review inbox, replies, sentiment, and trust performance in one workspace.",
+  },
+  {
+    title: "Trust Score",
+    detail:
+      "A transparent summary of reputation based on six explicit factors, not a hidden black box.",
+  },
+  {
+    title: "Verification system",
+    detail:
+      "Overlapping checks for identity, proof, fraud, moderation, and policy compliance.",
+  },
+  {
+    title: "Widgets and analytics",
+    detail:
+      "Embed verified proof on your site and measure trends from the same verified pipeline.",
+  },
+];
+
+const feedbackLoopStages = [
+  {
+    title: "Customers",
+    detail:
+      "People share real experiences through Tellacity's customer reviews and feedback platform, honest input is where the loop starts.",
+  },
+  {
+    title: "Reviews",
+    detail:
+      "Feedback enters verification and moderation so only authentic, policy-compliant reviews shape public reputation.",
+  },
+  {
+    title: "Business response",
+    detail:
+      "Teams reply publicly, resolve issues, and show accountability, reputation is managed, not ignored.",
+  },
+  {
+    title: "Trust score",
+    detail:
+      "Verified signals update the Trust Score so discovery reflects current, defensible reputation.",
+  },
+  {
+    title: "Community",
+    detail:
+      "The next customer searches with better context; businesses improve; the marketplace becomes more transparent over time.",
   },
 ];
 
@@ -391,7 +449,7 @@ export default function HowTellacityWorksPage() {
     <main className="bg-white">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howItWorksJsonLd) }}
       />
       <script
         type="application/ld+json"
@@ -437,12 +495,20 @@ export default function HowTellacityWorksPage() {
           <h2 className="text-center text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
             From search to trust
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-gray-600">
-            Six steps connect customers, reviews, and businesses on Tellacity,
-            from the first search to the verified feedback that updates the
-            Trust Score. Each step adds another layer of authenticity that
-            makes the reputation worth relying on.
-          </p>
+          <div className="mx-auto mt-3 max-w-3xl space-y-3 text-center text-sm text-gray-600">
+            <p>
+              Six steps connect customers, reviews, and businesses on Tellacity,
+              from the first search to the verified feedback that updates trust
+              signals. Each step adds authenticity so reputation becomes more
+              reliable, not just louder.
+            </p>
+            <p>
+              This journey is the backbone of the customer reviews and feedback
+              platform: discovery, reading, writing, verification, business
+              collaboration, and community impact all feed the same trust
+              infrastructure.
+            </p>
+          </div>
           <div className="mt-10 overflow-hidden rounded-3xl bg-gray-100">
             <Image
               src="/brand/How%20it%20Works.jpeg"
@@ -492,12 +558,23 @@ export default function HowTellacityWorksPage() {
               <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
                 Inside Tellacity
               </h2>
-              <p className="mt-3 text-sm text-gray-600 sm:text-base">
-                See the three surfaces customers and businesses actually use:
-                the public business profile, the review submission form, and
-                the business dashboard. Together they form the loop that turns
-                customer experience into verified reputation.
-              </p>
+              <div className="mt-3 space-y-3 text-sm text-gray-600 sm:text-base">
+                <p>
+                  See the three surfaces customers and businesses actually use:
+                  the public business profile, the review submission form, and
+                  the business dashboard. Together they turn customer experience
+                  into verified reputation.
+                </p>
+                <p>
+                  Consumers mostly interact with profiles and the review form.
+                  Businesses live in the dashboard, where the{" "}
+                  <Link href="/reputation-platform" className={linkClass}>
+                    Tellacity Reputation Management Platform
+                  </Link>{" "}
+                  connects responses, analytics, and widgets to the same
+                  verified review pipeline.
+                </p>
+              </div>
               <div className="mt-8 space-y-6">
                 <div>
                   <h3 className="text-base font-semibold text-[#0E0E0E]">
@@ -541,7 +618,88 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* For Consumers / For Businesses (existing) */}
+      <section className="bg-white py-16 lg:py-24 border-t border-gray-100">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
+            How the reputation management platform fits in
+          </h2>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm text-gray-600 sm:text-base">
+            <p>
+              The{" "}
+              <Link href="/reputation-platform" className={linkClass}>
+                Tellacity Reputation Management Platform
+              </Link>{" "}
+              underpins the entire feedback loop. It wires verified reviews into
+              dashboards, widgets, analytics, and automation that businesses use
+              every day, not as separate tools, but as one system.
+            </p>
+            <p>
+              When a review is verified, it can flow to public profiles, embeddable
+              widgets, business responses, and trust metrics without manual
+              reconciliation. That is how feedback becomes operational reputation
+              management instead of a static rating.
+            </p>
+            <p>
+              Consumers still experience Tellacity as a customer reviews and
+              feedback platform. Businesses use the reputation management platform
+              to act on what customers say, see{" "}
+              <Link href="/for-business" className={linkClass}>
+                Tellacity for Business
+              </Link>{" "}
+              and{" "}
+              <Link href="/pricing" className={linkClass}>
+                pricing
+              </Link>{" "}
+              for how teams get started.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#F9F9F9] py-16 lg:py-24 border-t border-gray-100">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
+            What Tellacity includes
+          </h2>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm text-gray-600 sm:text-base">
+            <p>
+              Tellacity is both a public discovery experience and a reputation
+              management system. These are the major product surfaces that connect
+              reviews, verification, trust signals, and business tools.
+            </p>
+          </div>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {platformIncludes.map((item) => (
+              <li
+                key={item.title}
+                className="rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm"
+              >
+                <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">{item.detail}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-6 text-sm text-gray-600">
+            Explore the full platform on the{" "}
+            <Link href="/reputation-platform" className={linkClass}>
+              Reputation Management Platform
+            </Link>{" "}
+            page or browse{" "}
+            <Link href="/resources" className={linkClass}>
+              resources
+            </Link>{" "}
+            and the{" "}
+            <Link href="/blog" className={linkClass}>
+              blog
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* For Consumers / For Businesses */}
       <section className="bg-white py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -549,10 +707,18 @@ export default function HowTellacityWorksPage() {
               <h2 className="text-xl font-semibold text-[#0E3B36] sm:text-2xl">
                 For consumers
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Five short steps to write, read, and rely on verified
-                customer reviews on Tellacity.
-              </p>
+              <div className="mt-2 space-y-2 text-sm text-gray-600">
+                <p>
+                  Tellacity is built for people who want honest context before
+                  they buy. These five steps show how consumers write, verify,
+                  and rely on feedback on the customer reviews and feedback
+                  platform.
+                </p>
+                <p>
+                  Verification and trust signals help you focus on reviews that
+                  reflect real experiences, not noise or manipulation.
+                </p>
+              </div>
               <ul className="mt-5 space-y-4">
                 {consumerSteps.map((item) => (
                   <li key={item.title} className="flex gap-3">
@@ -582,10 +748,22 @@ export default function HowTellacityWorksPage() {
               <h2 className="text-xl font-semibold text-[#0E3B36] sm:text-2xl">
                 For businesses
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Six steps to claim, grow, and showcase a verified
-                reputation on the Tellacity Reputation Platform.
-              </p>
+              <div className="mt-2 space-y-2 text-sm text-gray-600">
+                <p>
+                  Six steps to claim, grow, and showcase verified reputation
+                  through the{" "}
+                  <Link href="/reputation-platform" className={linkClass}>
+                    Tellacity Reputation Management Platform
+                  </Link>
+                  . This is how businesses act on real-world feedback, not just
+                  collect stars.
+                </p>
+                <p>
+                  Dashboards, invitations, public replies, and widgets share one
+                  verified pipeline so your team sees the same truth customers
+                  see on your profile.
+                </p>
+              </div>
               <ul className="mt-5 space-y-4">
                 {businessSteps.map((item) => (
                   <li key={item.title} className="flex gap-3">
@@ -627,13 +805,28 @@ export default function HowTellacityWorksPage() {
       <section className="bg-gray-50 py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-6xl px-6 text-center">
           <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
-            Our verification system
+            The verification system
           </h2>
-          <p className="mx-auto mt-3 max-w-3xl text-sm text-gray-600">
-            Tellacity uses multiple overlapping layers to keep reviews
-            authentic, fair, and worth trusting. Each layer targets a
-            different way fake or manipulated reviews can slip through.
-          </p>
+          <div className="mx-auto mt-3 max-w-3xl space-y-3 text-sm text-gray-600">
+            <p>
+              Tellacity uses multiple overlapping layers to protect authenticity
+              and fairness. Each safeguard targets a different way fake or
+              manipulated reviews can slip through.
+            </p>
+            <p>
+              Verification is what makes the customer reviews and feedback
+              platform worth trusting, and what keeps the reputation management
+              platform defensible for businesses. Read our{" "}
+              <Link href="/reviewer-guidelines" className={linkClass}>
+                reviewer guidelines
+              </Link>{" "}
+              and{" "}
+              <Link href="/safety-trust" className={linkClass}>
+                Safety &amp; Trust
+              </Link>{" "}
+              pages for policy detail.
+            </p>
+          </div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {verificationItems.map((item) => (
               <div
@@ -658,15 +851,22 @@ export default function HowTellacityWorksPage() {
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
-              How the Tellacity Trust Score works
+              How the Trust Score works
             </h2>
-            <p className="mt-3 text-sm text-gray-600">
-              The Trust Score is a single, transparent number that
-              summarizes a business's reputation on Tellacity. It is
-              calculated from six explicit factors, so businesses always
-              know what's driving the score and customers always know what
-              the score actually reflects.
-            </p>
+            <div className="mt-3 space-y-3 text-sm text-gray-600">
+              <p>
+                The Trust Score is a single, transparent number that summarizes
+                reputation on Tellacity. It is calculated from six explicit
+                factors, not a hidden algorithm, so businesses know what drives
+                the score and customers know what it reflects.
+              </p>
+              <p>
+                The score emphasizes current, verified reputation: recency,
+                verification rate, and response behavior matter alongside volume
+                and quality. It is designed to reflect how the business is doing
+                now, not only historical averages from years ago.
+              </p>
+            </div>
           </div>
           <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
             <div className="text-4xl font-bold text-[#0E3B36]">
@@ -724,32 +924,26 @@ export default function HowTellacityWorksPage() {
             ))}
           </div>
 
-          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-gray-200 bg-[#F9F9F9] p-6 text-left">
-            <h3 className="text-sm font-semibold text-[#0E0E0E]">
-              Why this matters for decision-making
-            </h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Together, these factors turn a noisy stream of opinions into
-              one comparable signal of reputation. Consumers can choose
-              with confidence, businesses know exactly which behaviors
-              improve their score, and the wider market gets a more honest
-              picture of who is actually delivering for their customers.
-            </p>
-          </div>
         </div>
       </section>
 
-      {/* SECTION 6 - FEEDBACK LOOP DIAGRAM */}
       <section className="bg-gray-50 py-16 lg:py-24 border-t border-gray-100">
         <div className="mx-auto w-full max-w-5xl px-6 text-center">
           <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
-            The Feedback Loop: A transparent cycle
+            The feedback loop
           </h2>
-          <p className="mx-auto mt-3 max-w-3xl text-sm text-gray-600">
-            Customers share experiences, businesses respond and improve,
-            verified signals update the Trust Score, and the wider
-            community benefits from the transparency that emerges.
-          </p>
+          <div className="mx-auto mt-3 max-w-3xl space-y-3 text-sm text-gray-600">
+            <p>
+              Customer experiences flow into reviews, business responses, updated
+              trust signals, and community benefit. The loop is transparent by
+              design, it improves the whole marketplace over time, not just one
+              listing at a time.
+            </p>
+            <p>
+              Each stage below shows how the customer reviews and feedback
+              platform and reputation management platform stay connected.
+            </p>
+          </div>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             {[
               { label: "Customers", icon: "person" },
@@ -773,22 +967,18 @@ export default function HowTellacityWorksPage() {
               </div>
             ))}
           </div>
-          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 text-left">
-            <h3 className="text-sm font-semibold text-[#0E0E0E]">Why it matters</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Honest feedback creates accountability, strengthens trust,
-              and helps businesses improve while giving consumers the
-              confidence to make smarter choices. The{" "}
-              <Link
-                href="/reputation-platform"
-                className="font-semibold text-[#0E3B36] underline-offset-2 hover:underline"
+          <div className="mt-10 grid gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
+            {feedbackLoopStages.map((stage) => (
+              <div
+                key={stage.title}
+                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
               >
-                Tellacity Reputation Platform
-              </Link>{" "}
-              underpins this entire feedback loop, wiring verified
-              reviews into the dashboards, widgets, analytics, and
-              automation that businesses use every day.
-            </p>
+                <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                  {stage.title}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">{stage.detail}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -799,14 +989,18 @@ export default function HowTellacityWorksPage() {
           <h2 className="text-center text-2xl font-semibold text-[#0E3B36]">
             What a verified review looks like
           </h2>
-          <p className="mt-3 text-center text-sm text-gray-600">
-            "Verified" on Tellacity means the reviewer has a real
-            account, the review has been checked by our verification
-            system, and (where applicable) proof of purchase is on file.
-            Verified reviews are weighted more heavily in the Trust
-            Score and tend to carry more credibility with consumers,
-            search engines, and LLMs that surface review information.
-          </p>
+          <div className="mt-3 space-y-3 text-center text-sm text-gray-600">
+            <p>
+              &ldquo;Verified&rdquo; on Tellacity means the reviewer has a real
+              account, the review passed our verification system, and (where
+              applicable) proof of purchase is on file.
+            </p>
+            <p>
+              Verified reviews weigh more heavily in the Trust Score and carry
+              more credibility with consumers and systems that surface structured
+              review information, because the structure is visible, not assumed.
+            </p>
+          </div>
           <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 text-left">
             <h3 className="text-sm font-semibold text-[#0E0E0E]">
               Verified review structure
@@ -839,7 +1033,80 @@ export default function HowTellacityWorksPage() {
         </div>
       </section>
 
-      {/* SECTION 8 - FINAL CTA */}
+      <section className="bg-[#F9F9F9] py-16 lg:py-24 border-t border-gray-100">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <h2 className="text-2xl font-semibold text-[#0E3B36] sm:text-3xl">
+            Why this matters
+          </h2>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm text-gray-600 sm:text-base">
+            <p>
+              Verified reviews, transparent moderation, and trust signals matter
+              because buying decisions should not depend on manipulated ratings or
+              stale scores. Tellacity makes reputation legible, for consumers
+              choosing a provider and for businesses improving service.
+            </p>
+            <p>
+              The customer reviews and feedback platform gives the public an
+              honest view of real experiences. The Tellacity Reputation Management
+              Platform gives businesses the tools to respond, measure, and
+              publish verified proof consistently.
+            </p>
+            <p>
+              Together they connect discovery, verification, response, and
+              analytics in one trust-oriented system. Learn more on{" "}
+              <Link href="/about" className={linkClass}>
+                About Tellacity
+              </Link>
+              , read{" "}
+              <Link href="/business-guidelines" className={linkClass}>
+                business guidelines
+              </Link>
+              , or visit the{" "}
+              <Link href="/help-center" className={linkClass}>
+                Help Center
+              </Link>
+              .
+            </p>
+          </div>
+          <p className="mt-8 text-sm text-gray-600">
+            Tellacity&apos;s how-it-works page connects the consumer experience,
+            business tools, and trust policies that support the broader{" "}
+            <Link href="/reputation-platform" className={linkClass}>
+              reputation management platform
+            </Link>
+            . Explore{" "}
+            <Link href="/write-review" className={linkClass}>
+              Write a review
+            </Link>
+            ,{" "}
+            <Link href="/for-business" className={linkClass}>
+              Tellacity for Business
+            </Link>
+            ,{" "}
+            <Link href="/resources" className={linkClass}>
+              resources
+            </Link>
+            ,{" "}
+            <Link href="/blog" className={linkClass}>
+              blog
+            </Link>
+            ,{" "}
+            <Link href="/reviewer-guidelines" className={linkClass}>
+              reviewer guidelines
+            </Link>
+            ,{" "}
+            <Link href="/safety-trust" className={linkClass}>
+              Safety &amp; Trust
+            </Link>
+            , and{" "}
+            <Link href="/contact" className={linkClass}>
+              contact
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
       <section className="bg-gradient-to-r from-teal-500 to-emerald-600 py-20 lg:py-24">
         <div className="mx-auto w-full max-w-4xl px-6 text-center">
           <h2 className="text-3xl font-semibold text-white sm:text-4xl">

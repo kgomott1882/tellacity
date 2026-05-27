@@ -10,7 +10,7 @@ const CACHE_HEADER =
   "public, s-maxage=30, stale-while-revalidate=60, max-age=0";
 
 /**
- * Homepage “Best in …” carousel — LIVE aggregates.
+ * Homepage “Best in …” carousel, LIVE aggregates.
  * Uses `loadHomeBestInLive` (PostgREST on `businesses` + `get_public_review_aggregates`)
  * so `trust_score` + `review_count` reflect current reviews without the bundle RPC timeout.
  * Query: `country` (required).

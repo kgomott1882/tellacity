@@ -50,7 +50,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
   const [expiringPhotoCount, setExpiringPhotoCount] = useState<number>(0);
 
   // Poll the Photo Uploads queue count. The notification must stay on
-  // while any photo is still awaiting a final decision — visiting the
+  // while any photo is still awaiting a final decision, visiting the
   // page does NOT clear it, only approving/rejecting every pending photo
   // does, which will naturally drive this number to 0 on the next poll.
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
             : 0
         );
       } catch {
-        // Silent — badge just won't update this tick.
+        // Silent, badge just won't update this tick.
       }
     };
     void load();
@@ -85,7 +85,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
   // have crossed the 29-day retention warning threshold but are not yet
   // past the 30-day deletion cutoff. The badge clears itself naturally
   // once the admin notifies owners and the deletion sweep removes the
-  // backlog — visiting the page does not reset it.
+  // backlog, visiting the page does not reset it.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -102,7 +102,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
             : 0
         );
       } catch {
-        // Silent — badge just won't update this tick.
+        // Silent, badge just won't update this tick.
       }
     };
     void load();

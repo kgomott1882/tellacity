@@ -33,6 +33,6 @@ export function writeSystemChecksLastRun(payload: SystemChecksLastRunStored): vo
   try {
     window.localStorage.setItem(SYSTEM_CHECKS_LAST_RUN_STORAGE_KEY, JSON.stringify(payload));
   } catch {
-    // Quota or private mode — ignore
+    // Quota or private mode, ignore
   }
 }

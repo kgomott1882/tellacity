@@ -97,7 +97,7 @@ const LEARN_ITEMS = [
     title: "Guides & Reports",
     copy: "In-depth guides and industry reports to help you grow with trust.",
     detail:
-      "Longer-form learning for teams that want deeper context on reputation, reviews, and industry trends—not just quick tips.",
+      "Longer-form learning for teams that want deeper context on reputation, reviews, and industry trends, not just quick tips.",
     href: "/guides",
     image: "/Resources/Guides.jpg",
   },
@@ -173,7 +173,7 @@ export default function ResourcesPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm text-gray-600">
-            Everything you need to get the most out of Tellacity — from
+            Everything you need to get the most out of Tellacity, from
             understanding trust to applying it in your business.
           </p>
           <p className="mt-3 text-sm text-gray-600">
@@ -202,7 +202,7 @@ export default function ResourcesPage() {
           </p>
           <p className="mt-3 max-w-2xl text-sm text-gray-600">
             If you are unsure where to begin, start with the Reputation
-            Platform overview—it explains how verified reviews, widgets,
+            Platform overview, it explains how verified reviews, widgets,
             analytics, and reputation management connect in one system.
           </p>
           <p className="mt-3 max-w-2xl text-sm text-gray-600">
@@ -247,7 +247,7 @@ export default function ResourcesPage() {
             The Tellacity Reputation Platform is the central system for verified
             customer trust. Review invitations, on-site widgets, analytics,
             reputation management, and photo uploads are designed to work
-            together—not as disconnected add-ons.
+            together, not as disconnected add-ons.
           </p>
           <p className="mt-3 max-w-2xl text-sm text-white/90">
             Understanding the platform first makes every other resource in this
@@ -292,7 +292,7 @@ export default function ResourcesPage() {
         <div className="relative mt-4 max-w-3xl space-y-3 text-sm text-gray-600">
           <p>
             This area covers how customer reviews, reputation signals, and
-            feedback transparency work on Tellacity—written for readers who
+            feedback transparency work on Tellacity, written for readers who
             want practical, research-oriented context, not marketing slogans.
           </p>
           <p>
@@ -330,7 +330,7 @@ export default function ResourcesPage() {
               Badges Guide
             </strong>{" "}
             explains what trust badges mean on profiles. Choose the format that
-            matches your time—quick updates or in-depth guidance.
+            matches your time, quick updates or in-depth guidance.
           </p>
           <div className="mt-6 grid gap-6 md:grid-cols-3">
             {LEARN_ITEMS.map((item) => (
@@ -376,7 +376,7 @@ export default function ResourcesPage() {
             The Help Center is your first stop for documentation, setup steps, and
             support-style answers. Integrations explain how Tellacity connects
             to CRM, ecommerce, automation, and communication tools you already
-            use—so review collection fits your workflow instead of adding manual
+            use, so review collection fits your workflow instead of adding manual
             work.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
@@ -431,7 +431,7 @@ export default function ResourcesPage() {
           </p>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
             Customer Stories show how real businesses use Tellacity to build
-            trust and improve outcomes—useful when you want credibility from
+            trust and improve outcomes, useful when you want credibility from
             peers, not just product descriptions. The Partner Program is for
             agencies and platforms that want to grow alongside Tellacity and
             extend reputation tools to their own clients.

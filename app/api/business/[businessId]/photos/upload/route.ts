@@ -70,7 +70,7 @@ export async function POST(
     const uploadBatchId = parseUploadBatchId(body?.uploadBatchId);
 
     // Every target slug must have a row (including former “built-ins” a paid
-    // owner removed — uploads to those slugs are rejected until they add a
+    // owner removed, uploads to those slugs are rejected until they add a
     // section again or pick an existing one).
     const { data: sectionRow } = await ctx.db
       .from("business_photo_sections")
@@ -152,7 +152,7 @@ export async function POST(
       );
     }
 
-    // Always insert as draft — publishing is a deliberate, separate action.
+    // Always insert as draft, publishing is a deliberate, separate action.
     const insertRow: Record<string, unknown> = {
       business_id: businessId,
       url,

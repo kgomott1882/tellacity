@@ -9,7 +9,7 @@ import { sendPhotoRejectedEmail } from "@/lib/businessPhotoModerationEmail";
  *
  * Body: { action: "approve" | "reject" | "flag" | "reset", reason?: string }
  *
- * Writes the moderation decision to `business_photos` and — on reject —
+ * Writes the moderation decision to `business_photos` and, on reject , 
  * fires an email to the business owner explaining the rejection. The
  * database row is the source of truth: email failure does NOT roll back
  * the moderation decision.

@@ -1,12 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useRef, useState, type ReactNode } from "react";
 import {
   normalizeCountryCode,
 } from "@/lib/country";
 import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
 import { openCookieConsentManager } from "@/lib/cookieConsent";
+
+const FOOTER_LINK_BASE =
+  "inline-block text-gray-300 transition hover:text-white";
+const EGG_YOLK_UNDERLINE =
+  "pointer-events-none absolute bottom-0 left-0 right-0 h-2 rounded-sm bg-[#FBBF24]/70";
+
+function isFooterLinkActive(pathname: string, href: string): boolean {
+  const pathOnly = href.split("?")[0] ?? href;
+  if (pathOnly.startsWith("/categories")) {
+    return pathname === "/categories" || pathname.startsWith("/categories/");
+  }
+  if (pathOnly.startsWith("/companies/")) {
+    return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+  }
+  if (pathOnly.startsWith("/solutions/")) {
+    return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+  }
+  if (pathOnly === "/business/login") {
+    return pathname === pathOnly || pathname.startsWith("/business/login/");
+  }
+  return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+}
+
+function FooterNavLink({
+  href,
+  children,
+  className = "",
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const pathname = usePathname() ?? "";
+  const isActive = isFooterLinkActive(pathname, href);
+
+  return (
+    <Link
+      href={href}
+      className={`${FOOTER_LINK_BASE} ${isActive ? "text-white" : ""} ${className}`}
+      aria-current={isActive ? "page" : undefined}
+    >
+      <span className="relative inline-block">
+        <span className="relative z-10">{children}</span>
+        {isActive ? <span className={EGG_YOLK_UNDERLINE} aria-hidden /> : null}
+      </span>
+    </Link>
+  );
+}
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -68,34 +117,26 @@ export default function Footer() {
               <h3 className="text-sm font-semibold tracking-wide">ABOUT</h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link href="/about" className="hover:text-white">
-                    About Tellacity
-                  </Link>
+                  <FooterNavLink href="/about">About Tellacity</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/how-tellacity-works" className="hover:text-white">
+                  <FooterNavLink href="/how-tellacity-works">
                     How Tellacity Works
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/blog" className="hover:text-white">
-                    Blog
-                  </Link>
+                  <FooterNavLink href="/blog">Blog</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/press" className="hover:text-white">
-                    Press
-                  </Link>
+                  <FooterNavLink href="/press">Press</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/careers" className="hover:text-white">
-                    Careers
-                  </Link>
+                  <FooterNavLink href="/careers">Careers</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/investor-relations" className="hover:text-white">
+                  <FooterNavLink href="/investor-relations">
                     Investor Relations
-                  </Link>
+                  </FooterNavLink>
                 </li>
               </ul>
             </div>
@@ -103,34 +144,32 @@ export default function Footer() {
               <h4 className="mb-4 text-sm font-semibold">PRODUCT</h4>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link href="/write-review" className="hover:text-white">
-                    Write a Review
-                  </Link>
+                  <FooterNavLink href="/write-review">Write a Review</FooterNavLink>
                 </li>
                 <li>
-                  <Link href={categoriesHref} className="hover:text-white">
+                  <FooterNavLink href={categoriesHref}>
                     Browse Categories
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href={companiesHref} className="hover:text-white">
+                  <FooterNavLink href={companiesHref}>
                     Browse Businesses by Country
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/suggest-business" className="hover:text-white">
+                  <FooterNavLink href="/suggest-business">
                     Suggest a Business
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/reviewer-guidelines" className="hover:text-white">
+                  <FooterNavLink href="/reviewer-guidelines">
                     Reviewer Guidelines
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/safety-trust" className="hover:text-white">
+                  <FooterNavLink href="/safety-trust">
                     Safety &amp; Trust
-                  </Link>
+                  </FooterNavLink>
                 </li>
               </ul>
             </div>
@@ -140,42 +179,37 @@ export default function Footer() {
               </h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link
-                    href="/reputation-platform"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/reputation-platform">
                     Reputation Platform
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/for-business" className="hover:text-white">
+                  <FooterNavLink href="/for-business">
                     Tellacity for Business
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/for-business" className="hover:text-white">
+                  <FooterNavLink href="/for-business">
                     Features &amp; Integrations
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/pricing" className="hover:text-white">
-                    Plans &amp; Pricing
-                  </Link>
+                  <FooterNavLink href="/pricing">Plans &amp; Pricing</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/business/login" className="hover:text-white">
+                  <FooterNavLink href="/business/login">
                     Business Login
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/resources" className="hover:text-white">
+                  <FooterNavLink href="/resources">
                     Business Resources
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/business-guidelines" className="hover:text-white">
+                  <FooterNavLink href="/business-guidelines">
                     Business Guidelines
-                  </Link>
+                  </FooterNavLink>
                 </li>
               </ul>
             </div>
@@ -185,39 +219,33 @@ export default function Footer() {
               </h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link href="/help-center" className="hover:text-white">
-                    Help Center
-                  </Link>
+                  <FooterNavLink href="/help-center">Help Center</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/faq" className="hover:text-white">
-                    FAQ
-                  </Link>
+                  <FooterNavLink href="/faq">FAQ</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/contact" className="hover:text-white">
-                    Contact Us
-                  </Link>
+                  <FooterNavLink href="/contact">Contact Us</FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/terms-of-service" className="hover:text-white">
+                  <FooterNavLink href="/terms-of-service">
                     Terms of Service
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/privacy-policy" className="hover:text-white">
+                  <FooterNavLink href="/privacy-policy">
                     Privacy Policy
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/cookie-policy" className="hover:text-white">
+                  <FooterNavLink href="/cookie-policy">
                     Cookie Policy
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link href="/data-protection" className="hover:text-white">
+                  <FooterNavLink href="/data-protection">
                     Data Protection
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
                   <button
@@ -234,44 +262,29 @@ export default function Footer() {
               <h4 className="mb-4 text-sm font-semibold">SOLUTIONS</h4>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <Link
-                    href="/solutions/review-invitations"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/solutions/review-invitations">
                     Review Invitations
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link
-                    href="/solutions/review-widgets"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/solutions/review-widgets">
                     Review Widgets
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link
-                    href="/solutions/business-analytics"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/solutions/business-analytics">
                     Business Analytics
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link
-                    href="/solutions/reputation-management"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/solutions/reputation-management">
                     Reputation Management
-                  </Link>
+                  </FooterNavLink>
                 </li>
                 <li>
-                  <Link
-                    href="/solutions/photo-uploads"
-                    className="hover:text-white"
-                  >
+                  <FooterNavLink href="/solutions/photo-uploads">
                     Photo Uploads
-                  </Link>
+                  </FooterNavLink>
                 </li>
               </ul>
             </div>

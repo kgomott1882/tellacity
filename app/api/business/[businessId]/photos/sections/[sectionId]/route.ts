@@ -7,7 +7,7 @@ import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 /**
- * PATCH — toggle enable, rename a section.
+ * PATCH, toggle enable, rename a section.
  * Body: { isEnabled?: boolean; title?: string }
  * Built-in sections: only the `services` slug may be renamed (display label;
  * URL segment stays `services`). Other built-ins may only use `isEnabled`.
@@ -43,7 +43,7 @@ export async function PATCH(
 
     const update: { is_enabled?: boolean; title?: string } = {};
     if (typeof body.isEnabled === "boolean") {
-      // Free plan can't turn sections off — built-in categories must stay
+      // Free plan can't turn sections off, built-in categories must stay
       // visible on the public page (with an empty-state caption) so the
       // owner is nudged to upgrade and fill them up.
       if (body.isEnabled === false) {
@@ -103,7 +103,7 @@ export async function PATCH(
 }
 
 /**
- * DELETE — remove a section. Custom sections: always (paid layout).
+ * DELETE, remove a section. Custom sections: always (paid layout).
  * Built-in sections: Grow+ only; **Gallery** cannot be removed (default album).
  * Photos in the removed section are moved to `gallery`.
  */
@@ -136,7 +136,7 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "Gallery can't be deleted — it's the default album for your profile photos.",
+            "Gallery can't be deleted, it's the default album for your profile photos.",
         },
         { status: 400 }
       );

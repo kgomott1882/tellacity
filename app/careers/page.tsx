@@ -61,7 +61,7 @@ const HOW_WE_WORK = [
   {
     title: "Focused work",
     detail:
-      "We protect time for deep work and thoughtful execution—clear priorities beat constant context-switching.",
+      "We protect time for deep work and thoughtful execution, clear priorities beat constant context-switching.",
   },
   {
     title: "Remote-first",
@@ -102,7 +102,7 @@ const WHY_JOIN = [
   {
     title: "Collaborate with a purpose-driven team",
     detail:
-      "You will work with people who care about fairness and impact—not vanity metrics or opaque growth tactics.",
+      "You will work with people who care about fairness and impact, not vanity metrics or opaque growth tactics.",
   },
   {
     title: "Build products that improve transparency",
@@ -124,7 +124,7 @@ const WHY_JOIN = [
   {
     title: "Learn in a culture that values integrity",
     detail:
-      "We invest in learning and honest feedback—aligned with the same integrity standards we apply to the product.",
+      "We invest in learning and honest feedback, aligned with the same integrity standards we apply to the product.",
   },
 ];
 
@@ -225,7 +225,7 @@ export default function CareersPage() {
             Our values
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600">
-            Our values guide how we work day to day—not as wall art, but as
+            Our values guide how we work day to day, not as wall art, but as
             expectations for decisions, communication, and how we treat customers
             and each other.
           </p>
@@ -272,7 +272,7 @@ export default function CareersPage() {
               <p className="mt-3 text-sm text-gray-600">
                 That means async-friendly updates, direct ownership of outcomes,
                 and collaboration when cross-functional context improves the
-                result—not meetings for their own sake.
+                result, not meetings for their own sake.
               </p>
               <div className="mt-6 space-y-4">
                 {HOW_WE_WORK.map((item) => (
@@ -375,7 +375,7 @@ export default function CareersPage() {
                 Why join Tellacity?
               </h2>
               <p className="mt-3 text-sm text-gray-600">
-                You can expect a practical, mission-driven environment—not generic
+                You can expect a practical, mission-driven environment, not generic
                 recruitment slogans, but real problems in trust, reviews, and
                 transparency.
               </p>
@@ -430,7 +430,7 @@ export default function CareersPage() {
           </p>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">
             Distributed collaboration helps us build a more accessible trust
-            platform—and reflects how our customers use Tellacity across markets.
+            platform, and reflects how our customers use Tellacity across markets.
             Read more from{" "}
             <Link href="/investor-relations" className={linkClass}>
               investor relations
@@ -457,7 +457,7 @@ export default function CareersPage() {
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">
             Don&apos;t see the right role? Send us your profile and tell us how
-            you&apos;d like to contribute—we review general applications and
+            you&apos;d like to contribute, we review general applications and
             keep strong candidates in mind for future openings.
           </p>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">

@@ -19,7 +19,7 @@ export const ADMIN_BUSINESS_SUSPENSION_REASON_OPTIONS: ReadonlyArray<{
 }> = [
   {
     key: "general",
-    label: "General — does not currently meet platform standards",
+    label: "General, does not currently meet platform standards",
     emailLine:
       "Your business listing currently does not meet Tellacity's platform standards.",
   },

@@ -12,7 +12,7 @@
  *     written to `business_photos`. That keeps us clear of the
  *     `business_photos_plan_limit_trg` trigger (which caps Free at 4)
  *     and avoids orphan blobs/rows we'd have to clean up later.
- *   - "Publish photos" always opens an upgrade modal — that's the whole
+ *   - "Publish photos" always opens an upgrade modal, that's the whole
  *     point of this surface.
  *   - "Cancel" on the upgrade modal, or the page-level Back button,
  *     opens a confirm dialog: "These photos will not be saved. Are you
@@ -26,7 +26,7 @@
  *     defaults so the preview feels identical to the paid experience.
  *   - Users can create their own categories (e.g. "Recent projects")
  *     via the "+ New category" control. Custom categories live only in
- *     this React state — they're discarded the same way staged photos
+ *     this React state, they're discarded the same way staged photos
  *     are when the user cancels or navigates away.
  *   - Each staged photo has a section and can be reclassified at any
  *     time using the per-tile dropdown. New uploads default into the
@@ -169,7 +169,7 @@ export default function UploadMorePhotosPage() {
     setBusinessId,
   } = useStagedPhotos();
 
-  // Bind the queue to the current business — swapping businesses wipes it
+  // Bind the queue to the current business, swapping businesses wipes it
   // via the provider so we never surface queued photos against the wrong
   // workspace.
   useEffect(() => {
@@ -231,7 +231,7 @@ export default function UploadMorePhotosPage() {
   }, [staged.length]);
 
   // Object-URL lifecycle is owned by the dashboard-wide provider, so we
-  // deliberately do NOT revoke on unmount — this page can be revisited from
+  // deliberately do NOT revoke on unmount, this page can be revisited from
   // the checkout screen and the previews must still render.
 
   /* -------------------- category management -------------------- */
@@ -274,7 +274,7 @@ export default function UploadMorePhotosPage() {
     setNewCategoryOpen(false);
     setMessage({
       type: "success",
-      text: `Category "${title}" created — new uploads will go here.`,
+      text: `Category "${title}" created, new uploads will go here.`,
     });
   }, [
     allSections,
@@ -373,7 +373,7 @@ export default function UploadMorePhotosPage() {
       }
       if (truncated) {
         notes.push(
-          `Only the first ${room} fit — you can queue up to ${maxAdditional} at a time.`
+          `Only the first ${room} fit, you can queue up to ${maxAdditional} at a time.`
         );
       }
       if (skippedType.length > 0) {
@@ -437,7 +437,7 @@ export default function UploadMorePhotosPage() {
   };
 
   /**
-   * The modal's "Cancel" button is NOT a destructive action — it just
+   * The modal's "Cancel" button is NOT a destructive action, it just
    * dismisses the modal so the user can keep editing or choose a different
    * plan tier. The discard path is only reached through the explicit page
    * Cancel button below (which opens `cancelConfirmOpen`).
@@ -474,7 +474,7 @@ export default function UploadMorePhotosPage() {
 
   /**
    * The header "Back to photos" link is a quick exit that preserves the
-   * queue — we only intercept if we need confirmation for a destructive
+   * queue, we only intercept if we need confirmation for a destructive
    * operation, which this isn't. Leaving the page via Back keeps photos
    * staged in the dashboard context so the user can return any time.
    */
@@ -484,8 +484,8 @@ export default function UploadMorePhotosPage() {
 
   /**
    * Route the user into Paystack checkout using Next.js' SPA router. This
-   * keeps the dashboard React tree mounted — including our staged queue
-   * context — so "Back to plans" from the checkout screen returns here
+   * keeps the dashboard React tree mounted, including our staged queue
+   * context, so "Back to plans" from the checkout screen returns here
    * with every photo, category, and active-chip exactly as the user left
    * them. Photos are only ever discarded via the explicit Cancel path.
    */
@@ -493,7 +493,7 @@ export default function UploadMorePhotosPage() {
     setUpgradeOpen(false);
     // Tell the billing / Paystack-return flow where to land if the upgrade
     // succeeds. A successful upgrade surfaces the user back in the real
-    // photo manager (not here — the staging page self-redirects paid plans
+    // photo manager (not here, the staging page self-redirects paid plans
     // away anyway).
     try {
       window.sessionStorage.setItem(
@@ -547,7 +547,7 @@ export default function UploadMorePhotosPage() {
               <span className="font-semibold text-[#0E0E0E]">
                 {maxAdditional}
               </span>{" "}
-              additional photos here — organise them into categories like
+              additional photos here, organise them into categories like
               Team, Services, Products (or create your own). They&apos;ll go
               live once you upgrade to the Grow plan ({PLAN_PHOTO_LIMITS.grow}{" "}
               photos total).
@@ -741,7 +741,7 @@ export default function UploadMorePhotosPage() {
             </span>
           )}
           <span className="ml-2 text-xs text-gray-500">
-            — new uploads go to{" "}
+           , new uploads go to{" "}
             <span className="font-semibold text-[#0E0E0E]">{activeTitle}</span>
           </span>
         </div>
@@ -775,7 +775,7 @@ export default function UploadMorePhotosPage() {
             : atStagingCap
               ? // When the queue is full we drop the dashed look and give
                 // the zone a soft teal fill so it reads like a success
-                // card framing the CTA — not a disabled drop target.
+                // card framing the CTA, not a disabled drop target.
                 "border-solid border-[#1FAF9E]/40 bg-[#E6F7F5]/60"
               : "border-dashed border-gray-300 bg-white hover:border-[#1FAF9E]/60 hover:bg-[#F3FBFA]"
         }`}
@@ -789,7 +789,7 @@ export default function UploadMorePhotosPage() {
           onChange={onFileInputChange}
         />
         {atStagingCap ? (
-          // Queue is at capacity — the drop-zone copy ("JPG / PNG / WebP…",
+          // Queue is at capacity, the drop-zone copy ("JPG / PNG / WebP…",
           // "Select photos") is no longer actionable. Replace it with the
           // single relevant next step: publish the full queue, which
           // funnels straight into the Grow-plan upgrade modal.
@@ -801,7 +801,7 @@ export default function UploadMorePhotosPage() {
               Your {maxAdditional}-photo preview is ready.
             </p>
             <p className="max-w-sm text-xs text-gray-600">
-              Remove a photo above to swap it, or publish now — we&apos;ll
+              Remove a photo above to swap it, or publish now, we&apos;ll
               walk you through upgrading to the Grow plan so every photo
               goes live under its category.
             </p>
@@ -821,7 +821,7 @@ export default function UploadMorePhotosPage() {
               <ImagePlus className="h-6 w-6" aria-hidden />
             </span>
             <p className="text-sm font-semibold text-[#0E0E0E]">
-              Drag photos here — they&apos;ll be added to {activeTitle}.
+              Drag photos here, they&apos;ll be added to {activeTitle}.
             </p>
             <p className="text-xs text-gray-500">
               JPG / PNG / WebP &middot; up to 4 MB each &middot; up to{" "}
@@ -942,8 +942,8 @@ export default function UploadMorePhotosPage() {
                 <p className="mt-2 text-sm leading-relaxed text-gray-600">
                   You&apos;ve reached your free photo limit. Move to the Grow
                   plan to publish these {staged.length} queued photo
-                  {staged.length === 1 ? "" : "s"} — your categories and
-                  assignments come along — and unlock up to{" "}
+                  {staged.length === 1 ? "" : "s"}, your categories and
+                  assignments come along, and unlock up to{" "}
                   {PLAN_PHOTO_LIMITS.grow} photos total.
                 </p>
               </div>

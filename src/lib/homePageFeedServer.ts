@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Matches `/api/home-feed` — enough rows for the homepage carousel. */
+/** Matches `/api/home-feed`, enough rows for the homepage carousel. */
 export const HOME_PAGE_FEED_FETCH_LIMIT = 96;
 
 /**

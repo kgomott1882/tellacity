@@ -86,7 +86,7 @@ async function removeLegacyBuiltInSections(
 /**
  * Ensures `business_photo_sections` rows exist for dashboard + uploads.
  * - **Free**: inserts every missing built-in (owner cannot permanently remove them).
- * - **Paid**: only ensures `gallery` exists — the default bucket for photos and
+ * - **Paid**: only ensures `gallery` exists, the default bucket for photos and
  *   for reassignment when another section is deleted.
  */
 export async function seedMissingBusinessPhotoSections(

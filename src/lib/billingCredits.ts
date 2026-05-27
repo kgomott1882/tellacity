@@ -134,7 +134,7 @@ export async function fetchActiveSubscriptionMeta(
 
 /**
  * Mint (or reuse) a proration credit row for `businessId` tied to the subscription
- * period. Idempotent — safe to call on every /initialize. Returns the live row.
+ * period. Idempotent, safe to call on every /initialize. Returns the live row.
  */
 export async function ensureProrationCredit(
   db: SupabaseClient,

@@ -41,14 +41,14 @@ type QueueResponse = {
 };
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
 }
 
 function formatRelativeHours(hours: number | null): string {
-  if (hours == null || !Number.isFinite(hours)) return "—";
+  if (hours == null || !Number.isFinite(hours)) return "-";
   if (hours <= 0) {
     const overdueHrs = Math.abs(hours);
     if (overdueHrs >= 24) {
@@ -128,7 +128,7 @@ export default function PhotoExpiryQueue() {
       if (!group.ownerEmail) {
         setFlash({
           type: "error",
-          text: "No owner email on file — reminder skipped.",
+          text: "No owner email on file, reminder skipped.",
         });
         return;
       }
@@ -156,7 +156,7 @@ export default function PhotoExpiryQueue() {
         const count = body.expiringCount ?? group.expiringCount;
         setFlash({
           type: "success",
-          text: `Reminder sent to ${group.ownerEmail} — ${count} photo${
+          text: `Reminder sent to ${group.ownerEmail}, ${count} photo${
             count === 1 ? "" : "s"
           } flagged.`,
         });
@@ -206,13 +206,13 @@ export default function PhotoExpiryQueue() {
         if (dryRun) {
           setFlash({
             type: "success",
-            text: `Dry run — ${body.eligible ?? 0} photo${
+            text: `Dry run, ${body.eligible ?? 0} photo${
               (body.eligible ?? 0) === 1 ? "" : "s"
             } would be deleted.`,
           });
         } else {
           const storageSuffix = body.storageFailed
-            ? ` — ${body.storageFailed} storage cleanup${
+            ? `, ${body.storageFailed} storage cleanup${
                 body.storageFailed === 1 ? "" : "s"
               } failed (logged)`
             : "";
@@ -362,7 +362,7 @@ export default function PhotoExpiryQueue() {
                         </>
                       ) : (
                         <span className="text-amber-700">
-                          No claimed owner — reminder emails will be skipped.
+                          No claimed owner, reminder emails will be skipped.
                         </span>
                       )}
                     </p>
@@ -385,7 +385,7 @@ export default function PhotoExpiryQueue() {
                         !group.ownerEmail
                           ? "No owner email on file"
                           : !hasExpiring
-                            ? "Only overdue photos — nothing left in the warning window"
+                            ? "Only overdue photos, nothing left in the warning window"
                             : `Send reminder email to ${group.ownerEmail}`
                       }
                       className="inline-flex items-center rounded-md border border-[#1FAF9E]/40 bg-[#E6F9F6] px-3 py-1.5 text-xs font-semibold text-[#0F766E] hover:bg-[#D1F3EE] disabled:cursor-not-allowed disabled:opacity-50"

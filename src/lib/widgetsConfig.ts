@@ -4,7 +4,7 @@ import type { WidgetType } from "@/components/widgets/types";
  * Central Tellacity website-widget registry: categories, display names, canonical slugs,
  * embed `data-type` ids (`id`), and `planWidget` keys used with `canAccessWebsiteWidget` / billing.
  *
- * Embed URLs and v1.js must keep using `id` — do not rename these values without a migration.
+ * Embed URLs and v1.js must keep using `id`, do not rename these values without a migration.
  */
 export const WIDGET_CATEGORY_KEYS = ["CRUCIAL_WIDGETS", "TESTIMONIAL_WIDGETS"] as const;
 export type WidgetCategoryKey = (typeof WIDGET_CATEGORY_KEYS)[number];
@@ -126,7 +126,7 @@ export const WIDGET_CATEGORIES: {
         description:
           "Ultra-compact row: status word, score out of 5, Tellacity block stars, and Trust Stacked mark (Trustpilot Micro TrustScore–style).",
         sizesHelp:
-          "Single horizontal strip (word, score, stars, logo — no wrap). About 150–250px wide (or %); row ~22–28px tall. Transparent background.",
+          "Single horizontal strip (word, score, stars, logo, no wrap). About 150–250px wide (or %); row ~22–28px tall. Transparent background.",
         previewHeight: 120,
         planWidget: "micro_trustscore",
       },
@@ -169,7 +169,7 @@ export const WIDGET_CATEGORIES: {
         name: "Spotlight Carousel",
         id: "spotlight_carousel",
         description:
-          "Tellacity Score on top; latest reviews in a single row (no card backgrounds — floats on your page).",
+          "Tellacity Score on top; latest reviews in a single row (no card backgrounds, floats on your page).",
         sizesHelp:
           "Responsive block; minimum about 180×350px, typical max width 100% and ~520px height.",
         previewHeight: 560,
@@ -191,7 +191,7 @@ export const WIDGET_CATEGORIES: {
         name: "Review Drop-Down",
         id: "review_dropdown",
         description:
-          "Compact row: Tellacity block stars plus “See our reviews” — opens a dropdown of recent reviews (Trustpilot-style).",
+          "Compact row: Tellacity block stars plus “See our reviews”, opens a dropdown of recent reviews (Trustpilot-style).",
         sizesHelp:
           "Inline header/footer friendly; about 255–760px wide, ~30px row height (panel opens below).",
         previewHeight: 400,

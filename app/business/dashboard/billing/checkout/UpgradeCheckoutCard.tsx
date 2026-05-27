@@ -282,7 +282,7 @@ export default function UpgradeCheckoutCard({
           </div>
           {hasCredit ? (
             <p className="mt-2 text-xs text-gray-500">
-              You&apos;re upgrading mid-cycle — we subtracted the unused portion of
+              You&apos;re upgrading mid-cycle, we subtracted the unused portion of
               your current plan from today&apos;s charge.
             </p>
           ) : null}
@@ -316,7 +316,7 @@ export default function UpgradeCheckoutCard({
       </button>
       {safeReturnTo ? (
         <p className="mt-2 text-center text-[11px] text-gray-400">
-          Your queued photos and categories are saved — Back returns you to
+          Your queued photos and categories are saved, Back returns you to
           them without losing a thing.
         </p>
       ) : null}

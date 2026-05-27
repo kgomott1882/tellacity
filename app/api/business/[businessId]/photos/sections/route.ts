@@ -15,7 +15,7 @@ function slugify(raw: string): string {
     .slice(0, 40);
 }
 
-/** GET — list sections for this business (auto-seeds defaults when missing). */
+/** GET, list sections for this business (auto-seeds defaults when missing). */
 export async function GET(
   req: Request,
   context: { params: Promise<{ businessId: string }> }
@@ -47,7 +47,7 @@ export async function GET(
   }
 }
 
-/** POST — create a custom section. Body: { title: string } */
+/** POST, create a custom section. Body: { title: string } */
 export async function POST(
   req: Request,
   context: { params: Promise<{ businessId: string }> }

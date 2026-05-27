@@ -111,12 +111,12 @@ export default function RunSystemChecksButton() {
         ) : null}
         {lastDeviceRun ? (
           <p className="text-xs text-neutral-500">
-            Last saved run (this browser): {formatDeviceRunAt(lastDeviceRun.at)} — {lastDeviceRun.ok}{" "}
+            Last saved run (this browser): {formatDeviceRunAt(lastDeviceRun.at)}, {lastDeviceRun.ok}{" "}
             ok, {lastDeviceRun.fail} fail
             {lastDeviceRun.fail > 0 ? (
               <span className="text-red-700">
                 {" "}
-                — review failing checks above after refresh.
+               , review failing checks above after refresh.
               </span>
             ) : null}
           </p>

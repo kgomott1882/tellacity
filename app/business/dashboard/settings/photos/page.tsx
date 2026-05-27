@@ -131,7 +131,7 @@ export default function BusinessPhotosSettingsPage() {
   const [newSectionTitle, setNewSectionTitle] = useState("");
   const [addingSectionBusy, setAddingSectionBusy] = useState(false);
   const [publishBusy, setPublishBusy] = useState(false);
-  /** Floating toast after publish — link to public profile (all plans). */
+  /** Floating toast after publish, link to public profile (all plans). */
   const [publishProfileToast, setPublishProfileToast] = useState<{
     count: number;
   } | null>(null);
@@ -162,7 +162,7 @@ export default function BusinessPhotosSettingsPage() {
     }
   }, []);
 
-  // Pending visibility changes per section — set when the user flips a
+  // Pending visibility changes per section, set when the user flips a
   // section's Public/Hidden toggle but has not yet pressed Save. Keyed by
   // section.id. The on-disk `is_enabled` stays untouched until the user
   // confirms. Mirrors the draft/publish pattern we use elsewhere so people
@@ -540,7 +540,7 @@ export default function BusinessPhotosSettingsPage() {
    *  to 4 thumbnails beneath, paginated with left/right arrows. Clicking
    *  a section chip above (or a thumbnail) swaps what's shown. Owner
    *  controls (set-as-cover / delete) remain on the thumbnails so the
-   *  dashboard still works as a management surface — not just a preview.
+   *  dashboard still works as a management surface, not just a preview.
    *  ---------------------------------------------------------------- */
   const HERO_VISIBLE_THUMBS = 4;
   const [previewSectionSlug, setPreviewSectionSlug] = useState<string | null>(null);
@@ -561,7 +561,7 @@ export default function BusinessPhotosSettingsPage() {
   const [itemReviewPhotoId, setItemReviewPhotoId] = useState<string | null>(null);
   /** Draft tile drag-reorder (HTML5 DnD): grip sets this while dragging. */
   const [reorderDraggingId, setReorderDraggingId] = useState<string | null>(null);
-  /** Tile receiving a dragged photo — subtle highlight while hovering with a drag. */
+  /** Tile receiving a dragged photo, subtle highlight while hovering with a drag. */
   const [reorderDropTargetId, setReorderDropTargetId] = useState<string | null>(null);
   const [reorderBusy, setReorderBusy] = useState(false);
 
@@ -845,7 +845,7 @@ export default function BusinessPhotosSettingsPage() {
     if (section.slug === "gallery") {
       setMessage({
         type: "error",
-        text: "Gallery can't be deleted — it's the default album for your photos.",
+        text: "Gallery can't be deleted, it's the default album for your photos.",
       });
       return;
     }
@@ -1026,7 +1026,7 @@ export default function BusinessPhotosSettingsPage() {
     if (skipped > 0) {
       setMessage({
         type: "error",
-        text: `${skipped} file(s) were skipped — only images are allowed.`,
+        text: `${skipped} file(s) were skipped, only images are allowed.`,
       });
     }
 
@@ -1601,7 +1601,7 @@ export default function BusinessPhotosSettingsPage() {
   if (!businessId) return null;
   if (loading) return <PageLoadingOverlay />;
 
-  /** Product label editor — matches public profile (title + review stats only). */
+  /** Product label editor, matches public profile (title + review stats only). */
   const renderProductDetailsEditor = (p: PhotoRow, wrapperClassName: string) => {
     const pd: ProductDraft =
       productDraftByPhotoId[p.id] ?? {
@@ -1840,8 +1840,8 @@ export default function BusinessPhotosSettingsPage() {
                       ? `Flagged: ${p.moderation_reason}`
                       : "Flagged for manual review"
                     : p.moderation_status === "approved"
-                      ? "Draft — not yet published"
-                      : "Pending image review — usually clears within a few minutes"
+                      ? "Draft, not yet published"
+                      : "Pending image review, usually clears within a few minutes"
               }
             >
               {p.moderation_status === "rejected"
@@ -1870,7 +1870,7 @@ export default function BusinessPhotosSettingsPage() {
                     ? p.moderation_reason
                       ? `Flagged for review: ${p.moderation_reason}`
                       : "Flagged for manual review"
-                    : "Pending image review — usually clears within a few minutes"
+                    : "Pending image review, usually clears within a few minutes"
               }
             >
               {p.moderation_status === "rejected"
@@ -1983,7 +1983,7 @@ export default function BusinessPhotosSettingsPage() {
                 aria-label={isDraft ? "Pick as cover (applies when published)" : "Set as cover"}
                 title={
                   locked
-                    ? "Locked for 30 days after publishing — upgrade to change the cover now"
+                    ? "Locked for 30 days after publishing, upgrade to change the cover now"
                     : isDraft
                       ? "Pick as cover (applies when published)"
                       : "Set as cover"
@@ -2000,7 +2000,7 @@ export default function BusinessPhotosSettingsPage() {
               aria-label={isDraft ? "Remove draft" : "Remove photo"}
               title={
                 locked
-                  ? "Locked for 30 days after publishing — upgrade to remove now"
+                  ? "Locked for 30 days after publishing, upgrade to remove now"
                   : isDraft
                     ? "Remove draft"
                     : "Remove photo"
@@ -2244,8 +2244,8 @@ export default function BusinessPhotosSettingsPage() {
                           sectionTogglesLocked
                             ? "Upgrade to hide sections from your public profile"
                             : effectiveEnabled
-                              ? "Visible on your public profile — click to hide"
-                              : "Hidden from your public profile — click to show"
+                              ? "Visible on your public profile, click to hide"
+                              : "Hidden from your public profile, click to show"
                         }
                         className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30 disabled:cursor-not-allowed ${
                           sectionTogglesLocked
@@ -2309,7 +2309,7 @@ export default function BusinessPhotosSettingsPage() {
                     </div>
                     <p className="text-[10px] leading-tight text-gray-500">
                       {hasPendingChange
-                        ? `Unsaved — click Save to make this section ${
+                        ? `Unsaved, click Save to make this section ${
                             effectiveEnabled ? "Public" : "Hidden"
                           }.`
                         : "Hide or show this content to the public."}
@@ -2354,7 +2354,7 @@ export default function BusinessPhotosSettingsPage() {
                     atPhotoLimit
                       ? "You've reached your plan's photo limit"
                       : !s.is_enabled
-                        ? "This section is hidden from your public profile — set it to Public to upload"
+                        ? "This section is hidden from your public profile, set it to Public to upload"
                         : "Upload photos to this section"
                   }
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition focus-visible:outline-none sm:text-sm ${
@@ -2597,7 +2597,7 @@ export default function BusinessPhotosSettingsPage() {
                     </button>
                   </div>
                   <p className="border-b border-gray-50 bg-teal-50/40 px-4 py-2 text-[11px] text-gray-700">
-                    Approximate look on your public profile — use{" "}
+                    Approximate look on your public profile, use{" "}
                     <span className="font-semibold">Set name</span> on the card for the label under the photo.
                   </p>
                   <div className="border-b border-gray-100 bg-neutral-100 px-4 py-4">
@@ -2623,7 +2623,7 @@ export default function BusinessPhotosSettingsPage() {
                     <div>
                       <p className="text-[10px] font-medium uppercase text-gray-400">Reviews</p>
                       <p className="text-xs text-gray-500">
-                        No reviews yet — matches the public card until customers leave feedback.
+                        No reviews yet, matches the public card until customers leave feedback.
                       </p>
                     </div>
                   </div>
@@ -2753,7 +2753,7 @@ export default function BusinessPhotosSettingsPage() {
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-medium uppercase text-gray-400">Name</p>
                           <p className="text-sm font-semibold text-gray-900">
-                            {productName || "—"}
+                            {productName || "-"}
                           </p>
                         </div>
                         {selectedBusiness?.slug ? (
@@ -2842,7 +2842,7 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
       </div>
 
-      {/* Single merged Free-plan upgrade nudge — covers BOTH the 30-day
+      {/* Single merged Free-plan upgrade nudge, covers BOTH the 30-day
           publish lock and the photo upload limit. Title adapts to the
           most urgent state (limit reached > lock), while the body
           describes whichever concerns are active and a unified list of
@@ -2865,7 +2865,7 @@ export default function BusinessPhotosSettingsPage() {
               {businessLock.locked ? (
                 <>
                   On the Free plan, photos you&apos;ve already published become read-only
-                  for 30 calendar days — they unlock automatically on{" "}
+                  for 30 calendar days, they unlock automatically on{" "}
                   <span className="font-semibold">{lockUnlockLabel}</span>.{" "}
                 </>
               ) : null}
@@ -2909,7 +2909,7 @@ export default function BusinessPhotosSettingsPage() {
             </h2>
             <p className="mt-1 text-sm text-gray-500">
               {sectionTogglesLocked
-                ? "Free plan: choose Gallery, Products, or Other as your photo category — all uploads stay in that one category until you delete those photos to switch. Categories stay visible on your public page."
+                ? "Free plan: choose Gallery, Products, or Other as your photo category, all uploads stay in that one category until you delete those photos to switch. Categories stay visible on your public page."
                 : "Toggle categories on or off, add your own, and upload photos directly into any section."}
             </p>
           </div>
@@ -2924,7 +2924,7 @@ export default function BusinessPhotosSettingsPage() {
           </p>
           {planKey === "free" ? (
             <p className="text-xs text-gray-500">
-              Select a category below, then upload — Free accounts use one category at a time (no mixing across
+              Select a category below, then upload, Free accounts use one category at a time (no mixing across
               Gallery, Products, and Other).
             </p>
           ) : null}
@@ -2935,7 +2935,7 @@ export default function BusinessPhotosSettingsPage() {
         </div>
 
         {/* The Free-plan upgrade nudge (photo cap + publish lock + section
-            access) is rendered once above this card — see the merged
+            access) is rendered once above this card, see the merged
             banner near the top of this file. Keeping it out of here
             avoids the duplicate "Upgrade plan" / "Upgrade to edit now"
             stack we used to show. */}
@@ -3005,16 +3005,16 @@ export default function BusinessPhotosSettingsPage() {
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-base font-semibold text-[#0E0E0E]">
-            Your photos — drafts &amp; published ({photos.length})
+            Your photos, drafts &amp; published ({photos.length})
           </h2>
           <p className="max-w-xl text-xs text-gray-500">
             {planKey === "free"
-              ? "Drafts and live photos appear together by section. Gallery uses the same strip layout as your public page; Products use a grid (eye = draft preview). Publish moves a draft to live on the same photo. Published tiles may lock cover/delete for 30 days — product fields still edit."
+              ? "Drafts and live photos appear together by section. Gallery uses the same strip layout as your public page; Products use a grid (eye = draft preview). Publish moves a draft to live on the same photo. Published tiles may lock cover/delete for 30 days, product fields still edit."
               : "Gallery uses the large preview and thumbnail strip (what visitors see). Products and Other use a grid; Other adds a published-only hero preview below. Publish updates each photo in place."}
           </p>
         </div>
 
-        {/* Section tabs — counts include drafts + published */}
+        {/* Section tabs, counts include drafts + published */}
         {previewSectionsForChips.length > 0 ? (
           <div
             role="tablist"
@@ -3062,7 +3062,7 @@ export default function BusinessPhotosSettingsPage() {
                 <span className="font-semibold text-[#0E0E0E]">Drafts in {activeSectionTitle}.</span>{" "}
                 Drag drafts or published photos by the grip to reorder (Gallery thumbnails and grid).
                 Select up to{" "}
-                {MAX_BULK_DRAFT_SELECTION} tiles below, then delete or publish — live photos stay on
+                {MAX_BULK_DRAFT_SELECTION} tiles below, then delete or publish, live photos stay on
                 the same cards after publishing.
               </p>
               <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
@@ -3147,7 +3147,7 @@ export default function BusinessPhotosSettingsPage() {
         draftPhotos.some((p) => p.section !== activeSectionSlug) ? (
           <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
             You have {draftPhotos.length} draft{draftPhotos.length === 1 ? "" : "s"} across
-            sections — switch tabs to work on another category.
+            sections, switch tabs to work on another category.
           </p>
         ) : null}
 
@@ -3195,7 +3195,7 @@ export default function BusinessPhotosSettingsPage() {
                 <p className="text-xs text-gray-500">
                   Same layout as your live Gallery: large preview plus thumbnails. Drafts show editing controls;
                   published tiles hide star/delete until hover (locked photos hide them completely). Drag any tile by
-                  the grip on a thumbnail or grid card to reorder — drafts and published photos move the same way.
+                  the grip on a thumbnail or grid card to reorder, drafts and published photos move the same way.
                 </p>
                 {galleryHeroPhoto ? (
                   <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
@@ -3515,7 +3515,7 @@ export default function BusinessPhotosSettingsPage() {
                                       }
                                       title={
                                         locked
-                                          ? "Locked — upgrade to change cover now"
+                                          ? "Locked, upgrade to change cover now"
                                           : isDraft
                                             ? "Pick as cover (applies when published)"
                                             : "Set as cover"
@@ -3535,7 +3535,7 @@ export default function BusinessPhotosSettingsPage() {
                                     aria-label={isDraft ? "Remove draft" : "Remove photo"}
                                     title={
                                       locked
-                                        ? "Locked — upgrade to remove now"
+                                        ? "Locked, upgrade to remove now"
                                         : isDraft
                                           ? "Remove draft"
                                           : "Remove photo"
@@ -3609,7 +3609,7 @@ export default function BusinessPhotosSettingsPage() {
           </>
         )}
 
-            {/* Public profile preview — Other (published only). Gallery uses hero strip above; Products use the grid + tip. */}
+            {/* Public profile preview, Other (published only). Gallery uses hero strip above; Products use the grid + tip. */}
             <div className="mt-6 space-y-3 border-t border-gray-100 pt-5">
               {previewSectionSlug === "products" ? (
                 activeSectionSlug === "products" ? (
@@ -3776,7 +3776,7 @@ export default function BusinessPhotosSettingsPage() {
                                 </span>
                               ) : null}
 
-                              {/* Owner controls — nested inside the div
+                              {/* Owner controls, nested inside the div
                                   role=button. We stopPropagation so clicks
                                   on the action buttons don't also swap the
                                   hero. */}
@@ -3792,7 +3792,7 @@ export default function BusinessPhotosSettingsPage() {
                                     aria-label="Set as cover"
                                     title={
                                       locked
-                                        ? "Locked for 30 days after publishing — upgrade to change the cover now"
+                                        ? "Locked for 30 days after publishing, upgrade to change the cover now"
                                         : "Set as cover"
                                     }
                                     className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3810,7 +3810,7 @@ export default function BusinessPhotosSettingsPage() {
                                   aria-label="Remove photo"
                                   title={
                                     locked
-                                      ? "Locked for 30 days after publishing — upgrade to remove now"
+                                      ? "Locked for 30 days after publishing, upgrade to remove now"
                                       : "Remove photo"
                                   }
                                   className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white/95 text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3823,7 +3823,7 @@ export default function BusinessPhotosSettingsPage() {
                         );
                       })}
 
-                      {/* "Upload more photos" teaser — only for Free
+                      {/* "Upload more photos" teaser, only for Free
                           users who have hit their 4-photo cap. Lives at
                           the end of whichever section is currently
                           selected so it's always discoverable. */}
@@ -3906,7 +3906,7 @@ export default function BusinessPhotosSettingsPage() {
           }
         `}</style>
 
-      {/* Floating toast after publish — immediate feedback + link to public profile */}
+      {/* Floating toast after publish, immediate feedback + link to public profile */}
       {publishProfileToast ? (
         <div
           role="status"

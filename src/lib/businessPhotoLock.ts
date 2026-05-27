@@ -12,7 +12,7 @@ import type { PlanKey } from "@/lib/plans";
  * The lock window is anchored on `max(published_at)` across a business's
  * published photos (exposed via the `business_photo_publish_latest` view
  * in the database). This keeps the lock in sync with whatever the business
- * last pushed live, and is cumulative — publishing a new photo extends the
+ * last pushed live, and is cumulative, publishing a new photo extends the
  * window to 30 days from that publish.
  */
 
@@ -81,7 +81,7 @@ export function computePublishLockStatus(
  * True when editing / deleting *this* photo should be blocked on the
  * caller's plan. Uses the business-wide 30-day lock (a photo is locked
  * if the business is currently inside its lock window AND the photo
- * itself is published — drafts remain editable under the business lock).
+ * itself is published, drafts remain editable under the business lock).
  */
 export function isPhotoEditLocked(
   planKey: PlanKey,

@@ -127,7 +127,7 @@ export default function DataProtectionPage() {
             </p>
             <p className="mt-3">
               Those measures include access controls, encryption, processor
-              agreements, and incident response—each described in the sections
+              agreements, and incident response, each described in the sections
               that follow.
             </p>
           </div>
@@ -179,7 +179,7 @@ export default function DataProtectionPage() {
               Data Protection by Design and Default
             </h2>
             <p className="mt-3">
-              Privacy is considered early in product and business processes—not
+              Privacy is considered early in product and business processes, not
               added as an afterthought. That means we think about data collection,
               retention, and transparency when we design features and workflows.
             </p>
@@ -201,7 +201,7 @@ export default function DataProtectionPage() {
             </h2>
             <p className="mt-3">
               Tellacity only collects personal data that is needed to operate the
-              service, verify reviews where required, and support users—not
+              service, verify reviews where required, and support users, not
               excessive or unrelated information.
             </p>
             <p className="mt-3">
@@ -217,7 +217,7 @@ export default function DataProtectionPage() {
             </h2>
             <p className="mt-3">
               Only authorized personnel may access personal data, and access is
-              limited by role and legitimate business need—not open to all staff
+              limited by role and legitimate business need, not open to all staff
               by default.
             </p>
             <p className="mt-3">
@@ -459,7 +459,7 @@ export default function DataProtectionPage() {
             </h2>
             <p className="mt-3">
               Data is kept only for as long as needed for the purpose it was
-              collected, or as required by law—then deleted or anonymized securely.
+              collected, or as required by law, then deleted or anonymized securely.
             </p>
             <p className="mt-3">
               We retain personal data only for as long as necessary to fulfill
@@ -489,7 +489,7 @@ export default function DataProtectionPage() {
             <p className="mt-3">
               This Data Protection Policy adds technical and operational detail
               to the general principles in our other legal documents. It works
-              alongside—not instead of—those policies.
+              alongside, not instead of, those policies.
             </p>
             <p className="mt-3">
               This Data Protection Policy complements our Privacy Policy and

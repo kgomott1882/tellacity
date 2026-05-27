@@ -157,7 +157,7 @@ async function uploadPngAndUpdateRow(
     const msg = rpcError.message ?? "";
     if (msg.includes("set_business_logo_from_service")) {
       console.warn(
-        "RPC set_business_logo_from_service missing — apply migration 20260523120000_set_business_logo_service.sql",
+        "RPC set_business_logo_from_service missing, apply migration 20260523120000_set_business_logo_service.sql",
       );
     } else {
       console.warn("RPC logo update failed:", businessId, msg);

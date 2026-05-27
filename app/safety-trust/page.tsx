@@ -200,7 +200,7 @@ export default function SafetyTrustPage() {
             What &quot;Verified&quot; Means
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-gray-600 sm:text-base">
-            Verified trust links reviews and businesses to real-world signals—not
+            Verified trust links reviews and businesses to real-world signals, not
             just star ratings. Consumers get more reliable feedback; businesses
             get a fairer reputation system grounded in evidence and response.
           </p>
@@ -513,7 +513,7 @@ export default function SafetyTrustPage() {
           </h2>
           <p className="mx-auto mt-3 max-w-3xl text-sm text-gray-600">
             When misuse occurs, Tellacity acts decisively. Enforcement scales
-            with severity—from educational warnings to public alerts and
+            with severity, from educational warnings to public alerts and
             removal. We also pursue legal action against those who manipulate
             reviews.
           </p>
@@ -562,7 +562,7 @@ export default function SafetyTrustPage() {
               </h3>
               <p className="mt-2 text-sm text-gray-600">
                 These targets guide investment in verification, detection
-                accuracy, and public reporting—not marketing claims divorced
+                accuracy, and public reporting, not marketing claims divorced
                 from moderation reality.
               </p>
               <h3 className="mt-6 text-sm font-semibold text-[#0E0E0E]">

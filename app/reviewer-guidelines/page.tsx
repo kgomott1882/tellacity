@@ -339,7 +339,7 @@ export default function ReviewerGuidelinesPage() {
             <p className="mt-3 leading-relaxed">
               We use a combination of automated systems and human moderation.
               The flow is designed to be plain and predictable: content is
-              flagged, investigated, and decided on evidence—not on whether a
+              flagged, investigated, and decided on evidence, not on whether a
               business simply dislikes the outcome.
             </p>
 
@@ -358,8 +358,8 @@ export default function ReviewerGuidelinesPage() {
             <p className="mt-2 leading-relaxed">
               Our team reviews the flag. For factual disputes (e.g., &quot;This
               person was never a customer&quot;), we may ask the reviewer for
-              proof. Opinion disputes—such as disagreement about service
-              quality—are not treated the same as claims that the reviewer never
+              proof. Opinion disputes, such as disagreement about service
+              quality, are not treated the same as claims that the reviewer never
               transacted with the business.
             </p>
 
@@ -425,7 +425,7 @@ export default function ReviewerGuidelinesPage() {
             <p className="mt-2 leading-relaxed">
               Repeat offenders may be banned from posting reviews. This applies
               to patterns of fake reviews, harassment, or deliberate score
-              manipulation—not to one disputed negative experience.
+              manipulation, not to one disputed negative experience.
             </p>
 
             <h3 className="mt-6 text-base font-semibold text-[#0E0E0E]">
@@ -445,7 +445,7 @@ export default function ReviewerGuidelinesPage() {
             </h2>
             <p className="mt-3 leading-relaxed">
               We understand that moderation mistakes can happen. Appeals exist so
-              users can challenge a decision once, with new information—not to
+              users can challenge a decision once, with new information, not to
               reopen the same argument indefinitely.
             </p>
 
@@ -522,8 +522,8 @@ export default function ReviewerGuidelinesPage() {
               Community responsibility
             </h3>
             <p className="mt-2 leading-relaxed">
-              Tellacity is a community. We rely on you—our users and business
-              partners—to uphold these standards. The platform works only when
+              Tellacity is a community. We rely on you, our users and business
+              partners, to uphold these standards. The platform works only when
               people treat reviews and responses as a shared responsibility,
               not a tool to game rankings.
             </p>

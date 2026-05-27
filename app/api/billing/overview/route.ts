@@ -141,7 +141,7 @@ export async function GET(req: Request) {
       plan:
         row.plan_code != null && String(row.plan_code).trim()
           ? String(row.plan_code)
-          : "—",
+          : "-",
       reference:
         row.reference != null && String(row.reference).trim()
           ? String(row.reference).trim()
@@ -154,7 +154,7 @@ export async function GET(req: Request) {
       status:
         row.status != null && String(row.status).trim()
           ? String(row.status).trim()
-          : "—",
+          : "-",
     }));
 
     const latest = transactions[0];

@@ -240,7 +240,7 @@ function buildBrandingLine(): string {
 }
 
 /**
- * Review Hunter layout email — mirrors the dashboard "Preview & send" card:
+ * Review Hunter layout email, mirrors the dashboard "Preview & send" card:
  * business name headline, green Tellacity stars row, a real-data stats line
  * ("4.3 Stars | 4 reviews"), and the Tellacity wordmark footer. The whole
  * card is wrapped in an anchor to the invite link so recipients still have
@@ -308,7 +308,7 @@ function buildReviewHunterHtml(opts: {
         <img src="${trustLogoUrl}" alt="Tellacity" style="display:inline-block;max-height:14px;width:auto;height:auto;border:0;" />
       </div>`;
 
-  // Entire card wraps in an anchor so the whole preview is clickable —
+  // Entire card wraps in an anchor so the whole preview is clickable , 
   // no standalone "Review us on" badge (keeps the design consistent with
   // the dashboard preview the sender just approved).
   const cardInner = `
@@ -326,7 +326,7 @@ function buildReviewHunterHtml(opts: {
     </div>
   </a>`;
 
-  // Subtle text brand footer under the card — the Tellacity wordmark
+  // Subtle text brand footer under the card, the Tellacity wordmark
   // already appears inside the card, so we avoid stacking two logos.
   // Matches the footer style used by `buildBrandingLine` elsewhere.
   const outerBranding = removeBranding ? "" : buildBrandingLine();
@@ -347,7 +347,7 @@ function buildReviewHunterHtml(opts: {
 }
 
 /**
- * Premium Widget Layout email — mirrors the dashboard "Preview & send" card
+ * Premium Widget Layout email, mirrors the dashboard "Preview & send" card
  * for the default / standard layout: "Tell us about your experience"
  * headline, green Tellacity stars row, a "Leave a Review" CTA button, and
  * the "Verified reviews powered by Tellacity" text footer. This matches
@@ -382,7 +382,7 @@ function buildWidgetHtml(opts: {
         .replace(/\n/g, "<br/>")}</p>`
     : "";
 
-  // Green Tellacity stars row — same helper used by the Review Hunter and
+  // Green Tellacity stars row, same helper used by the Review Hunter and
   // Reviews Showcase emails so the star styling is consistent inbox-wide.
   const starsRow = buildEmailStarsRowHtml({ marginBottom: "0" });
 
@@ -392,7 +392,7 @@ function buildWidgetHtml(opts: {
   // click target.
   const ctaButton = `<a href="${esc(reviewLink)}" style="display:inline-block;padding:9px 20px;background-color:#ffffff;border:1px solid ${EMAIL_WIDGET_CTA_BORDER};color:${EMAIL_WIDGET_CTA_TEXT};text-decoration:none;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-weight:600;font-size:13px;line-height:1.2;">Leave a Review</a>`;
 
-  // Inner card (rounded, light gray border) — mirrors the `shell` default
+  // Inner card (rounded, light gray border), mirrors the `shell` default
   // in `EmailWidgetInviteBlock` (`rounded-lg border border-gray-200
   // bg-gray-50/50 p-4 text-center`).
   const cardInner = `
@@ -429,7 +429,7 @@ function buildWidgetHtml(opts: {
 }
 
 /**
- * Reviews Showcase: business-card trust signal — logo + name + tagline on
+ * Reviews Showcase: business-card trust signal, logo + name + tagline on
  * the left, review count + Tellacity stars + Tellacity wordmark on the
  * right. Uses `buildEmailStarsRowHtml` for the star row so the rendering
  * matches the other Tellacity-branded layouts in inbox clients.
@@ -530,7 +530,7 @@ function buildReviewsShowcaseHtml(opts: {
   const starCell = `<span style="display:inline-block;width:16px;height:16px;margin:0 2px 0 0;background:${starFill};border:1px solid ${starFill};border-radius:3px;text-align:center;line-height:16px;font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#ffffff;vertical-align:middle;">&#9733;</span>`;
   const starsInline = Array.from({ length: 5 }, () => starCell).join("");
 
-  // Plain block-level Tellacity wordmark — avoids `align="left"` which causes
+  // Plain block-level Tellacity wordmark, avoids `align="left"` which causes
   // subsequent elements (e.g. the CTA) to float next to it in Gmail.
   const trustLogoImg = `<img src="${trustLogoUrl}" alt="Tellacity" style="display:block;max-height:14px;width:auto;height:auto;border:0;margin:0;" />`;
 

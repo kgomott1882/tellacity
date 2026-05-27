@@ -50,7 +50,7 @@ const PLATFORM_CARDS: PlatformCard[] = [
     description:
       "Send branded, automated review invitations after every purchase, appointment, or completed service, with reminders, proof-of-purchase, and per-channel attribution built in.",
     detail:
-      "Branded, automated invites after purchase or service completion help you collect feedback consistently—not only when customers remember to leave a review on their own.",
+      "Branded, automated invites after purchase or service completion help you collect feedback consistently, not only when customers remember to leave a review on their own.",
     href: "/solutions/review-invitations",
   },
   {
@@ -60,7 +60,7 @@ const PLATFORM_CARDS: PlatformCard[] = [
     description:
       "Embed live, verified review widgets on product, pricing, checkout, and marketing pages, all reading from one centralised feed and updating automatically.",
     detail:
-      "Live, verified widgets on product and marketing pages show the same proof customers see on your Tellacity profile—without copying static testimonials by hand.",
+      "Live, verified widgets on product and marketing pages show the same proof customers see on your Tellacity profile, without copying static testimonials by hand.",
     href: "/solutions/review-widgets",
   },
   {
@@ -70,7 +70,7 @@ const PLATFORM_CARDS: PlatformCard[] = [
     description:
       "Track verified review trends, sentiment, response performance, and multi-location reputation from one centralised analytics dashboard.",
     detail:
-      "Trends, sentiment, response performance, and multi-location views help teams understand what is improving trust—and what needs attention.",
+      "Trends, sentiment, response performance, and multi-location views help teams understand what is improving trust, and what needs attention.",
     href: "/solutions/business-analytics",
   },
   {
@@ -80,7 +80,7 @@ const PLATFORM_CARDS: PlatformCard[] = [
     description:
       "Reply, moderate, dispute, and protect your verified profile from one operational dashboard, with audit logs and fraud detection built in.",
     detail:
-      "Reply publicly, moderate content, dispute inaccurate feedback, and protect your verified profile from one operational dashboard—not scattered inboxes.",
+      "Reply publicly, moderate content, dispute inaccurate feedback, and protect your verified profile from one operational dashboard, not scattered inboxes.",
     href: "/solutions/reputation-management",
   },
   {
@@ -116,7 +116,7 @@ const KEY_BENEFITS = [
   {
     title: "Verified reviews instead of fragmented signals",
     detail:
-      "Collect and display feedback tied to real customer interactions—not disconnected ratings copied from elsewhere.",
+      "Collect and display feedback tied to real customer interactions, not disconnected ratings copied from elsewhere.",
   },
   {
     title: "Analytics, widgets, and moderation in one workflow",
@@ -131,7 +131,7 @@ const KEY_BENEFITS = [
   {
     title: "A reputation system designed for long-term growth",
     detail:
-      "Trust compounds as verified feedback, responses, and insights accumulate—not as one-off campaign assets.",
+      "Trust compounds as verified feedback, responses, and insights accumulate, not as one-off campaign assets.",
   },
 ];
 
@@ -159,7 +159,7 @@ const WORKFLOW_STEPS = [
   {
     title: "Track analytics and improve",
     detail:
-      "Analytics show trends, sentiment, and response performance so you can act on feedback—not just collect it.",
+      "Analytics show trends, sentiment, and response performance so you can act on feedback, not just collect it.",
   },
 ];
 
@@ -244,22 +244,22 @@ const PLATFORM_FAQS: PlatformFaq[] = [
   {
     question: "Can I use only one part of the platform?",
     answer:
-      "Yes. Every solution works on its own—many businesses start with Review Invitations or Reputation Management and add modules later. Because everything shares the same platform, turning on widgets, analytics, or photo uploads never means migrating data or reconciling conflicting sources.",
+      "Yes. Every solution works on its own, many businesses start with Review Invitations or Reputation Management and add modules later. Because everything shares the same platform, turning on widgets, analytics, or photo uploads never means migrating data or reconciling conflicting sources.",
   },
   {
     question: "How quickly does the platform integrate with my site?",
     answer:
-      "Most businesses are live in under a day: claim your verified Tellacity profile, send your first review invitations, and add a widget snippet to your site. Integration is designed to be fast and practical depending on your setup—there is no build step, no framework lock-in, and no separate logins between modules.",
+      "Most businesses are live in under a day: claim your verified Tellacity profile, send your first review invitations, and add a widget snippet to your site. Integration is designed to be fast and practical depending on your setup, there is no build step, no framework lock-in, and no separate logins between modules.",
   },
   {
     question: "Are all reviews and photos verified?",
     answer:
-      "Tellacity is built around verified customer feedback. Reviews are tied to authenticated customer accounts, with optional proof-of-purchase, and photos pass through EXIF-stripping plus automated moderation before they go live. Verification status depends on the review and photo path—content must meet policy checks before it appears publicly, and every action is logged in an audit trail.",
+      "Tellacity is built around verified customer feedback. Reviews are tied to authenticated customer accounts, with optional proof-of-purchase, and photos pass through EXIF-stripping plus automated moderation before they go live. Verification status depends on the review and photo path, content must meet policy checks before it appears publicly, and every action is logged in an audit trail.",
   },
   {
     question: "How does the platform improve SEO and trust signals?",
     answer:
-      "The platform keeps structured, current, and consistent proof on your profile, widgets, and review pages—including schema such as Review, AggregateRating, and ImageObject where applicable. That helps customers, search engines, and AI systems see the same citable trust signals instead of stale or fragmented copies. Results depend on your content and implementation, but one consistent source is easier to trust and defend.",
+      "The platform keeps structured, current, and consistent proof on your profile, widgets, and review pages, including schema such as Review, AggregateRating, and ImageObject where applicable. That helps customers, search engines, and AI systems see the same citable trust signals instead of stale or fragmented copies. Results depend on your content and implementation, but one consistent source is easier to trust and defend.",
   },
 ];
 
@@ -411,7 +411,7 @@ export default function ReputationPlatformHubPage() {
                 </p>
                 <p>
                   Scattered reviews, photos, analytics, and disputes make reputation
-                  harder to manage—and harder for customers to trust what they see
+                  harder to manage, and harder for customers to trust what they see
                   on each channel.
                 </p>
                 <p>
@@ -431,14 +431,12 @@ export default function ReputationPlatformHubPage() {
                 </Link>
               </div>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/Customer%20Feedback.png"
-                alt="Customer feedback scattered across disconnected tools and channels"
-                className="h-full w-full object-contain"
-              />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/Customer%20Feedback.png"
+              alt="Customer feedback scattered across disconnected tools and channels"
+              className="h-auto w-full object-contain"
+            />
           </div>
         </div>
       </section>
@@ -469,7 +467,7 @@ export default function ReputationPlatformHubPage() {
                 Why businesses choose Tellacity
               </h2>
               <p className="mt-4 text-base leading-relaxed text-gray-600">
-                Businesses choose Tellacity when they want one reputation system—not
+                Businesses choose Tellacity when they want one reputation system, not
                 a patchwork of widgets, spreadsheets, and disconnected review sites.
               </p>
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -491,30 +489,40 @@ export default function ReputationPlatformHubPage() {
       </section>
 
       <section className="w-full bg-white">
-        <div className="mx-auto w-full max-w-4xl px-6 py-16 md:py-20">
-          <h2 className="text-3xl font-bold tracking-tight text-[#0E0E0E] sm:text-4xl">
-            How the platform works
-          </h2>
-          <div className="mt-6 space-y-4 text-base leading-relaxed text-gray-700">
-            <p>
-              Tellacity uses one verified review pipeline and one dashboard so
-              every module shares the same source of truth. Reviews collected
-              through invitations feed the widgets on your site; those same
-              reviews power analytics leadership tracks.
-            </p>
-            <p>
-              Replies, disputes, and photo uploads run through the same
-              operational system—with moderation and audit trails aligned to our{" "}
-              <Link href="/safety-trust" className={linkClass}>
-                Safety &amp; Trust
-              </Link>{" "}
-              framework.
-            </p>
-            <p>
-              Each module works on its own, but together they turn customer
-              feedback into a measurable, defensible, citable trust signal that
-              is easier to explain to buyers, support teams, and partners.
-            </p>
+        <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
+          <div className="grid gap-10 md:grid-cols-2 md:items-center">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-[#0E0E0E] sm:text-4xl">
+                How the platform works
+              </h2>
+              <div className="mt-6 space-y-4 text-base leading-relaxed text-gray-700">
+                <p>
+                  Tellacity uses one verified review pipeline and one dashboard so
+                  every module shares the same source of truth. Reviews collected
+                  through invitations feed the widgets on your site; those same
+                  reviews power analytics leadership tracks.
+                </p>
+                <p>
+                  Replies, disputes, and photo uploads run through the same
+                  operational system, with moderation and audit trails aligned to our{" "}
+                  <Link href="/safety-trust" className={linkClass}>
+                    Safety &amp; Trust
+                  </Link>{" "}
+                  framework.
+                </p>
+                <p>
+                  Each module works on its own, but together they turn customer
+                  feedback into a measurable, defensible, citable trust signal that
+                  is easier to explain to buyers, support teams, and partners.
+                </p>
+              </div>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/trust%20investor.png"
+              alt="Tellacity unified platform connecting verified reviews, trust signals, and business reputation"
+              className="h-auto w-full object-contain"
+            />
           </div>
         </div>
       </section>
@@ -587,7 +595,7 @@ export default function ReputationPlatformHubPage() {
             </h2>
             <p className="mt-4 text-base leading-relaxed text-gray-600">
               Every team uses the Tellacity Reputation Management Platform differently, but
-              they all work from the same verified customer data—not duplicate
+              they all work from the same verified customer data, not duplicate
               exports or conflicting scores.
             </p>
             <p className="mt-3 text-base leading-relaxed text-gray-600">
@@ -643,7 +651,7 @@ export default function ReputationPlatformHubPage() {
             How the workflow fits together
           </h2>
           <p className="mt-4 text-base leading-relaxed text-gray-600">
-            This is one system—not separate tools stitched together. The steps
+            This is one system, not separate tools stitched together. The steps
             below show how modules connect from invitation through improvement.
           </p>
           <ol className="mt-8 space-y-6">
@@ -682,8 +690,8 @@ export default function ReputationPlatformHubPage() {
               and review pages, it is easier to trust and cite.
             </p>
             <p>
-              Tellacity emits structured data—such as Review, AggregateRating,
-              ImageObject, and related schema where applicable—so public proof
+              Tellacity emits structured data, such as Review, AggregateRating,
+              ImageObject, and related schema where applicable, so public proof
               stays aligned with what customers actually experience.
             </p>
             <p>

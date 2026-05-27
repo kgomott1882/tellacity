@@ -6,7 +6,7 @@ import {
 
 /**
  * Notify a business owner that one of their uploaded photos was rejected
- * during moderation review. Safe to fire-and-forget from an admin action —
+ * during moderation review. Safe to fire-and-forget from an admin action , 
  * the DB write is the source of truth; a failed email must NOT block the
  * moderation decision.
  *
@@ -40,7 +40,7 @@ export type PhotoRejectionEmailInput = {
   /**
    * Admin-selected moderation reason
    * (e.g. "Collage / picmix", "Low quality", "Promotional content",
-   * "Guideline violation"). Optional — when absent the email explains the
+   * "Guideline violation"). Optional, when absent the email explains the
    * rejection in generic guideline terms.
    */
   moderationReason?: string | null;
@@ -103,7 +103,7 @@ export async function sendPhotoRejectedEmail(
           </td></tr>
           ${reasonBlock}
           <tr><td style="padding-top:20px;font-size:15px;line-height:1.6;color:#404040;">
-            You can upload a replacement photo at any time — only approved photos appear on your public page, so the rest of your profile isn&apos;t affected.
+            You can upload a replacement photo at any time, only approved photos appear on your public page, so the rest of your profile isn&apos;t affected.
           </td></tr>
           <tr><td style="padding-top:24px;">
             <a href="${photosUrl}" style="display:inline-block;background:#1FAF9E;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:9999px;">Manage photos</a>
@@ -130,7 +130,7 @@ export async function sendPhotoRejectedEmail(
     `Thanks for adding photos to ${businessName}. Our review team checked your recent upload and couldn't publish it because it doesn't meet the Tellacity photo guidelines.`,
     reason ? `\nReason: ${reason}` : null,
     "",
-    "You can upload a replacement photo at any time — only approved photos appear on your public page, so the rest of your profile isn't affected.",
+    "You can upload a replacement photo at any time, only approved photos appear on your public page, so the rest of your profile isn't affected.",
     "",
     `Manage photos: ${photosUrl}`,
     `Photo guidelines: ${guidelinesUrl}`,

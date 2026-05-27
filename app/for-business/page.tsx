@@ -63,7 +63,7 @@ const PRINCIPLES = [
     title: "Verified Reviews Only",
     description: "Real customer experiences. No anonymous noise.",
     explain:
-      "Every review is tied to a genuine customer interaction, so feedback reflects real experiences—not anonymous noise.",
+      "Every review is tied to a genuine customer interaction, so feedback reflects real experiences, not anonymous noise.",
   },
   {
     num: "02",
@@ -84,7 +84,7 @@ const PRINCIPLES = [
     title: "Built for Long-Term Trust",
     description: "Reputation that compounds over time.",
     explain:
-      "Trust builds steadily as verified feedback, responses, and trust signals accumulate—not through short-term campaigns.",
+      "Trust builds steadily as verified feedback, responses, and trust signals accumulate, not through short-term campaigns.",
   },
 ];
 
@@ -169,12 +169,12 @@ const CONVERSION_POINTS = [
   {
     title: "Show responsiveness through public replies",
     detail:
-      "When customers see you respond thoughtfully to feedback—positive or negative—they know you stand behind your service and take concerns seriously.",
+      "When customers see you respond thoughtfully to feedback, positive or negative, they know you stand behind your service and take concerns seriously.",
   },
   {
     title: "Upload business photos in your dashboard",
     detail:
-      "Add photos from your dashboard and showcase them on your public profile so visitors see your team, location, and work—not just a logo and text.",
+      "Add photos from your dashboard and showcase them on your public profile so visitors see your team, location, and work, not just a logo and text.",
   },
   {
     title: "Strengthen credibility across every touchpoint",
@@ -192,7 +192,7 @@ const INTEGRATION_POINTS = [
   {
     title: "Automate review requests via SMS & email",
     detail:
-      "Trigger review invitations automatically after purchases, appointments, or support interactions—without adding manual steps for your team.",
+      "Trigger review invitations automatically after purchases, appointments, or support interactions, without adding manual steps for your team.",
   },
   {
     title: "Display verified social proof automatically",
@@ -228,7 +228,7 @@ const LEADER_POINTS = [
   {
     title: "Verified feedback, not anonymous noise",
     detail:
-      "Leaders choose Tellacity because feedback comes from verified customers—not anonymous posts that are hard to trust or act on.",
+      "Leaders choose Tellacity because feedback comes from verified customers, not anonymous posts that are hard to trust or act on.",
   },
   {
     title: "Transparent review policies",
@@ -243,7 +243,7 @@ const LEADER_POINTS = [
   {
     title: "Designed for long-term trust",
     detail:
-      "Tellacity is built for reputation that compounds over years—not one-off campaigns—so trust becomes a durable competitive advantage.",
+      "Tellacity is built for reputation that compounds over years, not one-off campaigns, so trust becomes a durable competitive advantage.",
   },
 ];
 
@@ -261,7 +261,7 @@ const AUDIENCES = [
   {
     title: "Growing companies",
     detail:
-      "Growing teams centralize reputation management in one system so feedback, responses, and analytics scale with the business—not as an afterthought.",
+      "Growing teams centralize reputation management in one system so feedback, responses, and analytics scale with the business, not as an afterthought.",
   },
 ];
 
@@ -312,7 +312,7 @@ export default function ForBusinessPage() {
         </ForBusinessMotionSection>
       </section>
 
-      {/* Why Tellacity for Business — four principles */}
+      {/* Why Tellacity for Business, four principles */}
       <section className="border-y border-gray-100 bg-[#F8FAFC]">
         <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
           <h2 className="text-2xl font-semibold text-[#0E0E0E]">
@@ -386,7 +386,7 @@ export default function ForBusinessPage() {
               <p className="mt-3 text-sm text-gray-600">
                 From automated collection to analytics and public profiles,
                 Tellacity gives you practical tools to turn verified feedback
-                into a growth engine—not a side project.{" "}
+                into a growth engine, not a side project.{" "}
                 <Link href="/pricing" className={linkClass}>
                   View pricing
                 </Link>{" "}
@@ -581,7 +581,7 @@ export default function ForBusinessPage() {
                 </p>
                 <p className="mt-3 text-sm text-gray-600">
                   Integrations and automation mean less manual work and more
-                  consistent reputation management—review requests, data sync,
+                  consistent reputation management, review requests, data sync,
                   and social proof stay in step with the tools you already rely
                   on.
                 </p>
@@ -670,7 +670,7 @@ export default function ForBusinessPage() {
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base text-gray-300">
             Marketing campaigns come and go; durable reputation infrastructure
-            keeps working—collecting feedback, surfacing trust, and strengthening
+            keeps working, collecting feedback, surfacing trust, and strengthening
             credibility with every verified review and response. That is how
             long-term trust becomes a sustainable growth channel, not a
             one-season push.
@@ -687,7 +687,7 @@ export default function ForBusinessPage() {
           <p className="mt-4 max-w-2xl text-sm text-gray-600">
             Tellacity connects the full reputation loop: collect verified
             feedback, respond transparently, showcase credibility, and improve
-            from insights—all in one system built for sustainable growth.
+            from insights, all in one system built for sustainable growth.
           </p>
           <p className="mt-3 max-w-2xl text-sm text-gray-600">
             Choose the goals and scale that match your business today, knowing
@@ -879,7 +879,7 @@ export default function ForBusinessPage() {
           </h2>
           <p className="mt-4 max-w-2xl text-sm text-gray-600">
             Tellacity unifies feedback collection, response, analytics, and
-            social proof into one workflow—so reputation is managed as a system,
+            social proof into one workflow, so reputation is managed as a system,
             not a scattered set of tools.
           </p>
           <p className="mt-3 max-w-2xl text-sm text-gray-600">

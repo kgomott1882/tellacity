@@ -62,7 +62,7 @@ function extractStringsDeep(value: unknown, depth: number): string[] {
 }
 
 /**
- * Primary category chip — soft brand tint, never black.
+ * Primary category chip, soft brand tint, never black.
  */
 export const BUSINESS_CATEGORY_PILL_CLASSNAME =
   "inline-flex max-w-full items-center truncate rounded-full border border-[#1FAF9E]/25 bg-[#E8F7F5] px-2 py-0.5 text-[10px] font-medium leading-tight text-[#0E4A42]";

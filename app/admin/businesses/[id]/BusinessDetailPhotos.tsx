@@ -161,10 +161,10 @@ export default function BusinessDetailPhotos({
 
         let suffix = "";
         if (action === "reject") {
-          if (data.emailStatus === "sent") suffix = " — owner notified by email";
+          if (data.emailStatus === "sent") suffix = ", owner notified by email";
           else if (data.emailStatus === "no_owner_email")
-            suffix = " — no owner email on file (email skipped)";
-          else suffix = " — email not sent";
+            suffix = ", no owner email on file (email skipped)";
+          else suffix = ", email not sent";
         }
         setMessage({
           type: "success",
@@ -185,7 +185,7 @@ export default function BusinessDetailPhotos({
 
   // Hard-delete: wipes the DB row + storage object. Because the per-plan
   // photo cap is an INSERT-time trigger (not a stored counter), deleting
-  // the row is enough to "give the credit back" — the business can
+  // the row is enough to "give the credit back", the business can
   // immediately upload a replacement up to their cap.
   const deletePhoto = useCallback(
     async (photo: AdminPhotoRow) => {
@@ -211,11 +211,11 @@ export default function BusinessDetailPhotos({
         }
         const cleanupSuffix =
           data.storageCleanup === "failed"
-            ? " — storage file kept (logged for cleanup)"
+            ? ", storage file kept (logged for cleanup)"
             : "";
         setMessage({
           type: "success",
-          text: `Photo deleted — slot returned to the business${cleanupSuffix}.`,
+          text: `Photo deleted, slot returned to the business${cleanupSuffix}.`,
         });
         setPhotos((prev) => prev.filter((row) => row.id !== photo.id));
         await reload();
@@ -275,7 +275,7 @@ export default function BusinessDetailPhotos({
           </p>
         ) : (
           <p className="text-xs text-amber-700">
-            This business has no claimed owner — rejection emails will be skipped.
+            This business has no claimed owner, rejection emails will be skipped.
           </p>
         )}
       </div>

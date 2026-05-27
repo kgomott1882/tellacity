@@ -268,7 +268,7 @@ export async function fetchCategoryCount(
 /**
  * Merges visible published reviews into rows when the browser can read them.
  * If the direct `reviews` query returns nothing (RLS, filters), keeps RPC
- * `get_top_businesses_for_category_global` metrics — never overwrites with zeros.
+ * `get_top_businesses_for_category_global` metrics, never overwrites with zeros.
  */
 export async function fetchAndApplyLiveReviewMetrics(
   supabase: SupabaseClient,
@@ -557,7 +557,7 @@ async function fetchRecentlyReviewedViaReviewsJoin(
 
 /**
  * Category / tag directory: businesses in this slug + country ordered by time of
- * their latest *published* public review. No time cutoff — reviews may be months old.
+ * their latest *published* public review. No time cutoff, reviews may be months old.
  *
  * Uses RPC when available (category pages); falls back to the same logic via PostgREST
  * if the RPC is missing or returns nothing. Tag directories use the join path so `tags[]`

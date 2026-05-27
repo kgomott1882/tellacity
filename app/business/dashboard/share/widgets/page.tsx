@@ -681,7 +681,7 @@ export default function WebsiteWidgetsPage() {
         type: selected,
         dashboard_demo: "1",
       });
-      // Draft white-label in iframe preview — Elite only (matches live embed).
+      // Draft white-label in iframe preview, Elite only (matches live embed).
       if (canWhiteLabelCurrentWidget) {
         qs.set("wlv", String(whiteLabelRevision));
         qs.set("wl_star", whiteLabel.starColor);
@@ -924,7 +924,7 @@ export default function WebsiteWidgetsPage() {
           Choose a widget
         </h2>
         <p className="mb-4 text-sm text-gray-600">
-          Select a style to preview it full size. Locked widgets still show a live preview — upgrade your plan to
+          Select a style to preview it full size. Locked widgets still show a live preview, upgrade your plan to
           copy embed code.
         </p>
         <div className="space-y-10">
@@ -943,7 +943,7 @@ export default function WebsiteWidgetsPage() {
                       setWidgetConfigureOpen(true);
                     };
                     // Mini live preview for each card so owners can see what each
-                    // widget looks like before clicking in — including locked ones.
+                    // widget looks like before clicking in, including locked ones.
                     // We use the same `/widgets/embed` route as the main preview,
                     // but with `pointer-events: none` so clicks still select the
                     // card. `loading="lazy"` keeps off-screen iframes idle.
@@ -1007,7 +1007,7 @@ export default function WebsiteWidgetsPage() {
                               width/height and scale it down to 50% so the widget
                               has a normal desktop-width canvas internally and
                               simply appears thumbnail-sized. Readability of
-                              small text isn't a requirement here — owners open
+                              small text isn't a requirement here, owners open
                               the full preview modal for that.
                             */}
                             <iframe
@@ -1056,7 +1056,7 @@ export default function WebsiteWidgetsPage() {
             <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">/widgets/v1.js</code> and shows your reviews.
           </li>
           <li>
-            Paste into your site (Custom HTML / Embed block) — homepage, footer, or a Reviews page.
+            Paste into your site (Custom HTML / Embed block), homepage, footer, or a Reviews page.
           </li>
           <li>Publish; widgets update automatically when new reviews arrive.</li>
         </ol>
@@ -1139,7 +1139,7 @@ export default function WebsiteWidgetsPage() {
                   >
                     <button
                       type="button"
-                      aria-label="Back — undo embed preview change"
+                      aria-label="Back, undo embed preview change"
                       disabled={embedCustomizePast.length === 0}
                       onClick={undoEmbedCustomize}
                       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -1148,7 +1148,7 @@ export default function WebsiteWidgetsPage() {
                     </button>
                     <button
                       type="button"
-                      aria-label="Forward — redo embed preview change"
+                      aria-label="Forward, redo embed preview change"
                       disabled={embedCustomizeFuture.length === 0}
                       onClick={redoEmbedCustomize}
                       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -1355,7 +1355,7 @@ export default function WebsiteWidgetsPage() {
                     <p className="text-xs font-medium text-gray-700">Preview backdrop (dashboard only)</p>
                     <p className="text-xs text-gray-500">
                       Simulates your site background behind the widget in this preview only. It is not sent to your
-                      live site — the real page color shows through a floating widget. Use{" "}
+                      live site, the real page color shows through a floating widget. Use{" "}
                       <span className="font-medium text-gray-700">Classic</span> above if you want a card inside the
                       embed.
                     </p>
@@ -1400,7 +1400,7 @@ export default function WebsiteWidgetsPage() {
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Save widget settings</h3>
               <p className="mt-1 text-xs text-gray-600">
                 Saves custom embed options, floating vs classic surface, preview backdrop (when advanced is on), and
-                whether your business name appears in widgets. Use this for the settings above — no upgrade required.
+                whether your business name appears in widgets. Use this for the settings above, no upgrade required.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
@@ -1429,7 +1429,7 @@ export default function WebsiteWidgetsPage() {
                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Elite white-label
                   {!canWhiteLabelCurrentWidget ? (
-                    <span className="ml-1 font-normal normal-case text-gray-500">(Elite plan — optional)</span>
+                    <span className="ml-1 font-normal normal-case text-gray-500">(Elite plan, optional)</span>
                   ) : null}
                 </span>
                 <ChevronDown
@@ -1439,7 +1439,7 @@ export default function WebsiteWidgetsPage() {
               </button>
               {!eliteWhiteLabelOpen ? (
                 <p className="mt-2 text-xs text-gray-500">
-                  Brand colors and font for your widgets. Hidden until you open this — not needed for the standard
+                  Brand colors and font for your widgets. Hidden until you open this, not needed for the standard
                   options above.
                 </p>
               ) : (
@@ -1566,7 +1566,7 @@ export default function WebsiteWidgetsPage() {
                     <>
                       <p className="text-xs text-gray-600">
                         Match stars, text, accent, and font to your brand across all website widgets. Included on the
-                        Elite plan only — separate from the standard widget settings above.
+                        Elite plan only, separate from the standard widget settings above.
                       </p>
                       <button
                         type="button"
@@ -1613,7 +1613,7 @@ export default function WebsiteWidgetsPage() {
               </div>
             </div>
             <p className="mb-3 text-xs text-gray-500">
-              Checkerboard indicates a transparent widget — it inherits the host page behind it. Use{" "}
+              Checkerboard indicates a transparent widget, it inherits the host page behind it. Use{" "}
               <span className="font-medium text-gray-700">Save widget settings</span> so your embed snippet and live
               widget match; the code uses{" "}
               <code className="rounded bg-gray-100 px-1 py-0.5 text-[11px]">data-theme</code> for floating vs classic.
@@ -1686,7 +1686,7 @@ export default function WebsiteWidgetsPage() {
             <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">light</code>). Use{" "}
             <span className="font-medium text-gray-800">Save widget settings</span> on the left so Tellacity stores
             these choices for your live embed. If your site builder strips custom attributes, remove{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> entirely — your saved surface
+            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">data-theme</code> entirely, your saved surface
             choice still applies on the live widget.
           </p>
           <div className="rounded-lg border border-gray-100 bg-neutral-50/30 shadow-sm">

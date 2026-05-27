@@ -18,7 +18,7 @@ export const ADMIN_REVIEW_WARNING_REASON_OPTIONS: ReadonlyArray<{
 }> = [
   {
     key: "general",
-    label: "General — may not meet community guidelines",
+    label: "General: may not meet community guidelines",
     emailLine:
       "Your review may not fully meet our community guidelines for honest, experience-based feedback.",
   },

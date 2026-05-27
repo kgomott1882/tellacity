@@ -57,7 +57,7 @@ const ACTIVITY_REGION_NAMES: Intl.DisplayNames | null =
     ? new Intl.DisplayNames(["en"], { type: "region" })
     : null;
 
-/** Country of the reviewed / created business (`businesses.country_code`); "—" when not applicable. */
+/** Country of the reviewed / created business (`businesses.country_code`); "-" when not applicable. */
 type ActivitySource = NonNullable<AdminRecentActivityItem["source"]>;
 
 function activitySourcePillClass(source: ActivitySource | null | undefined): string {
@@ -90,13 +90,13 @@ function activitySourceLabel(source: ActivitySource | null | undefined): string 
     case "other":
       return "Other";
     default:
-      return "—";
+      return "-";
   }
 }
 
 function activityCountryCell(row: AdminRecentActivityItem): string {
   const raw = row.country_code != null ? String(row.country_code).trim() : "";
-  if (!raw) return "—";
+  if (!raw) return "-";
   const upper = raw.toUpperCase();
   try {
     if (ACTIVITY_REGION_NAMES && (upper.length === 2 || upper.length === 3)) {
@@ -205,7 +205,7 @@ export default async function AdminOverviewPage(props: {
         <AdminStatCard
           compact
           title="Business Customers"
-          value={customerBusinessCount != null ? customerBusinessCount : "—"}
+          value={customerBusinessCount != null ? customerBusinessCount : "-"}
           href="/admin/customers"
         />
         <AdminStatCard
@@ -269,7 +269,7 @@ export default async function AdminOverviewPage(props: {
                           {activitySourceLabel(row.source)}
                         </span>
                       ) : (
-                        <span className="text-neutral-400">—</span>
+                        <span className="text-neutral-400">-</span>
                       )}
                     </td>
                   </tr>

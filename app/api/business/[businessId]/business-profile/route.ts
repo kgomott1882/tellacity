@@ -64,7 +64,7 @@ function normalizeExternalUrl(raw: unknown): string | null {
 }
 
 /**
- * PATCH — partial update (currently product_buy_url for storefront link).
+ * PATCH, partial update (currently product_buy_url for storefront link).
  */
 export async function PATCH(
   req: Request,

@@ -16,12 +16,12 @@ import { expiryCutoffIso } from "@/lib/businessPhotoExpiry";
  *     the cap is an INSERT-time check).
  *   - Best-effort cleanup of the backing object in the `business_media`
  *     storage bucket. A storage-cleanup failure is logged but does not
- *     fail the request — the DB is the source of truth for visibility.
+ *     fail the request, the DB is the source of truth for visibility.
  *
- * Upgraded businesses are skipped — plan resolution happens here at call
+ * Upgraded businesses are skipped, plan resolution happens here at call
  * time, so re-subscribing before the sweep preserves the photos.
  *
- * Auth — one of:
+ * Auth, one of:
  *   - An authenticated admin user (cookie session with `profiles.is_admin`).
  *   - `Authorization: Bearer <PHOTO_EXPIRY_CRON_SECRET>` for automated
  *     scheduled jobs (Vercel cron, GitHub Actions, etc.). When the env var
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       dryRun = parsed?.dryRun === true;
     }
   } catch {
-    // Empty / invalid body is fine — treat as non-dry-run sweep.
+    // Empty / invalid body is fine, treat as non-dry-run sweep.
   }
 
   let admin;
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
   let storageFailed = 0;
   const failedPhotoIds: string[] = [];
 
-  // Delete sequentially — volumes are tiny and this keeps the storage
+  // Delete sequentially, volumes are tiny and this keeps the storage
   // cleanup ordering predictable. If this ever grows, batch the DB delete
   // with `.in("id", idsChunk)` and then fan out the storage removes.
   for (const row of eligible) {
@@ -250,7 +250,7 @@ export async function POST(req: Request) {
   });
 }
 
-/** GET returns what a dry run would do — safe read-only probe. */
+/** GET returns what a dry run would do, safe read-only probe. */
 export async function GET(req: Request) {
   const gate = await authorize(req);
   if (!gate.ok) return gate.response;

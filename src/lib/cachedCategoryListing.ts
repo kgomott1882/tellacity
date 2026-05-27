@@ -13,7 +13,7 @@ const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
 
 export type CategoryListingPagePayload = {
   rows: CategoryBusinessRow[];
-  /** `null` when `includeTotalCount` was false — client keeps prior total. */
+  /** `null` when `includeTotalCount` was false, client keeps prior total. */
   totalCount: number | null;
   hasNext: boolean;
   error: string | null;

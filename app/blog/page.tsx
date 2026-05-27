@@ -154,7 +154,7 @@ const SECTIONS: {
     id: "featured",
     title: "Featured articles",
     intro: [
-      "This section highlights some of the most useful guides on the blog—starting points if you want quick, practical value.",
+      "This section highlights some of the most useful guides on the blog, starting points if you want quick, practical value.",
       "These posts cover review collection, platform comparisons, consumer safety, and Tellacity profile ownership.",
     ],
     slugs: [
@@ -171,7 +171,7 @@ const SECTIONS: {
     intro: [
       "These posts help businesses collect more reviews, respond better, and turn feedback into growth.",
       "Topics include automation, review response, imports, trust scores, and owning your Tellacity profile.",
-      "If you are building a reputation program—not just collecting stars—start here.",
+      "If you are building a reputation program, not just collecting stars, start here.",
     ],
     slugs: [
       "how-to-get-more-customer-reviews",
@@ -206,7 +206,7 @@ const SECTIONS: {
     intro: [
       "Tellacity posts product updates, new features, and improvements for existing users here.",
       "This section is for current customers and people evaluating whether Tellacity fits their workflow.",
-      "Check here when you want to see what changed on the platform—not generic review advice.",
+      "Check here when you want to see what changed on the platform, not generic review advice.",
     ],
     slugs: ["platform-update-2025"],
   },
@@ -215,7 +215,7 @@ const SECTIONS: {
     title: "Compare platforms",
     intro: [
       "These comparison articles help businesses choose the right review platform.",
-      "They look at pricing, control, automation, visibility, and fit—not just brand names.",
+      "They look at pricing, control, automation, visibility, and fit, not just brand names.",
       "Read them when you are weighing Tellacity against Trustpilot, Google Reviews, or other options.",
     ],
     slugs: [

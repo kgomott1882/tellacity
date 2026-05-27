@@ -51,7 +51,7 @@ export async function sendAdminBusinessReinstatementEmail(
 <html><body style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5; color: #111827;">
   <p>Hello,</p>
   <p>
-    Good news — the previous restrictions on <strong>${biz}</strong> have been
+    Good news, the previous restrictions on <strong>${biz}</strong> have been
     <strong>removed</strong>. Your business listing is now active again on Tellacity
     and will appear in public results as normal.
   </p>
@@ -70,7 +70,7 @@ export async function sendAdminBusinessReinstatementEmail(
   <p>
     This is an automated message and this inbox is not monitored.
   </p>
-  <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">— Tellacity Business Support</p>
+  <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">,  Tellacity Business Support</p>
   ${trustSafetyEmailSignatureHtml({ siteUrl: base, guidelinesPath: "/business-guidelines", variant: "business_support" })}
 </body></html>`.trim();
 

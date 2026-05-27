@@ -56,7 +56,7 @@ async function getLastPublishedAt(
     : null;
 }
 
-/** GET — returns the lock state, last-publish timestamp, and draft count. */
+/** GET, returns the lock state, last-publish timestamp, and draft count. */
 export async function GET(
   req: Request,
   context: { params: Promise<{ businessId: string }> }
@@ -97,9 +97,9 @@ export async function GET(
 }
 
 /**
- * POST — publish all current drafts for this business.
+ * POST, publish all current drafts for this business.
  *
- * Publishing is no longer gated by a business-wide 30-day cooldown — as
+ * Publishing is no longer gated by a business-wide 30-day cooldown, as
  * long as the business is under its per-plan photo cap (enforced in the
  * upload route + DB trigger), any fresh drafts can be pushed live. The
  * Free-plan 30-day lock now applies only to editing / deleting *existing

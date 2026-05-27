@@ -233,7 +233,7 @@ export async function POST(req: Request) {
 
     if (existingSub && typeof (existingSub as { plan_code?: unknown }).plan_code === "string") {
       const existingPlan = String((existingSub as { plan_code: string }).plan_code).trim();
-      console.info("[billing/paystack/verify] idempotent — subscription already recorded", {
+      console.info("[billing/paystack/verify] idempotent, subscription already recorded", {
         reference,
         businessId,
         plan: existingPlan,

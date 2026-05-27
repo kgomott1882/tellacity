@@ -332,7 +332,7 @@ export default function EmailTemplatesPage() {
         {!canEditCustom ? (
           <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
             You can draft your Grow message here on any plan. Saving it to your live template needs{" "}
-            <span className="font-semibold">Grow</span> or higher — use <span className="font-semibold">Save</span>{" "}
+            <span className="font-semibold">Grow</span> or higher, use <span className="font-semibold">Save</span>{" "}
             to see upgrade options.
           </p>
         ) : null}
@@ -352,7 +352,7 @@ export default function EmailTemplatesPage() {
               ) : null}
             </div>
             <p className="mt-1 text-xs text-gray-600">
-              Grow covers the words in the email above the review link — not the branded footer block. Expand
+              Grow covers the words in the email above the review link, not the branded footer block. Expand
               Premium below to work on signature and logo.
             </p>
             <div className="mt-4">
@@ -537,7 +537,7 @@ export default function EmailTemplatesPage() {
               </div>
             ) : (
               <p className="border-t border-indigo-100 px-4 py-3 text-xs text-gray-600 sm:px-5">
-                Collapsed — open to preview or edit signature, logo, and (for Elite) reply-to and CTAs.
+                Collapsed, open to preview or edit signature, logo, and (for Elite) reply-to and CTAs.
               </p>
             )}
           </div>

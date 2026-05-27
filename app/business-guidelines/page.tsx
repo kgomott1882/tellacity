@@ -116,7 +116,7 @@ export default function BusinessGuidelinesPage() {
               <Link href="/safety-trust" className={linkClass}>
                 Safety &amp; Trust framework
               </Link>
-              —together they describe how reviews, listings, and enforcement
+              , together they describe how reviews, listings, and enforcement
               work for both businesses and consumers.
             </p>
           </div>
@@ -136,7 +136,7 @@ export default function BusinessGuidelinesPage() {
             </p>
             <p className="mt-3">
               We require one accurate profile per business so ratings,
-              responses, and visibility reflect a single genuine reputation—not
+              responses, and visibility reflect a single genuine reputation, not
               duplicated listings created to manipulate search or scores.
             </p>
             <p className="mt-4 font-medium text-[#0E0E0E]">Listings must be:</p>
@@ -228,7 +228,7 @@ export default function BusinessGuidelinesPage() {
             <p className="mt-3">
               How you respond to reviews is part of your public reputation.
               Professional, factual replies help future customers understand
-              how you handle feedback—including criticism.
+              how you handle feedback, including criticism.
             </p>
             <p className="mt-3">
               Harassment, threats, bribery, and privacy violations are never
@@ -282,8 +282,8 @@ export default function BusinessGuidelinesPage() {
             </p>
             <p className="mt-3">
               Normal review requests sent fairly after genuine transactions are
-              welcome. Suspicious bulk behaviour—rapid catalog sweeps, staff or
-              family reviews, or competitor attacks—is prohibited and may trigger
+              welcome. Suspicious bulk behaviour, rapid catalog sweeps, staff or
+              family reviews, or competitor attacks, is prohibited and may trigger
               automated flags or enforcement.
             </p>
             <div className="mt-5 space-y-5">
@@ -431,7 +431,7 @@ export default function BusinessGuidelinesPage() {
             </p>
             <p className="mt-3">
               Negative opinions alone are not grounds for removal. Factual
-              disputes—such as whether someone was ever a customer—are handled
+              disputes, such as whether someone was ever a customer, are handled
               differently from disagreements with how a customer felt about their
               experience.
             </p>
@@ -524,7 +524,7 @@ export default function BusinessGuidelinesPage() {
                   <h3 className="text-sm font-semibold text-[#0E0E0E]">
                     {opt.key === "general"
                       ? "General"
-                      : opt.label.replace(/^General — /, "")}
+                      : opt.label.replace(/^General: /, "")}
                   </h3>
                   <p className="mt-2 text-xs text-gray-600">{opt.emailLine}</p>
                   <p className="mt-2 text-xs text-gray-600">

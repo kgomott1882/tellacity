@@ -21,7 +21,7 @@ import {
  * flagged with `isOverdue = true`.
  *
  * Upgrading a business is reflected instantly because plan resolution
- * happens here at query time — any business whose current plan is not
+ * happens here at query time, any business whose current plan is not
  * `free` is dropped from the response.
  *
  * Admin-only. Uses the service role so the result isn't limited to the
@@ -111,7 +111,7 @@ export async function GET() {
   const now = new Date();
   const warningCutoff = finalWarningCutoffIso(now);
 
-  // Everything ≥ 29 days old — includes both the "final warning" window
+  // Everything ≥ 29 days old, includes both the "final warning" window
   // (29–30d) and any "overdue" photos (≥30d) that are still sitting in the
   // DB. Bounded at 1000 to keep the payload reasonable; admin can re-run
   // the deletion sweep to shrink the set.
@@ -273,7 +273,7 @@ export async function GET() {
   }
 
   const groups = Array.from(groupedMap.values()).sort((a, b) => {
-    // Soonest-to-expire first — that's what an admin needs to act on.
+    // Soonest-to-expire first, that's what an admin needs to act on.
     const aKey = a.earliestExpiresAt ?? "";
     const bKey = b.earliestExpiresAt ?? "";
     return aKey.localeCompare(bKey);

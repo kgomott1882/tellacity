@@ -156,7 +156,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
       {
         type: "text",
         value:
-          "Removal is not based on disagreement alone—a negative but honest review will not be deleted because a business dislikes it. See ",
+          "Removal is not based on disagreement alone, a negative but honest review will not be deleted because a business dislikes it. See ",
       },
       { type: "link", href: "/reviewer-guidelines", label: "Reviewer Guidelines" },
       { type: "text", value: " for more." },
@@ -257,7 +257,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
       {
         type: "text",
         value:
-          "That does not necessarily mean the review is invalid—it may simply need additional checks.",
+          "That does not necessarily mean the review is invalid, it may simply need additional checks.",
       },
     ],
   },
@@ -434,7 +434,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
       {
         type: "text",
         value:
-          "Trust Scores and review rankings reflect verified feedback and platform signals—not who pays for optional business tools.",
+          "Trust Scores and review rankings reflect verified feedback and platform signals, not who pays for optional business tools.",
       },
     ],
   },

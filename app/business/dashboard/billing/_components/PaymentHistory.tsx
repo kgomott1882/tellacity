@@ -4,7 +4,7 @@ import type { BillingOverviewHistoryRow } from "@/lib/billingOverview";
 
 function formatBillingDate(iso: string): string {
   const t = new Date(iso);
-  if (!Number.isFinite(t.getTime())) return "—";
+  if (!Number.isFinite(t.getTime())) return "-";
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -12,7 +12,7 @@ function formatBillingDate(iso: string): string {
 }
 
 function formatAmount(amountMinor: number | null, currency: string | null): string {
-  if (amountMinor == null || !Number.isFinite(amountMinor)) return "—";
+  if (amountMinor == null || !Number.isFinite(amountMinor)) return "-";
   const normalizedCurrency = (currency ?? "").trim().toUpperCase();
   const amountMajor = amountMinor / 100;
   if (!normalizedCurrency) return amountMajor.toFixed(2);
@@ -79,7 +79,7 @@ export default function PaymentHistory({
                   </td>
                   <td className="px-4 py-3 text-gray-900">{row.plan}</td>
                   <td className="max-w-[240px] truncate px-4 py-3 font-mono text-xs text-gray-700">
-                    {row.reference ?? "—"}
+                    {row.reference ?? "-"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-gray-900">
                     {formatAmount(row.amount, row.currency)}

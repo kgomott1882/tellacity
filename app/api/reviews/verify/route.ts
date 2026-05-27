@@ -84,7 +84,7 @@ function codesMatch(stored: unknown, input: string): boolean {
   return String(stored ?? "").trim() === input.trim();
 }
 
-/** Stable UUID for inserts; DB may return uuid/null — never rely on truthiness alone. */
+/** Stable UUID for inserts; DB may return uuid/null, never rely on truthiness alone. */
 function normalizeDraftProductPhotoId(raw: unknown): string | null {
   if (raw == null) return null;
   const s = String(raw).trim();
@@ -376,7 +376,7 @@ export async function POST(req: Request) {
       const err = error as { code?: string; message?: string };
       if (err.code === "23505") {
         const pgMsg = String(err.message ?? "");
-        /** Row already exists (double-submit, retry, or race) — complete verify and clean up draft. */
+        /** Row already exists (double-submit, retry, or race), complete verify and clean up draft. */
         if (productPhotoIdForInsert) {
           const { data: productDupes, error: productDupeErr } = await supabaseAdmin
             .from("reviews")
@@ -434,7 +434,7 @@ export async function POST(req: Request) {
           pgMsg.toLowerCase().includes("reviews_guest_business_no_product")
         ) {
           console.error(
-            "[reviews/verify] Product draft hit business-level unique — apply migrations (reviews partial indexes)",
+            "[reviews/verify] Product draft hit business-level unique, apply migrations (reviews partial indexes)",
             { draftId, productPhotoIdForInsert },
           );
         }

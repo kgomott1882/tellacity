@@ -22,9 +22,9 @@ export type AdminCustomerRow = {
 const DATE_LOCALE = "en-US" as const;
 
 function formatShortDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString(DATE_LOCALE, {
     month: "short",
     day: "numeric",
@@ -33,9 +33,9 @@ function formatShortDate(iso: string | null | undefined): string {
 }
 
 function formatRelativeAgo(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const from = new Date(iso);
-  if (Number.isNaN(from.getTime())) return "—";
+  if (Number.isNaN(from.getTime())) return "-";
   const diffMs = Math.max(0, Date.now() - from.getTime());
   const h = Math.floor(diffMs / (60 * 60 * 1000));
   if (h < 48) return `${h}h ago`;
@@ -79,7 +79,7 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
           Activity comes from <span className="font-medium">business_activity_logs</span> (same
           source as the dashboard bell): logins and page views from anyone with dashboard access
           (owner, co-owner, or active member), widget usage, and review invite sends (monthly cap).
-          There is no session timer — “Events 7d” counts navigation engagement in the last 7 days.
+          There is no session timer, “Events 7d” counts navigation engagement in the last 7 days.
           “Last active” is the latest of those dashboard actions (not Supabase Auth last sign-in).
           Reviews counts published, visible reviews (same as the public profile), not the cached
           column on businesses.
@@ -128,8 +128,8 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
                     }}
                   >
                     <td className="px-3 py-2">
-                      <div className="font-medium">{c.name || "—"}</div>
-                      <div className="text-xs text-gray-500">{c.website || "—"}</div>
+                      <div className="font-medium">{c.name || "-"}</div>
+                      <div className="text-xs text-gray-500">{c.website || "-"}</div>
                     </td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{c.owner_name}</div>
@@ -162,7 +162,7 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
                         </span>
                       </div>
                       <div className="text-xs text-neutral-500">
-                        Last send: {m.lastInviteSentAt ? formatRelativeAgo(m.lastInviteSentAt) : "—"}
+                        Last send: {m.lastInviteSentAt ? formatRelativeAgo(m.lastInviteSentAt) : "-"}
                       </div>
                       {m.quiet48h ? (
                         <div className="mt-0.5 text-xs font-medium text-amber-700">
@@ -172,11 +172,11 @@ export default function AdminCustomersTable({ rows }: { rows: AdminCustomerRow[]
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
-                        {c.status || "—"}
+                        {c.status || "-"}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
-                      {c.created_at ? formatShortDate(c.created_at) : "—"}
+                      {c.created_at ? formatShortDate(c.created_at) : "-"}
                     </td>
                     <td className="px-3 py-2">
                       <Link

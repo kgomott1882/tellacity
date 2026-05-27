@@ -19,7 +19,7 @@ function parseUuid(raw: unknown): string | null {
 }
 
 /**
- * POST — set upload_batch_label for drafts that share upload_batch_id.
+ * POST, set upload_batch_label for drafts that share upload_batch_id.
  * Body: { uploadBatchId: string, section: string }
  * Label is "{Section title} batch" from business_photo_sections.title.
  */

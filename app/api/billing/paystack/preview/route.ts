@@ -71,7 +71,7 @@ export async function GET(req: Request) {
     const currentPeriodEndIso = currentSub?.currentPeriodEnd ?? null;
 
     // Estimate the proration credit we'd mint on /initialize. We only mint new
-    // rows in the real initialize path — here we just project the total.
+    // rows in the real initialize path, here we just project the total.
     let projectedCreditUsdMinor = 0;
     if (
       currentSub &&
@@ -90,7 +90,7 @@ export async function GET(req: Request) {
       await availableCreditsUsdMinor(db, businessId);
 
     // If the user already has a live proration credit for this period, avoid
-    // double-counting — take the larger of the two as the credit available now.
+    // double-counting, take the larger of the two as the credit available now.
     const hasLiveProrationForPeriod = existingRows.some(
       (r) =>
         r.source === "proration" &&

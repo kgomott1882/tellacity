@@ -71,7 +71,7 @@ function isGeneralBusinessReviewRow(row: {
   return false;
 }
 
-/** Mirrors app `reviewBusinessSelfReview` — block reviews from the business’s website / work domain. */
+/** Mirrors app `reviewBusinessSelfReview`, block reviews from the business’s website / work domain. */
 const GENERIC_CONSUMER_DOMAINS = new Set([
   "gmail.com",
   "googlemail.com",

@@ -74,7 +74,7 @@ function cleanProductRedirectUrl(value: unknown): string | null {
 }
 
 /**
- * PATCH — update a single photo: set cover, move section, preview mode, product metadata.
+ * PATCH, update a single photo: set cover, move section, preview mode, product metadata.
  *
  * On Free, a published photo is locked for 30 days after it was published.
  * While locked, both cover changes and section moves return 423. Drafts
@@ -140,7 +140,7 @@ export async function PATCH(
       return publishLockResponse(photo.published_at);
     }
 
-    // Set cover — flip this photo to cover and clear the previous cover.
+    // Set cover, flip this photo to cover and clear the previous cover.
     if (body.isCover === true) {
       const { error: clearErr } = await ctx.db
         .from("business_photos")
@@ -282,7 +282,7 @@ export async function PATCH(
 }
 
 /**
- * DELETE — remove a photo (row + storage object).
+ * DELETE, remove a photo (row + storage object).
  * On Free, a published photo is locked for 30 days after publish.
  */
 export async function DELETE(

@@ -30,7 +30,7 @@ function parseOrderedIds(raw: unknown): string[] | null {
 }
 
 /**
- * POST — assign `sort_order` for all photos in a section from client order.
+ * POST, assign `sort_order` for all photos in a section from client order.
  * Body: { section: string, orderedIds: string[] } (uuid[], permutation of rows in that section).
  */
 export async function POST(

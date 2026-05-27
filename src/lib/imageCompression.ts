@@ -55,7 +55,7 @@ async function hasAlpha(img: HTMLImageElement): Promise<boolean> {
       if (data[i] < 255) return true;
     }
   } catch {
-    // Tainted canvas — assume no alpha rather than throwing.
+    // Tainted canvas, assume no alpha rather than throwing.
     return false;
   }
   return false;

@@ -24,9 +24,9 @@ function flagUrlForCode(code: string): string | null {
 }
 
 function formatRelativeAgo(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const from = new Date(iso);
-  if (Number.isNaN(from.getTime())) return "—";
+  if (Number.isNaN(from.getTime())) return "-";
   const diffMs = Math.max(0, Date.now() - from.getTime());
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 1) return "just now";
