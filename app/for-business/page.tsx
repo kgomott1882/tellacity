@@ -678,6 +678,103 @@ export default function ForBusinessPage() {
         </div>
       </ForBusinessMotionSection>
 
+      {/* Reputation Infrastructure */}
+      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-10">
+        <div className="rounded-3xl border border-[#1FAF9E]/20 bg-gradient-to-br from-white to-[#F6FBFA] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+            Reputation Infrastructure
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm text-gray-600">
+            Tellacity connects the full reputation loop: collect verified
+            feedback, respond transparently, showcase credibility, and improve
+            from insights—all in one system built for sustainable growth.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm text-gray-600">
+            Choose the goals and scale that match your business today, knowing
+            the same infrastructure grows with you.
+          </p>
+
+          <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/Engage%20with%20Customers.png"
+              alt="Engage with customers through Tellacity reputation infrastructure"
+              className="mx-auto w-full object-contain"
+            />
+          </div>
+
+          <div className="mt-10">
+            <h3 className="text-sm font-semibold text-[#0E0E0E]">
+              By Business Goal
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2">
+              {[
+                {
+                  title: "Engage with feedback",
+                  copy:
+                    "Respond to reviews publicly, resolve issues transparently, and show customers you're listening.",
+                },
+                {
+                  title: "Accelerate conversions",
+                  copy:
+                    "Use verified reviews and social proof to build confidence and turn visitors into customers.",
+                },
+                {
+                  title: "Improve with insights",
+                  copy:
+                    "Understand customer sentiment, trends, and reputation performance over time.",
+                },
+                {
+                  title: "Grow with trust",
+                  copy:
+                    "Build long-term credibility that compounds into sustainable business growth.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
+                >
+                  <p className="text-base font-semibold text-[#0E0E0E]">
+                    {item.title}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-10">
+            <h3 className="text-sm font-semibold text-[#0E0E0E]">
+              By Business Size
+            </h3>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2">
+              {[
+                {
+                  title: "Small & Growing Businesses",
+                  copy:
+                    "Build credibility early, compete on trust, and grow without complexity.",
+                },
+                {
+                  title: "Established & Multi-Location Businesses",
+                  copy:
+                    "Manage reputation at scale while staying fair, transparent, and consistent.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
+                >
+                  <p className="text-base font-semibold text-[#0E0E0E]">
+                    {item.title}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </ForBusinessMotionSection>
+
       {/* FAQ + WHY + Who Tellacity Is For: combined in one card */}
       <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-16">
         <div className="rounded-3xl border border-gray-200 bg-white p-8">
@@ -766,94 +863,6 @@ export default function ForBusinessPage() {
               ))}
             </div>
           </section>
-        </div>
-      </ForBusinessMotionSection>
-
-      {/* Reputation Infrastructure */}
-      <ForBusinessMotionSection className="mx-auto w-full max-w-7xl px-6 pb-10">
-        <div className="rounded-3xl border border-[#1FAF9E]/20 bg-gradient-to-br from-white to-[#F6FBFA] p-10 shadow-[0_40px_100px_rgba(0,0,0,0.08)]">
-          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-            Reputation Infrastructure
-          </h2>
-          <p className="mt-4 max-w-2xl text-sm text-gray-600">
-            Tellacity connects the full reputation loop: collect verified
-            feedback, respond transparently, showcase credibility, and improve
-            from insights—all in one system built for sustainable growth.
-          </p>
-          <p className="mt-3 max-w-2xl text-sm text-gray-600">
-            Choose the goals and scale that match your business today, knowing
-            the same infrastructure grows with you.
-          </p>
-
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold text-[#0E0E0E]">
-              By Business Goal
-            </h3>
-            <div className="mt-4 grid gap-6 md:grid-cols-2">
-              {[
-                {
-                  title: "Engage with feedback",
-                  copy:
-                    "Respond to reviews publicly, resolve issues transparently, and show customers you're listening.",
-                },
-                {
-                  title: "Accelerate conversions",
-                  copy:
-                    "Use verified reviews and social proof to build confidence and turn visitors into customers.",
-                },
-                {
-                  title: "Improve with insights",
-                  copy:
-                    "Understand customer sentiment, trends, and reputation performance over time.",
-                },
-                {
-                  title: "Grow with trust",
-                  copy:
-                    "Build long-term credibility that compounds into sustainable business growth.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
-                >
-                  <p className="text-base font-semibold text-[#0E0E0E]">
-                    {item.title}
-                  </p>
-                  <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold text-[#0E0E0E]">
-              By Business Size
-            </h3>
-            <div className="mt-4 grid gap-6 md:grid-cols-2">
-              {[
-                {
-                  title: "Small & Growing Businesses",
-                  copy:
-                    "Build credibility early, compete on trust, and grow without complexity.",
-                },
-                {
-                  title: "Established & Multi-Location Businesses",
-                  copy:
-                    "Manage reputation at scale while staying fair, transparent, and consistent.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
-                >
-                  <p className="text-base font-semibold text-[#0E0E0E]">
-                    {item.title}
-                  </p>
-                  <p className="mt-2 text-sm text-gray-600">{item.copy}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </ForBusinessMotionSection>
 

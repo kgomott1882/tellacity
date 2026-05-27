@@ -4,7 +4,8 @@ loadEnvLocal({ path: ".env.local", override: true });
 
 /**
  * Unified logo pipeline: migrate Logo.dev URLs → Supabase Storage, then backfill missing logos.
- * Safe to re-run: retries rows with null/logo.dev URLs (including logo_fetch_failed).
+ * Safe to re-run: processes rows with null/logo.dev URLs.
+ * Skips logo_fetch_failed rows unless LOGO_RETRY_FAILED=1.
  */
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,8 +16,68 @@ process.on("uncaughtException", console.error);
 
 const BATCH_SIZE = parseInt(process.env.LOGO_BATCH_SIZE || "50", 10);
 const BATCH_DELAY = parseInt(process.env.LOGO_BATCH_DELAY_MS || process.env.LOGO_DELAY_MS || "1500", 10);
+const FETCH_TIMEOUT_MS = parseInt(process.env.LOGO_FETCH_TIMEOUT_MS || "12000", 10);
+const RETRY_FAILED = process.env.LOGO_RETRY_FAILED === "1" || process.env.LOGO_RETRY_FAILED === "true";
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function safeFetch(url, label) {
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { "User-Agent": "TellacityLogoBot/1.0" },
+    });
+    return res;
+  } catch (err) {
+    const reason =
+      err instanceof Error
+        ? err.cause?.code || err.cause?.message || err.message
+        : String(err);
+    console.log(`FETCH SKIP (${label}):`, reason);
+    return null;
+  }
+}
+
+async function tryFetchAndUpload(adminSupabase, businessId, url, label, mode) {
+  const res = await safeFetch(url, label);
+  if (!res?.ok) {
+    if (res) console.log(`${label} HTTP ${res.status}`);
+    return false;
+  }
+  const buffer = new Uint8Array(await res.arrayBuffer());
+  if (buffer.length < 32) {
+    console.log(`${label} empty/tiny (${buffer.length} bytes)`);
+    return false;
+  }
+  const contentType =
+    res.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+  const ok = await uploadPngAndUpdateRow(adminSupabase, businessId, buffer, {
+    mode,
+    contentType,
+  });
+  if (ok) console.log(label, businessId);
+  return ok;
+}
+
+async function tryGoogleThenSiteFavicons(adminSupabase, businessId, cleanDomain, mode) {
+  const googleUrl = `https://www.google.com/s2/favicons?sz=256&domain=${encodeURIComponent(cleanDomain)}`;
+  if (await tryFetchAndUpload(adminSupabase, businessId, googleUrl, "FALLBACK GOOGLE", mode)) {
+    return true;
+  }
+
+  const ddgUrl = `https://icons.duckduckgo.com/ip3/${encodeURIComponent(cleanDomain)}.ico`;
+  if (await tryFetchAndUpload(adminSupabase, businessId, ddgUrl, "FALLBACK DUCKDUCKGO", mode)) {
+    return true;
+  }
+
+  const siteUrl = `https://${cleanDomain}/favicon.ico`;
+  if (await tryFetchAndUpload(adminSupabase, businessId, siteUrl, "FALLBACK SITE", mode)) {
+    return true;
+  }
+
+  return false;
+}
 
 async function markLogoFetchFailed(adminSupabase, businessId) {
   const { data: rpcOk, error: rpcError } = await adminSupabase.rpc(
@@ -132,46 +193,6 @@ function cleanDomainFromLogoDevUrl(logoUrl) {
   }
 }
 
-async function tryGoogleThenSiteFavicons(adminSupabase, businessId, cleanDomain, mode) {
-  const fallback1 = `https://www.google.com/s2/favicons?sz=256&domain=${encodeURIComponent(cleanDomain)}`;
-  const res1 = await fetch(fallback1, { method: "GET" });
-  if (res1.ok) {
-    const buf1 = new Uint8Array(await res1.arrayBuffer());
-    if (buf1.length > 0) {
-      const ct1 =
-        res1.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
-      const ok1 = await uploadPngAndUpdateRow(adminSupabase, businessId, buf1, {
-        mode,
-        contentType: ct1,
-      });
-      if (ok1) {
-        console.log("FALLBACK GOOGLE:", businessId);
-        return true;
-      }
-    }
-  }
-
-  const fallback2 = `https://${cleanDomain}/favicon.ico`;
-  const res2 = await fetch(fallback2, { method: "GET" });
-  if (res2.ok) {
-    const buf2 = new Uint8Array(await res2.arrayBuffer());
-    if (buf2.length > 0) {
-      const ct2 =
-        res2.headers.get("content-type")?.split(";")[0]?.trim() || "image/x-icon";
-      const ok2 = await uploadPngAndUpdateRow(adminSupabase, businessId, buf2, {
-        mode,
-        contentType: ct2,
-      });
-      if (ok2) {
-        console.log("FALLBACK SITE:", businessId);
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 async function processOne(adminSupabase, business) {
   const id = String(business.id ?? "");
   const logoUrl = String(business.logo_url ?? "").trim();
@@ -181,7 +202,7 @@ async function processOne(adminSupabase, business) {
     const migrateDomain = cleanDomainFromLogoDevUrl(logoUrl);
     if (!migrateDomain) {
       await markLogoFetchFailed(adminSupabase, id);
-      return;
+      return false;
     }
 
     /* TEMP disabled: Logo.dev primary fetch (rate limits) , restore when re-enabling
@@ -205,10 +226,10 @@ async function processOne(adminSupabase, business) {
 
     console.log("SKIP LOGO.DEV (migrate):", migrateDomain);
     const got = await tryGoogleThenSiteFavicons(adminSupabase, id, migrateDomain, "migrate");
-    if (got) return;
+    if (got) return true;
 
     await markLogoFetchFailed(adminSupabase, id);
-    return;
+    return false;
   }
 
   // CASE B , backfill (no logo yet)
@@ -269,14 +290,14 @@ async function processOne(adminSupabase, business) {
     ) {
       console.log("SKIP junk domain:", cleanDomain);
       await markLogoFetchFailed(adminSupabase, id);
-      return;
+      return false;
     }
 
     // 6. Validate
     if (!cleanDomain || cleanDomain.includes("(") || cleanDomain.includes("[")) {
       console.log("SKIP invalid domain:", raw);
       await markLogoFetchFailed(adminSupabase, id);
-      return;
+      return false;
     }
 
     console.log("CLEAN DOMAIN:", cleanDomain);
@@ -325,17 +346,15 @@ async function processOne(adminSupabase, business) {
       cleanDomain,
       "backfill"
     );
-    if (gotFallback) return;
+    if (gotFallback) return true;
 
-    await adminSupabase
-      .from("businesses")
-      .update({ logo_fetch_failed: true })
-      .eq("id", id);
+    await markLogoFetchFailed(adminSupabase, id);
     console.log("FINAL FAILED:", id);
-    return;
+    return false;
   }
 
   // CASE C , already has non–Logo.dev URL
+  return false;
 }
 
 async function main() {
@@ -356,15 +375,24 @@ async function main() {
   }
 
   console.log(
-    `[process:logos] start batch=${BATCH_SIZE} batchDelay=${BATCH_DELAY}ms`
+    `[process:logos] start batch=${BATCH_SIZE} batchDelay=${BATCH_DELAY}ms retryFailed=${RETRY_FAILED}`
   );
 
+  let totalOk = 0;
+  let totalFail = 0;
+
   while (true) {
-    const { data, error } = await adminSupabase
+    let query = adminSupabase
       .from("businesses")
       .select("id,name,website,logo_url,logo_fetch_failed")
       .not("website", "is", null)
-      .or("logo_url.is.null,logo_url.like.https://img.logo.dev%")
+      .or("logo_url.is.null,logo_url.like.https://img.logo.dev%");
+
+    if (!RETRY_FAILED) {
+      query = query.eq("logo_fetch_failed", false);
+    }
+
+    const { data, error } = await query
       .order("review_count", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(BATCH_SIZE);
@@ -377,21 +405,29 @@ async function main() {
     const batch = data ?? [];
     if (batch.length === 0) break;
 
+    let batchOk = 0;
+    let batchFail = 0;
+
     for (const business of batch) {
       try {
-        await processOne(adminSupabase, business);
+        const ok = await processOne(adminSupabase, business);
+        if (ok) batchOk++;
+        else batchFail++;
       } catch (err) {
         console.error("FAILED:", business.id, err instanceof Error ? err.message : err);
         await markLogoFetchFailed(adminSupabase, business.id);
+        batchFail++;
       }
       await sleep(200);
     }
 
-    console.log("Processed batch:", batch.length);
+    totalOk += batchOk;
+    totalFail += batchFail;
+    console.log(`Processed batch: ${batch.length} (ok=${batchOk} fail=${batchFail})`);
     await sleep(BATCH_DELAY);
   }
 
-  console.log("[process:logos] finished");
+  console.log(`[process:logos] finished ok=${totalOk} fail=${totalFail}`);
   process.exit(0);
 }
 

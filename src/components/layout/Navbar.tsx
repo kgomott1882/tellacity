@@ -76,6 +76,7 @@ export default function Navbar() {
   const isBusinessNav =
     pathname?.startsWith("/for-business") ||
     pathname?.startsWith("/pricing") ||
+    pathname?.startsWith("/reputation-platform") ||
     pathname?.startsWith("/solution") ||
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
@@ -347,7 +348,11 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/reputation-platform"
-                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
+                  className={`border-b-2 pb-1 ${
+                    pathname === "/reputation-platform"
+                      ? "border-white text-white"
+                      : "border-transparent text-white/90 hover:border-white"
+                  }`}
                 >
                   Reputation Platform
                 </Link>
