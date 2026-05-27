@@ -4,7 +4,7 @@ loadEnvLocal({ path: ".env.local", override: true });
 
 /**
  * Unified logo pipeline: migrate Logo.dev URLs → Supabase Storage, then backfill missing logos.
- * Safe to re-run: skips failed domains (logo_fetch_failed) and completed rows.
+ * Safe to re-run: retries rows with null/logo.dev URLs (including logo_fetch_failed).
  */
 import { createClient } from "@supabase/supabase-js";
 
@@ -19,11 +19,30 @@ const BATCH_DELAY = parseInt(process.env.LOGO_BATCH_DELAY_MS || process.env.LOGO
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function markLogoFetchFailed(adminSupabase, businessId) {
-  await adminSupabase
+  const { data: rpcOk, error: rpcError } = await adminSupabase.rpc(
+    "set_business_logo_from_service",
+    {
+      p_business_id: businessId,
+      p_logo_url: null,
+      p_logo_fetch_failed: true,
+    },
+  );
+
+  if (!rpcError && rpcOk === true) {
+    console.log("MARKED FAILED:", businessId);
+    return;
+  }
+
+  const { error: updateError } = await adminSupabase
     .from("businesses")
     .update({ logo_fetch_failed: true })
     .eq("id", businessId);
-  console.log("MARKED FAILED:", businessId);
+
+  if (updateError) {
+    console.warn("MARK FAILED update error:", businessId, updateError.message);
+  } else {
+    console.log("MARKED FAILED:", businessId);
+  }
 }
 
 async function uploadPngAndUpdateRow(
@@ -59,16 +78,43 @@ async function uploadPngAndUpdateRow(
     logo_fetch_failed: false,
   };
 
-  let q = adminSupabase.from("businesses").update(patch).eq("id", businessId);
-  if (mode === "migrate") {
-    q = q.like("logo_url", "https://img.logo.dev%");
-  } else {
-    q = q.is("logo_url", null);
+  const { data: rpcOk, error: rpcError } = await adminSupabase.rpc(
+    "set_business_logo_from_service",
+    {
+      p_business_id: businessId,
+      p_logo_url: patch.logo_url,
+      p_logo_fetched_at: patch.logo_fetched_at,
+      p_logo_fetch_failed: patch.logo_fetch_failed,
+    },
+  );
+
+  if (!rpcError && rpcOk === true) {
+    return true;
   }
 
-  const { error: updateError } = await q;
+  if (rpcError) {
+    const msg = rpcError.message ?? "";
+    if (msg.includes("set_business_logo_from_service")) {
+      console.warn(
+        "RPC set_business_logo_from_service missing — apply migration 20260523120000_set_business_logo_service.sql",
+      );
+    } else {
+      console.warn("RPC logo update failed:", businessId, msg);
+    }
+  }
+
+  // Fallback: direct update (may fail on hosted DB with users-table triggers).
+  const { error: updateError } = await adminSupabase
+    .from("businesses")
+    .update(patch)
+    .eq("id", businessId);
+
   if (updateError) {
     console.warn("DB update failed:", businessId, updateError.message);
+    console.warn(
+      "Logo uploaded to storage but businesses.logo_url was not linked:",
+      storageUrl,
+    );
     return false;
   }
   return true;
@@ -317,7 +363,6 @@ async function main() {
     const { data, error } = await adminSupabase
       .from("businesses")
       .select("id,name,website,logo_url,logo_fetch_failed")
-      .eq("logo_fetch_failed", false)
       .not("website", "is", null)
       .or("logo_url.is.null,logo_url.like.https://img.logo.dev%")
       .order("review_count", { ascending: false, nullsFirst: false })

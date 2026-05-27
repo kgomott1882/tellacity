@@ -59,9 +59,9 @@ export default function ValuesTabs() {
                 ✓
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[#0E0E0E]">
+                <h3 className="text-sm font-semibold text-[#0E0E0E]">
                   {item.title}
-                </p>
+                </h3>
                 <p
                   className={`mt-1 text-xs text-gray-600 transition-all duration-300 ${
                     isActive ? "opacity-100" : "opacity-90"

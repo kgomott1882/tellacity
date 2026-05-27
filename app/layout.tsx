@@ -5,6 +5,7 @@ import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
 import CookieBar from "@/components/CookieBar";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
+import MarketingGate from "@/components/common/MarketingGate";
 import CountrySync from "@/components/common/CountrySync";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default function RootLayout({
         </Suspense>
         <CookieBar />
         <AnalyticsGate />
+        <MarketingGate />
       </body>
     </html>
   );

@@ -125,21 +125,75 @@ const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "f
   { type: "feature", row: ["Custom enterprise integrations", "–", "–", "–", "✓"] },
 ];
 
+const linkClass =
+  "font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]";
+
+const PLAN_GUIDANCE: Record<string, string> = {
+  Free:
+    "Ideal for claiming your profile, collecting your first reviews, and understanding how Tellacity works before you commit to paid features. Upgrade when you need more review invites or automation.",
+  Grow:
+    "Built for businesses that want to collect reviews consistently through email and QR codes. A natural step up when 20 invites per month is no longer enough.",
+  Premium:
+    "Suited to growing teams that need automated invitation flows, stronger analytics, sentiment insights, and multi-user access. Upgrade when reputation management becomes a team effort.",
+  Elite:
+    "Designed for high-growth and enterprise teams that need advanced tools, white-label options, bulk automation, and dedicated support. Choose Elite when review volume and complexity scale significantly.",
+  "Custom Plan":
+    "For organisations with unique volume, integration, or compliance requirements that go beyond standard plan limits. Request a Custom Plan when Elite still does not fit.",
+};
+
+const PLAN_INCLUSIONS = [
+  {
+    title: "Free plan inclusions",
+    summary:
+      "Claim your business profile, access the Verified Business Dashboard, receive unlimited consumer reviews, upload photos, and send 20 basic email review invites per month.",
+  },
+  {
+    title: "Grow plan inclusions",
+    summary:
+      "Everything needed to collect reviews at scale: 150 review invites per month, customisable email templates, QR code reviews, photo uploads, on-site widgets, performance analytics, and integration support.",
+  },
+  {
+    title: "Premium plan inclusions",
+    summary:
+      "All Grow features plus 500 invites per month, automated invitation flows, expanded widgets, advanced analytics and sentiment analysis, team alerts, Premium Credibility Badge, and multi-user logins for up to 10 users.",
+  },
+  {
+    title: "Elite plan inclusions",
+    summary:
+      "All Premium features plus 2,000 invites per month, bulk upload and automation rules, white-label options, strategic benchmarking, featured placement, custom enterprise integrations, scheduled exports, and a dedicated account manager.",
+  },
+];
+
+const COMPARISON_CATEGORY_EXPLAIN: Record<string, string> = {
+  COLLECT:
+    "How your business invites customers to leave reviews—via email, QR codes, templates, and monthly invite limits.",
+  VERIFY:
+    "Trust signals and badges that show customers your profile and feedback meet Tellacity verification standards.",
+  MANAGE:
+    "Notifications, team access, and multi-location controls for staying on top of reviews across your organisation.",
+  SHOWCASE:
+    "Widgets, branding, and white-label tools for displaying verified social proof on your site and marketing channels.",
+  UNDERSTAND:
+    "Analytics, sentiment insights, and exports that help you track reputation performance and act on trends.",
+  INTEGRATE:
+    "Direct integrations on paid plans and custom enterprise integrations on Elite for fitting Tellacity into your stack.",
+};
+
 const faqs = [
   {
     question: "Can I start on the Free plan and upgrade later?",
     answer:
-      "Yes. Many businesses start on the Free plan to establish their profile and move to Grow, Premium, or Elite as their review volume and requirements increase.",
+      "Yes. You can start on the Free plan to claim your profile and collect initial reviews, then upgrade to Grow, Premium, or Elite whenever your review volume or team needs grow. Plan changes are designed to match how your business scales—there is no requirement to pick a paid plan on day one.",
   },
   {
     question: "Do you charge extra fees for integrations?",
     answer:
-      "Paid plans support integrations at no additional cost from Tellacity. Any third‑party platform fees are billed separately by those providers.",
+      "Paid plans support integrations from Tellacity at no additional platform fee. Third-party tools you connect may bill separately according to their own pricing. Custom enterprise integrations on Elite are scoped individually when requirements go beyond standard connectors.",
   },
   {
     question: "Is there a long‑term contract?",
     answer:
-      "Plans are available on flexible terms. You can start monthly and move to an annual agreement when your team is ready for longer‑term optimisation.",
+      "There is no long-term contract required for standard plans. You can pay monthly and switch to annual billing when you want longer-term optimisation and the 20% annual savings. Terms for custom enterprise agreements are discussed separately when you request a Custom Plan.",
   },
 ];
 
@@ -257,6 +311,8 @@ export function PricingPageContent({
     ? "bg-gray-50 text-gray-500"
     : "";
 
+  const showPublicSeo = variant === "public" && !embedInDashboard;
+
   return (
     <Root className={rootSurfaceClass}>
       {/* HERO (hidden on dashboard billing. Cards + comparison only) */}
@@ -269,14 +325,21 @@ export function PricingPageContent({
           viewport={{ once: true }}
           className="space-y-5"
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">
+          <h1 className="text-3xl font-semibold text-[#0E0E0E] md:text-4xl">
             Pricing
-          </p>
-          <h1 className="text-3xl md:text-4xl font-semibold text-[#0E0E0E]">
-            Simple, Transparent Pricing That Scales With Your Business.
           </h1>
-          <p className="text-sm md:text-base text-gray-600 max-w-xl">
-            Start free. Upgrade when you grow. No hidden fees.
+          <p className="max-w-xl text-sm text-gray-600 md:text-base">
+            Simple, transparent pricing that scales with your business. Start
+            free, upgrade when you grow, and avoid hidden fees.
+          </p>
+          <p className="max-w-xl text-sm text-gray-600 md:text-base">
+            Each plan is designed for a different stage of growth and review
+            volume—so you pay for the features and invite limits you actually
+            need, not a one-size-fits-all bundle.{" "}
+            <Link href="/for-business" className={linkClass}>
+              See what Tellacity offers for business
+            </Link>
+            .
           </p>
 
           <div className="mt-4 inline-flex items-center gap-3 rounded-full bg-white p-1 shadow-sm">
@@ -387,12 +450,53 @@ export function PricingPageContent({
       </section>
       ) : null}
 
+      {showPublicSeo ? (
+        <section className="mx-auto w-full max-w-6xl px-6 pb-8">
+          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+            Pricing at a Glance
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm text-gray-600">
+            Paid plan prices are shown per month. Use the Monthly and Annual
+            toggle on this page to compare billing options—annual billing
+            reflects approximately 20% savings versus paying month to month.
+          </p>
+          <p className="mt-3 max-w-3xl text-sm text-gray-600">
+            Monthly billing keeps things flexible while you evaluate fit. Annual
+            billing is for teams ready for longer-term optimisation and
+            predictable yearly costs. There are no hidden fees: what you see on
+            each plan card matches the features and usage limits listed below.
+          </p>
+          <p className="mt-3 max-w-3xl text-sm text-gray-600">
+            Businesses can switch plans as review volume and team needs change.
+            Pricing stays transparent and tied to invite limits, analytics depth,
+            team access, and integrations—not surprise add-ons.
+          </p>
+        </section>
+      ) : null}
+
       {/* PRICING CARDS */}
       <section
         className={`mx-auto w-full max-w-6xl px-6 pb-8 ${
           dashboardHideMarketingHero ? "pt-4 md:pt-6" : ""
         }`}
       >
+        {showPublicSeo ? (
+          <div className="mb-8 max-w-3xl">
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              Choose the Right Plan
+            </h2>
+            <p className="mt-3 text-sm text-gray-600">
+              Pick the plan that matches where you are today. Free is enough to
+              get started; Grow, Premium, and Elite add invites, automation,
+              analytics, and team tools as your reputation program matures.
+            </p>
+            <p className="mt-3 text-sm text-gray-600">
+              You can move between plans when review volume changes—upgrade when
+              you need more invites or downgrade through billing when your needs
+              shift. No hidden fees, and every tier lists its limits clearly.
+            </p>
+          </div>
+        ) : null}
         <div className="mb-8 flex justify-center px-2">
           <div
             className="inline-flex h-11 w-full max-w-[min(100%,22rem)] items-stretch rounded-full bg-[#E9E1D6] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-stone-300/40"
@@ -549,6 +653,11 @@ export function PricingPageContent({
                 >
                   {plan.description}
                 </p>
+                {showPublicSeo && PLAN_GUIDANCE[plan.name] ? (
+                  <p className="mt-2 text-xs leading-relaxed text-gray-600">
+                    {PLAN_GUIDANCE[plan.name]}
+                  </p>
+                ) : null}
                 <div className="mt-5">
                   {plan.name === "Free" ? (
                     <div className="flex items-end gap-1">
@@ -742,28 +851,86 @@ export function PricingPageContent({
           })}
         </div>
 
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white px-6 py-6 text-xs text-gray-600 shadow-sm">
-          <p className="font-semibold text-[#0E0E0E] text-center mb-1">
-            Need custom pricing?
-          </p>
-          <p className="mt-1 text-xs text-gray-600 text-center">
-            For larger teams or unique enterprise needs, request a Custom Plan.
-          </p>
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                setCustomPlanError(null);
-                setIsCustomPlanOpen(true);
-              }}
-              className="rounded-xl bg-black px-5 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-neutral-800"
-            >
+        {showPublicSeo ? (
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white px-6 py-6 text-xs text-gray-600 shadow-sm">
+            <h3 className="text-base font-semibold text-[#0E0E0E]">
               Custom Plan
-            </button>
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              {PLAN_GUIDANCE["Custom Plan"]}
+            </p>
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomPlanError(null);
+                  setIsCustomPlanOpen(true);
+                }}
+                className="rounded-xl bg-black px-5 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-neutral-800"
+              >
+                Custom Plan
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white px-6 py-6 text-xs text-gray-600 shadow-sm">
+            <p className="mb-1 text-center font-semibold text-[#0E0E0E]">
+              Need custom pricing?
+            </p>
+            <p className="mt-1 text-center text-xs text-gray-600">
+              For larger teams or unique enterprise needs, request a Custom Plan.
+            </p>
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomPlanError(null);
+                  setIsCustomPlanOpen(true);
+                }}
+                className="rounded-xl bg-black px-5 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-neutral-800"
+              >
+                Custom Plan
+              </button>
+            </div>
+          </div>
+        )}
 
       </section>
+
+      {showPublicSeo ? (
+        <section className="mx-auto w-full max-w-6xl px-6 pb-12">
+          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+            What&apos;s Included in Each Plan
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm text-gray-600">
+            Below is a plain-language summary of the most important inclusions
+            across plans—review invites, verified business tools, widgets,
+            analytics, team access, integrations, and photo uploads.
+          </p>
+          <p className="mt-3 max-w-3xl text-sm text-gray-600">
+            Use this section alongside the plan cards above and the detailed
+            comparison table to see exactly where each tier adds capacity or
+            capability.{" "}
+            <Link href="/business/signup" className={linkClass}>
+              Create a free account
+            </Link>{" "}
+            to explore the dashboard before upgrading.
+          </p>
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            {PLAN_INCLUSIONS.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <h3 className="text-base font-semibold text-[#0E0E0E]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">{item.summary}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* FEATURE COMPARISON */}
       <section className="mx-auto w-full max-w-6xl px-6 py-12">
@@ -774,6 +941,30 @@ export function PricingPageContent({
           <p className="mt-2 text-xs text-gray-600">
             Compare all features and limits across plans
           </p>
+          {showPublicSeo ? (
+            <>
+              <p className="mx-auto mt-4 max-w-3xl text-sm text-gray-600">
+                Use the comparison below to see how review invites, analytics,
+                team access, and integrations differ by plan. Each category
+                groups related capabilities so you can match limits to how your
+                team collects, verifies, manages, showcases, and understands
+                customer feedback.
+              </p>
+              <p className="mx-auto mt-3 max-w-3xl text-sm text-gray-600">
+                The table is here to help you choose the right plan—not to hide
+                limits in fine print. If you need help interpreting a row, visit
+                the{" "}
+                <Link href="/help-center" className={linkClass}>
+                  Help Center
+                </Link>{" "}
+                or{" "}
+                <Link href="/faq" className={linkClass}>
+                  FAQ
+                </Link>
+                .
+              </p>
+            </>
+          ) : null}
         </div>
         <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
@@ -794,11 +985,22 @@ export function PricingPageContent({
                       key={item.label}
                       className="border-t border-gray-200 bg-gray-50"
                     >
-                      <td
-                        colSpan={5}
-                        className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600"
-                      >
-                        {item.label}
+                      <td colSpan={5} className="px-4 py-3">
+                        {showPublicSeo ? (
+                          <>
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-[#0E0E0E]">
+                              {item.label.charAt(0) +
+                                item.label.slice(1).toLowerCase()}
+                            </h3>
+                            <p className="mt-1 text-xs text-gray-600">
+                              {COMPARISON_CATEGORY_EXPLAIN[item.label]}
+                            </p>
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                            {item.label}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -830,12 +1032,37 @@ export function PricingPageContent({
       <section className="bg-white py-14">
         <div className="mx-auto w-full max-w-6xl px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h3 className="text-base font-semibold text-[#0E0E0E]">
-              Still have questions?
-            </h3>
-            <p className="mt-2 text-xs text-gray-600">
-              Our team is here to help you choose the right plan for your business needs.
-            </p>
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              Frequently Asked Questions
+            </h2>
+            {showPublicSeo ? (
+              <>
+                <p className="mt-3 text-sm text-gray-600">
+                  Direct answers to common pricing questions. For broader
+                  platform topics, see the{" "}
+                  <Link href="/faq" className={linkClass}>
+                    FAQ
+                  </Link>{" "}
+                  or{" "}
+                  <Link href="/help-center" className={linkClass}>
+                    Help Center
+                  </Link>
+                  .
+                </p>
+                <p className="mt-2 text-xs text-gray-600">
+                  Billing terms for standard plans are outlined in our{" "}
+                  <Link href="/terms-of-service" className={linkClass}>
+                    Terms of Service
+                  </Link>
+                  .
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-xs text-gray-600">
+                Our team is here to help you choose the right plan for your
+                business needs.
+              </p>
+            )}
           </div>
 
           <div className="mx-auto mt-6 max-w-2xl space-y-3">
@@ -846,18 +1073,18 @@ export function PricingPageContent({
                   key={item.question}
                   className="rounded-2xl border border-gray-200 bg-[#F7F8FA] p-3 text-xs text-gray-700 shadow-sm"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                    className="flex w-full items-center justify-between text-left"
-                  >
-                    <span className="font-semibold text-[#0E0E0E]">
-                      {item.question}
-                    </span>
-                    <span className="ml-3 text-gray-400">
-                      {isOpen ? "–" : "+"}
-                    </span>
-                  </button>
+                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                      className="flex w-full items-center justify-between text-left"
+                    >
+                      <span>{item.question}</span>
+                      <span className="ml-3 shrink-0 font-normal text-gray-400">
+                        {isOpen ? "–" : "+"}
+                      </span>
+                    </button>
+                  </h3>
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div
@@ -878,6 +1105,68 @@ export function PricingPageContent({
           </div>
         </div>
       </section>
+
+      {showPublicSeo ? (
+        <section className="mx-auto w-full max-w-6xl px-6 pb-14">
+          <div className="rounded-3xl border border-gray-200 bg-[#F7F8FA] p-8">
+            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
+              Need Custom Pricing?
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm text-gray-600">
+              Custom pricing exists for teams that need more than standard plan
+              limits—higher review volume, bespoke integrations, or enterprise
+              compliance requirements. The custom path is for organisations whose
+              needs outgrow Elite.
+            </p>
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                <h3 className="text-base font-semibold text-[#0E0E0E]">
+                  Larger teams
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Multi-team or multi-brand organisations that need coordinated
+                  reputation management, higher invite volumes, and tailored
+                  access controls may benefit from a Custom Plan scoped to their
+                  structure.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                <h3 className="text-base font-semibold text-[#0E0E0E]">
+                  Enterprise needs
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Enterprise requirements—custom integrations, SSO, dedicated
+                  support, or non-standard SLAs—are handled through a Custom Plan
+                  quote rather than self-serve checkout.
+                </p>
+              </div>
+            </div>
+            <p className="mt-6 text-sm text-gray-600">
+              Tellacity pricing is part of the broader{" "}
+              <Link href="/reputation-platform" className={linkClass}>
+                Reputation Platform for businesses
+              </Link>
+              . Questions about fit?{" "}
+              <Link href="/contact" className={linkClass}>
+                Contact us
+              </Link>
+              .
+            </p>
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomPlanError(null);
+                  setIsCustomPlanOpen(true);
+                }}
+                className="rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-neutral-800"
+              >
+                Request a Custom Plan
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* CUSTOM PLAN MODAL */}
       {isCustomPlanOpen && (
@@ -1108,9 +1397,22 @@ export function PricingPageContent({
           <h2 className="text-2xl md:text-3xl font-semibold">
             Start Free. Scale With Confidence.
           </h2>
-          <p className="mt-3 text-sm md:text-base text-gray-100 max-w-2xl mx-auto">
-            Build trust before you pay. Create your business profile and start collecting verified reviews.
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-100 md:text-base">
+            Build trust before you pay. Create your business profile and start
+            collecting verified reviews.
           </p>
+          {showPublicSeo ? (
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-200">
+              Explore{" "}
+              <Link
+                href="/for-business"
+                className="font-medium text-white underline underline-offset-2 hover:text-[#1FAF9E]"
+              >
+                Tellacity for Business
+              </Link>{" "}
+              or compare plans above before you sign up.
+            </p>
+          ) : null}
           <div className="mt-6 flex justify-center">
             <Link
               href="/business/signup"

@@ -80,7 +80,7 @@ export default function ReviewFlowSteps() {
           >
             {index + 1}
           </motion.span>
-          <p className="text-sm font-semibold text-[#0E0E0E] leading-snug">{item.title}</p>
+          <h3 className="text-sm font-semibold text-[#0E0E0E] leading-snug">{item.title}</h3>
           <p className="mt-1 text-sm text-gray-600 leading-snug">{item.description}</p>
         </motion.div>
       ))}

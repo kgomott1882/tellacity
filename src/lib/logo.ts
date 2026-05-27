@@ -29,22 +29,30 @@ function domainFromWebsite(website: string | null | undefined): string | null {
   }
 }
 
+function isLogoDevUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.includes("img.logo.dev");
+}
+
+/** Free favicon fallback when stored logo is missing (avoids Logo.dev rate limits in the browser). */
+export function googleFaviconLogoUrl(
+  domain: string,
+  size: 128 | 256 = 128,
+): string {
+  return `https://www.google.com/s2/favicons?sz=${size}&domain=${encodeURIComponent(domain)}`;
+}
+
 export function similarBusinessLogoUrl(row: Input): string | null {
   const fromResolved = normalizeLogoUrl(
-    String(row.resolved_logo_url ?? "").trim()
+    String(row.resolved_logo_url ?? "").trim(),
   );
-  if (fromResolved) return fromResolved;
+  if (fromResolved && !isLogoDevUrl(fromResolved)) return fromResolved;
 
   const fromLogo = normalizeLogoUrl(String(row.logo_url ?? "").trim());
-  if (fromLogo) return fromLogo;
+  if (fromLogo && !isLogoDevUrl(fromLogo)) return fromLogo;
 
   const domain = domainFromWebsite(row.website);
   if (!domain) return null;
 
-  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
-  const base = `https://img.logo.dev/${encodeURIComponent(domain)}`;
-  if (token) {
-    return `${base}?token=${encodeURIComponent(token)}&fallback=404`;
-  }
-  return `${base}?fallback=404`;
+  return googleFaviconLogoUrl(domain);
 }

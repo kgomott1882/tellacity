@@ -1,12 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  getCookieConsent,
+  rejectNonEssentialCookieConsent,
+  saveCookieConsent,
+} from "@/lib/cookieConsent";
 
-export default function CookieConsent({ onClose }: any) {
+type CookieConsentProps = {
+  onClose: () => void;
+};
+
+export default function CookieConsent({ onClose }: CookieConsentProps) {
   const [analytics, setAnalytics] = useState(true);
   const [functionality, setFunctionality] = useState(true);
   const [marketing, setMarketing] = useState(false);
+
+  useEffect(() => {
+    const existing = getCookieConsent();
+    if (!existing) return;
+    setAnalytics(existing.analytics);
+    setFunctionality(existing.functional);
+    setMarketing(existing.marketing);
+  }, []);
+
+  const handleReject = () => {
+    rejectNonEssentialCookieConsent();
+    onClose();
+  };
+
+  const handleSave = () => {
+    saveCookieConsent({
+      analytics,
+      functional: functionality,
+      marketing,
+    });
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -14,22 +45,28 @@ export default function CookieConsent({ onClose }: any) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cookie-consent-title"
       >
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 30, opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="w-full max-w-xl bg-white rounded-2xl p-8 shadow-2xl"
+          className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl"
         >
-          <h2 className="text-xl font-semibold text-[#124541] mb-4">
+          <h2
+            id="cookie-consent-title"
+            className="mb-4 text-xl font-semibold text-[#124541]"
+          >
             Privacy Preferences
           </h2>
 
-          <p className="text-gray-600 mb-6">
-            Cookies help Tellacity stay secure and improve your experience.
-            You can change these anytime.
+          <p className="mb-6 text-gray-600">
+            Cookies help Tellacity stay secure and improve your experience. You
+            can change these anytime from the footer or cookie policy page.
           </p>
 
           <CookieSection
@@ -62,10 +99,7 @@ export default function CookieConsent({ onClose }: any) {
           <div className="flex gap-3 pt-6">
             <button
               type="button"
-              onClick={() => {
-                localStorage.setItem("tellacity_cookie_consent", "custom");
-                onClose();
-              }}
+              onClick={handleReject}
               className="flex-1 text-gray-600 hover:underline"
             >
               Reject Non-Essential
@@ -73,11 +107,8 @@ export default function CookieConsent({ onClose }: any) {
 
             <button
               type="button"
-              onClick={() => {
-                localStorage.setItem("tellacity_cookie_consent", "custom");
-                onClose();
-              }}
-              className="flex-1 bg-[#124541] text-white py-3 rounded-xl shadow-md hover:bg-[#0f3a36] transition"
+              onClick={handleSave}
+              className="flex-1 rounded-xl bg-[#124541] py-3 text-white shadow-md transition hover:bg-[#0f3a36]"
             >
               Save Preferences
             </button>
@@ -94,14 +125,20 @@ function CookieSection({
   enabled,
   setEnabled,
   locked = false,
-}: any) {
+}: {
+  title: string;
+  description: string;
+  enabled?: boolean;
+  setEnabled?: (value: boolean) => void;
+  locked?: boolean;
+}) {
   return (
-    <div className="border-t border-gray-200 py-4 flex items-center justify-between">
+    <div className="flex items-center justify-between border-t border-gray-200 py-4">
       <div>
         <div className="flex items-center gap-2">
           <h4 className="font-medium text-gray-800">{title}</h4>
           {locked && (
-            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-600">
+            <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
               Mandatory
             </span>
           )}
@@ -112,22 +149,19 @@ function CookieSection({
       <button
         type="button"
         disabled={locked}
+        aria-pressed={locked ? true : enabled}
+        aria-label={`${title}${locked ? " (always on)" : enabled ? " on" : " off"}`}
         onClick={() => setEnabled && setEnabled(!enabled)}
-        className={`w-12 h-6 flex items-center rounded-full transition
-          ${
-            locked
-              ? "bg-[#124541]"
-              : enabled
-              ? "bg-[#124541]"
-              : "bg-gray-300"
-          }`}
+        className={`flex h-6 w-12 items-center rounded-full transition ${
+          locked ? "bg-[#124541]" : enabled ? "bg-[#124541]" : "bg-gray-300"
+        }`}
       >
         <div
-          className={`w-5 h-5 bg-white rounded-full shadow-md transform transition
-            ${enabled || locked ? "translate-x-6" : "translate-x-1"}`}
+          className={`h-5 w-5 transform rounded-full bg-white shadow-md transition ${
+            enabled || locked ? "translate-x-6" : "translate-x-1"
+          }`}
         />
       </button>
     </div>
   );
 }
-

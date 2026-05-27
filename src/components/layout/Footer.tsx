@@ -6,6 +6,7 @@ import {
   normalizeCountryCode,
 } from "@/lib/country";
 import { useUnifiedCountry } from "@/lib/useUnifiedCountry";
+import { openCookieConsentManager } from "@/lib/cookieConsent";
 
 const FLAG_BASE = "https://purecatamphetamine.github.io/country-flag-icons/3x2";
 const COUNTRIES = [
@@ -55,8 +56,7 @@ export default function Footer() {
   };
 
   const reopenCookies = () => {
-    localStorage.removeItem("tellacity_cookie_consent");
-    window.dispatchEvent(new Event("reopen-cookie-modal"));
+    openCookieConsentManager();
   };
 
   return (
@@ -175,16 +175,6 @@ export default function Footer() {
                 <li>
                   <Link href="/business-guidelines" className="hover:text-white">
                     Business Guidelines
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/login" className="hover:text-white">
-                    Log In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/signup" className="hover:text-white">
-                    Sign Up
                   </Link>
                 </li>
               </ul>
