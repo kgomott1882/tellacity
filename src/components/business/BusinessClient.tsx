@@ -386,16 +386,19 @@ export default function BusinessClient({
   const [businessPhotos, setBusinessPhotos] = useState<BusinessPhotoPublic[]>(
     () => initialBusinessPhotos ?? []
   );
-  const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return searchParams.get("reviewNotice") === "duplicate_review";
-    } catch {
-      return false;
-    }
-  });
+  const [duplicateNoticeOpen, setDuplicateNoticeOpen] = useState(false);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
+
+  useEffect(() => {
+    try {
+      if (searchParams.get("reviewNotice") === "duplicate_review") {
+        setDuplicateNoticeOpen(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setActiveCountry(getActiveCountry());
@@ -1075,15 +1078,15 @@ export default function BusinessClient({
 
   const rankingsCountryName = getCountryName(rankingsCountryCode) || rankingsCountryCode;
 
-  /** Navbar / URL preference first so category directory matches the user’s selected region. */
+  /**
+   * SSR + first paint use the business country so hrefs match hydration.
+   * After mount, `activeCountry` updates from navbar/localStorage preference.
+   */
   const categoryBrowseCountryCode = useMemo(() => {
-    if (typeof window !== "undefined") {
-      const nav = getActiveCountry();
-      if (nav) return normalizeCountryCode(nav);
-    }
-    return normalizeCountryCode(
+    const code = normalizeCountryCode(
       activeCountry ?? business?.countryCode ?? undefined,
     );
+    return code || "US";
   }, [activeCountry, business?.countryCode]);
 
   const categoryListingsQs = `?country=${encodeURIComponent(categoryBrowseCountryCode)}`;
