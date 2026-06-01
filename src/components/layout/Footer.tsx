@@ -197,6 +197,11 @@ export default function Footer() {
                   <FooterNavLink href="/pricing">Plans &amp; Pricing</FooterNavLink>
                 </li>
                 <li>
+                  <FooterNavLink href="/business/signup">
+                    Business Sign Up
+                  </FooterNavLink>
+                </li>
+                <li>
                   <FooterNavLink href="/business/login">
                     Business Login
                   </FooterNavLink>

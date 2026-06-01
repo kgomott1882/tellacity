@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { BillingOverviewHistoryRow, BillingOverviewResponse } from "@/lib/billingOverview";
 import { pickPlanResolutionSubscriptionRow } from "@/lib/plans";
+import { reconcileSubscriptionPeriodEnd } from "@/lib/subscriptionExpiry";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
@@ -71,6 +72,12 @@ export async function GET(req: Request) {
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const reconciled = await reconcileSubscriptionPeriodEnd(supabase, businessId);
+    if (!reconciled.ok) {
+      console.error("[billing/overview] reconcile:", reconciled.error);
+      return NextResponse.json({ error: reconciled.error }, { status: 500 });
+    }
 
     const { data: subRows, error: subErr } = await supabase
       .from("subscriptions")

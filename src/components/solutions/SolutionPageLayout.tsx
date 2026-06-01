@@ -155,6 +155,11 @@ export type SolutionPageContent = {
   secondaryCta: { label: string; href: string };
   /** Hero image (real screenshot from /public/brand/...). */
   heroImage: { src: string; alt: string };
+  /**
+   * `edge` anchors the hero image to the bottom of the dark band (Review Invitations).
+   * Default `center` vertically centers the image beside the copy.
+   */
+  heroImageAlign?: "center" | "edge";
 
   /** Three customer pain points covered in the Problem section. */
   problems: { title: string; description: string; icon?: string }[];
@@ -493,11 +498,23 @@ function BigCardRows({
 }
 
 function HeroSection({ content }: { content: SolutionPageContent }) {
+  const heroImageEdge = content.heroImageAlign === "edge";
+
   return (
-    <section className="w-full bg-[#1a1a1a]">
-      <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
-        <div className="grid gap-10 md:grid-cols-2 md:items-center">
-          <div className="max-w-xl">
+    <section
+      className={`w-full bg-[#1a1a1a] ${heroImageEdge ? "overflow-hidden" : ""}`}
+    >
+      <div
+        className={`mx-auto w-full max-w-7xl px-6 ${
+          heroImageEdge ? "pt-16 pb-0 md:pt-20" : "py-16 md:py-20"
+        }`}
+      >
+        <div
+          className={`grid gap-10 md:grid-cols-2 ${
+            heroImageEdge ? "md:items-end" : "md:items-center"
+          }`}
+        >
+          <div className={`max-w-xl ${heroImageEdge ? "pb-16 md:pb-20" : ""}`}>
             <Link
               href="/reputation-platform"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-300 transition-colors hover:border-[#1FAF9E]/50 hover:text-white"
@@ -558,15 +575,23 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
             )}
           </div>
 
-          <div className="relative flex items-center justify-center">
-            <div className="relative w-full max-w-2xl rounded-3xl border border-white/10 bg-white/[0.03] p-3 shadow-[0_25px_70px_rgba(0,0,0,0.4)] backdrop-blur-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={content.heroImage.src}
-                alt={content.heroImage.alt}
-                className="w-full rounded-2xl border border-white/10 object-cover"
-              />
-            </div>
+          <div
+            className={
+              heroImageEdge
+                ? "relative flex w-full items-end justify-center md:justify-end"
+                : "relative flex items-center justify-center"
+            }
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={content.heroImage.src}
+              alt={content.heroImage.alt}
+              className={
+                heroImageEdge
+                  ? "block h-auto w-full max-w-full object-contain object-bottom sm:max-w-5xl md:max-w-none md:w-[115%] lg:w-[130%] lg:max-w-[72rem]"
+                  : "w-full max-w-3xl object-contain"
+              }
+            />
           </div>
         </div>
       </div>

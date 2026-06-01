@@ -16,6 +16,12 @@ export const metadata: Metadata = {
     url: PAGE_URL,
     siteName: "Tellacity",
     type: "website",
+    images: [
+      {
+        url: "https://tellacity.com/brand/Tellacity%20Dash.png",
+        alt: "Tellacity business dashboard and pricing plans",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -52,12 +58,16 @@ const pricingJsonLd = {
   },
 };
 
+const PRICING_PRODUCT_IMAGE =
+  "https://tellacity.com/brand/Tellacity%20Dash.png";
+
 const pricingOffersJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Tellacity Business Plans",
   description:
     "Tellacity reputation and review plans for businesses, from Free through Elite.",
+  image: [PRICING_PRODUCT_IMAGE],
   brand: { "@type": "Brand", name: "Tellacity" },
   offers: [
     {

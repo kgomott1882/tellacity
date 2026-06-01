@@ -21,8 +21,6 @@ type Plan = {
   priceSub?: string;
   description: string;
   features: string[];
-  /** Paid plans show a simple "Supports integrations" line; Free plan omits it. */
-  supportsIntegrations?: boolean;
   highlight?: boolean;
 };
 
@@ -30,68 +28,66 @@ const plans: Plan[] = [
   {
     name: "Free",
     price: "$0",
-    description: "Everything you need to get your first reviews.",
+    description: "Get started with verified reviews at no cost.",
     features: [
+      "20 review invites per month",
       "Claim your business profile",
       "Verified Business Dashboard access",
       "Receive unlimited consumer reviews",
-      "Photo upload",
-      "20 review invites per month",
-      "Basic Email review invitations",
+      "Photo uploads",
+      "Basic email review invitations",
     ],
   },
   {
     name: "Grow",
-    price: "$49",
+    price: "$39",
     priceSub: "/ month",
-    description: "Start collecting reviews consistently and build trust.",
+    description: "Collect reviews consistently and build trust faster.",
     features: [
       "150 review invites per month",
       "Email review invitations",
-      "Customisable email invite templates",
+      "Customisable email templates",
       "QR code reviews",
-      "Photo upload",
-      "On-site widget library & performance analytics",
+      "Photo uploads",
+      "Widget library",
+      "Performance analytics",
     ],
-    supportsIntegrations: true,
   },
   {
     name: "Premium",
-    price: "$179",
+    price: "$149",
     priceSub: "/ month",
-    description: "Best for growing businesses ready to scale.",
+    description: "Powerful automation for growing teams.",
     features: [
-      "Everything in Grow",
       "500 review invites per month",
+      "Everything in Grow",
       "Automated review invitation flows",
-      "Expanded widget library (customisable)",
+      "Expanded widget library",
       "Advanced analytics & sentiment analysis",
       "Team alerts & notifications",
       "Premium Credibility Badge",
-      "Multi-user logins (10 users)",
-      "Photo upload",
+      "Up to 10 team users",
+      "Photo uploads",
     ],
-    supportsIntegrations: true,
     highlight: true,
   },
   {
     name: "Elite",
-    price: "$349",
+    price: "$329",
     priceSub: "/ month",
-    description: "Advanced tools for high-growth and enterprise teams.",
+    description: "Advanced reputation management at scale.",
     features: [
-      "Everything in Premium",
       "2,000 review invites per month",
-      "Bulk upload & automation rules",
-      "White-label solution options",
+      "Everything in Premium",
+      "Bulk uploads & automation rules",
+      "White-label options",
       "Strategic insights & benchmarking",
-      'Priority placement ("Featured")',
+      "Featured placement",
       "Custom enterprise integrations",
-      "Scheduled auto-exports",
+      "Scheduled exports",
       "Dedicated account manager",
-      "Photo upload",
+      "Photo uploads",
     ],
-    supportsIntegrations: true,
   },
 ];
 
@@ -104,6 +100,7 @@ type FeatureRow = [string, string, string, string, string];
 const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "feature"; row: FeatureRow }> = [
   { type: "section", label: "COLLECT" },
   { type: "feature", row: ["Review invitations / month", "20", "150", "500", "2,000"] },
+  { type: "feature", row: ["Photo uploads", "✓", "✓", "✓", "✓"] },
   { type: "feature", row: ["Email invites", "✓", "✓", "✓", "✓"] },
   { type: "feature", row: ["Customisable email templates", "–", "✓", "✓", "✓"] },
   { type: "feature", row: ["QR code reviews", "–", "✓", "✓", "✓"] },
@@ -128,39 +125,29 @@ const comparisonTableRows: Array<{ type: "section"; label: string } | { type: "f
 const linkClass =
   "font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]";
 
-const PLAN_GUIDANCE: Record<string, string> = {
-  Free:
-    "Ideal for claiming your profile, collecting your first reviews, and understanding how Tellacity works before you commit to paid features. Upgrade when you need more review invites or automation.",
-  Grow:
-    "Built for businesses that want to collect reviews consistently through email and QR codes. A natural step up when 20 invites per month is no longer enough.",
-  Premium:
-    "Suited to growing teams that need automated invitation flows, stronger analytics, sentiment insights, and multi-user access. Upgrade when reputation management becomes a team effort.",
-  Elite:
-    "Designed for high-growth and enterprise teams that need advanced tools, white-label options, bulk automation, and dedicated support. Choose Elite when review volume and complexity scale significantly.",
-  "Custom Plan":
-    "For organisations with unique volume, integration, or compliance requirements that go beyond standard plan limits. Request a Custom Plan when Elite still does not fit.",
-};
+const CUSTOM_PLAN_GUIDANCE =
+  "For organisations with unique volume, integration, or compliance needs beyond standard plan limits.";
 
 const PLAN_INCLUSIONS = [
   {
-    title: "Free plan inclusions",
+    title: "Free Plan",
     summary:
-      "Claim your business profile, access the Verified Business Dashboard, receive unlimited consumer reviews, upload photos, and send 20 basic email review invites per month.",
+      "Claim your profile, access your dashboard, receive unlimited reviews, upload photos, and send up to 20 review invitations per month.",
   },
   {
-    title: "Grow plan inclusions",
+    title: "Grow Plan",
     summary:
-      "Everything needed to collect reviews at scale: 150 review invites per month, customisable email templates, QR code reviews, photo uploads, on-site widgets, performance analytics, and integration support.",
+      "Everything required to collect reviews consistently, including 150 monthly invites, QR codes, widgets, analytics, custom email templates, and photo uploads.",
   },
   {
-    title: "Premium plan inclusions",
+    title: "Premium Plan",
     summary:
-      "All Grow features plus 500 invites per month, automated invitation flows, expanded widgets, advanced analytics and sentiment analysis, team alerts, Premium Credibility Badge, and multi-user logins for up to 10 users.",
+      "Adds automation, advanced analytics, sentiment insights, team collaboration, expanded widgets, photo uploads, and increased review invitation capacity.",
   },
   {
-    title: "Elite plan inclusions",
+    title: "Elite Plan",
     summary:
-      "All Premium features plus 2,000 invites per month, bulk upload and automation rules, white-label options, strategic benchmarking, featured placement, custom enterprise integrations, scheduled exports, and a dedicated account manager.",
+      "Unlocks enterprise-grade automation, benchmarking, white-label capabilities, custom integrations, dedicated support, photo uploads, and higher review volumes.",
   },
 ];
 
@@ -230,6 +217,58 @@ function planNameToKey(name: string): PlanKey | null {
     return k;
   }
   return null;
+}
+
+function BillingPeriodToggle({
+  billing,
+  onChange,
+  className,
+}: {
+  billing: "monthly" | "annual";
+  onChange: (mode: "monthly" | "annual") => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex justify-center px-2", className)}>
+      <div
+        className="inline-flex h-11 w-full max-w-[min(100%,22rem)] items-stretch rounded-full bg-[#E9E1D6] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-stone-300/40"
+        role="group"
+        aria-label="Billing period"
+      >
+        <button
+          type="button"
+          onClick={() => onChange("monthly")}
+          className={`relative z-10 flex flex-1 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
+            billing === "monthly"
+              ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
+              : "text-neutral-600 hover:text-neutral-900"
+          }`}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("annual")}
+          className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full px-1.5 text-xs font-semibold transition-all duration-200 ${
+            billing === "annual"
+              ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
+              : "text-neutral-600 hover:text-neutral-900"
+          }`}
+        >
+          <span>Annual</span>
+          <span
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+              billing === "annual"
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-500/20 text-emerald-900"
+            }`}
+          >
+            Save 20%
+          </span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function PricingPageContent({
@@ -315,229 +354,72 @@ export function PricingPageContent({
 
   return (
     <Root className={rootSurfaceClass}>
-      {/* HERO (hidden on dashboard billing. Cards + comparison only) */}
+      {/* Page header (public /pricing only; dashboard billing uses cards + toggle below) */}
       {!dashboardHideMarketingHero ? (
-      <section className="mx-auto w-full max-w-6xl px-6 py-16 grid gap-10 md:grid-cols-2 items-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-          className="space-y-5"
-        >
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] md:text-4xl">
-            Pricing
-          </h1>
-          <p className="max-w-xl text-sm text-gray-600 md:text-base">
-            Simple, transparent pricing that scales with your business. Start
-            free, upgrade when you grow, and avoid hidden fees.
-          </p>
-          <p className="max-w-xl text-sm text-gray-600 md:text-base">
-            Each plan is designed for a different stage of growth and review
-            volume, so you pay for the features and invite limits you actually
-            need, not a one-size-fits-all bundle.{" "}
-            <Link href="/for-business" className={linkClass}>
-              See what Tellacity offers for business
-            </Link>
-            .
-          </p>
-
-          <div className="mt-4 inline-flex items-center gap-3 rounded-full bg-white p-1 shadow-sm">
-            <div className="relative flex rounded-full bg-neutral-100">
-              <motion.div
-                className="absolute inset-y-0 w-1/2 rounded-full bg-[#0E0E0E]"
-                animate={{ x: billing === "monthly" ? 0 : "100%" }}
-                transition={{ type: "tween", duration: 0.25 }}
-              />
-              {["monthly", "annual"].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setBilling(mode as "monthly" | "annual")}
-                  className={`relative z-10 px-4 py-2 text-xs font-semibold transition-colors ${
-                    billing === mode ? "text-white" : "text-gray-600"
-                  }`}
-                >
-                  {mode === "monthly" ? "Monthly" : "Annual"}
-                </button>
-              ))}
-            </div>
-            <span className="inline-flex items-center rounded-full bg-[#FCD34D]/30 px-3 py-1 text-[10px] font-semibold text-[#B45309]">
-              Save 20% on annual billing
-            </span>
-          </div>
-
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={billing}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
-              className="text-[11px] text-gray-500"
-            >
-              {billing === "monthly"
-                ? "Prices shown are monthly. Switch to annual when you’re ready for longer-term optimisation."
-                : "Annual agreements reflect approximately 20% savings vs month‑to‑month, billed yearly."}
-            </motion.p>
-          </AnimatePresence>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          viewport={{ once: true }}
-          className="relative hidden md:block"
-        >
-          <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-[#1FAF9E]/10 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[#0E3B36]/10 blur-3xl" />
+        <section className="mx-auto w-full max-w-6xl px-6 pt-10 pb-2 md:pt-12 md:pb-4">
           <motion.div
-            animate={{ y: [-6, 6] }}
-            transition={{ duration: 4, repeat: Infinity, repeatType: "reverse" }}
-            className="relative mx-auto max-w-md rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center"
           >
-            <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
-              <span className="font-semibold text-[#0E0E0E]">Tellacity Plans</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                Trusted pricing
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-[11px]">
-              {plans
-                .filter((plan) => plan.name !== "Free")
-                .map((plan) => (
-                  <div
-                    key={plan.name}
-                    className={`rounded-2xl p-3 ${
-                      plan.name === "Premium"
-                        ? "bg-[#0E0E0E] text-white"
-                        : "bg-[#F7F8FA] text-[#0E0E0E]"
-                    }`}
-                  >
-                    <p className={plan.name === "Premium" ? "text-gray-200" : "text-gray-500"}>
-                      {plan.name}
-                    </p>
-                    <p
-                      className={`mt-1 text-lg font-semibold ${
-                        plan.name === "Premium" ? "" : "text-[#0E0E0E]"
-                      }`}
-                    >
-                      {plan.price}
-                    </p>
-                    <p
-                      className={`mt-1 text-[10px] ${
-                        plan.name === "Premium" ? "text-gray-300" : "text-gray-500"
-                      }`}
-                    >
-                      {plan.name === "Grow"
-                        ? "Best for scaling"
-                        : plan.name === "Premium"
-                        ? "Advanced teams"
-                        : "Enterprise support"}
-                    </p>
-                  </div>
-                ))}
-            </div>
-            <div className="mt-4 rounded-2xl bg-[#F7F8FA] p-3 text-[11px] text-gray-600">
-              <p className="font-semibold text-[#0E0E0E]">Predictable, usage‑based invites</p>
-              <p className="mt-1">
-                Move between plans as review volume changes. No setup fees or surprise line items.
+            <h1 className="text-3xl font-semibold text-[#0E0E0E] md:text-4xl">
+              Pricing
+            </h1>
+            <div className="space-y-2 text-sm text-gray-600 md:text-base">
+              <p>
+                Simple, transparent pricing. Start free and upgrade when you need
+                more invites and tools.{" "}
+                <Link href="/for-business" className={linkClass}>
+                  See Tellacity for business
+                </Link>
+                .
               </p>
+              {showPublicSeo ? (
+                <p className="text-gray-500">
+                  Compare plans below. Switch anytime as your review volume grows.
+                </p>
+              ) : null}
             </div>
+            <BillingPeriodToggle
+              billing={billing}
+              onChange={setBilling}
+              className="w-full pt-1"
+            />
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={billing}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="min-h-[2.5rem] text-xs text-gray-500 md:text-sm"
+              >
+                {billing === "monthly"
+                  ? "Prices shown are monthly. Switch to annual when you’re ready for longer-term savings."
+                  : "Annual billing is charged once per year (~20% less than paying monthly)."}
+              </motion.p>
+            </AnimatePresence>
           </motion.div>
-        </motion.div>
-      </section>
-      ) : null}
-
-      {showPublicSeo ? (
-        <section className="mx-auto w-full max-w-6xl px-6 pb-8">
-          <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-            Pricing at a Glance
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm text-gray-600">
-            Paid plan prices are shown per month. Use the Monthly and Annual
-            toggle on this page to compare billing options, annual billing
-            reflects approximately 20% savings versus paying month to month.
-          </p>
-          <p className="mt-3 max-w-3xl text-sm text-gray-600">
-            Monthly billing keeps things flexible while you evaluate fit. Annual
-            billing is for teams ready for longer-term optimisation and
-            predictable yearly costs. There are no hidden fees: what you see on
-            each plan card matches the features and usage limits listed below.
-          </p>
-          <p className="mt-3 max-w-3xl text-sm text-gray-600">
-            Businesses can switch plans as review volume and team needs change.
-            Pricing stays transparent and tied to invite limits, analytics depth,
-            team access, and integrations, not surprise add-ons.
-          </p>
         </section>
       ) : null}
 
       {/* PRICING CARDS */}
       <section
         className={`mx-auto w-full max-w-6xl px-6 pb-8 ${
-          dashboardHideMarketingHero ? "pt-4 md:pt-6" : ""
+          dashboardHideMarketingHero ? "pt-4 md:pt-6" : "pt-2 md:pt-4"
         }`}
       >
-        {showPublicSeo ? (
-          <div className="mb-8 max-w-3xl">
-            <h2 className="text-2xl font-semibold text-[#0E0E0E]">
-              Choose the Right Plan
-            </h2>
-            <p className="mt-3 text-sm text-gray-600">
-              Pick the plan that matches where you are today. Free is enough to
-              get started; Grow, Premium, and Elite add invites, automation,
-              analytics, and team tools as your reputation program matures.
-            </p>
-            <p className="mt-3 text-sm text-gray-600">
-              You can move between plans when review volume changes, upgrade when
-              you need more invites or downgrade through billing when your needs
-              shift. No hidden fees, and every tier lists its limits clearly.
-            </p>
-          </div>
+        {dashboardHideMarketingHero ? (
+          <BillingPeriodToggle
+            billing={billing}
+            onChange={setBilling}
+            className="mb-6"
+          />
         ) : null}
-        <div className="mb-8 flex justify-center px-2">
-          <div
-            className="inline-flex h-11 w-full max-w-[min(100%,22rem)] items-stretch rounded-full bg-[#E9E1D6] p-0.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-stone-300/40"
-            role="group"
-            aria-label="Billing period"
-          >
-            <button
-              type="button"
-              onClick={() => setBilling("monthly")}
-              className={`relative z-10 flex flex-1 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
-                billing === "monthly"
-                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
-                  : "text-neutral-600 hover:text-neutral-900"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setBilling("annual")}
-              className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full px-1.5 text-xs font-semibold transition-all duration-200 ${
-                billing === "annual"
-                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-stone-200/90"
-                  : "text-neutral-600 hover:text-neutral-900"
-              }`}
-            >
-              <span>Annual</span>
-              <span
-                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
-                  billing === "annual"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-500/20 text-emerald-900"
-                }`}
-              >
-                Save 20%
-              </span>
-            </button>
-          </div>
-        </div>
 
-        <div className="grid gap-6 lg:grid-cols-4">
+        <div className="grid items-stretch gap-6 lg:grid-cols-4">
           {plans.map((plan, index) => {
             const cardPlanKey = planNameToKey(plan.name);
             const isWorkspaceOnThisPlan =
@@ -586,11 +468,11 @@ export function PricingPageContent({
               : isWorkspaceOnThisPlan
                 ? "border border-neutral-950 bg-neutral-50/95 text-neutral-800 shadow-sm hover:translate-y-0"
                 : isSmartRecommended
-                  ? "border-2 border-[#1FAF9E] bg-white shadow-xl shadow-[#1FAF9E]/20 ring-2 ring-[#1FAF9E]/25 scale-[1.04]"
+                  ? "border-2 border-[#1FAF9E] bg-white shadow-xl shadow-[#1FAF9E]/20 ring-2 ring-[#1FAF9E]/25"
                   : isLegacyPopular
                     ? isVisualPremiumAnchor
-                      ? "border-[3px] border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30 scale-[1.03]"
-                      : "border-[3px] border-[#1FAF9E] bg-white shadow-xl scale-[1.03]"
+                      ? "border-2 border-[#0E3B36] bg-white shadow-2xl shadow-[#0E3B36]/15 ring-2 ring-[#1FAF9E]/30"
+                      : "border-2 border-[#1FAF9E] bg-white shadow-xl"
                     : "border border-neutral-950 bg-white shadow-sm hover:shadow-xl hover:-translate-y-1";
 
             return (
@@ -647,17 +529,12 @@ export function PricingPageContent({
                   {plan.name}
                 </h3>
                 <p
-                  className={`mt-2 text-xs ${
+                  className={`mt-2 text-xs leading-relaxed ${
                     isWorkspaceOnThisPlan ? "text-neutral-600" : "text-gray-600"
                   }`}
                 >
                   {plan.description}
                 </p>
-                {showPublicSeo && PLAN_GUIDANCE[plan.name] ? (
-                  <p className="mt-2 text-xs leading-relaxed text-gray-600">
-                    {PLAN_GUIDANCE[plan.name]}
-                  </p>
-                ) : null}
                 <div className="mt-5">
                   {plan.name === "Free" ? (
                     <div className="flex items-end gap-1">
@@ -718,16 +595,9 @@ export function PricingPageContent({
                   }`}
                 >
                   {plan.features.map((feature) => (
-                    <motion.li
-                      key={feature}
-                      initial={{ opacity: 0 }}
-                      whileInView={{ opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.3 }}
-                      className="flex items-start gap-2"
-                    >
+                    <li key={feature} className="flex items-start gap-2">
                       <span
-                        className={`mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold ${
+                        className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${
                           isWorkspaceOnThisPlan
                             ? "border-neutral-300 text-neutral-500"
                             : "border-[#1FAF9E] text-[#1FAF9E]"
@@ -736,16 +606,9 @@ export function PricingPageContent({
                         ✓
                       </span>
                       <span>{feature}</span>
-                    </motion.li>
+                    </li>
                   ))}
                 </ul>
-                {plan.name !== "Free" && plan.supportsIntegrations && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-xs font-medium text-[#0E0E0E]">
-                      Supports integrations
-                    </p>
-                  </div>
-                )}
                 {variant === "dashboard" && !isDashboardCheckout ? (
                   <button
                     type="button"
@@ -857,7 +720,7 @@ export function PricingPageContent({
               Custom Plan
             </h3>
             <p className="mt-2 text-sm text-gray-600">
-              {PLAN_GUIDANCE["Custom Plan"]}
+              {CUSTOM_PLAN_GUIDANCE}
             </p>
             <div className="mt-4 flex justify-center">
               <button

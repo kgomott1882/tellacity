@@ -381,7 +381,7 @@ export default function AboutPage() {
         <div className="mx-auto w-full max-w-5xl px-6 py-12 sm:py-14">
           <h2 className={h2Class}>
             How the reputation management platform works
-          </h2>
+        </h2>
           <div className={`${bodyClass} space-y-3`}>
             <p>
               The{" "}
@@ -689,9 +689,9 @@ export default function AboutPage() {
           <h2 className={h2Class}>Our mission</h2>
           <div className="mx-auto mt-4 max-w-3xl space-y-3 text-left text-sm text-gray-600 sm:text-base">
             <p>
-              To be the most trusted source of information about businesses
-              globally. We empower consumers to share their experiences and help
-              businesses build trust through transparency, fairness, and open
+          To be the most trusted source of information about businesses
+          globally. We empower consumers to share their experiences and help
+          businesses build trust through transparency, fairness, and open
               communication.
             </p>
             <p>
@@ -716,7 +716,7 @@ export default function AboutPage() {
               <h3 className="text-sm font-semibold text-[#0E0E0E]">
                 Transparency and accountability by default
               </h3>
-              <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600">
                 Open replies, public reputation, and verified signals make
                 accountability normal. That is how we keep the online experience
                 trustworthy and sustainable for everyone.

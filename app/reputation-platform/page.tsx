@@ -482,6 +482,10 @@ export default function ReputationPlatformHubPage() {
                     <p className="mt-2 text-sm text-gray-600">{item.detail}</p>
                   </div>
                 ))}
+                <div
+                  className="min-h-[8.5rem] rounded-2xl bg-[#1FAF9E]"
+                  aria-hidden
+                />
               </div>
             </div>
           </div>
@@ -641,6 +645,10 @@ export default function ReputationPlatformHubPage() {
                 </div>
               </li>
             ))}
+            <li
+              className="min-h-[12rem] rounded-3xl bg-[#1FAF9E] sm:min-h-0"
+              aria-hidden
+            />
           </ul>
         </div>
       </section>

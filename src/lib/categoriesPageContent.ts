@@ -11,9 +11,9 @@ export type CategoriesCountryMeta = {
 const COUNTRY_META: Record<string, CategoriesCountryMeta> = {
   GB: {
     code: "GB",
-    label: "Great Britain",
-    seoLabel: "Great Britain",
-    headingName: "Great Britain",
+    label: "the United Kingdom",
+    seoLabel: "the United Kingdom",
+    headingName: "United Kingdom",
   },
   US: {
     code: "US",
@@ -53,9 +53,27 @@ const COUNTRY_META: Record<string, CategoriesCountryMeta> = {
   },
 };
 
-const US_PAGE_TITLE = "Explore Categories in the United States | Tellacity";
-const US_PAGE_DESCRIPTION =
-  "Browse verified business categories in the United States on Tellacity and quickly find companies by industry, category, and trust signals.";
+export function getCategoriesH1(headingName: string) {
+  return `Explore Categories in ${headingName}`;
+}
+
+export function getCategoriesIntro(headingName: string) {
+  return `Browse verified businesses across major industries in ${headingName} and quickly narrow your choices by category.`;
+}
+
+export function getCategoriesPopularSectorsIntro(headingName: string) {
+  return `Shortcuts into common industries in ${headingName}, retail, home services, travel, food, health, education, technology, and financial services.`;
+}
+
+export const CATEGORIES_WHY_COPY =
+  "Categories help you find relevant businesses and compare verified reviews in the right industry. They also help businesses appear in the right place for the right audience.";
+
+export function getCategoriesHowCountryLine(headingName: string, code: string) {
+  return `Keep country set to ${headingName} (${code}) for local results on this directory.`;
+}
+
+export const CATEGORIES_NEED_HELP_INTRO =
+  "Use these links if you need to add a business, manage a listing, or learn more about trust policies.";
 
 export function getCategoriesCountryMeta(
   countryParam?: string | null
@@ -72,14 +90,8 @@ export function buildCategoriesMetadata(countryParam?: string | null) {
   const meta = getCategoriesCountryMeta(countryParam);
   const { code, seoLabel, headingName } = meta;
   const url = categoriesPageUrl(code);
-  const title =
-    code === "US"
-      ? US_PAGE_TITLE
-      : `Explore Categories in ${headingName} | Tellacity`;
-  const description =
-    code === "US"
-      ? US_PAGE_DESCRIPTION
-      : `Browse verified business categories in ${seoLabel} on Tellacity. Find companies by industry, compare trust signals, and discover real customer feedback.`;
+  const title = `${getCategoriesH1(headingName)} | Tellacity`;
+  const description = `Browse verified business categories in ${seoLabel} on Tellacity and quickly find companies by industry, category, and trust signals.`;
 
   return {
     title,
@@ -105,14 +117,8 @@ export function buildCategoriesJsonLd(countryParam?: string | null) {
   const meta = getCategoriesCountryMeta(countryParam);
   const { code, seoLabel, headingName } = meta;
   const url = categoriesPageUrl(code);
-  const name =
-    code === "US"
-      ? US_PAGE_TITLE
-      : `Explore Categories in ${headingName} | Tellacity`;
-  const description =
-    code === "US"
-      ? US_PAGE_DESCRIPTION
-      : `Browse verified business categories in ${seoLabel} on Tellacity. Find companies by industry, compare trust signals, and discover real customer feedback.`;
+  const name = `${getCategoriesH1(headingName)} | Tellacity`;
+  const description = `Browse verified business categories in ${seoLabel} on Tellacity and quickly find companies by industry, category, and trust signals.`;
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",

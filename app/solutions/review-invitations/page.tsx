@@ -39,6 +39,7 @@ const content: SolutionPageContent = {
     src: "/brand/Tellacity%20Dash.png",
     alt: "Tellacity dashboard showing review invitations, delivery, and verification at a glance",
   },
+  heroImageAlign: "edge",
 
   heroTrustStrip: [
     "Verified review workflows",

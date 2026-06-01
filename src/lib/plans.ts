@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { reconcileSubscriptionPeriodEnd } from "@/lib/subscriptionExpiry";
 
 export type PlanKey = "free" | "grow" | "premium" | "elite";
 
@@ -52,59 +53,11 @@ export function getInviteLimitForPlan(plan?: string): number {
   return PLAN_INVITE_LIMITS[normalized] ?? PLAN_INVITE_LIMITS.free;
 }
 
-/** Subscriptions that grant the current billed / feature plan (used app-wide). */
-export const SUBSCRIPTION_STATUSES_FOR_PLAN = ["active", "trialing"] as const;
-
-export type PlanResolutionSubscriptionRow = {
-  plan_code?: string | null;
-  status?: string | null;
-  updated_at?: string | null;
-  current_period_end?: string | null;
-  pending_plan_code?: string | null;
-  pending_change_at?: string | null;
-};
-
-/**
- * When multiple subscription rows exist (e.g. active + trialing), prefer `active`,
- * then `trialing`, newest `updated_at` first within each status.
- */
-export function pickPlanResolutionSubscriptionRow<
-  T extends PlanResolutionSubscriptionRow,
->(rows: T[] | null | undefined): T | null {
-  if (!rows?.length) return null;
-  const statusRank = (s: string | null | undefined) => {
-    const v = String(s ?? "").toLowerCase();
-    if (v === "active") return 0;
-    if (v === "trialing") return 1;
-    return 2;
-  };
-  const time = (iso: string | null | undefined) => {
-    if (!iso) return 0;
-    const t = new Date(iso).getTime();
-    return Number.isFinite(t) ? t : 0;
-  };
-  const hasPeriodEnd = (r: T) => {
-    const v = r.current_period_end;
-    return v != null && String(v).trim() !== "";
-  };
-  const sorted = [...rows].sort((a, b) => {
-    const dr = statusRank(a.status) - statusRank(b.status);
-    if (dr !== 0) return dr;
-    const pr = Number(hasPeriodEnd(b)) - Number(hasPeriodEnd(a));
-    if (pr !== 0) return pr;
-    return time(b.updated_at) - time(a.updated_at);
-  });
-  const best = sorted[0];
-  const st = String(best?.status ?? "").toLowerCase();
-  if (st === "active" || st === "trialing") return best;
-  return null;
-}
-
-type SubscriptionPlanLookupRow = {
-  plan_code?: string | null;
-  status?: string | null;
-  updated_at?: string | null;
-};
+export {
+  SUBSCRIPTION_STATUSES_FOR_PLAN,
+  pickPlanResolutionSubscriptionRow,
+  type PlanResolutionSubscriptionRow,
+} from "@/lib/subscriptionPlanPick";
 
 async function loadSubscriptionPlanResolution(
   businessId: string,
@@ -113,23 +66,11 @@ async function loadSubscriptionPlanResolution(
   | { ok: true; rawPlanCode: string | null }
   | { ok: false; error: string }
 > {
-  const { data: rows, error } = await db
-    .from("subscriptions")
-    .select("plan_code, status, updated_at")
-    .eq("business_id", businessId)
-    .in("status", [...SUBSCRIPTION_STATUSES_FOR_PLAN]);
-
-  if (error) {
-    return { ok: false, error: error.message };
+  const reconciled = await reconcileSubscriptionPeriodEnd(db, businessId);
+  if (!reconciled.ok) {
+    return { ok: false, error: reconciled.error };
   }
-
-  const picked = pickPlanResolutionSubscriptionRow(
-    rows as SubscriptionPlanLookupRow[] | null,
-  );
-  const code = picked?.plan_code;
-  const raw =
-    code != null && String(code).trim() ? String(code) : null;
-  return { ok: true, rawPlanCode: raw };
+  return { ok: true, rawPlanCode: reconciled.rawPlanCode };
 }
 
 async function fetchActiveSubscriptionPlanCode(
@@ -174,33 +115,9 @@ export async function getActivePlanKeysByBusinessIds(
   const out = new Map<string, PlanKey>();
   if (businessIds.length === 0) return out;
 
-  const { data: rows, error } = await db
-    .from("subscriptions")
-    .select("business_id, plan_code, status, updated_at")
-    .in("business_id", businessIds)
-    .in("status", [...SUBSCRIPTION_STATUSES_FOR_PLAN]);
-
-  if (error) {
-    console.error("[plans] subscriptions batch lookup:", error.message);
-    return out;
-  }
-
-  const byBiz = new Map<string, PlanResolutionSubscriptionRow[]>();
-  for (const row of rows ?? []) {
-    const bid = (row as { business_id?: string | null }).business_id;
-    if (!bid) continue;
-    const list = byBiz.get(bid) ?? [];
-    list.push({
-      plan_code: row.plan_code as string | null,
-      status: row.status as string | null,
-      updated_at: (row as { updated_at?: string | null }).updated_at ?? null,
-    });
-    byBiz.set(bid, list);
-  }
-
   for (const bid of businessIds) {
-    const picked = pickPlanResolutionSubscriptionRow(byBiz.get(bid));
-    out.set(bid, normalizePlanCodeToKey(picked?.plan_code ?? null));
+    const resolved = await getActivePlanKeyForBusinessResult(bid, db);
+    out.set(bid, resolved.ok ? resolved.plan : "free");
   }
 
   return out;

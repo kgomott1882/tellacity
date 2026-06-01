@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
+import {
+  REVIEW_INVITATIONS_HUB,
+  getReviewInvitationFeaturePath,
+} from "@/lib/solutions/reviewInvitationFeatures";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { ensureValidSession } from "@/lib/ensureValidSession";
 import { authRedirectTo, getBaseUrl } from "@/lib/getBaseUrl";
@@ -28,6 +32,83 @@ const COUNTRIES = [
   { code: "IE", name: "Ireland", flagUrl: `${FLAG_BASE}/IE.svg` },
 ];
 
+const SOLUTION_NAV_LINKS = [
+  { href: "/solutions/review-invitations", label: "Review Invitations" },
+  { href: "/solutions/review-widgets", label: "Review Widgets" },
+  { href: "/solutions/business-analytics", label: "Business Analytics" },
+  { href: "/solutions/reputation-management", label: "Reputation Management" },
+  { href: "/solutions/photo-uploads", label: "Photo Uploads" },
+] as const;
+
+type FeatureNavItem = { label: string; href: string };
+type FeatureNavGroup = { heading: string; items: FeatureNavItem[] };
+
+/** Capability menu (Trustpilot-style); product hubs stay under Resources. */
+const FEATURE_NAV_GROUPS: FeatureNavGroup[] = [
+  {
+    heading: "Invite reviews",
+    items: [
+      {
+        label: "Review invitations",
+        href: REVIEW_INVITATIONS_HUB,
+      },
+      {
+        label: "Email invitations",
+        href: getReviewInvitationFeaturePath("email-invitations"),
+      },
+      {
+        label: "Invite links & QR codes",
+        href: getReviewInvitationFeaturePath("invite-links-and-qr-codes"),
+      },
+      {
+        label: "Smart reminders",
+        href: getReviewInvitationFeaturePath("smart-reminders"),
+      },
+      {
+        label: "Proof of purchase",
+        href: getReviewInvitationFeaturePath("proof-of-purchase"),
+      },
+      {
+        label: "Bulk customer imports",
+        href: getReviewInvitationFeaturePath("bulk-customer-imports"),
+      },
+      {
+        label: "Multi-location invites",
+        href: getReviewInvitationFeaturePath("multi-location-invites"),
+      },
+    ],
+  },
+  {
+    heading: "Accelerate conversions",
+    items: [
+      { label: "Website widgets", href: "/solutions/review-widgets" },
+      { label: "Rating badge & carousel", href: "/solutions/review-widgets" },
+      { label: "Customer photo reviews", href: "/solutions/photo-uploads" },
+    ],
+  },
+  {
+    heading: "Engage with feedback",
+    items: [
+      { label: "Public business profile", href: "/for-business" },
+      {
+        label: "Respond to reviews",
+        href: "/solutions/reputation-management",
+      },
+      {
+        label: "Moderation & disputes",
+        href: "/solutions/reputation-management",
+      },
+    ],
+  },
+];
+
+const FEATURE_NAV_HREFS = new Set([
+  "/for-business",
+  ...FEATURE_NAV_GROUPS.flatMap((group) =>
+    group.items.map((item) => item.href),
+  ),
+]);
+
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -44,6 +125,10 @@ export default function Navbar() {
       ? "/auth/login"
       : `/auth/login?next=${encodeURIComponent(consumerAuthNext)}`;
   const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const [isResourcesOpen, setIsResourcesOpen] = useState(false);
+  const [isMobileResourcesOpen, setIsMobileResourcesOpen] = useState(false);
+  const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
+  const [isMobileFeaturesOpen, setIsMobileFeaturesOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -64,9 +149,17 @@ export default function Navbar() {
     message: string;
   } | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resourcesCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const featuresCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const resourcesMenuRef = useRef<HTMLDivElement>(null);
+  const featuresMenuRef = useRef<HTMLDivElement>(null);
   const { countryCode, setCountryAndSync } = useUnifiedCountry({
     initialCountry: "US",
   });
@@ -78,8 +171,13 @@ export default function Navbar() {
     pathname?.startsWith("/pricing") ||
     pathname?.startsWith("/reputation-platform") ||
     pathname?.startsWith("/solution") ||
+    pathname?.startsWith("/solutions") ||
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
+  const isResourcesNavActive =
+    pathname === "/resources" ||
+    (pathname?.startsWith("/solutions/") ?? false);
+  const isFeaturesNavActive = FEATURE_NAV_HREFS.has(pathname ?? "");
   const isHomeNav = pathname === "/";
   const isAuthFlow =
     pathname?.startsWith("/auth/") ||
@@ -106,6 +204,34 @@ export default function Navbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isUserMenuOpen]);
+
+  useEffect(() => {
+    if (!isResourcesOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        resourcesMenuRef.current &&
+        !resourcesMenuRef.current.contains(e.target as Node)
+      ) {
+        setIsResourcesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isResourcesOpen]);
+
+  useEffect(() => {
+    if (!isFeaturesOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        featuresMenuRef.current &&
+        !featuresMenuRef.current.contains(e.target as Node)
+      ) {
+        setIsFeaturesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFeaturesOpen]);
 
   // Skip auth on landing page and auth/reset flows so we never
   // show dashboard access while a user is in the middle of a
@@ -310,6 +436,42 @@ export default function Navbar() {
     }, 150);
   };
 
+  const openResourcesMenu = () => {
+    if (resourcesCloseTimeoutRef.current) {
+      clearTimeout(resourcesCloseTimeoutRef.current);
+      resourcesCloseTimeoutRef.current = null;
+    }
+    setIsResourcesOpen(true);
+  };
+
+  const scheduleResourcesClose = () => {
+    if (resourcesCloseTimeoutRef.current) {
+      clearTimeout(resourcesCloseTimeoutRef.current);
+    }
+    resourcesCloseTimeoutRef.current = setTimeout(() => {
+      setIsResourcesOpen(false);
+      resourcesCloseTimeoutRef.current = null;
+    }, 150);
+  };
+
+  const openFeaturesMenu = () => {
+    if (featuresCloseTimeoutRef.current) {
+      clearTimeout(featuresCloseTimeoutRef.current);
+      featuresCloseTimeoutRef.current = null;
+    }
+    setIsFeaturesOpen(true);
+  };
+
+  const scheduleFeaturesClose = () => {
+    if (featuresCloseTimeoutRef.current) {
+      clearTimeout(featuresCloseTimeoutRef.current);
+    }
+    featuresCloseTimeoutRef.current = setTimeout(() => {
+      setIsFeaturesOpen(false);
+      featuresCloseTimeoutRef.current = null;
+    }, 150);
+  };
+
   const handleCountryChange = (code: string) => {
     const normalized = normalizeCountryCode(code);
     setCountryAndSync(normalized);
@@ -331,37 +493,153 @@ export default function Navbar() {
 
               <nav className="hidden flex-1 items-center justify-center gap-8 text-sm md:flex">
                 <Link
-                  href="/for-business"
-                  className={`border-b-2 pb-1 ${
-                    pathname === "/for-business"
-                      ? "border-white text-white"
-                      : "border-transparent text-white/90 hover:border-white"
-                  }`}
+                  href="/"
+                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
-                  Features
+                  Home
                 </Link>
+                <div
+                  ref={featuresMenuRef}
+                  className="relative"
+                  onMouseEnter={openFeaturesMenu}
+                  onMouseLeave={scheduleFeaturesClose}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsFeaturesOpen((prev) => !prev)}
+                    className={`inline-flex items-center gap-1 border-b-2 pb-1 ${
+                      isFeaturesNavActive
+                        ? "border-white text-white"
+                        : "border-transparent text-white/90 hover:border-white"
+                    }`}
+                    aria-expanded={isFeaturesOpen}
+                    aria-haspopup="true"
+                  >
+                    Features
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${
+                        isFeaturesOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+                  {isFeaturesOpen && (
+                    <div
+                      className="absolute left-1/2 top-full z-50 mt-2 max-h-[min(80vh,32rem)] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg sm:p-4"
+                      role="menu"
+                    >
+                      <Link
+                        href="/for-business"
+                        role="menuitem"
+                        onClick={() => setIsFeaturesOpen(false)}
+                        className={`mb-3 block rounded-lg px-2 py-1.5 text-sm font-semibold hover:bg-gray-50 ${
+                          pathname === "/for-business"
+                            ? "text-[#124541]"
+                            : "text-[#0E0E0E]"
+                        }`}
+                      >
+                        All features overview
+                      </Link>
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                        {FEATURE_NAV_GROUPS.map((group) => (
+                          <div key={group.heading} className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                              {group.heading}
+                            </p>
+                            <ul className="mt-2 space-y-0.5">
+                              {group.items.map((item) => (
+                                <li key={`${group.heading}-${item.label}`}>
+                                  <Link
+                                    href={item.href}
+                                    role="menuitem"
+                                    onClick={() => setIsFeaturesOpen(false)}
+                                    className={`block rounded-md px-2 py-1.5 text-sm hover:bg-gray-50 ${
+                                      pathname === item.href
+                                        ? "font-semibold text-[#124541]"
+                                        : "text-[#0E0E0E]"
+                                    }`}
+                                  >
+                                    {item.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <Link
                   href="/pricing"
                   className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
                 >
                   Pricing
                 </Link>
-                <Link
-                  href="/reputation-platform"
-                  className={`border-b-2 pb-1 ${
-                    pathname === "/reputation-platform"
-                      ? "border-white text-white"
-                      : "border-transparent text-white/90 hover:border-white"
-                  }`}
+                <div
+                  ref={resourcesMenuRef}
+                  className="relative"
+                  onMouseEnter={openResourcesMenu}
+                  onMouseLeave={scheduleResourcesClose}
                 >
-                  Reputation Platform
-                </Link>
-                <Link
-                  href="/resources"
-                  className="border-b-2 border-transparent pb-1 text-white/90 hover:border-white"
-                >
-                  Resources
-                </Link>
+                  <button
+                    type="button"
+                    onClick={() => setIsResourcesOpen((prev) => !prev)}
+                    className={`inline-flex items-center gap-1 border-b-2 pb-1 ${
+                      isResourcesNavActive
+                        ? "border-white text-white"
+                        : "border-transparent text-white/90 hover:border-white"
+                    }`}
+                    aria-expanded={isResourcesOpen}
+                    aria-haspopup="true"
+                  >
+                    Resources
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${
+                        isResourcesOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+                  {isResourcesOpen && (
+                    <div
+                      className="absolute left-1/2 top-full z-50 mt-2 min-w-[15rem] -translate-x-1/2 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                      role="menu"
+                    >
+                      <Link
+                        href="/resources"
+                        role="menuitem"
+                        onClick={() => setIsResourcesOpen(false)}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-50 ${
+                          pathname === "/resources"
+                            ? "font-semibold text-[#124541]"
+                            : "text-[#0E0E0E]"
+                        }`}
+                      >
+                        All resources
+                      </Link>
+                      <div
+                        className="my-1 border-t border-gray-100"
+                        aria-hidden
+                      />
+                      {SOLUTION_NAV_LINKS.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          role="menuitem"
+                          onClick={() => setIsResourcesOpen(false)}
+                          className={`block px-4 py-2 text-sm hover:bg-gray-50 ${
+                            pathname === item.href
+                              ? "font-semibold text-[#124541]"
+                              : "text-[#0E0E0E]"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </nav>
 
               <div className="flex items-center gap-2 md:gap-3">
@@ -495,12 +773,74 @@ export default function Navbar() {
                 <div className="mb-4 border-t border-white/10" />
                 <nav className="flex flex-col gap-4 text-sm">
                   <Link
-                    href="/for-business"
+                    href="/"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={pathname === "/for-business" ? "text-[#1FAF9E]" : ""}
                   >
-                    Features
+                    Home
                   </Link>
+                  <div>
+                    <button
+                      type="button"
+                      className={`flex w-full items-center justify-between ${
+                        isFeaturesNavActive ? "text-[#1FAF9E]" : ""
+                      }`}
+                      onClick={() => setIsMobileFeaturesOpen((prev) => !prev)}
+                      aria-expanded={isMobileFeaturesOpen}
+                    >
+                      Features
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          isMobileFeaturesOpen ? "rotate-180" : ""
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    {isMobileFeaturesOpen && (
+                      <div className="mt-3 max-h-[50vh] overflow-y-auto border-l border-white/15 pl-3 text-sm text-white/85">
+                        <Link
+                          href="/for-business"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsMobileFeaturesOpen(false);
+                          }}
+                          className={`block py-1 font-medium ${
+                            pathname === "/for-business"
+                              ? "text-[#1FAF9E]"
+                              : ""
+                          }`}
+                        >
+                          All features overview
+                        </Link>
+                        {FEATURE_NAV_GROUPS.map((group) => (
+                          <div key={group.heading} className="mt-4">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                              {group.heading}
+                            </p>
+                            <ul className="mt-2 space-y-2">
+                              {group.items.map((item) => (
+                                <li key={`${group.heading}-${item.label}`}>
+                                  <Link
+                                    href={item.href}
+                                    onClick={() => {
+                                      setIsMobileMenuOpen(false);
+                                      setIsMobileFeaturesOpen(false);
+                                    }}
+                                    className={
+                                      pathname === item.href
+                                        ? "text-[#1FAF9E]"
+                                        : ""
+                                    }
+                                  >
+                                    {item.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <Link
                     href="/pricing"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -508,22 +848,57 @@ export default function Navbar() {
                   >
                     Pricing
                   </Link>
-                  <Link
-                    href="/reputation-platform"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={
-                      pathname === "/reputation-platform" ? "text-[#1FAF9E]" : ""
-                    }
-                  >
-                    Reputation Platform
-                  </Link>
-                  <Link
-                    href="/resources"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={pathname === "/resources" ? "text-[#1FAF9E]" : ""}
-                  >
-                    Resources
-                  </Link>
+                  <div>
+                    <button
+                      type="button"
+                      className={`flex w-full items-center justify-between ${
+                        isResourcesNavActive ? "text-[#1FAF9E]" : ""
+                      }`}
+                      onClick={() =>
+                        setIsMobileResourcesOpen((prev) => !prev)
+                      }
+                      aria-expanded={isMobileResourcesOpen}
+                    >
+                      Resources
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          isMobileResourcesOpen ? "rotate-180" : ""
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    {isMobileResourcesOpen && (
+                      <div className="mt-3 flex flex-col gap-2 border-l border-white/15 pl-3 text-sm text-white/85">
+                        <Link
+                          href="/resources"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsMobileResourcesOpen(false);
+                          }}
+                          className={
+                            pathname === "/resources" ? "text-[#1FAF9E]" : ""
+                          }
+                        >
+                          All resources
+                        </Link>
+                        {SOLUTION_NAV_LINKS.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => {
+                              setIsMobileMenuOpen(false);
+                              setIsMobileResourcesOpen(false);
+                            }}
+                            className={
+                              pathname === item.href ? "text-[#1FAF9E]" : ""
+                            }
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="my-6 border-t border-white/10" />
 

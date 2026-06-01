@@ -5,6 +5,7 @@ import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 const BEST_RATING = 5;
 const WORST_RATING = 1;
 const TERMS_URL = "https://tellacity.com/terms-of-service";
+const LICENSE_PAGE_URL = TERMS_URL;
 
 type JsonLdReviewRow = {
   rating?: number | null;
@@ -69,15 +70,25 @@ function buildPostalAddress(
 
 function buildImageObjectJsonLd(
   businessName: string,
+  businessPageUrl: string,
   photo: { id: string; url: string },
 ): Record<string, unknown> {
+  const year = new Date().getFullYear();
   return {
     "@context": "https://schema.org",
     "@type": "ImageObject",
     name: `${businessName} business photo`,
     contentUrl: photo.url,
     description: `Interior, product, or experience photo uploaded by ${businessName} on Tellacity.`,
-    license: TERMS_URL,
+    license: LICENSE_PAGE_URL,
+    acquireLicensePage: LICENSE_PAGE_URL,
+    creator: {
+      "@type": "Organization",
+      name: businessName,
+      url: businessPageUrl,
+    },
+    creditText: `${businessName} via Tellacity`,
+    copyrightNotice: `© ${year} ${businessName}. All rights reserved.`,
   };
 }
 
@@ -130,12 +141,6 @@ export async function buildBusinessProfileJsonLdScripts(
       .order("created_at", { ascending: false })
       .limit(3);
 
-    const itemReviewed = {
-      "@type": "LocalBusiness" as const,
-      "@id": pageUrl,
-      name: businessName,
-    };
-
     const reviews = (reviewRows ?? [])
       .map((row: JsonLdReviewRow) => {
         const reviewBody =
@@ -149,6 +154,8 @@ export async function buildBusinessProfileJsonLdScripts(
 
         const datePublished = toIsoDate(row.created_at);
 
+        // Reviews nested under LocalBusiness must not include `itemReviewed`
+        // (Google: directional conflict with the parent entity).
         return {
           "@type": "Review" as const,
           author: {
@@ -162,7 +169,6 @@ export async function buildBusinessProfileJsonLdScripts(
             worstRating: WORST_RATING,
           },
           reviewBody,
-          itemReviewed,
           ...(datePublished ? { datePublished } : {}),
         };
       })
@@ -184,12 +190,12 @@ export async function buildBusinessProfileJsonLdScripts(
 
   const photos = (opts.photos ?? []).filter((p) => p.id && p.url).slice(0, 8);
   for (const photo of photos) {
-    scripts.push(buildImageObjectJsonLd(businessName, photo));
+    scripts.push(buildImageObjectJsonLd(businessName, pageUrl, photo));
   }
 
   if (logoUrl && !photos.some((p) => p.url === logoUrl)) {
     scripts.push(
-      buildImageObjectJsonLd(businessName, { id: "logo", url: logoUrl }),
+      buildImageObjectJsonLd(businessName, pageUrl, { id: "logo", url: logoUrl }),
     );
   }
 

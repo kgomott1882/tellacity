@@ -61,9 +61,9 @@ export type PlanConfirmPresentation = {
  * Amounts are always US dollars; ZA Paystack charges convert in `billingPaystack` / `billingUsdZarRate`.
  */
 export const PAID_PLAN_USD = {
-  grow: { monthly: 49, annualPerMonth: 39 },
-  premium: { monthly: 179, annualPerMonth: 143 },
-  elite: { monthly: 349, annualPerMonth: 279 },
+  grow: { monthly: 39, annualPerMonth: 31 },
+  premium: { monthly: 149, annualPerMonth: 119 },
+  elite: { monthly: 329, annualPerMonth: 263 },
 } as const satisfies Record<
   PaidPlanKey,
   { monthly: number; annualPerMonth: number }
