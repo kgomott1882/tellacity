@@ -7,6 +7,7 @@ import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
 import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
+import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import {
   businessCategoryPillClassName,
   formatBusinessTagLabel,
@@ -1088,9 +1089,9 @@ export default function BusinessClient({
   const categoryListingsQs = `?country=${encodeURIComponent(categoryBrowseCountryCode)}`;
 
   const businessLogoUrl = similarBusinessLogoUrl({
-    resolved_logo_url: business?.logoUrl,
-    logo_url: null,
-    website: business?.website,
+    resolved_logo_url: business?.logoUrl ?? null,
+    logo_url: business?.logoUrl ?? null,
+    website: business?.website ?? null,
   });
   if (notFound && !isLoadingBusiness) {
     return (
@@ -1180,24 +1181,12 @@ export default function BusinessClient({
 
         <div className="mt-6 flex flex-col gap-6 border-b border-gray-200 pb-10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-[#FCF7F6]">
-              {(() => {
-                const displayLogo = businessLogoUrl;
-                return displayLogo ? (
-                  <img
-                    key={displayLogo}
-                    src={normalizeLogoUrl(displayLogo) ?? displayLogo}
-                    alt={`${business?.name ?? "Business"} logo`}
-                    className="h-full w-full object-contain"
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : null;
-              })()}
-            </div>
+            <SimilarBusinessLogo
+              key={`${business?.id ?? slug}-${businessLogoUrl ?? "none"}`}
+              logoUrl={businessLogoUrl}
+              nameForAlt={business?.name ?? "Business"}
+              variant="profile"
+            />
             <div className="min-w-0 flex-1">
               {isLoadingBusiness && !business ? (
                 <div className="space-y-3">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { canAccessBusiness } from "@/lib/canAccessBusinessShared";
 import {
@@ -25,9 +25,16 @@ const EMPTY_PHOTOS_TEASER_SRC = "/brand/Business Profile.png" as const;
 
 /** Public profile empty state: “Preview example” modals (`public/brand`, same assets as dashboard). */
 const PUBLIC_GALLERY_EXAMPLE_SRC = "/brand/Gallery%20Photos.png" as const;
+const PUBLIC_GALLERY_EXAMPLE_2_SRC = "/brand/Gallery%20Photos%202.png" as const;
 const PUBLIC_PRODUCTS_EXAMPLE_SRC = "/brand/Products%20Photos.png" as const;
 
-const PREVIEW_EXAMPLES_SLIDE_INTERVAL_MS = 1500;
+const PREVIEW_EXAMPLES_SLIDE_INTERVAL_MS = 2000;
+
+/** `public/brand` asset URL (encodes spaces, ellipsis, etc. to match on-disk filenames). */
+function publicBrandAsset(filename: string): string {
+  return `/brand/${encodeURIComponent(filename)}`;
+}
+
 const PREVIEW_EXAMPLE_SLIDES = [
   {
     caption: "Products example",
@@ -39,7 +46,102 @@ const PREVIEW_EXAMPLE_SLIDES = [
     src: PUBLIC_GALLERY_EXAMPLE_SRC,
     alt: "Example of how a Gallery section can look on a public business profile",
   },
+  {
+    caption: "Gallery example 2",
+    src: PUBLIC_GALLERY_EXAMPLE_2_SRC,
+    alt: "Additional gallery layout example on a public business profile",
+  },
 ] as const;
+
+/** Industry-specific before/after examples (`public/brand`). */
+const PREVIEW_INDUSTRY_EXAMPLES = [
+  {
+    id: "restaurant",
+    label: "Restaurant",
+    src: "/brand/Steak_salad_restaurant_menu_picture_202606011551.jpeg",
+    alt: "Restaurant menu and dish photo example on a business profile",
+  },
+  {
+    id: "car-dealership",
+    label: "Car Dealership",
+    src: "/brand/Cars_for_sale_dealership_202606011741.jpeg",
+    alt: "Car dealership inventory example on a business profile",
+  },
+  {
+    id: "car-fix",
+    label: "Car Fix",
+    src: "/brand/Car_accident_and_repair_comparison_202606011536.jpeg",
+    alt: "Car accident and repair comparison example on a business profile",
+  },
+  {
+    id: "realtor",
+    label: "Realtor",
+    src: "/brand/Modern_house_for_sale_202606011709.jpeg",
+    alt: "Real estate listing example on a business profile",
+  },
+  {
+    id: "roofing",
+    label: "Roofing",
+    src: "/brand/Men_roofing_a_house_202606011712.jpeg",
+    alt: "Roofing work example on a business profile",
+  },
+  {
+    id: "pool-cleaning",
+    label: "Pool Cleaning",
+    src: "/brand/Pool_dirty_to_clean_202606011551.jpeg",
+    alt: "Pool cleaning before and after example on a business profile",
+  },
+  {
+    id: "logistics",
+    label: "Logistics",
+    src: "/brand/Branded_cards_for_work_purpose_202606011502.jpeg",
+    alt: "Logistics and branded work materials example on a business profile",
+  },
+  {
+    id: "hair-transplant",
+    label: "Hair Transplant",
+    src: "/brand/Man_hair_implantation_before_after_202606011551.jpeg",
+    alt: "Before and after hair transplant example on a business profile",
+  },
+  {
+    id: "face-hair-products",
+    label: "Face & Hair Products",
+    src: publicBrandAsset(
+      "Face_products_ready_for_advertis…_202606011700.jpeg",
+    ),
+    alt: "Face and hair product photography example on a business profile",
+  },
+  {
+    id: "gym",
+    label: "Gym",
+    src: "/brand/Realistic_gym_with_people_202606011714.jpeg",
+    alt: "Gym and fitness facility example on a business profile",
+  },
+  {
+    id: "corporate-offices",
+    label: "Corporate Offices",
+    src: "/brand/Recreate_photo_without_fleet_202606011509.jpeg",
+    alt: "Corporate office environment example on a business profile",
+  },
+  {
+    id: "interior-offices",
+    label: "Interior Offices",
+    src: "/brand/Office%20Rental_20260502_111519.png",
+    alt: "Interior office space example on a business profile",
+  },
+  {
+    id: "team",
+    label: "Team",
+    src: "/brand/Team_pictures_work_attire_202606011500.jpeg",
+    alt: "Team in work attire example on a business profile",
+  },
+] as const;
+
+type PreviewFrame = {
+  caption: string;
+  src: string;
+  alt: string;
+};
 
 type Props = {
   photos: BusinessPhotoPublic[];
@@ -539,15 +641,37 @@ export default function BusinessProfilePhotos({
   const [ctaBusy, setCtaBusy] = useState(false);
   const [previewExamplesOpen, setPreviewExamplesOpen] = useState(false);
   const [previewExampleSlideIndex, setPreviewExampleSlideIndex] = useState(0);
+  const [previewSlideshowPaused, setPreviewSlideshowPaused] = useState(false);
+  const [previewIndustryId, setPreviewIndustryId] = useState<string | null>(null);
+
+  const previewSlideCount = PREVIEW_EXAMPLE_SLIDES.length;
+
+  const goToPreviewSlide = useCallback((delta: number) => {
+    setPreviewIndustryId(null);
+    setPreviewExampleSlideIndex(
+      (i) => (i + delta + previewSlideCount) % previewSlideCount,
+    );
+  }, [previewSlideCount]);
+
+  const selectIndustryPreview = useCallback((industryId: string) => {
+    setPreviewIndustryId(industryId);
+    setPreviewSlideshowPaused(true);
+  }, []);
 
   useEffect(() => {
     if (!previewExamplesOpen) return;
     setPreviewExampleSlideIndex(0);
+    setPreviewSlideshowPaused(false);
+    setPreviewIndustryId(null);
+  }, [previewExamplesOpen]);
+
+  useEffect(() => {
+    if (!previewExamplesOpen || previewSlideshowPaused || previewIndustryId) return;
     const id = window.setInterval(() => {
-      setPreviewExampleSlideIndex((i) => (i + 1) % PREVIEW_EXAMPLE_SLIDES.length);
+      setPreviewExampleSlideIndex((i) => (i + 1) % previewSlideCount);
     }, PREVIEW_EXAMPLES_SLIDE_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [previewExamplesOpen]);
+  }, [previewExamplesOpen, previewSlideshowPaused, previewIndustryId, previewSlideCount]);
 
   const galleryPhotos = useMemo(
     () =>
@@ -628,15 +752,43 @@ export default function BusinessProfilePhotos({
   useEffect(() => {
     if (!previewExamplesOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setPreviewExamplesOpen(false);
+      if (e.key === "Escape") {
+        setPreviewExamplesOpen(false);
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goToPreviewSlide(-1);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goToPreviewSlide(1);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [previewExamplesOpen]);
+  }, [previewExamplesOpen, goToPreviewSlide]);
 
-  const previewExampleSlide =
-    PREVIEW_EXAMPLE_SLIDES[previewExampleSlideIndex] ?? PREVIEW_EXAMPLE_SLIDES[0];
+  const activeIndustryPreview = previewIndustryId
+    ? PREVIEW_INDUSTRY_EXAMPLES.find((item) => item.id === previewIndustryId) ?? null
+    : null;
+
+  const previewFrame: PreviewFrame = activeIndustryPreview
+    ? {
+        caption: activeIndustryPreview.label,
+        src: activeIndustryPreview.src,
+        alt: activeIndustryPreview.alt,
+      }
+    : {
+        caption: PREVIEW_EXAMPLE_SLIDES[previewExampleSlideIndex]?.caption ?? "",
+        src:
+          PREVIEW_EXAMPLE_SLIDES[previewExampleSlideIndex]?.src ??
+          PREVIEW_EXAMPLE_SLIDES[0].src,
+        alt:
+          PREVIEW_EXAMPLE_SLIDES[previewExampleSlideIndex]?.alt ??
+          PREVIEW_EXAMPLE_SLIDES[0].alt,
+      };
 
   return (
     <section
@@ -787,10 +939,10 @@ export default function BusinessProfilePhotos({
           onClick={() => setPreviewExamplesOpen(false)}
         >
           <div
-            className="relative max-h-[94vh] w-full max-w-[min(96vw,1400px)] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            className="relative flex h-[min(94dvh,940px)] max-h-[94dvh] w-full max-w-[min(96vw,1400px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5">
               <h2
                 id="public-preview-examples-title"
                 className="text-base font-semibold text-[#0E0E0E]"
@@ -806,21 +958,120 @@ export default function BusinessProfilePhotos({
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
-            <div className="max-h-[calc(94vh-3.25rem)] overflow-y-auto px-3 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 lg:pb-10">
-              <figure className="overflow-hidden rounded-xl bg-gray-50">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
+              <figure className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-gray-50">
                 <figcaption
-                  className="border-b border-gray-200/80 bg-white px-3 py-2 text-sm font-semibold text-[#0E0E0E] sm:px-4 sm:py-3 sm:text-base"
+                  className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200/80 bg-white px-3 py-1.5 sm:px-4"
                   aria-live="polite"
                 >
-                  {previewExampleSlide.caption}
+                  <span className="text-sm font-semibold text-[#0E0E0E]">
+                    {previewFrame.caption}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {activeIndustryPreview
+                      ? "Industry preview"
+                      : `${previewExampleSlideIndex + 1} / ${previewSlideCount}`}
+                  </span>
                 </figcaption>
-                <div className="flex items-center justify-center p-3 sm:p-4 lg:p-5">
+                <div className="relative min-h-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => goToPreviewSlide(-1)}
+                    className="absolute left-1 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:left-2"
+                    aria-label="Previous example slide"
+                  >
+                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                  </button>
                   {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
                   <img
-                    src={previewExampleSlide.src}
-                    alt={previewExampleSlide.alt}
-                    className="max-h-[min(78vh,720px)] w-full max-w-full object-contain"
+                    key={previewFrame.src}
+                    src={previewFrame.src}
+                    alt={previewFrame.alt}
+                    className="mx-auto block h-full max-h-full w-full max-w-full object-contain px-11 sm:px-12"
                   />
+                  <button
+                    type="button"
+                    onClick={() => goToPreviewSlide(1)}
+                    className="absolute right-1 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:right-2"
+                    aria-label="Next example slide"
+                  >
+                    <ChevronRight className="h-5 w-5" aria-hidden />
+                  </button>
+                  {!activeIndustryPreview ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewSlideshowPaused((p) => !p)}
+                      className="absolute left-1/2 top-1/2 z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border border-gray-200/90 bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-[#124541] shadow-lg backdrop-blur-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                      aria-pressed={previewSlideshowPaused}
+                      aria-label={
+                        previewSlideshowPaused
+                          ? "Resume automatic slideshow"
+                          : "Pause automatic slideshow"
+                      }
+                    >
+                      {previewSlideshowPaused ? (
+                        <>
+                          <Play className="h-3.5 w-3.5" aria-hidden />
+                          Play
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="h-3.5 w-3.5" aria-hidden />
+                          Pause
+                        </>
+                      )}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-col items-center gap-1.5 border-t border-gray-200/80 bg-white px-2 py-2 sm:px-3">
+                  <div className="flex max-h-[5.5rem] flex-wrap items-center justify-center gap-1 overflow-y-auto overscroll-contain">
+                    {PREVIEW_INDUSTRY_EXAMPLES.map((item) => {
+                      const isActive = previewIndustryId === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => selectIndustryPreview(item.id)}
+                          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-tight shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35 sm:text-[11px] ${
+                            isActive
+                              ? "border-[#1FAF9E] bg-[#1FAF9E]/10 text-[#0E3B36]"
+                              : "border-gray-300 bg-white text-[#124541] hover:bg-[#124541]/5"
+                          }`}
+                          aria-pressed={isActive}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div
+                    className="flex shrink-0 items-center gap-1.5"
+                    role="tablist"
+                    aria-label="Layout example slides"
+                  >
+                    {PREVIEW_EXAMPLE_SLIDES.map((slide, index) => {
+                      const isActive =
+                        !previewIndustryId && index === previewExampleSlideIndex;
+                      return (
+                        <button
+                          key={slide.src}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          aria-label={`Go to slide ${index + 1}: ${slide.caption}`}
+                          onClick={() => {
+                            setPreviewIndustryId(null);
+                            setPreviewExampleSlideIndex(index);
+                          }}
+                          className={`h-2 w-2 rounded-full transition ${
+                            isActive
+                              ? "bg-[#1FAF9E] scale-110"
+                              : "bg-gray-300 hover:bg-gray-400"
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </figure>
             </div>
