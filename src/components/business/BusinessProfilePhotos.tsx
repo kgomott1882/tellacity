@@ -803,13 +803,28 @@ export default function BusinessProfilePhotos({
           Business photos
         </h2>
         {showPublicPreviewExamples ? (
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
-            Photos help customers visualise the shop, products, and experience before
-            they commit. Businesses can upload photos from their Tellacity dashboard to
-            showcase their brand and build trust quickly.
-          </p>
+          <>
+            <p className="mt-3 text-sm text-gray-600">
+              Photos do more than showcase your business. They help customers trust you.
+              Original images of your products, services, team, or location show what
+              makes you different, and strong visuals can lift engagement and credibility
+              on your profile.
+            </p>
+            <p className="mt-3 text-sm text-gray-600">
+              Search engines look for fresh, unique content. When you add and refresh
+              photos over time, you give them more to crawl and index, which can support
+              SEO, image search, and other discovery features. AI-powered search is growing
+              too, and reviews, descriptions, and photos together give systems like Google
+              AI Overviews clearer context about your business.
+            </p>
+            <p className="mt-3 text-sm text-gray-600">
+              The more complete your Tellacity profile is, with reviews, business
+              information, and photos, the stronger your digital footprint becomes.
+              Upload from your dashboard whenever you are ready to showcase your brand.
+            </p>
+          </>
         ) : (
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600">
+          <p className="mt-3 text-sm text-gray-600">
             Photos help customers visualise the shop, products, and experience before
             they commit.
           </p>
