@@ -105,10 +105,10 @@ export default function ShareArticle({ title, path }: ShareArticleProps) {
     </div>
     <div className="mt-10 flex justify-center">
       <Link
-        href="/blog"
+        href="/articles"
         className="inline-flex items-center gap-2 rounded-full border-2 border-[#2fb2a8] bg-white px-6 py-3 text-sm font-semibold text-[#2fb2a8] transition-colors hover:bg-[#2fb2a8] hover:text-white"
       >
-        View more blog posts
+        View more articles
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14" />
           <path d="M12 5l7 7-7 7" />

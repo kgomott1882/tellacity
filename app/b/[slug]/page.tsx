@@ -8,6 +8,11 @@ import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
 import { getCountryName } from "@/lib/address";
 import { buildBusinessProfileJsonLdScripts } from "@/lib/businessReviewJsonLd";
+import {
+  businessProfileRobots,
+  isCanonicalBusinessProfileUrl,
+  isIndexableBusinessSlug,
+} from "@/lib/businessIndexability";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +24,9 @@ type BusinessMetaRow = {
   country_code?: string | null;
   city?: string | null;
 };
+
+const BUSINESS_META_SELECT =
+  "name, slug, canonical_slug, country_code, city";
 
 /**
  * Resolve the canonical URL slug for a business row.
@@ -64,7 +72,7 @@ export async function generateMetadata(
 
   const { data: businessBySlug } = await supabase
     .from("businesses")
-    .select("name, slug, canonical_slug, country_code, city")
+    .select(BUSINESS_META_SELECT)
     .eq("slug", normalized)
     .eq("status", "active")
     .maybeSingle();
@@ -76,7 +84,7 @@ export async function generateMetadata(
     if (cleanSlug && cleanSlug !== normalized) {
       const { data: fallbackRow } = await supabase
         .from("businesses")
-        .select("name, slug, canonical_slug, country_code, city")
+        .select(BUSINESS_META_SELECT)
         .eq("slug", cleanSlug)
         .eq("status", "active")
         .maybeSingle();
@@ -91,7 +99,7 @@ export async function generateMetadata(
   if (!business) {
     const { data: byCanonical } = await supabase
       .from("businesses")
-      .select("name, slug, canonical_slug, country_code, city")
+      .select(BUSINESS_META_SELECT)
       .eq("canonical_slug", normalized)
       .eq("status", "active")
       .maybeSingle();
@@ -101,11 +109,15 @@ export async function generateMetadata(
   if (!business) {
     return {
       title: `${slug} Reviews | Tellacity`,
+      robots: { index: false, follow: false },
     };
   }
 
   const name = String(business.name ?? "").trim() || slug;
   const canonicalSlug = pickCanonicalSlug(business);
+  const profileIndexable =
+    isCanonicalBusinessProfileUrl(normalized, canonicalSlug) &&
+    isIndexableBusinessSlug(canonicalSlug);
   const countryCode = String(business.country_code ?? "").trim();
   const countryLabel =
     getCountryName(countryCode) ||
@@ -132,7 +144,7 @@ export async function generateMetadata(
       title: `${name} Reviews | Tellacity`,
       description: `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, and TrustScore on Tellacity.`,
     },
-    robots: { index: true, follow: true },
+    robots: businessProfileRobots(profileIndexable),
   };
 }
 
@@ -271,6 +283,22 @@ export default async function BusinessPage({
     (business as { owner_id?: string | null }).owner_id
   );
 
+  const { data: publishedArticlesRows } = await supabase
+    .from("articles")
+    .select("id, title, slug, featured_image_url, published_at")
+    .eq("business_id", String(business.id))
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .limit(3);
+
+  const initialPublishedArticles = (publishedArticlesRows ?? []).map((row) => ({
+    id: String((row as { id: string }).id),
+    title: String((row as { title: string }).title),
+    slug: String((row as { slug: string }).slug),
+    featured_image_url: (row as { featured_image_url?: string | null }).featured_image_url ?? null,
+    published_at: (row as { published_at?: string | null }).published_at ?? null,
+  }));
+
   const canonicalSlugForJsonLd = pickCanonicalSlug({
     slug: (business as { slug?: string | null }).slug ?? null,
     canonical_slug: (business as { canonical_slug?: string | null }).canonical_slug ?? null,
@@ -306,6 +334,7 @@ export default async function BusinessPage({
         initialBusiness={business}
         initialBusinessPhotos={initialBusinessPhotos}
         initialIsClaimed={initialIsClaimed}
+        initialPublishedArticles={initialPublishedArticles}
       />
     </>
   );

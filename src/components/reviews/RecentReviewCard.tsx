@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Share2 } from "lucide-react";
@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import ReviewShareMenu from "@/components/ReviewShareMenu";
+import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import { similarBusinessLogoUrl } from "@/lib/logo";
 
 type BusinessReply = { body: string; createdAt: string };
@@ -28,7 +29,7 @@ type RecentReviewCardProps = {
   isMobile?: boolean;
   bgColor?: string;
   /** Homepage: roomier title/body spacing and gentler line clamps. */
-  variant?: "default" | "landing";
+  variant?: "default" | "landing" | "profile";
   /** Pulse highlight (e.g. after publishing , homepage). */
   highlight?: boolean;
 };
@@ -46,7 +47,6 @@ export default function RecentReviewCard({
   const router = useRouter();
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
-  const [logoImageError, setLogoImageError] = useState(false);
 
   const hasReply = businessReplies && businessReplies.length > 0;
   const firstReply = hasReply ? businessReplies[0] : null;
@@ -104,10 +104,6 @@ export default function RecentReviewCard({
       review.business?.website ??
       null,
   });
-
-  useEffect(() => {
-    setLogoImageError(false);
-  }, [reviewId, logoUrl]);
 
   const businessName =
     review.business_name ||
@@ -169,6 +165,7 @@ export default function RecentReviewCard({
   }
 
   const isLanding = variant === "landing";
+  const isProfile = variant === "profile";
   const businessHref = businessSlug
     ? `/b/${businessSlug}`
     : normalizedWebsiteDomain
@@ -179,8 +176,12 @@ export default function RecentReviewCard({
     <div
       onClick={!isLanding ? () => businessSlug && router.push(`/b/${businessSlug}`) : undefined}
       className={cn(
-        "flex flex-col rounded-xl border border-[#124541]/70 bg-white shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)] transition-all duration-500 overflow-hidden",
-        !isLanding && "h-full cursor-pointer",
+        "flex flex-col rounded-xl border bg-white transition-all duration-500 overflow-hidden",
+        isProfile
+          ? "border-gray-200 shadow-[0_8px_24px_-8px_rgba(10,10,10,0.08)]"
+          : "border-[#124541]/70 shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)] hover:shadow-[0_16px_34px_-12px_rgba(31,175,158,0.95)]",
+        !isLanding && !isProfile && "h-full cursor-pointer",
+        isProfile && "h-full cursor-pointer",
         isLanding &&
           "h-[328px] sm:h-[336px] cursor-default hover:shadow-[0_10px_24px_-14px_rgba(31,175,158,0.85)]",
         highlight &&
@@ -196,21 +197,11 @@ export default function RecentReviewCard({
           onClick={(event) => event.stopPropagation()}
           aria-label={`View ${businessName} profile`}
         >
-          <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
-            {logoUrl && !logoImageError ? (
-              <img
-                src={logoUrl}
-                alt={businessName}
-                className="h-full w-full object-contain"
-                referrerPolicy="no-referrer"
-                onError={() => setLogoImageError(true)}
-              />
-            ) : (
-              <span className="text-sm font-semibold uppercase text-slate-500">
-                {(businessName?.trim()?.[0] ?? "?").toUpperCase()}
-              </span>
-            )}
-          </div>
+          <SimilarBusinessLogo
+            logoUrl={logoUrl}
+            nameForAlt={businessName}
+            variant="compact"
+          />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
@@ -237,27 +228,23 @@ export default function RecentReviewCard({
             )}
 
             <div className="mt-2">
-              <RatingStars rating={rating} size={12} editable={false} />
+              <RatingStars
+                rating={rating}
+                size={12}
+                editable={false}
+                variant={isProfile ? "gold" : "default"}
+                className={isProfile ? "biz-rating-gold" : undefined}
+              />
             </div>
           </div>
         </Link>
       ) : (
         <div className={cn("flex gap-3", isLanding ? "shrink-0 px-3 py-3" : "p-4")}>
-        <div className="h-12 w-12 flex-shrink-0 rounded-sm flex items-center justify-center overflow-hidden bg-slate-50">
-          {logoUrl && !logoImageError ? (
-            <img
-              src={logoUrl}
-              alt={businessName}
-              className="h-full w-full object-contain"
-              referrerPolicy="no-referrer"
-              onError={() => setLogoImageError(true)}
-            />
-          ) : (
-            <span className="text-sm font-semibold uppercase text-slate-500">
-              {(businessName?.trim()?.[0] ?? "?").toUpperCase()}
-            </span>
-          )}
-        </div>
+        <SimilarBusinessLogo
+          logoUrl={logoUrl}
+          nameForAlt={businessName}
+          variant="compact"
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
@@ -290,7 +277,13 @@ export default function RecentReviewCard({
           )}
 
           <div className="mt-2">
-            <RatingStars rating={rating} size={12} editable={false} />
+            <RatingStars
+              rating={rating}
+              size={12}
+              editable={false}
+              variant={isProfile ? "gold" : "default"}
+              className={isProfile ? "biz-rating-gold" : undefined}
+            />
           </div>
         </div>
         </div>
@@ -305,7 +298,7 @@ export default function RecentReviewCard({
         )}
       >
         <div className="flex shrink-0 justify-between gap-2 text-xs text-slate-500">
-          <span className="min-w-0 truncate font-semibold text-slate-900">
+          <span className="min-w-0 truncate text-sm font-semibold text-slate-900">
             {reviewerName}
           </span>
           {/* Homepage "Recent reviews" carousel hides the review date on the card
@@ -327,7 +320,7 @@ export default function RecentReviewCard({
         ) : null}
 
         {shouldShowTitle && (
-          <div className="mt-0 line-clamp-1 break-words font-semibold text-sm text-slate-900">
+          <div className="mt-0 line-clamp-1 break-words text-xs font-semibold text-[#1FAF9E]">
             {titleTrim}
           </div>
         )}

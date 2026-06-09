@@ -317,7 +317,7 @@ export default function HelpCenterContent() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/reputation-platform" className={linkClass}>
+                  <Link href="/for-business" className={linkClass}>
                     Reputation Management Platform
                   </Link>
                 </li>

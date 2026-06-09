@@ -9,7 +9,6 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import {
-  businessCategoryPillClassName,
   formatBusinessTagLabel,
   mergeTagsForDisplay,
 } from "@/lib/businessTags";
@@ -20,6 +19,17 @@ import { sanitizeText } from "@/lib/sanitizeText";
 import RatingStars from "@/components/RatingStars";
 import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import BusinessProfilePhotos from "@/components/business/BusinessProfilePhotos";
+import BusinessProfileResponses from "@/components/business/BusinessProfileResponses";
+import {
+  fetchBusinessProfileResponseEntries,
+  type BusinessProfileResponseEntry,
+} from "@/lib/businessProfileResponses";
+import BusinessProfileArticles, {
+  type BusinessProfileArticleCard,
+} from "@/components/business/BusinessProfileArticles";
+import { buildBusinessCategoryArticlesHref } from "@/lib/articles/hubArticles";
+import HomeScrollProgress from "@/components/home/HomeScrollProgress";
+import { FadeUp } from "@/components/ui/MotionWrapper";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
@@ -73,6 +83,8 @@ type Review = {
   likeCount: number;
   /** From linked product photo when review is for a specific item. */
   productName: string | null;
+  ownerResponse: string | null;
+  ownerResponseAt: string | null;
 };
 
 type ReviewReply = {
@@ -111,8 +123,10 @@ const cleanDomain = (value: string | null | undefined) => {
   return value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 };
 
-const NO_BUSINESS_DETAILS_YET_COPY =
-  "This business hasn't added details yet.";
+const NO_COMPANY_DESCRIPTION_COPY =
+  "This business has not provided a company description yet.";
+
+const MIN_COMPANY_DESCRIPTION_LENGTH = 24;
 
 /** Empty or legacy auto-generated SEO paragraph stored on `businesses.description`. */
 function isOwnerWrittenBusinessDescription(
@@ -133,7 +147,24 @@ function isOwnerWrittenBusinessDescription(
   ) {
     return false;
   }
+  if (/is listed on tellacity under/i.test(t)) {
+    return false;
+  }
+  if (/read verified customer reviews/i.test(t) && /tellacity/i.test(t)) {
+    return false;
+  }
+  if (/listed on tellacity/i.test(t) && /category|under /i.test(t)) {
+    return false;
+  }
   return true;
+}
+
+function hasMeaningfulCompanyDescription(
+  text: string | null | undefined,
+): boolean {
+  const trimmed = (text ?? "").trim();
+  if (trimmed.length < MIN_COMPANY_DESCRIPTION_LENGTH) return false;
+  return isOwnerWrittenBusinessDescription(trimmed);
 }
 
 const formatDate = (value: string | null | undefined) => {
@@ -184,6 +215,12 @@ async function mapReviewRowsWithProductNames(
       createdAtRaw: (review.created_at as string | null | undefined) ?? null,
       likeCount: Number((review as { like_count?: number }).like_count ?? 0),
       productName,
+      ownerResponse: String(
+        (review as { owner_response?: string | null }).owner_response ?? "",
+      ).trim() || null,
+      ownerResponseAt: formatDate(
+        (review as { owner_response_at?: string | null }).owner_response_at,
+      ),
     };
   });
 }
@@ -267,12 +304,14 @@ type BusinessClientProps = {
    * public profile can hide the "Claim this profile" teaser when not needed.
    */
   initialIsClaimed?: boolean;
+  initialPublishedArticles?: BusinessProfileArticleCard[];
 };
 
 export default function BusinessClient({
   initialBusiness = null,
   initialBusinessPhotos,
   initialIsClaimed = false,
+  initialPublishedArticles = [],
 }: BusinessClientProps) {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
@@ -329,6 +368,11 @@ export default function BusinessClient({
   const [repliesByReviewId, setRepliesByReviewId] = useState<
     Record<string, ReviewReply[]>
   >({});
+  const [businessResponseEntries, setBusinessResponseEntries] = useState<
+    BusinessProfileResponseEntry[]
+  >([]);
+  const [isLoadingBusinessResponses, setIsLoadingBusinessResponses] =
+    useState(true);
   const [isLoadingBusiness, setIsLoadingBusiness] = useState(!initialBusiness);
   const [isLoadingReviews, setIsLoadingReviews] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -831,9 +875,10 @@ export default function BusinessClient({
     };
 
     const fetchReplies = async (
-      reviewIds: string[],
+      reviewList: Review[],
       replaceExisting: boolean
     ) => {
+      const reviewIds = reviewList.map((item) => item.id);
       if (reviewIds.length === 0) {
         if (replaceExisting) {
           setRepliesByReviewId({});
@@ -870,10 +915,38 @@ export default function BusinessClient({
         {}
       );
 
+      const mergeOwnerResponses = (
+        reviewList: Review[],
+        replyMap: Record<string, ReviewReply[]>,
+      ): Record<string, ReviewReply[]> => {
+        const merged = { ...replyMap };
+        for (const review of reviewList) {
+          const ownerBody = review.ownerResponse?.trim();
+          if (!ownerBody) continue;
+          const existing = merged[review.id] ?? [];
+          const alreadyPresent = existing.some(
+            (reply) => reply.body.trim().toLowerCase() === ownerBody.toLowerCase(),
+          );
+          if (alreadyPresent) continue;
+          merged[review.id] = [
+            {
+              id: `owner-${review.id}`,
+              reviewId: review.id,
+              body: ownerBody,
+              createdAt: review.ownerResponseAt ?? "",
+            },
+            ...existing,
+          ];
+        }
+        return merged;
+      };
+
+      const withOwnerResponses = mergeOwnerResponses(reviewList, grouped);
+
       if (replaceExisting) {
-        setRepliesByReviewId(grouped);
+        setRepliesByReviewId(withOwnerResponses);
       } else {
-        setRepliesByReviewId((prev) => ({ ...prev, ...grouped }));
+        setRepliesByReviewId((prev) => ({ ...prev, ...withOwnerResponses }));
       }
     };
 
@@ -887,7 +960,7 @@ export default function BusinessClient({
       const { data, error, count } = await sb
         .from("reviews")
         .select(
-          "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id",
+          "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id, owner_response, owner_response_at",
           { count: "exact" }
         )
         .eq("business_id", businessId)
@@ -906,8 +979,7 @@ export default function BusinessClient({
           (data ?? []) as Array<Record<string, unknown>>,
         );
         setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
-        const reviewIds = mapped.map((item) => item.id);
-        void fetchReplies(reviewIds, !append);
+        void fetchReplies(mapped, !append);
         const totalCount = count ?? mapped.length;
         setTotalReviewCount(totalCount);
         setHasMoreReviews(offset + mapped.length < totalCount);
@@ -951,6 +1023,39 @@ export default function BusinessClient({
       window.removeEventListener("pageshow", onPageShow);
     };
   }, [business?.id, pathname]);
+
+  useEffect(() => {
+    const businessId = business?.id;
+    if (!businessId) {
+      setBusinessResponseEntries([]);
+      setIsLoadingBusinessResponses(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingBusinessResponses(true);
+
+    const loadBusinessResponses = async () => {
+      const sb = supabaseBrowser();
+      const entries = await fetchBusinessProfileResponseEntries(sb, businessId);
+      if (!isMounted) return;
+      setBusinessResponseEntries(entries);
+      setIsLoadingBusinessResponses(false);
+    };
+
+    void loadBusinessResponses();
+
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || !isMounted) return;
+      void loadBusinessResponses();
+    };
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      isMounted = false;
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [business?.id]);
 
   const ratingCounts = useMemo(() => {
     const empty = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, total: 0 };
@@ -1073,6 +1178,12 @@ export default function BusinessClient({
     categoryTrail?.categoryName,
   ]);
 
+  const categoryArticlesHref = useMemo(() => {
+    const slug = business?.categorySlug?.trim();
+    if (!slug) return null;
+    return buildBusinessCategoryArticlesHref(slug);
+  }, [business?.categorySlug]);
+
   const rankingsCountryCode =
     (business?.countryCode || "US").trim().toUpperCase() || "US";
 
@@ -1113,7 +1224,8 @@ export default function BusinessClient({
 
   return (
     <>
-      <main className="bg-white">
+      <main className="business-cinematic">
+      <HomeScrollProgress />
       {duplicateNoticeOpen && (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
           <div className="flex w-full max-w-md items-start gap-3 rounded-xl bg-[#124541] px-4 py-3 text-sm text-white shadow-lg">
@@ -1134,10 +1246,11 @@ export default function BusinessClient({
           </div>
         </div>
       )}
-      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-16 pt-6">
+        <div className="biz-profile-hero biz-profile-hero-animate">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <nav className="min-w-0 flex-1 text-xs text-gray-500">
-            <Link href={`/categories${categoryListingsQs}`} className="hover:text-[#1FAF9E]">
+          <nav className="biz-breadcrumb-nav min-w-0 flex-1 text-xs">
+            <Link href={`/categories${categoryListingsQs}`}>
               Categories
             </Link>
             {categoryTrail?.groupName && categoryTrail?.groupSlug && (
@@ -1145,7 +1258,6 @@ export default function BusinessClient({
                 <span className="mx-2">›</span>
                 <Link
                   href={`/categories/${categoryTrail.groupSlug}${categoryListingsQs}`}
-                  className="hover:text-[#1FAF9E]"
                 >
                   {sanitizeText(categoryTrail.groupName)}
                 </Link>
@@ -1156,14 +1268,13 @@ export default function BusinessClient({
                 <span className="mx-2">›</span>
                 <Link
                   href={`/categories/${categoryTrail.categorySlug}${categoryListingsQs}`}
-                  className="hover:text-[#1FAF9E]"
                 >
                   {sanitizeText(categoryTrail.categoryName)}
                 </Link>
               </>
             )}
             <span className="mx-2">›</span>
-            <span className="text-gray-700">
+            <span className="biz-breadcrumb-current">
               {sanitizeText(business?.name ?? "Business")}
             </span>
           </nav>
@@ -1175,14 +1286,14 @@ export default function BusinessClient({
                 businessSlug: business.slug ?? null,
                 website: business.website ?? null,
               })}
-              className="inline-flex shrink-0 items-center self-start rounded border border-[#124541] bg-[#124541] px-2 py-0.5 text-xs font-semibold leading-none text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#124541]/35"
+              className="biz-btn-claim inline-flex shrink-0 items-center self-start rounded-full px-3 py-1.5 text-xs font-semibold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40"
             >
               Claim this profile
             </Link>
           ) : null}
         </div>
 
-        <div className="mt-6 flex flex-col gap-6 border-b border-gray-200 pb-10">
+        <div className="mt-6 flex flex-col gap-6 pb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <SimilarBusinessLogo
               key={`${business?.id ?? slug}-${businessLogoUrl ?? "none"}`}
@@ -1200,28 +1311,33 @@ export default function BusinessClient({
               ) : (
                 <>
                   <div className="mt-3 flex items-center gap-2">
-                    <h1 className="text-3xl font-semibold text-[#0E0E0E]">
+                    <h1>
                       {sanitizeText(business?.name ?? "")} Reviews
                     </h1>
                     {derivedReviewCount > 0 && (
                       <img
                         src="/brand/Tellacity%20Vefication%20Batch.png"
                         alt="Tellacity verified reviews"
-                        className="h-5 w-5 shrink-0"
+                        className="biz-verified-badge h-5 w-5 shrink-0"
                       />
                     )}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                  <div className="biz-hero-meta mt-2 flex flex-wrap items-center gap-2 text-sm">
                     <span>
                       Reviews {derivedReviewCount.toLocaleString()}
                     </span>
-                    <span>•</span>
+                    <span aria-hidden>•</span>
                     <div className="flex items-center gap-1">
-                      <RatingStars rating={derivedAverageRating} size={14} />
-                      <span className="font-semibold text-[#0E0E0E]">
+                      <RatingStars
+                        rating={derivedAverageRating}
+                        size={14}
+                        variant="gold"
+                        className="biz-rating-gold"
+                      />
+                      <span className="font-semibold text-[#0A0A0A]">
                         {derivedAverageRating.toFixed(1)}
                       </span>
-                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#2563EB] text-[10px] text-[#2563EB]">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] text-gray-500">
                         i
                       </span>
                     </div>
@@ -1237,11 +1353,9 @@ export default function BusinessClient({
                         : "");
                     if (!primaryLabel) return null;
                     return (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className={businessCategoryPillClassName()}>
-                          {primaryLabel}
-                        </span>
-                      </div>
+                      <p className="mt-2 text-sm text-gray-600">
+                        {primaryLabel}
+                      </p>
                     );
                   })()}
                 </>
@@ -1255,7 +1369,7 @@ export default function BusinessClient({
                         )}`
                       : "/write-review"
                   }
-                  className="inline-flex items-center gap-2 rounded-full bg-[#1FAF9E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#169786] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                  className="biz-btn-primary inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40"
                 >
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" />
@@ -1268,7 +1382,7 @@ export default function BusinessClient({
                     href={buildWebsiteHref(business.website)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-[#2563EB] px-5 py-2 text-sm font-semibold text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/30"
+                    className="biz-btn-outline inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/30"
                   >
                     Visit website
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1284,40 +1398,20 @@ export default function BusinessClient({
             </div>
           </div>
           {business && (
-            <p className="mt-4 mb-6 max-w-2xl text-sm text-gray-600">
+            <p className="biz-hero-tagline mt-2 max-w-2xl text-sm">
               Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews or share your experience.
             </p>
           )}
         </div>
+        </div>
 
-        {business ? (
-          <div className="mt-10">
-            <BusinessProfilePhotos
-              businessId={business.id}
-              businessWebsite={business.website}
-              businessSlug={business.slug ?? null}
-              photos={businessPhotos}
-              claimSignupPrefill={
-                !initialIsClaimed && business
-                  ? {
-                      businessId: business.id,
-                      businessName: business.name,
-                      businessSlug: business.slug || null,
-                      website: business.website || null,
-                    }
-                  : null
-              }
-            />
-          </div>
-        ) : null}
-
-        <div className="mt-10 space-y-10">
-          <div>
-              <div className="mt-10">
-                <h2 className="text-lg font-semibold text-[#0E0E0E]">
-                  Review summary
+        <div className="space-y-0">
+          <FadeUp className="biz-summary-section">
+              <div>
+                <h2 className="biz-section-title text-lg">
+                  <span className="biz-section-accent">Review</span> summary
                 </h2>
-                <p className="mt-3 text-sm text-gray-600">
+                <p className="biz-section-sub mt-3 text-sm">
                   Reviews are written by real customers and moderated for authenticity.
                   This breakdown shows how many reviews fall into each star level,
                   helping you see the overall pattern of feedback. The TrustScore
@@ -1325,13 +1419,13 @@ export default function BusinessClient({
                   other platform signals.
                 </p>
 
-                <div className="mt-8 rounded-2xl border border-gray-200 p-5">
+                <div className="biz-summary-card mt-8">
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <div className="text-4xl font-semibold text-[#0E0E0E]">
+                      <div className="biz-summary-score">
                         {business ? derivedAverageRating.toFixed(1) : "0.0"}
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-[#0E0E0E]">
+                      <p className="biz-summary-label mt-1 text-sm">
                         {derivedAverageRating >= 4.5
                           ? "Excellent"
                           : derivedAverageRating >= 3.5
@@ -1343,35 +1437,43 @@ export default function BusinessClient({
                           : "No reviews yet"}
                       </p>
                       <div className="mt-2">
-                        <RatingStars rating={derivedAverageRating} size={16} />
+                        <RatingStars
+                          rating={derivedAverageRating}
+                          size={16}
+                          variant="gold"
+                          className="biz-rating-gold"
+                        />
                       </div>
                       <p className="mt-2 text-xs text-gray-500">
                         {derivedReviewCount.toLocaleString()} reviews
                       </p>
                     </div>
-                    <div className="w-full max-w-sm space-y-2 text-xs text-gray-500">
+                    <div className="biz-star-bars w-full max-w-sm space-y-2">
                       {[
-                        { label: "5-star", count: ratingCounts[5] ?? 0, color: "bg-[#1FAF9E]" },
-                        { label: "4-star", count: ratingCounts[4] ?? 0, color: "bg-[#78C850]" },
-                        { label: "3-star", count: ratingCounts[3] ?? 0, color: "bg-[#F4C542]" },
-                        { label: "2-star", count: ratingCounts[2] ?? 0, color: "bg-[#F59E0B]" },
-                        { label: "1-star", count: ratingCounts[1] ?? 0, color: "bg-[#EF4444]" },
+                        { label: "5-star", count: ratingCounts[5] ?? 0 },
+                        { label: "4-star", count: ratingCounts[4] ?? 0 },
+                        { label: "3-star", count: ratingCounts[3] ?? 0 },
+                        { label: "2-star", count: ratingCounts[2] ?? 0 },
+                        { label: "1-star", count: ratingCounts[1] ?? 0 },
                       ].map((row) => {
                         const total =
                           ratingCounts.total ||
                           derivedReviewCount ||
                           1;
+                        const pct = Math.round((row.count / total) * 100);
                         return (
                           <div key={row.label} className="flex items-center gap-3">
-                            <span className="w-12 text-right text-gray-600">
+                            <span className="biz-star-bar-label">
                               {row.label}
                             </span>
-                            <div className="h-2 flex-1 rounded-full bg-gray-100">
+                            <div className="biz-star-bar-track">
                               <div
-                                className={`h-2 rounded-full ${row.color}`}
-                                style={{
-                                  width: `${Math.round((row.count / total) * 100)}%`,
-                                }}
+                                className="biz-star-bar-fill"
+                                style={
+                                  {
+                                    "--bar-pct": `${pct}%`,
+                                  } as React.CSSProperties
+                                }
                               />
                             </div>
                           </div>
@@ -1379,31 +1481,32 @@ export default function BusinessClient({
                       })}
                     </div>
                   </div>
-                  <div className="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                  <div className="mt-6 border-t border-gray-200 pt-4 text-sm">
                     <button
                       type="button"
                       onClick={() => {
                         setTrustScoreStep(0);
                         setIsTrustScoreOpen(true);
                       }}
-                      className="inline-flex items-center gap-2 text-[#0E0E0E] underline underline-offset-4 hover:text-[#1FAF9E]"
+                      className="biz-trust-link inline-flex items-center gap-2"
                     >
                       How is the TrustScore calculated?
                     </button>
                   </div>
                 </div>
               </div>
+          </FadeUp>
 
-            <div className="mt-10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-[#0E0E0E]">
+            <FadeUp className="biz-reviews-section">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="biz-section-title text-lg">
                   Customer reviews of {sanitizeText(business?.name ?? "Business")}
                 </h2>
-                <span className="text-xs text-gray-500">
+                <span className="biz-count-pill shrink-0">
                   {derivedReviewCount.toLocaleString()} total
                 </span>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="biz-section-sub mt-2 text-sm">
                 Read real experiences from customers who have interacted with{" "}
                 {sanitizeText(business?.name ?? "this business")}. Reviews are
                 moderated for authenticity and can be reported if they violate
@@ -1447,38 +1550,26 @@ export default function BusinessClient({
                 )}
 
                 {!isLoadingReviews && reviews.length > 0 && (
-                  <div style={{ position: "relative" }}>
+                  <div className="relative">
                     <button
                       type="button"
                       aria-label="Scroll reviews left"
                       onClick={scrollReviewsRowLeft}
-                      style={{
-                        position: "absolute",
-                        left: "-10px",
-                        top: "40%",
-                        zIndex: 10,
-                        pointerEvents: "auto",
-                      }}
-                      className={`${CAROUSEL_NAV_BUTTON_CLASS} opacity-90 transition-opacity hover:opacity-100`}
+                      className={`biz-carousel-nav ${CAROUSEL_NAV_BUTTON_CLASS} absolute -left-3 top-[40%] z-10 opacity-90 transition-opacity hover:opacity-100 sm:-left-4`}
                     >
                       <CarouselNavChevron dir="left" />
                     </button>
                     <div
                       ref={scrollContainerRef}
-                      style={{
-                        display: "flex",
-                        overflowX: "auto",
-                        gap: "16px",
-                        scrollBehavior: "smooth",
-                        padding: "0 40px",
-                      }}
+                      className="biz-reviews-carousel flex gap-4 overflow-x-auto scroll-smooth pb-2"
                     >
                       {reviews.map((review) => (
                         <div
                           key={review.id}
-                          className="w-[min(85vw,380px)] shrink-0 self-stretch"
+                          className="biz-review-card-wrap w-[min(85vw,380px)] shrink-0 self-stretch"
                         >
                           <RecentReviewCard
+                            variant="profile"
                             className="h-full"
                             review={{
                               id: review.id,
@@ -1506,14 +1597,7 @@ export default function BusinessClient({
                       type="button"
                       aria-label="Scroll reviews right"
                       onClick={scrollReviewsRowRight}
-                      style={{
-                        position: "absolute",
-                        right: "-10px",
-                        top: "40%",
-                        zIndex: 10,
-                        pointerEvents: "auto",
-                      }}
-                      className={`${CAROUSEL_NAV_BUTTON_CLASS} opacity-90 transition-opacity hover:opacity-100`}
+                      className={`biz-carousel-nav ${CAROUSEL_NAV_BUTTON_CLASS} absolute -right-3 top-[40%] z-10 opacity-90 transition-opacity hover:opacity-100 sm:-right-4`}
                     >
                       <CarouselNavChevron dir="right" />
                     </button>
@@ -1523,7 +1607,7 @@ export default function BusinessClient({
                   <p className="mt-4 text-xs text-gray-500">
                     See all reviews and trust signals on the{" "}
                     <Link
-                      href="/reputation-platform"
+                      href="/for-business"
                       className="font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]"
                     >
                       Tellacity Review Platform
@@ -1546,7 +1630,7 @@ export default function BusinessClient({
                         const { data, error, count } = await sb
                           .from("reviews")
                           .select(
-                            "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id",
+                            "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id, owner_response, owner_response_at",
                             { count: "exact" }
                           )
                           .eq("business_id", business.id)
@@ -1564,8 +1648,8 @@ export default function BusinessClient({
                             ...prevReviews,
                             ...mapped,
                           ]);
-                          const reviewIds = mapped.map((item) => item.id);
-                          if (reviewIds.length > 0) {
+                          if (mapped.length > 0) {
+                            const reviewIds = mapped.map((item) => item.id);
                             const { data: replyData } = await sb
                               .from("review_replies")
                               .select(
@@ -1575,29 +1659,50 @@ export default function BusinessClient({
                               .eq("author_role", "business")
                               .order("created_at", { ascending: true });
 
-                            if (replyData) {
-                              const grouped =
-                                replyData.reduce<Record<string, ReviewReply[]>>(
-                                  (acc, reply) => {
-                                    const reviewId = reply.review_id;
-                                    if (!acc[reviewId]) {
-                                      acc[reviewId] = [];
-                                    }
-                                    acc[reviewId].push({
-                                      id: reply.id,
-                                      reviewId,
-                                      body: reply.body ?? "",
-                                      createdAt: formatDate(reply.created_at),
-                                    });
-                                    return acc;
-                                  },
-                                  {}
-                                );
-                              setRepliesByReviewId((prev) => ({
-                                ...prev,
-                                ...grouped,
-                              }));
+                            const grouped =
+                              (replyData ?? []).reduce<Record<string, ReviewReply[]>>(
+                                (acc, reply) => {
+                                  const reviewId = reply.review_id;
+                                  if (!acc[reviewId]) {
+                                    acc[reviewId] = [];
+                                  }
+                                  acc[reviewId].push({
+                                    id: reply.id,
+                                    reviewId,
+                                    body: reply.body ?? "",
+                                    createdAt: formatDate(reply.created_at),
+                                  });
+                                  return acc;
+                                },
+                                {},
+                              );
+
+                            const merged = { ...grouped };
+                            for (const review of mapped) {
+                              const ownerBody = review.ownerResponse?.trim();
+                              if (!ownerBody) continue;
+                              const existing = merged[review.id] ?? [];
+                              const alreadyPresent = existing.some(
+                                (reply) =>
+                                  reply.body.trim().toLowerCase() ===
+                                  ownerBody.toLowerCase(),
+                              );
+                              if (alreadyPresent) continue;
+                              merged[review.id] = [
+                                {
+                                  id: `owner-${review.id}`,
+                                  reviewId: review.id,
+                                  body: ownerBody,
+                                  createdAt: review.ownerResponseAt ?? "",
+                                },
+                                ...existing,
+                              ];
                             }
+
+                            setRepliesByReviewId((prev) => ({
+                              ...prev,
+                              ...merged,
+                            }));
                           }
                           const totalCount = count ?? mapped.length;
                           setHasMoreReviews(
@@ -1615,119 +1720,169 @@ export default function BusinessClient({
                   </div>
                 )}
               </div>
-            </div>
+            </FadeUp>
 
-              <div className="mt-10 space-y-6 text-sm text-gray-600">
-                <div className="border-b border-gray-200 pb-6">
-                  <h2 className="text-lg font-semibold text-[#0E0E0E]">
-                    About {sanitizeText(business?.name ?? "Business")}
+            <FadeUp className="biz-responses-section-wrap">
+              {business ? (
+                <BusinessProfileResponses
+                  businessName={business.name}
+                  entries={businessResponseEntries}
+                  isLoading={isLoadingBusinessResponses}
+                />
+              ) : null}
+            </FadeUp>
+
+            <FadeUp className="biz-about-section">
+              <div className="space-y-0 text-sm">
+                <div className="biz-about-block">
+                  <h2 className="biz-section-title text-lg">
+                    <span className="biz-section-accent">About</span>{" "}
+                    {sanitizeText(business?.name ?? "Business")}
                   </h2>
-                  <p className="mt-3 text-sm text-gray-600">
-                    Business owners can use this section to describe their services,
-                    opening hours, and what makes them unique. Add a description,
-                    hours, services, and contact details to make this profile more
-                    useful for customers and search engines.
+                  <p className="biz-section-sub mt-3 text-sm">
+                    Contact details and background information about this business.
                   </p>
                 </div>
-                {/* Company description. Owner text only; no SEO filler or category fallback */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                <div className="biz-about-block">
+                  <h3 className="biz-field-label">
                     Company description
                   </h3>
-                  <p className="mt-3 whitespace-pre-wrap text-gray-600">
-                    {business &&
-                    isOwnerWrittenBusinessDescription(business.description)
+                  <p className="biz-field-value mt-3 whitespace-pre-wrap">
+                    {business && hasMeaningfulCompanyDescription(business.description)
                       ? sanitizeText(business.description.trim())
-                      : NO_BUSINESS_DETAILS_YET_COPY}
+                      : (
+                        <span className="biz-field-empty">{NO_COMPANY_DESCRIPTION_COPY}</span>
+                      )}
                   </p>
                 </div>
 
-                {/* Address - full address + country name, else city + country name, else country name (never code) */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                <div className="biz-about-block">
+                  <h3 className="biz-field-label">
                     Address
                   </h3>
-                  <p className="mt-3">
+                  <p className="biz-field-value mt-3">
                     {sanitizeText(formatBusinessAddress(
                       business?.address,
                       business?.city,
                       business?.countryCode
-                    )) || "Not provided."}
+                    )) || (
+                      <span className="biz-field-empty">Not provided.</span>
+                    )}
                   </p>
                 </div>
 
-                {/* Contact info - Email and Phone as separate fields, same as Profile page */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-base font-semibold text-[#0E0E0E]">
+                <div className="biz-about-block">
+                  <h3 className="biz-field-label">
                     Contact info
                   </h3>
-                  <p className="mt-2 text-gray-500">Tell your customers how to get in touch.</p>
+                  <p className="biz-section-sub mt-2 text-sm">
+                    How to reach this business directly.
+                  </p>
                   <div className="mt-4 space-y-4">
                     <div>
-                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Email</span>
+                      <span className="biz-field-label">Email</span>
                       {business?.email?.trim() ? (
                         <a
                           href={`mailto:${business.email.trim()}`}
-                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                          className="biz-link-teal mt-1 block"
                         >
                           {sanitizeText(business.email.trim())}
                         </a>
                       ) : (
-                        <p className="mt-1 text-gray-500">Not provided.</p>
+                        <p className="biz-field-empty mt-1">Not provided.</p>
                       )}
                     </div>
                     <div>
-                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Phone number</span>
+                      <span className="biz-field-label">Phone number</span>
                       {business?.phone?.trim() ? (
                         <a
                           href={`tel:${business.phone.trim().replace(/\s/g, "")}`}
-                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                          className="biz-link-teal mt-1 block"
                         >
                           {sanitizeText(business.phone.trim())}
                         </a>
                       ) : (
-                        <p className="mt-1 text-gray-500">Not provided.</p>
+                        <p className="biz-field-empty mt-1">Not provided.</p>
                       )}
                     </div>
                     <div>
-                      <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Website</span>
+                      <span className="biz-field-label">Website</span>
                       {business?.website?.trim() ? (
                         <a
                           href={buildWebsiteHref(business.website)}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-1 block text-[#1FAF9E] hover:underline"
+                          className="biz-link-teal mt-1 inline-flex items-center gap-1"
                         >
                           {sanitizeText(business.website)}
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <path d="M14 3h7v7" />
+                            <path d="M10 14L21 3" />
+                          </svg>
                         </a>
                       ) : (
-                        <p className="mt-1 text-gray-500">Not provided.</p>
+                        <p className="biz-field-empty mt-1">Not provided.</p>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
+            </FadeUp>
+
+            {business ? (
+              <FadeUp className="biz-photos-section">
+                <BusinessProfilePhotos
+                  businessId={business.id}
+                  businessWebsite={business.website}
+                  businessSlug={business.slug ?? null}
+                  photos={businessPhotos}
+                  claimSignupPrefill={
+                    !initialIsClaimed && business
+                      ? {
+                          businessId: business.id,
+                          businessName: business.name,
+                          businessSlug: business.slug || null,
+                          website: business.website || null,
+                        }
+                      : null
+                  }
+                />
+              </FadeUp>
+            ) : null}
+
+            {business?.slug ? (
+              <FadeUp className="biz-articles-section">
+                <BusinessProfileArticles
+                  businessName={business.name}
+                  businessSlug={business.slug}
+                  articles={initialPublishedArticles}
+                  categoryLabel={categoryPublicLabel || null}
+                  categoryArticlesHref={categoryArticlesHref}
+                />
+              </FadeUp>
+            ) : null}
 
               {business?.categorySlug?.trim() && (
-                <div className="mt-10">
-                  <h2 className="text-lg font-semibold text-[#0E0E0E]">
+                <FadeUp className="biz-rankings-section">
+                <div>
+                  <h2 className="biz-section-title text-lg">
                     Explore rankings for{" "}
                     {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)} in{" "}
                     {rankingsCountryName}
                   </h2>
-                  <p className="mt-2 max-w-3xl text-sm text-gray-600">
+                  <p className="biz-section-sub mt-2 max-w-3xl text-sm">
                     Compare {sanitizeText(business.name)} with other highly rated
                     businesses in the same category and country. Visitors can use these
                     rankings to discover nearby options and see how different businesses
                     perform on Tellacity.
                   </p>
-                  <div className="mt-4 rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
+                  <div className="biz-rankings-card mt-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h4 className="text-xl font-semibold text-[#0E0E0E]">
+                          <h4 className="text-xl font-semibold">
                             Top rated companies
                           </h4>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-white/55">
                             {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)}{" "}
                             · {rankingsCountryCode}
                           </p>
@@ -1736,7 +1891,7 @@ export default function BusinessClient({
                           href={`/categories/${encodeURIComponent(
                             business.categorySlug.trim()
                           )}?country=${encodeURIComponent(rankingsCountryCode)}`}
-                          className="shrink-0 text-sm font-medium text-[#1FAF9E] hover:underline"
+                          className="biz-link-teal shrink-0 text-sm font-medium hover:underline"
                         >
                           View category rankings →
                         </Link>
@@ -1777,9 +1932,9 @@ export default function BusinessClient({
                             <Link
                               key={item.id}
                               href={`/b/${item.slug}`}
-                              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                              className="biz-similar-item flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition-colors hover:border-[#00B4A6]"
                             >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
                                 {item.logoUrl ? (
                                   <img
                                     src={
@@ -1800,12 +1955,12 @@ export default function BusinessClient({
                                 <div className="truncate">
                                   {sanitizeText(item.name)}
                                 </div>
-                                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-white/60">
                                   <RatingStars
                                     rating={item.trustScore}
                                     size={11}
                                   />
-                                  <span className="font-medium text-[#0E0E0E]">
+                                  <span className="font-medium text-white">
                                     {item.trustScore.toFixed(1)}
                                   </span>
                                   <span>
@@ -1819,12 +1974,12 @@ export default function BusinessClient({
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-4 text-sm text-gray-500">
+                        <p className="mt-4 text-sm text-white/60">
                           <Link
                             href={`/categories/${encodeURIComponent(
                               business.categorySlug.trim()
                             )}?country=${encodeURIComponent(rankingsCountryCode)}`}
-                            className="font-medium text-[#1FAF9E] hover:underline"
+                            className="biz-link-teal font-medium hover:underline"
                           >
                             Browse rankings on the category page
                           </Link>
@@ -1832,19 +1987,30 @@ export default function BusinessClient({
                       )}
                   </div>
                 </div>
+                </FadeUp>
               )}
 
               {business?.categorySlug?.trim() &&
                 business?.countryCode &&
                 (relatedBusinessesLoading || relatedBusinesses.length > 0) && (
-                  <div className="mt-10">
-                    <h3 className="text-lg font-semibold text-[#0E0E0E]">
-                      More businesses like this
-                    </h3>
-                    <div className="mt-4 rounded-2xl border-2 border-[#1FAF9E]/45 bg-white p-5 shadow-[0_12px_36px_-14px_rgba(31,175,158,0.7)]">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <h4 className="text-xl font-semibold text-[#0E0E0E]">
+                  <FadeUp className="biz-similar-section">
+                  <div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <h3 className="biz-section-title text-lg">
+                        More businesses like this
+                      </h3>
+                      <Link
+                        href={`/categories/${encodeURIComponent(
+                          business.categorySlug.trim(),
+                        )}?country=${encodeURIComponent(rankingsCountryCode)}`}
+                        className="biz-link-teal shrink-0 text-sm font-medium hover:underline"
+                      >
+                        View full directory →
+                      </Link>
+                    </div>
+                    <div className="biz-similar-card mt-4">
+                      <div>
+                          <h4 className="text-xl font-semibold text-[#0A0A0A]">
                             Same category and country
                           </h4>
                           <p className="mt-1 text-xs text-gray-500">
@@ -1853,15 +2019,6 @@ export default function BusinessClient({
                             · {rankingsCountryCode}
                           </p>
                         </div>
-                        <Link
-                          href={`/categories/${encodeURIComponent(
-                            business.categorySlug.trim(),
-                          )}?country=${encodeURIComponent(rankingsCountryCode)}`}
-                          className="shrink-0 text-sm font-medium text-[#1FAF9E] hover:underline"
-                        >
-                          View full directory →
-                        </Link>
-                      </div>
 
                       {relatedBusinessesLoading ? (
                         <div
@@ -1898,9 +2055,9 @@ export default function BusinessClient({
                             <Link
                               key={item.id}
                               href={`/b/${item.slug}`}
-                              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0E0E0E] transition-colors hover:border-[#1FAF9E] hover:bg-[#F8FFFE]"
+                              className="biz-similar-item flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#0A0A0A] transition-colors"
                             >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#EDEDED] bg-[#FCF7F6]">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-[#F5F0E8]">
                                 {item.logoUrl ? (
                                   <img
                                     src={
@@ -1926,7 +2083,7 @@ export default function BusinessClient({
                                     rating={item.trustScore}
                                     size={11}
                                   />
-                                  <span className="font-medium text-[#0E0E0E]">
+                                  <span className="font-medium text-[#0A0A0A]">
                                     {item.trustScore.toFixed(1)}
                                   </span>
                                   <span>
@@ -1942,40 +2099,44 @@ export default function BusinessClient({
                       )}
                     </div>
                   </div>
+                  </FadeUp>
                 )}
 
               {business?.categorySlug && (
-                <div className="mt-8 flex flex-col gap-3 border-t border-gray-200 pt-6 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
-                  <Link href="/" className="text-gray-600 hover:text-[#0E0E0E]">
+                <div className="biz-seo-footer flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+                  <Link href="/">
                     Tellacity Home
                   </Link>
-                  <Link href="/reviews" className="text-gray-600 hover:text-[#0E0E0E]">
+                  <span className="hidden text-white/30 sm:inline" aria-hidden>›</span>
+                  <Link href="/reviews">
                     Customer Reviews
                   </Link>
+                  <span className="hidden text-white/30 sm:inline" aria-hidden>›</span>
                   <Link
                     href={`/categories/${encodeURIComponent(
                       business.categorySlug.trim(),
                     )}?country=${encodeURIComponent(rankingsCountryCode)}`}
-                    className="text-gray-600 hover:text-[#0E0E0E]"
                   >
                     See more in{" "}
                     {categoryPublicLabel || formatBusinessTagLabel(business.categorySlug)} in{" "}
                     {rankingsCountryName}
                   </Link>
                   {business.countryCode ? (
-                    <Link
-                      href={`/best/${business.countryCode.toLowerCase()}/${encodeURIComponent(
-                        business.categorySlug.trim(),
-                      )}`}
-                      className="font-medium text-[#1FAF9E] hover:underline sm:ml-auto"
-                    >
-                      See top companies in this category →
-                    </Link>
+                    <>
+                      <span className="hidden text-white/30 sm:inline" aria-hidden>›</span>
+                      <Link
+                        href={`/best/${business.countryCode.toLowerCase()}/${encodeURIComponent(
+                          business.categorySlug.trim(),
+                        )}`}
+                        className="biz-link-highlight hover:underline sm:ml-auto"
+                      >
+                        See top companies in this category →
+                      </Link>
+                    </>
                   ) : null}
                 </div>
               )}
             </div>
-          </div>
       </section>
       </main>
       {isTrustScoreOpen && (

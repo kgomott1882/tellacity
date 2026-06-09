@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pause, Play, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { canAccessBusiness } from "@/lib/canAccessBusinessShared";
 import {
@@ -14,14 +15,12 @@ import {
   type BusinessSignupClaimPrefill,
 } from "@/lib/businessSignupClaimPrefill";
 import { REVIEWS_PUBLIC_STATUS_AND_VISIBILITY_OR } from "@/lib/reviewVisibility";
+import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
 import RatingStars from "@/components/RatingStars";
 
 const MAX_GRID_PHOTOS = 8;
 /** Matches dashboard Gallery editor: visible thumb slots before paging. */
 const HERO_VISIBLE_THUMBS = 4;
-
-/** Local asset, blurred behind the empty state (legacy profile teaser pattern). */
-const EMPTY_PHOTOS_TEASER_SRC = "/brand/Business Profile.png" as const;
 
 /** Public profile empty state: “Preview example” modals (`public/brand`, same assets as dashboard). */
 const PUBLIC_GALLERY_EXAMPLE_SRC = "/brand/Gallery%20Photos.png" as const;
@@ -643,6 +642,15 @@ export default function BusinessProfilePhotos({
   const [previewExampleSlideIndex, setPreviewExampleSlideIndex] = useState(0);
   const [previewSlideshowPaused, setPreviewSlideshowPaused] = useState(false);
   const [previewIndustryId, setPreviewIndustryId] = useState<string | null>(null);
+  const previewTouchStartXRef = useRef<number | null>(null);
+  const previewBodyRef = useRef<HTMLDivElement | null>(null);
+  const [previewScrollNav, setPreviewScrollNav] = useState({
+    visible: false,
+    canUp: false,
+    canDown: false,
+  });
+  const [portalReady, setPortalReady] = useState(false);
+  const [canManagePhotos, setCanManagePhotos] = useState(false);
 
   const previewSlideCount = PREVIEW_EXAMPLE_SLIDES.length;
 
@@ -657,6 +665,70 @@ export default function BusinessProfilePhotos({
     setPreviewIndustryId(industryId);
     setPreviewSlideshowPaused(true);
   }, []);
+
+  const handlePreviewTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      previewTouchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
+    },
+    [],
+  );
+
+  const handlePreviewTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      const startX = previewTouchStartXRef.current;
+      previewTouchStartXRef.current = null;
+      if (startX == null) return;
+      const endX = event.changedTouches[0]?.clientX ?? startX;
+      const deltaX = endX - startX;
+      if (Math.abs(deltaX) < 48) return;
+      goToPreviewSlide(deltaX > 0 ? -1 : 1);
+    },
+    [goToPreviewSlide],
+  );
+
+  const updatePreviewScrollNav = useCallback(() => {
+    const el = previewBodyRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const maxScroll = Math.max(0, scrollHeight - clientHeight);
+    const visible = maxScroll > 8;
+    setPreviewScrollNav({
+      visible,
+      canUp: scrollTop > 8,
+      canDown: scrollTop < maxScroll - 8,
+    });
+  }, []);
+
+  const scrollPreviewBody = useCallback((direction: -1 | 1) => {
+    const el = previewBodyRef.current;
+    if (!el) return;
+    const step = Math.max(160, Math.floor(el.clientHeight * 0.55));
+    el.scrollBy({ top: direction * step, behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const trimmedId = String(businessId ?? "").trim();
+    if (!trimmedId) return;
+
+    void (async () => {
+      const sb = supabaseBrowser();
+      const {
+        data: { session },
+      } = await sb.auth.getSession();
+      if (!session?.user) return;
+      const allowed = await canAccessBusiness(sb, session.user.id, trimmedId);
+      if (!cancelled) setCanManagePhotos(allowed);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
 
   useEffect(() => {
     if (!previewExamplesOpen) return;
@@ -695,12 +767,8 @@ export default function BusinessProfilePhotos({
     [photos]
   );
 
-  /**
-   * Unclaimed profile or no photos yet: onboarding copy + “Preview example” buttons.
-   * Claimed with photos: alternate intro copy and no preview buttons.
-   */
-  const showPublicPreviewExamples =
-    photos.length === 0 || claimSignupPrefill != null;
+  /** Owner-only onboarding helpers — hidden from public visitors. */
+  const showOwnerPhotoActions = canManagePhotos && photos.length === 0;
 
   const resolveUploadHref = useCallback(async (): Promise<void> => {
     const sb = supabaseBrowser();
@@ -764,11 +832,52 @@ export default function BusinessProfilePhotos({
       if (e.key === "ArrowRight") {
         e.preventDefault();
         goToPreviewSlide(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        scrollPreviewBody(-1);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        scrollPreviewBody(1);
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [previewExamplesOpen, goToPreviewSlide]);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [previewExamplesOpen, goToPreviewSlide, scrollPreviewBody]);
+
+  useEffect(() => {
+    if (!previewExamplesOpen) return;
+    const el = previewBodyRef.current;
+    const sync = () => updatePreviewScrollNav();
+    sync();
+    const t1 = window.setTimeout(sync, 60);
+    const t2 = window.setTimeout(sync, 320);
+    el?.addEventListener("scroll", sync, { passive: true });
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => sync())
+        : null;
+    if (el) ro?.observe(el);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      el?.removeEventListener("scroll", sync);
+      ro?.disconnect();
+    };
+  }, [
+    previewExamplesOpen,
+    previewExampleSlideIndex,
+    previewIndustryId,
+    updatePreviewScrollNav,
+  ]);
 
   const activeIndustryPreview = previewIndustryId
     ? PREVIEW_INDUSTRY_EXAMPLES.find((item) => item.id === previewIndustryId) ?? null
@@ -792,96 +901,51 @@ export default function BusinessProfilePhotos({
 
   return (
     <section
-      className="business-photos-section space-y-3"
+      className="business-photos-section space-y-6"
       aria-labelledby="business-photos-heading"
     >
       <div>
         <h2
           id="business-photos-heading"
-          className="text-lg font-semibold text-[#0E0E0E]"
+          className="biz-section-title text-lg"
         >
-          Business photos
+          <span className="biz-section-accent">Business</span> photos
         </h2>
-        {showPublicPreviewExamples ? (
-          <>
-            <p className="mt-3 text-sm text-gray-600">
-              Photos do more than showcase your business. They help customers trust you.
-              Original images of your products, services, team, or location show what
-              makes you different, and strong visuals can lift engagement and credibility
-              on your profile.
-            </p>
-            <p className="mt-3 text-sm text-gray-600">
-              Search engines look for fresh, unique content. When you add and refresh
-              photos over time, you give them more to crawl and index, which can support
-              SEO, image search, and other discovery features. AI-powered search is growing
-              too, and reviews, descriptions, and photos together give systems like Google
-              AI Overviews clearer context about your business.
-            </p>
-            <p className="mt-3 text-sm text-gray-600">
-              The more complete your Tellacity profile is, with reviews, business
-              information, and photos, the stronger your digital footprint becomes.
-              Upload from your dashboard whenever you are ready to showcase your brand.
-            </p>
-          </>
-        ) : (
-          <p className="mt-3 text-sm text-gray-600">
-            Photos help customers visualise the shop, products, and experience before
-            they commit.
-          </p>
-        )}
+        <p className="biz-section-sub mt-3 text-sm">
+          Photos shared by the business help customers learn more about its products,
+          services, team, and location.
+        </p>
       </div>
 
-      {showPublicPreviewExamples ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPreviewExamplesOpen(true)}
-            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-[#124541] shadow-sm transition hover:bg-[#124541]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35"
-            aria-label="Preview example layouts for products and gallery"
-          >
-            Preview Example
-          </button>
-        </div>
-      ) : null}
-
       {photos.length === 0 ? (
-        <div
-          className="relative mx-auto mt-6 aspect-[14.6/10] w-full max-w-[min(100%,14.6in)] overflow-hidden rounded-xl border border-gray-200/80 shadow-sm"
-          role="img"
-          aria-label="Business photos, no uploads yet"
-        >
-          <div className="absolute inset-0 h-full w-full" aria-hidden>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={EMPTY_PHOTOS_TEASER_SRC}
-              alt=""
-              className="h-full w-full scale-105 object-cover blur-md sm:blur-lg"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-900/25 via-gray-900/15 to-gray-900/30" />
+        <>
+          <div className="rounded-xl border border-gray-200 bg-white px-4 py-5">
+            <p className="text-sm text-gray-600">
+              No business photos have been uploaded yet.
+            </p>
           </div>
-          <div className="absolute inset-0 z-[1] flex items-center justify-center p-4 sm:p-6">
-            <div className="w-full max-w-sm rounded-xl border border-white/80 bg-white/95 p-5 text-center shadow-md backdrop-blur-[2px] sm:p-6">
-              <h3 className="text-base font-semibold text-[#0E0E0E] sm:text-lg">
-                Business photos
-              </h3>
-              <p className="mt-2 text-sm font-medium text-gray-900">
-                This business hasn&apos;t added photos yet.
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                Photos help customers get a better feel for a business.
-              </p>
+          {showOwnerPhotoActions ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewExamplesOpen(true)}
+                className="biz-btn-preview px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/35"
+                aria-label="Preview example layouts for products and gallery"
+              >
+                Preview Example
+              </button>
               <button
                 type="button"
                 onClick={handleUploadPhotos}
                 disabled={ctaBusy}
                 aria-label={ctaBusy ? "Please wait" : "Upload photos"}
-                className="mt-4 inline-flex min-h-[2.5rem] w-full max-w-[200px] items-center justify-center rounded-full bg-[#1FAF9E] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#169786] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 disabled:opacity-60"
+                className="biz-btn-primary inline-flex min-h-[2.5rem] items-center justify-center rounded-full px-6 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40 disabled:opacity-60"
               >
                 {ctaBusy ? "Please wait…" : "Upload"}
               </button>
             </div>
-          </div>
-        </div>
+          ) : null}
+        </>
       ) : (
         <>
           {galleryPhotos.length > 0 ? (
@@ -910,57 +974,64 @@ export default function BusinessProfilePhotos({
         </>
       )}
 
-      {lightboxSrc ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Photo preview"
-          onClick={() => setLightboxSrc(null)}
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxSrc(null);
-            }}
-            aria-label="Close preview"
-            className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-          >
-            <X size={20} aria-hidden />
-          </button>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative flex max-h-[90vh] max-w-[92vw] items-center justify-center overflow-hidden rounded-xl bg-black/30 shadow-2xl ring-1 ring-white/10"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={lightboxSrc}
-              alt=""
-              className="block max-h-[90vh] max-w-[92vw] object-contain"
-              loading="eager"
-              decoding="async"
-            />
-          </div>
-        </div>
-      ) : null}
+      {portalReady && lightboxSrc
+        ? createPortal(
+            <div className="business-cinematic">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Photo preview"
+                onClick={() => setLightboxSrc(null)}
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxSrc(null);
+                  }}
+                  aria-label="Close preview"
+                  className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                >
+                  <X size={20} aria-hidden />
+                </button>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative flex max-h-[90vh] max-w-[92vw] items-center justify-center overflow-hidden rounded-xl bg-black/30 shadow-2xl ring-1 ring-white/10"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lightboxSrc}
+                    alt=""
+                    className="block max-h-[90vh] max-w-[92vw] object-contain"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
-      {previewExamplesOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="public-preview-examples-title"
-          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/80 p-4 sm:p-6"
-          onClick={() => setPreviewExamplesOpen(false)}
-        >
+      {portalReady && previewExamplesOpen
+        ? createPortal(
+            <div className="business-cinematic">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="public-preview-examples-title"
+                className="biz-preview-overlay fixed inset-0 z-[200] flex items-center justify-center bg-black/80"
+                onClick={() => setPreviewExamplesOpen(false)}
+              >
           <div
-            className="relative flex h-[min(94dvh,940px)] max-h-[94dvh] w-full max-w-[min(96vw,1400px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+            className="biz-preview-dialog relative flex w-full flex-col overflow-hidden bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2.5 sm:gap-3 sm:px-4">
               <h2
                 id="public-preview-examples-title"
-                className="text-base font-semibold text-[#0E0E0E]"
+                className="text-sm font-semibold text-[#0E0E0E] sm:text-base"
               >
                 Profile preview examples
               </h2>
@@ -973,50 +1044,89 @@ export default function BusinessProfilePhotos({
                 <X className="h-5 w-5" strokeWidth={2} aria-hidden />
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
-              <figure className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-gray-50">
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div
+                ref={previewBodyRef}
+                className="biz-preview-body flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain p-2 sm:p-3"
+              >
+              <figure className="biz-preview-figure flex flex-col rounded-xl bg-gray-50">
                 <figcaption
-                  className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200/80 bg-white px-3 py-1.5 sm:px-4"
+                  className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200/80 bg-white px-3 py-2 sm:px-4"
                   aria-live="polite"
                 >
-                  <span className="text-sm font-semibold text-[#0E0E0E]">
+                  <span className="min-w-0 truncate text-sm font-semibold text-[#0E0E0E]">
                     {previewFrame.caption}
                   </span>
-                  <span className="text-xs text-gray-500">
-                    {activeIndustryPreview
-                      ? "Industry preview"
-                      : `${previewExampleSlideIndex + 1} / ${previewSlideCount}`}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {!activeIndustryPreview ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSlideshowPaused((p) => !p)}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#124541] shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 md:hidden"
+                        aria-pressed={previewSlideshowPaused}
+                        aria-label={
+                          previewSlideshowPaused
+                            ? "Resume automatic slideshow"
+                            : "Pause automatic slideshow"
+                        }
+                      >
+                        {previewSlideshowPaused ? (
+                          <>
+                            <Play className="h-3 w-3" aria-hidden />
+                            Play
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="h-3 w-3" aria-hidden />
+                            Pause
+                          </>
+                        )}
+                      </button>
+                    ) : null}
+                    <span className="text-xs text-gray-500">
+                      {activeIndustryPreview
+                        ? "Industry preview"
+                        : `${previewExampleSlideIndex + 1} / ${previewSlideCount}`}
+                    </span>
+                  </div>
                 </figcaption>
-                <div className="relative min-h-0 flex-1">
+                <p className="biz-preview-scroll-hint shrink-0 border-b border-gray-200/60 bg-white px-3 py-1.5 text-[11px] text-gray-500">
+                  Scroll down for industry examples · swipe or use arrows to change slides
+                </p>
+                <div
+                  className="biz-preview-image-stage relative shrink-0"
+                  onTouchStart={handlePreviewTouchStart}
+                  onTouchEnd={handlePreviewTouchEnd}
+                >
                   <button
                     type="button"
                     onClick={() => goToPreviewSlide(-1)}
-                    className="absolute left-1 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:left-2"
+                    className="absolute left-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:left-2 sm:h-9 sm:w-9"
                     aria-label="Previous example slide"
                   >
-                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
                   </button>
                   {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
                   <img
                     key={previewFrame.src}
                     src={previewFrame.src}
                     alt={previewFrame.alt}
-                    className="mx-auto block h-full max-h-full w-full max-w-full object-contain px-11 sm:px-12"
+                    className="biz-preview-image"
+                    onLoad={updatePreviewScrollNav}
                   />
                   <button
                     type="button"
                     onClick={() => goToPreviewSlide(1)}
-                    className="absolute right-1 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:right-2"
+                    className="absolute right-1 top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-[#124541] shadow-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:right-2 sm:h-9 sm:w-9"
                     aria-label="Next example slide"
                   >
-                    <ChevronRight className="h-5 w-5" aria-hidden />
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
                   </button>
                   {!activeIndustryPreview ? (
                     <button
                       type="button"
                       onClick={() => setPreviewSlideshowPaused((p) => !p)}
-                      className="absolute left-1/2 top-1/2 z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border border-gray-200/90 bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-[#124541] shadow-lg backdrop-blur-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                      className="absolute bottom-2 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1.5 rounded-full border border-gray-200/90 bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-[#124541] shadow-lg backdrop-blur-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:bottom-auto sm:top-1/2 sm:inline-flex sm:-translate-y-1/2"
                       aria-pressed={previewSlideshowPaused}
                       aria-label={
                         previewSlideshowPaused
@@ -1038,8 +1148,11 @@ export default function BusinessProfilePhotos({
                     </button>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 flex-col items-center gap-1.5 border-t border-gray-200/80 bg-white px-2 py-2 sm:px-3">
-                  <div className="flex max-h-[5.5rem] flex-wrap items-center justify-center gap-1 overflow-y-auto overscroll-contain">
+                <div className="biz-preview-footer flex shrink-0 flex-col gap-2.5 border-t border-gray-200/80 bg-white px-2 py-3 sm:gap-2 sm:px-3 sm:py-3">
+                  <p className="biz-preview-industry-label shrink-0 text-xs font-semibold text-[#0E0E0E]">
+                    Industry examples
+                  </p>
+                  <div className="biz-preview-industry-strip">
                     {PREVIEW_INDUSTRY_EXAMPLES.map((item) => {
                       const isActive = previewIndustryId === item.id;
                       return (
@@ -1047,7 +1160,7 @@ export default function BusinessProfilePhotos({
                           key={item.id}
                           type="button"
                           onClick={() => selectIndustryPreview(item.id)}
-                          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-tight shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35 sm:text-[11px] ${
+                          className={`biz-preview-industry-chip rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/35 sm:py-0.5 sm:text-[11px] ${
                             isActive
                               ? "border-[#1FAF9E] bg-[#1FAF9E]/10 text-[#0E3B36]"
                               : "border-gray-300 bg-white text-[#124541] hover:bg-[#124541]/5"
@@ -1060,7 +1173,7 @@ export default function BusinessProfilePhotos({
                     })}
                   </div>
                   <div
-                    className="flex shrink-0 items-center gap-1.5"
+                    className="flex shrink-0 items-center justify-center gap-2 py-0.5"
                     role="tablist"
                     aria-label="Layout example slides"
                   >
@@ -1078,9 +1191,9 @@ export default function BusinessProfilePhotos({
                             setPreviewIndustryId(null);
                             setPreviewExampleSlideIndex(index);
                           }}
-                          className={`h-2 w-2 rounded-full transition ${
+                          className={`h-3 w-3 rounded-full transition sm:h-2.5 sm:w-2.5 md:h-2 md:w-2 ${
                             isActive
-                              ? "bg-[#1FAF9E] scale-110"
+                              ? "scale-110 bg-[#1FAF9E]"
                               : "bg-gray-300 hover:bg-gray-400"
                           }`}
                         />
@@ -1089,10 +1202,39 @@ export default function BusinessProfilePhotos({
                   </div>
                 </div>
               </figure>
+              </div>
+              {previewScrollNav.visible ? (
+                <div
+                  className="biz-preview-scroll-nav"
+                  aria-label="Preview scroll controls"
+                >
+                  <button
+                    type="button"
+                    onClick={() => scrollPreviewBody(-1)}
+                    disabled={!previewScrollNav.canUp}
+                    aria-label="Scroll preview up"
+                    className={`biz-carousel-nav biz-preview-scroll-btn ${CAROUSEL_NAV_BUTTON_CLASS}`}
+                  >
+                    <ChevronUp className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollPreviewBody(1)}
+                    disabled={!previewScrollNav.canDown}
+                    aria-label="Scroll preview down"
+                    className={`biz-carousel-nav biz-preview-scroll-btn ${CAROUSEL_NAV_BUTTON_CLASS}`}
+                  >
+                    <ChevronDown className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
-      ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

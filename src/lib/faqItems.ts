@@ -1,3 +1,5 @@
+import { PLAN_ARTICLE_LIMITS } from "@/lib/plans";
+
 export type FaqSegment =
   | { type: "text"; value: string }
   | { type: "link"; href: string; label: string };
@@ -37,7 +39,7 @@ export const faqItems: FaqItem[] = [
       { type: "text", value: "Learn more on the " },
       { type: "link", href: "/about", label: "About page" },
       { type: "text", value: " and the " },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " page." },
     ],
   },
@@ -120,7 +122,7 @@ export const faqItems: FaqItem[] = [
         label: "verification and Trust Scores",
       },
       { type: "text", value: " and the " },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: "." },
     ],
   },
@@ -145,7 +147,7 @@ export const faqItems: FaqItem[] = [
       { type: "text", value: "Visit " },
       { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " and the " },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " to start." },
     ],
   },
@@ -280,12 +282,12 @@ export const faqItems: FaqItem[] = [
       {
         type: "text",
         value:
-          "It also connects the business to the broader Tellacity Reputation Platform, including moderation, insights, and reputation-management tools. ",
+          "It also connects the business to the broader Tellacity Tellacity for Business, including moderation, insights, and reputation-management tools. ",
       },
       { type: "text", value: "See " },
       { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " and the " },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " pages for details." },
     ],
   },
@@ -407,6 +409,64 @@ export const faqItems: FaqItem[] = [
       { type: "link", href: "/safety-trust", label: "Safety & Trust" },
       { type: "text", value: " and " },
       { type: "link", href: "/how-tellacity-works", label: "How Tellacity Works" },
+      { type: "text", value: "." },
+    ],
+  },
+  {
+    question: "What are Blogs & Case Studies on Tellacity?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Blogs & Case Studies let verified businesses publish articles and case studies on Tellacity after editorial review. ",
+      },
+      {
+        type: "text",
+        value:
+          "Approved content appears on the public Articles section and on your business profile. It is business-authored content — not Tellacity's editorial Blog. ",
+      },
+      { type: "text", value: "Full rules are in the " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: " (Blogs & Case Studies section) and on " },
+      { type: "link", href: "/articles", label: "Articles" },
+      { type: "text", value: "." },
+    ],
+  },
+  {
+    question: "How many blogs or case studies can my business publish?",
+    segments: [
+      {
+        type: "text",
+        value:
+          `Monthly submission limits depend on your plan: Free accounts can save drafts only; Grow, Premium, and Elite include a set number of submissions per month (${PLAN_ARTICLE_LIMITS.grow}, ${PLAN_ARTICLE_LIMITS.premium}, and ${PLAN_ARTICLE_LIMITS.elite} respectively at current limits). `,
+      },
+      {
+        type: "text",
+        value:
+          "A credit is used when you submit for review, not when you save a draft. Credits are returned if Tellacity rejects the submission. Updates to already-published articles do not use an extra credit. ",
+      },
+      { type: "text", value: "See " },
+      { type: "link", href: "/pricing", label: "Plans & Pricing" },
+      { type: "text", value: " and " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: "." },
+    ],
+  },
+  {
+    question: "Why was my article rejected?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Tellacity reviews every blog and case study before publication. Common rejection reasons include policy violations, misleading claims, spammy links, or breaking article link rules (such as too many external links or affiliate URLs). ",
+      },
+      {
+        type: "text",
+        value:
+          "The rejection reason is emailed to the business owner and shown in the Blogs & Case Studies dashboard when you click the rejected status. Edit your draft, address the feedback, and submit again. ",
+      },
+      { type: "text", value: "Read the full standards in " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
       { type: "text", value: "." },
     ],
   },

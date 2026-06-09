@@ -13,6 +13,9 @@ import BusinessDetailTabs from "./BusinessDetailTabs";
 import BusinessDetailPhotos, {
   type AdminPhotoRow,
 } from "./BusinessDetailPhotos";
+import BusinessDetailArticles, {
+  type AdminArticleRow,
+} from "./BusinessDetailArticles";
 import {
   adminDetailActivateAction,
   adminDetailApproveAction,
@@ -209,27 +212,42 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
   // on business_photos (scoped to owners) doesn't hide anything from admins.
   let initialPhotos: AdminPhotoRow[] = [];
   let pendingPhotoCount = 0;
+  let initialArticles: AdminArticleRow[] = [];
+  let pendingArticleCount = 0;
   if (business?.id) {
     try {
       const { supabaseUrl, serviceRoleKey } = getServerEnv();
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
       });
-      const { data: photoRows } = await admin
-        .from("business_photos")
-        .select(
-          "id, business_id, url, section, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, collage_score, moderated_at, moderated_by"
-        )
-        .eq("business_id", business.id)
-        .order("moderation_status", { ascending: true })
-        .order("created_at", { ascending: false });
+      const [{ data: photoRows }, { data: articleRows }] = await Promise.all([
+        admin
+          .from("business_photos")
+          .select(
+            "id, business_id, url, section, status, published_at, created_at, moderation_status, moderation_reason, is_suspected_collage, collage_score, moderated_at, moderated_by",
+          )
+          .eq("business_id", business.id)
+          .order("moderation_status", { ascending: true })
+          .order("created_at", { ascending: false }),
+        admin
+          .from("articles")
+          .select(
+            "id, business_id, title, slug, content_type, status, excerpt, featured_image_url, submitted_at, published_at, archived_at, status_before_archive, rejection_reason, created_at, updated_at, content, client_industry, challenge, solution, results",
+          )
+          .eq("business_id", business.id)
+          .order("updated_at", { ascending: false }),
+      ]);
       initialPhotos = (photoRows ?? []) as AdminPhotoRow[];
       pendingPhotoCount = initialPhotos.filter(
         (p) =>
-          p.moderation_status === "pending" || p.moderation_status === "flagged"
+          p.moderation_status === "pending" || p.moderation_status === "flagged",
+      ).length;
+      initialArticles = (articleRows ?? []) as AdminArticleRow[];
+      pendingArticleCount = initialArticles.filter(
+        (a) => a.status === "pending_review",
       ).length;
     } catch (e) {
-      console.error("[admin business detail] preload photos", e);
+      console.error("[admin business detail] preload photos/articles", e);
     }
   }
 
@@ -253,6 +271,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
         <AdminTableShell title="Business Details">
           <BusinessDetailTabs
             pendingPhotoCount={pendingPhotoCount}
+            pendingArticleCount={pendingArticleCount}
             photos={
               business?.id ? (
                 <BusinessDetailPhotos
@@ -267,6 +286,24 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               ) : (
                 <div className="text-sm text-neutral-500">
                   Photos unavailable for this record.
+                </div>
+              )
+            }
+            articles={
+              business?.id ? (
+                <BusinessDetailArticles
+                  initial={{
+                    businessId: String(business.id),
+                    businessName: business?.name ?? null,
+                    businessSlug: business?.slug ?? null,
+                    ownerEmail: business?.profiles?.email ?? null,
+                    ownerName,
+                    articles: initialArticles,
+                  }}
+                />
+              ) : (
+                <div className="text-sm text-neutral-500">
+                  Articles unavailable for this record.
                 </div>
               )
             }

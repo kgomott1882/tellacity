@@ -17,6 +17,7 @@ type Member = {
   role: "owner" | "admin" | "member";
   status: string;
   created_at: string;
+  can_write_articles?: boolean;
 };
 
 type Invite = {
@@ -199,6 +200,7 @@ export default function TeamAccessPage() {
   const [roleChanges, setRoleChanges] = useState<Record<string, string>>({});
   const [savingRole, setSavingRole] = useState<Record<string, boolean>>({});
   const [roleMsg, setRoleMsg] = useState<Record<string, { type: "success" | "error"; text: string }>>({});
+  const [savingArticleAccess, setSavingArticleAccess] = useState<Record<string, boolean>>({});
 
   const [removing, setRemoving] = useState<Record<string, boolean>>({});
 
@@ -290,6 +292,20 @@ export default function TeamAccessPage() {
       }));
     }
     setSavingRole((p) => ({ ...p, [memberId]: false }));
+  };
+
+  const handleToggleArticleAccess = async (memberId: string, enabled: boolean) => {
+    setSavingArticleAccess((p) => ({ ...p, [memberId]: true }));
+    const { ok, data } = await apiFetch("/api/business/team-access/article-permission", {
+      method: "POST",
+      body: JSON.stringify({ memberId, enabled }),
+    });
+    if (!ok) {
+      alert(data?.error ?? "Failed to update blogs & case studies access.");
+    } else {
+      await loadTeam();
+    }
+    setSavingArticleAccess((p) => ({ ...p, [memberId]: false }));
   };
 
   const handleRemove = async (memberId: string, email: string | null) => {
@@ -549,6 +565,20 @@ export default function TeamAccessPage() {
                       <Alert type={roleMsg[member.id].type} text={roleMsg[member.id].text} />
                     </div>
                   )}
+
+                  {!isOwner ? (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={member.can_write_articles === true}
+                        disabled={savingArticleAccess[member.id]}
+                        onChange={(e) =>
+                          void handleToggleArticleAccess(member.id, e.target.checked)
+                        }
+                      />
+                      Can write blogs &amp; case studies
+                    </label>
+                  ) : null}
                 </div>
               );
             })}

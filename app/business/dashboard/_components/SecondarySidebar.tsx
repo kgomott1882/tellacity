@@ -1,8 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+
+function isSubNavItemActive(
+  pathname: string,
+  searchParams: URLSearchParams,
+  itemPath: string,
+): boolean {
+  const [basePath, queryString] = itemPath.split("?");
+  if (pathname !== basePath) return false;
+  if (!queryString) return !searchParams.get("type");
+  const expectedType = new URLSearchParams(queryString).get("type");
+  return searchParams.get("type") === expectedType;
+}
 
 type SubItem = {
   label: string;
@@ -22,6 +34,7 @@ type SecondarySidebarProps = {
 
 export default function SecondarySidebar({ title, items, groups }: SecondarySidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   return (
     <aside className="w-64 h-full min-h-full bg-gray-950 text-white flex flex-col">
@@ -33,7 +46,7 @@ export default function SecondarySidebar({ title, items, groups }: SecondarySide
         {items && items.length > 0 && (
           <div className="space-y-1 mb-4">
             {items.map((item) => {
-              const isActive = pathname === item.path;
+              const isActive = isSubNavItemActive(pathname, searchParams, item.path);
               return (
                 <Link
                   key={item.path}
@@ -62,7 +75,7 @@ export default function SecondarySidebar({ title, items, groups }: SecondarySide
                   </p>
                   <div className="mt-2 space-y-1">
                     {group.items.map((item) => {
-                      const isActive = pathname === item.path;
+                      const isActive = isSubNavItemActive(pathname, searchParams, item.path);
                       return (
                         <Link
                           key={item.path}

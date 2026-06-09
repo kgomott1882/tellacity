@@ -516,7 +516,7 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
         >
           <div className={`max-w-xl ${heroImageEdge ? "pb-16 md:pb-20" : ""}`}>
             <Link
-              href="/reputation-platform"
+              href="/for-business#platform-modules"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-300 transition-colors hover:border-[#1FAF9E]/50 hover:text-white"
             >
               <span
@@ -524,7 +524,7 @@ function HeroSection({ content }: { content: SolutionPageContent }) {
                 style={{ backgroundColor: ACCENT }}
                 aria-hidden
               />
-              Part of the Tellacity Reputation Platform
+              Part of Tellacity for Business
               <span aria-hidden>→</span>
             </Link>
             <p className="mt-4 text-sm font-medium uppercase tracking-wider text-gray-400">

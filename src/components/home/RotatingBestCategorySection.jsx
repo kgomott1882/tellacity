@@ -4,6 +4,8 @@ import { similarBusinessLogoUrl } from "@/lib/logo";
 import RatingStars from "@/components/RatingStars";
 import { CAROUSEL_NAV_BUTTON_CLASS } from "@/lib/carouselNavButton";
 import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
+import { FadeUp, StaggerFadeUp } from "@/components/ui/MotionWrapper";
+import { cn } from "@/lib/utils";
 
 const cleanDomain = (value) =>
   value ? value.replace(/^https?:\/\//, "").replace(/^www\./, "") : "";
@@ -15,6 +17,7 @@ export default function RotatingBestCategorySection({
   onPrevious,
   onNext,
   countryCode,
+  countryName = "",
   /** True while best-in data for the active slug is not yet available (e.g. country switch). */
   isLoading = false,
 }) {
@@ -22,24 +25,32 @@ export default function RotatingBestCategorySection({
   const cardsScrollRef = useRef(null);
 
   return (
-    <section className="bg-white">
+    <FadeUp>
+    <section>
       <div className="mx-auto max-w-7xl px-6 py-10 sm:py-12 md:py-14">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold text-[#0E0E0E] sm:text-2xl md:text-3xl">
-            <span className="relative inline-block">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-2xl">
+            <h2 className="home-section-title text-xl sm:text-2xl md:text-3xl">
               <span className="relative inline-block">
-                <span className="relative z-10">Best</span>
-                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#1FAF9E]/30" />
+                <span className="relative inline-block">
+                  <span className="relative z-10 home-section-title-accent">Best</span>
+                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#00B4A6]/25" />
+                </span>
+                {" "}in {categoryLabel}
               </span>
-              {" "}in {categoryLabel}
-            </span>
-          </h2>
-          <div className="flex items-center gap-1.5">
+            </h2>
+            <p className="home-section-sub mt-2 max-w-xl text-sm">
+              {countryName
+                ? `Top ${countryName} businesses in ${categoryLabel}, ranked by trust score and verified customer reviews.`
+                : `Top businesses in ${categoryLabel}, ranked by trust score and verified customer reviews.`}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => onPrevious?.()}
               aria-label="Previous Best in category"
-              className={CAROUSEL_NAV_BUTTON_CLASS}
+              className={cn(CAROUSEL_NAV_BUTTON_CLASS, "home-nav-btn")}
             >
               <CarouselNavChevron dir="left" />
             </button>
@@ -47,7 +58,7 @@ export default function RotatingBestCategorySection({
               type="button"
               onClick={() => onNext?.()}
               aria-label="Next Best in category"
-              className={CAROUSEL_NAV_BUTTON_CLASS}
+              className={cn(CAROUSEL_NAV_BUTTON_CLASS, "home-nav-btn")}
             >
               <CarouselNavChevron dir="right" />
             </button>
@@ -59,7 +70,7 @@ export default function RotatingBestCategorySection({
                     )}`
                   : `/categories/${categorySlug}`
               }
-              className="rounded-full border border-[#1FAF9E] px-2.5 py-1 text-[10px] font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:px-3 sm:py-1.5 sm:text-xs"
+              className="home-pill-link rounded-full px-2.5 py-1 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40 sm:px-3 sm:py-1.5 sm:text-xs"
             >
               More
             </Link>
@@ -67,10 +78,10 @@ export default function RotatingBestCategorySection({
         </div>
 
         {!hasBusinesses && isLoading && (
-          <p className="mt-6 text-sm text-gray-500">Loading ranked businesses…</p>
+          <p className="mt-6 text-sm text-[var(--home-muted,#4b5563)]">Loading ranked businesses…</p>
         )}
         {!hasBusinesses && !isLoading && (
-          <p className="mt-6 text-sm text-gray-500">
+          <p className="mt-6 text-sm text-[var(--home-muted,#4b5563)]">
             No businesses found yet.
           </p>
         )}
@@ -82,7 +93,7 @@ export default function RotatingBestCategorySection({
               ref={cardsScrollRef}
               className="mt-6 flex gap-4 overflow-x-auto pb-2 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              {businesses.map((business) => {
+              {businesses.map((business, index) => {
                 const reviewCount =
                   Number(business.review_count ?? 0) || 0;
                 const ratingValue =
@@ -94,10 +105,14 @@ export default function RotatingBestCategorySection({
                 });
 
                 return (
-                  <Link
+                  <StaggerFadeUp
                     key={`${business.slug ?? "business"}-${business.id ?? ""}-mobile`}
+                    index={index}
+                    className="shrink-0"
+                  >
+                  <Link
                     href={`/b/${business.slug}`}
-                    className="group relative flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="home-glass-card group relative flex w-64 flex-col overflow-hidden rounded-2xl p-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#FCF7F6]">
@@ -126,7 +141,7 @@ export default function RotatingBestCategorySection({
                             <img
                               src="/brand/Tellacity%20Vefication%20Batch.png"
                               alt="Tellacity verified reviews"
-                              className="h-5 w-5 shrink-0"
+                              className="home-verified-pulse h-5 w-5 shrink-0"
                             />
                           )}
                         </div>
@@ -149,13 +164,14 @@ export default function RotatingBestCategorySection({
                       </div>
                     </div>
                   </Link>
+                  </StaggerFadeUp>
                 );
               })}
             </div>
 
             {/* Desktop / tablet: grid layout */}
-            <div className="mt-8 hidden gap-4 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {businesses.map((business) => {
+            <div className="home-best-in-grid mt-8 hidden gap-4 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {businesses.map((business, index) => {
                 const reviewCount =
                   Number(business.review_count ?? 0) || 0;
                 const ratingValue =
@@ -168,10 +184,13 @@ export default function RotatingBestCategorySection({
                 });
 
                 return (
-                  <Link
+                  <StaggerFadeUp
                     key={`${business.slug ?? "business"}-${business.id ?? ""}`}
+                    index={index}
+                  >
+                  <Link
                     href={`/b/${business.slug}`}
-                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="home-glass-card group relative flex h-full flex-col overflow-hidden rounded-2xl p-4"
                     onMouseMove={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
@@ -182,7 +201,7 @@ export default function RotatingBestCategorySection({
                   >
                     <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                       <div
-                        className="absolute h-64 w-64 rounded-full bg-[#2fb2a8]/20 blur-3xl"
+                        className="absolute h-64 w-64 rounded-full bg-[#00B4A6]/20 blur-3xl"
                         style={{
                           top: "var(--mouse-y)",
                           left: "var(--mouse-x)",
@@ -217,7 +236,7 @@ export default function RotatingBestCategorySection({
                             <img
                               src="/brand/Tellacity%20Vefication%20Batch.png"
                               alt="Tellacity verified reviews"
-                              className="h-5 w-5 shrink-0"
+                              className="home-verified-pulse h-5 w-5 shrink-0"
                             />
                           )}
                         </div>
@@ -254,12 +273,13 @@ export default function RotatingBestCategorySection({
                             business.slug ?? "",
                           )}`;
                         }}
-                        className="inline-flex w-auto items-center justify-center rounded-full bg-gray-600 px-3 py-1 text-[11px] font-medium text-white shadow-[0_0_0_rgba(249,115,22,0)] transition-all duration-200 hover:bg-gray-700 hover:shadow-[0_0_16px_rgba(75,85,99,0.5),0_0_32px_rgba(75,85,99,0.25)] active:scale-95"
+                        className="home-review-business-btn inline-flex w-auto items-center justify-center rounded-full px-3 py-1 text-[11px] font-medium active:scale-95"
                       >
                         Review this Business
                       </button>
                     </div>
                   </Link>
+                  </StaggerFadeUp>
                 );
               })}
             </div>
@@ -267,5 +287,6 @@ export default function RotatingBestCategorySection({
         )}
       </div>
     </section>
+    </FadeUp>
   );
 }

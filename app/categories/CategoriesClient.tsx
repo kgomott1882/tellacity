@@ -8,13 +8,14 @@ import {
   CATEGORIES_NEED_HELP_INTRO,
   CATEGORIES_WHY_COPY,
   getCategoriesCountryMeta,
-  getCategoriesH1,
   getCategoriesHowCountryLine,
   getCategoriesIntro,
   getCategoriesPopularSectorsIntro,
   getGroupDescription,
   NEED_HELP_LINKS,
 } from "@/lib/categoriesPageContent";
+import HomeScrollProgress from "@/components/home/HomeScrollProgress";
+import { FadeUp, StaggerFadeUp } from "@/components/ui/MotionWrapper";
 import {
   ChevronRight,
   Folder,
@@ -145,77 +146,91 @@ const ICON_MATCHES: { match: string; icon: React.ComponentType<{ className?: str
   { match: "energy", icon: Zap },
 ];
 
-const CATEGORY_COLORS: { match: string; color: string }[] = [
-  { match: "animal", color: "#1CA7A6" },
-  { match: "pet", color: "#1CA7A6" },
-  { match: "beauty", color: "#E84393" },
-  { match: "well-being", color: "#E84393" },
-  { match: "wellbeing", color: "#E84393" },
-  { match: "food", color: "#FF6B35" },
-  { match: "beverage", color: "#FF6B35" },
-  { match: "tobacco", color: "#FF6B35" },
-  { match: "medical", color: "#27AE60" },
-  { match: "health", color: "#27AE60" },
-  { match: "hobbies", color: "#5F27CD" },
-  { match: "crafts", color: "#5F27CD" },
-  { match: "garden", color: "#7D9D00" },
-  { match: "legal", color: "#1B1464" },
-  { match: "government", color: "#1B1464" },
-  { match: "publishing", color: "#C2185B" },
-  { match: "money", color: "#009432" },
-  { match: "insurance", color: "#009432" },
-  { match: "financial", color: "#009432" },
-  { match: "business", color: "#2E86DE" },
-  { match: "construction", color: "#E67E22" },
-  { match: "manufacturing", color: "#E67E22" },
-  { match: "education", color: "#6C5CE7" },
-  { match: "training", color: "#6C5CE7" },
-  { match: "electronics", color: "#00B8D9" },
-  { match: "technology", color: "#00B8D9" },
-  { match: "media", color: "#C2185B" },
-  { match: "entertainment", color: "#E74C3C" },
-  { match: "events", color: "#E74C3C" },
-  { match: "public", color: "#3C6382" },
-  { match: "restaurant", color: "#B71540" },
-  { match: "bars", color: "#B71540" },
-  { match: "sports", color: "#0984E3" },
-  { match: "utilities", color: "#FBC531" },
-  { match: "hospitality", color: "#E74C3C" },
-  { match: "travel", color: "#00A8FF" },
-  { match: "hotel", color: "#00A8FF" },
-  { match: "transport", color: "#2F3640" },
-  { match: "logistics", color: "#2F3640" },
-  { match: "retail", color: "#FF3F6C" },
-  { match: "shopping", color: "#FF3F6C" },
-  { match: "trade", color: "#FF3F6C" },
-  { match: "home", color: "#4A69BD" },
-  { match: "service", color: "#4A69BD" },
-  { match: "local", color: "#4A69BD" },
-  { match: "automotive", color: "#2F3640" },
-  { match: "power", color: "#FBC531" },
-  { match: "energy", color: "#FBC531" },
+const MAX_SUBCATEGORIES_SHOWN = 8;
+const IO_THRESHOLD = 0.12;
+const DEFAULT_GROUP_ACCENT = "#00B4A6";
+
+/** Exact accent palette — most specific slug matches first. */
+const GROUP_ACCENT_COLORS: { match: string; color: string }[] = [
+  { match: "animal", color: "#F59E0B" },
+  { match: "pet", color: "#F59E0B" },
+  { match: "beauty", color: "#F43F5E" },
+  { match: "well-being", color: "#F43F5E" },
+  { match: "wellbeing", color: "#F43F5E" },
+  { match: "business-service", color: "#3B82F6" },
+  { match: "construction", color: "#EA580C" },
+  { match: "manufacturing", color: "#EA580C" },
+  { match: "education", color: "#8B5CF6" },
+  { match: "training", color: "#8B5CF6" },
+  { match: "electronics", color: "#06B6D4" },
+  { match: "technology", color: "#06B6D4" },
+  { match: "events", color: "#EC4899" },
+  { match: "entertainment", color: "#EC4899" },
+  { match: "food", color: "#22C55E" },
+  { match: "beverage", color: "#22C55E" },
+  { match: "tobacco", color: "#22C55E" },
+  { match: "medical", color: "#10B981" },
+  { match: "health", color: "#10B981" },
+  { match: "hobbies", color: "#EAB308" },
+  { match: "crafts", color: "#EAB308" },
+  { match: "home-services", color: "#0EA5E9" },
+  { match: "home-garden", color: "#84CC16" },
+  { match: "home", color: "#84CC16" },
+  { match: "legal", color: "#6366F1" },
+  { match: "government", color: "#6366F1" },
+  { match: "media", color: "#EF4444" },
+  { match: "publishing", color: "#EF4444" },
+  { match: "money", color: "#16A34A" },
+  { match: "insurance", color: "#16A34A" },
+  { match: "financial", color: "#16A34A" },
+  { match: "public", color: "#14B8A6" },
+  { match: "local-service", color: "#14B8A6" },
+  { match: "local", color: "#14B8A6" },
+  { match: "restaurant", color: "#F97316" },
+  { match: "bars", color: "#F97316" },
+  { match: "shopping", color: "#D946EF" },
+  { match: "fashion", color: "#D946EF" },
+  { match: "retail", color: "#D946EF" },
+  { match: "sport", color: "#DC2626" },
+  { match: "travel", color: "#0284C7" },
+  { match: "vacation", color: "#0284C7" },
+  { match: "utilities", color: "#64748B" },
+  { match: "power", color: "#64748B" },
+  { match: "energy", color: "#64748B" },
+  { match: "vehicle", color: "#15803D" },
+  { match: "transport", color: "#15803D" },
+  { match: "automotive", color: "#15803D" },
+  { match: "logistics", color: "#15803D" },
+  { match: "business", color: "#3B82F6" },
 ];
 
-const DEFAULT_CATEGORY_COLOR = "#1FAF9E";
+const HERO_CONFETTI = [
+  { x: "8%", y: "18%", size: 6, color: "#F59E0B" },
+  { x: "22%", y: "8%", size: 5, color: "#F43F5E" },
+  { x: "38%", y: "22%", size: 7, color: "#3B82F6" },
+  { x: "55%", y: "12%", size: 5, color: "#22C55E" },
+  { x: "72%", y: "20%", size: 6, color: "#8B5CF6" },
+  { x: "88%", y: "10%", size: 5, color: "#06B6D4" },
+  { x: "15%", y: "55%", size: 5, color: "#EC4899" },
+  { x: "48%", y: "48%", size: 6, color: "#EAB308" },
+  { x: "65%", y: "42%", size: 5, color: "#D946EF" },
+  { x: "82%", y: "52%", size: 7, color: "#0284C7" },
+  { x: "30%", y: "72%", size: 5, color: "#10B981" },
+  { x: "58%", y: "68%", size: 6, color: "#F97316" },
+  { x: "92%", y: "75%", size: 5, color: "#14B8A6" },
+] as const;
+
+function getGroupAccentColor(slug: string): string {
+  const lower = (slug ?? "").toLowerCase();
+  const found = GROUP_ACCENT_COLORS.find(({ match }) => lower.includes(match));
+  return found?.color ?? DEFAULT_GROUP_ACCENT;
+}
 
 function getGroupIcon(slug: string) {
   const lower = (slug ?? "").toLowerCase();
   const found = ICON_MATCHES.find(({ match }) => lower.includes(match));
   return found?.icon ?? Folder;
 }
-
-function getGroupColor(slug: string): string {
-  const lower = (slug ?? "").toLowerCase();
-  const found = CATEGORY_COLORS.find(({ match }) => lower.includes(match));
-  return found?.color ?? DEFAULT_CATEGORY_COLOR;
-}
-
-const linkClass =
-  "font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]";
-
-const sectionClassCompact = "border-t border-gray-100 py-8 sm:py-10";
-const h2ClassCompact = "text-xl font-semibold text-[#0E0E0E] sm:text-2xl";
-const bodyClassCompact = "mt-2 max-w-3xl text-sm leading-relaxed text-gray-600";
 
 export default function CategoriesPage({
   countryParam,
@@ -337,22 +352,24 @@ export default function CategoriesPage({
   }, []);
 
   const { headingName, code: countryMetaCode } = countryMeta;
-  const h1Title = getCategoriesH1(headingName);
   const introParagraph = getCategoriesIntro(headingName);
   const popularSectorsIntro = getCategoriesPopularSectorsIntro(headingName);
   const howCountryLine = getCategoriesHowCountryLine(headingName, countryMetaCode);
 
+  const howToSteps = [
+    "Start broad when browsing; pick a specific subcategory when comparing businesses.",
+    howCountryLine,
+    "Use the same subcategory when weighing two providers side by side.",
+  ];
+
   const categoryGrid = (
     <div
       id="category-directory"
-      className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
     >
       {isLoading &&
         Array.from({ length: 6 }).map((_, index) => (
-          <div
-            key={`category-group-skeleton-${index}`}
-            className="rounded-xl border border-gray-200 bg-white p-6"
-          >
+          <div key={`category-group-skeleton-${index}`} className="cat-skeleton">
             <div className="h-4 w-32 rounded bg-gray-100" />
             <div className="mt-4 space-y-3">
               <div className="h-3 w-40 rounded bg-gray-100" />
@@ -367,7 +384,8 @@ export default function CategoriesPage({
           <p>No categories available yet.</p>
           <Link
             href={`/search${countryQuerySuffix}`}
-            className="mt-3 inline-flex rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+            className="cat-sector-pill cat-sector-pill--accent mt-3 inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+            style={{ "--cat-accent": "#00B4A6" } as React.CSSProperties}
           >
             Search businesses
           </Link>
@@ -375,98 +393,88 @@ export default function CategoriesPage({
       )}
 
       {!isLoading &&
-        groups.map((group) => {
+        groups.map((group, groupIndex) => {
           const Icon = getGroupIcon(group.slug);
-          const accentColor = getGroupColor(group.slug);
+          const accentColor = getGroupAccentColor(group.slug);
           const groupDescription = getGroupDescription(group.slug);
+          const visibleCategories = group.categories.slice(0, MAX_SUBCATEGORIES_SHOWN);
+          const groupSlug = (group.slug ?? "").trim();
           return (
-            <div
-              id={`category-${group.slug}`}
+            <StaggerFadeUp
               key={String(group.id ?? group.slug ?? group.name)}
-              className="scroll-mt-24 rounded-xl border-2 bg-white p-6 shadow-sm"
-              style={{ borderColor: accentColor }}
+              index={groupIndex}
+              staggerMs={60}
+              threshold={IO_THRESHOLD}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <span
-                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 text-[#0E0E0E]"
-                    style={{
-                      borderColor: accentColor,
-                      backgroundColor: `${accentColor}14`,
-                    }}
-                  >
+              <div
+                id={`category-${group.slug}`}
+                className="cat-card cat-card--blocked scroll-mt-24"
+                style={{ "--cat-accent": accentColor } as React.CSSProperties}
+              >
+                <div className="cat-card-color-header">
+                  <div className="cat-card-color-header-inner">
                     <Icon
-                      className="h-6 w-6"
+                      className="cat-card-color-icon"
                       strokeWidth={1.5}
-                      style={{ color: accentColor }}
+                      aria-hidden
                     />
-                  </span>
-                  <div>
-                    <h3 className="text-base font-semibold text-[#0E0E0E]">
-                      {group.name}
-                    </h3>
-                    {groupDescription ? (
-                      <p className="mt-1 text-xs text-gray-500 line-clamp-2">
-                        {groupDescription}
-                      </p>
-                    ) : null}
-                    <p className="mt-1 text-xs text-gray-500">
-                      {group.categories.length} categories
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="cat-card-color-name">{group.name}</h3>
+                      {groupDescription ? (
+                        <p className="cat-card-color-desc line-clamp-2">
+                          {groupDescription}
+                        </p>
+                      ) : null}
+                      <span className="cat-card-color-badge">
+                        {group.categories.length} categories
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="cat-card-body">
+                  <ul className="cat-card-list">
+                    {visibleCategories.map((category) => {
+                      const safeCategorySlug = (category.slug ?? "").trim();
+                      return (
+                        <li
+                          key={String(
+                            category.id ?? category.slug ?? category.name
+                          )}
+                        >
+                          <Link
+                            href={
+                              safeCategorySlug
+                                ? `/categories/${encodeURIComponent(safeCategorySlug)}${countryQuerySuffix}`
+                                : "#"
+                            }
+                            className="cat-card-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          >
+                            <span>{category.name}</span>
+                            <ChevronRight
+                              className="cat-card-link-chevron h-3.5 w-3.5"
+                              aria-hidden
+                            />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="cat-card-footer">
+                    <Link
+                      href={
+                        groupSlug
+                          ? `/categories/${encodeURIComponent(groupSlug)}${countryQuerySuffix}`
+                          : "#"
+                      }
+                      className="cat-card-view-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    >
+                      View Businesses
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                    </Link>
                   </div>
                 </div>
               </div>
-              <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                {group.categories.map((category) => {
-                  const safeCategorySlug = (category.slug ?? "").trim();
-                  return (
-                    <li
-                      key={String(
-                        category.id ?? category.slug ?? category.name
-                      )}
-                    >
-                      <Link
-                        href={
-                          safeCategorySlug
-                            ? `/categories/${encodeURIComponent(safeCategorySlug)}${countryQuerySuffix}`
-                            : "#"
-                        }
-                        className="flex items-center justify-between gap-3 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = accentColor;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = "";
-                        }}
-                      >
-                        <span>{category.name}</span>
-                        <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="mt-5 border-t border-gray-100 pt-4 text-right">
-                <Link
-                  href={
-                    (group.slug ?? "").trim()
-                      ? `/categories/${encodeURIComponent((group.slug ?? "").trim())}${countryQuerySuffix}`
-                      : "#"
-                  }
-                  className="inline-flex items-center gap-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
-                  style={{ color: accentColor }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "0.85";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                >
-                  View Businesses
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </div>
+            </StaggerFadeUp>
           );
         })}
     </div>
@@ -474,81 +482,119 @@ export default function CategoriesPage({
 
   const popularGroupsList =
     !isLoading && popularGroups.length > 0 ? (
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {popularGroups.map((group) => (
-          <li key={group.slug}>
-            <Link
-              href={`/categories/${encodeURIComponent(group.slug.trim())}${countryQuerySuffix}`}
-              className="inline-flex rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-[#0E0E0E] transition hover:border-[#1FAF9E]/40 hover:text-[#0F766E]"
-            >
-              {group.name}
-            </Link>
-          </li>
-        ))}
+      <ul className="mt-4 flex flex-wrap gap-2.5">
+        {popularGroups.map((group) => {
+          const accent = getGroupAccentColor(group.slug);
+          return (
+            <li key={group.slug}>
+              <Link
+                href={`/categories/${encodeURIComponent(group.slug.trim())}${countryQuerySuffix}`}
+                className="cat-sector-pill cat-sector-pill--accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                style={{ "--cat-accent": accent } as React.CSSProperties}
+              >
+                {group.name}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     ) : null;
 
   return (
-    <main className="bg-white">
-      <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <div className="max-w-2xl">
-          <h1 className="text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">
-            <span className="relative inline-block">
-              <span className="relative z-10">{h1Title}</span>
-              <span className="absolute bottom-1 left-0 right-0 h-2 bg-[#1FAF9E]/30" />
-            </span>
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-gray-600 sm:text-base">
-            {introParagraph}
-          </p>
+    <main className="categories-cinematic">
+      <HomeScrollProgress />
+      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <FadeUp threshold={IO_THRESHOLD} className="cat-hero">
+          <div className="cat-hero-confetti" aria-hidden>
+            {HERO_CONFETTI.map((dot, index) => (
+              <span
+                key={`confetti-${index}`}
+                className="cat-hero-confetti-dot"
+                style={{
+                  left: dot.x,
+                  top: dot.y,
+                  width: dot.size,
+                  height: dot.size,
+                  backgroundColor: dot.color,
+                }}
+              />
+            ))}
+          </div>
+          <div className="cat-hero-inner max-w-2xl">
+            <h1 className="cat-hero-title">
+              Explore{" "}
+              <span className="relative inline-block">
+                <span className="relative z-10">Categories</span>
+                <span className="cat-hero-draw-underline" aria-hidden />
+              </span>{" "}
+              in{" "}
+              <span className="cat-hero-country">{headingName}</span>
+            </h1>
+            <p className="cat-hero-sub">{introParagraph}</p>
+          </div>
+        </FadeUp>
+
+        <div className="cat-browse-section">
+          <FadeUp threshold={IO_THRESHOLD}>
+            <h2 className="cat-section-title">
+              <span className="cat-section-accent">Browse</span> by category
+            </h2>
+            <p className="cat-section-sub">
+              Select a group to view subcategories.
+            </p>
+          </FadeUp>
+          {categoryGrid}
         </div>
 
-        <h2 className={`${h2ClassCompact} mt-8`}>Browse by category</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Select a group to view subcategories.
-        </p>
-        {categoryGrid}
+        <FadeUp threshold={IO_THRESHOLD} className="cat-popular-section">
+          <h2 className="cat-section-title">
+            <span className="cat-section-accent">Popular</span> sectors
+          </h2>
+          <p className="cat-section-sub">{popularSectorsIntro}</p>
+          {popularGroupsList}
+        </FadeUp>
 
-        <div className={`mt-10 space-y-8 ${sectionClassCompact}`}>
-          <section>
-            <h2 className={h2ClassCompact}>Popular sectors</h2>
-            <p className={bodyClassCompact}>{popularSectorsIntro}</p>
-            {popularGroupsList}
-          </section>
+        <FadeUp threshold={IO_THRESHOLD} className="cat-info-section">
+          <div className="cat-why-block">
+            <h2 className="cat-section-title">
+              <span className="cat-section-accent">Why</span> categories matter
+            </h2>
+            <p className="cat-why-body">{CATEGORIES_WHY_COPY}</p>
+          </div>
 
-          <section>
-            <h2 className={h2ClassCompact}>Why categories matter</h2>
-            <p className={bodyClassCompact}>{CATEGORIES_WHY_COPY}</p>
-          </section>
+          <div className="cat-how-block">
+            <h2 className="cat-section-title">
+              <span className="cat-section-accent">How to</span> choose a category
+            </h2>
+            <div className="cat-step-grid">
+              {howToSteps.map((step, index) => (
+                <div key={`how-step-${index}`} className="cat-step-card">
+                  <span className="cat-step-num">{index + 1}</span>
+                  <p className="cat-step-text">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </FadeUp>
 
-          <section>
-            <h2 className={h2ClassCompact}>How to choose a category</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
-              <li>
-                Start broad when browsing; pick a specific subcategory when
-                comparing businesses.
-              </li>
-              <li>{howCountryLine}</li>
-              <li>
-                Use the same subcategory when weighing two providers side by side.
-              </li>
-            </ul>
-          </section>
-
-          <section className="rounded-xl border border-gray-200 bg-[#F8FAFC] p-5">
-            <h2 className={h2ClassCompact}>Need help?</h2>
-            <p className={bodyClassCompact}>{CATEGORIES_NEED_HELP_INTRO}</p>
-            <ul className="mt-3 space-y-2 text-sm">
+        <FadeUp threshold={IO_THRESHOLD} className="cat-help-section">
+          <div className="cat-help-card">
+            <h2 className="cat-section-title">
+              Need help<span className="cat-help-q">?</span>
+            </h2>
+            <p className="cat-section-sub">{CATEGORIES_NEED_HELP_INTRO}</p>
+            <ul className="cat-help-grid">
               {NEED_HELP_LINKS.map((page) => (
                 <li key={page.href}>
-                  <Link href={page.href} className={linkClass}>
-                    {page.label}
+                  <Link href={page.href} className="cat-help-link">
+                    <span>{page.label}</span>
+                    <ChevronRight className="cat-help-link-icon h-4 w-4" aria-hidden />
                   </Link>
                 </li>
               ))}
             </ul>
-          </section>
-        </div>
+          </div>
+        </FadeUp>
       </section>
     </main>
   );

@@ -99,7 +99,7 @@ export default function SolutionsHubPage() {
         <div className="mx-auto w-full max-w-7xl px-6 py-16 md:py-20">
           <div className="max-w-2xl">
             <Link
-              href="/reputation-platform"
+              href="/for-business"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-300 transition-colors hover:border-[#1FAF9E]/50 hover:text-white"
             >
               <span
@@ -107,7 +107,7 @@ export default function SolutionsHubPage() {
                 style={{ backgroundColor: ACCENT }}
                 aria-hidden
               />
-              Part of the Tellacity Reputation Platform
+              Part of Tellacity for Business
               <span aria-hidden>→</span>
             </Link>
             <p className="mt-4 text-sm font-medium uppercase tracking-wider text-gray-400">
@@ -194,23 +194,23 @@ export default function SolutionsHubPage() {
               className="text-sm font-medium uppercase tracking-wider"
               style={{ color: ACCENT }}
             >
-              The Tellacity Reputation Platform
+              Tellacity for Business
             </p>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#0E0E0E] sm:text-3xl">
               See how every solution works together
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
               Review invitations, widgets, analytics, reputation management,
-              and photo uploads are five modules on one verified review
-              infrastructure. The Reputation Platform hub explains how they
-              connect and how teams use them together.
+              photo uploads, and blogs or case studies share one verified review
+              infrastructure. Tellacity for Business explains how modules connect
+              and how teams use them together.
             </p>
             <Link
-              href="/reputation-platform"
+              href="/for-business#platform-modules"
               className="mt-6 inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-black shadow-[0_0_0_rgba(251,191,36,0)] transition-all duration-300 hover:shadow-[0_0_20px_rgba(251,191,36,0.6),0_0_40px_rgba(251,191,36,0.3)] active:scale-[0.98]"
               style={{ backgroundColor: ACCENT_BG }}
             >
-              Explore the Reputation Platform →
+              Explore Tellacity for Business →
             </Link>
           </div>
         </div>

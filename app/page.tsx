@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import HomePageClient from "./HomePageClient";
+import { HomeLatestArticlesSkeleton } from "@/components/home/HomeLatestArticles";
 import type { BestInBusiness } from "./HomePageClient";
 import {
   createSupabaseServerClient,
@@ -19,6 +20,7 @@ import {
 import { HOME_ROTATING_BEST_IN_SLUGS } from "@/lib/homeBestInBundle";
 import { loadHomeBestInLive } from "@/lib/loadHomeBestInLive";
 import { loadHomePageFeedRows } from "@/lib/homePageFeedServer";
+import { getLatestArticles, type HubArticleCard } from "@/lib/articles/hubArticles";
 
 const CATEGORY_LABELS: Record<string, string> = {
   banking: "Banking",
@@ -156,13 +158,10 @@ type HomeCategoryRow = { id: string; name: string; slug: string };
 
 function HomePageShellFallback() {
   return (
-    <main className="bg-white">
+    <main className="home-cinematic bg-[#0E0E0E]">
       <section
-        className="relative min-h-[440px] bg-[#0E0E0E] bg-cover bg-center bg-no-repeat sm:min-h-[520px]"
-        style={{
-          backgroundImage:
-            "url('/brand/Hero%20section-%20Binoculus(1)(1).png')",
-        }}
+        className="home-hero relative min-h-[min(720px,82dvh)] bg-[#0E0E0E]"
+        aria-hidden
       />
       <section className="mx-auto max-w-7xl px-6 py-10 sm:py-12">
         <div className="h-8 w-56 animate-pulse rounded-md bg-gray-200" />
@@ -188,6 +187,7 @@ function HomePageShellFallback() {
           ))}
         </div>
       </section>
+      <HomeLatestArticlesSkeleton />
     </main>
   );
 }
@@ -292,6 +292,7 @@ export default async function HomePage(props: PageProps) {
   }
   let bestInByCategory: Record<string, unknown[]> = {};
   let homeFeedRows: Record<string, unknown>[] = [];
+  let latestArticles: HubArticleCard[] = [];
   let marqueeCategories = buildMarqueeCategoryCards(HOME_MARQUEE_CATEGORY_ITEMS);
   let categoryRowsForHome: HomeCategoryRow[] = [];
 
@@ -302,7 +303,8 @@ export default async function HomePage(props: PageProps) {
       console.error("Homepage fetch failed: Supabase client is null");
     } else {
       try {
-        const [{ data: catRows }, rawBestIn, feedRows] = await Promise.all([
+        const [{ data: catRows }, rawBestIn, feedRows, latestArticlesResult] =
+          await Promise.all([
           supabase
             .from("categories")
             .select("id, slug, name")
@@ -315,6 +317,12 @@ export default async function HomePage(props: PageProps) {
             console.error("Homepage home feed:", err);
             return [] as Record<string, unknown>[];
           }),
+          getLatestArticles(createSupabaseServerClientForHomeBestIn(), 4).catch(
+            (err) => {
+              console.error("Homepage latest articles:", err);
+              return [] as HubArticleCard[];
+            },
+          ),
         ]);
         categoryRowsForHome = buildHomeCategoryRows(catRows);
         const slugSet = new Set(
@@ -338,6 +346,7 @@ export default async function HomePage(props: PageProps) {
         }
         bestInByCategory = mergedBestIn;
         homeFeedRows = Array.isArray(feedRows) ? feedRows : [];
+        latestArticles = Array.isArray(latestArticlesResult) ? latestArticlesResult : [];
       } catch (marqueeErr) {
         console.error("Homepage marquee / best-in:", marqueeErr);
       }
@@ -400,6 +409,7 @@ export default async function HomePage(props: PageProps) {
             bestInCategoryLabels={safeLabels}
             marqueeCategories={marqueeCategories}
             initialHomeFeedRows={homeFeedRows}
+            initialLatestArticles={latestArticles}
           />
         </Suspense>
       </>

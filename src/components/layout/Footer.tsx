@@ -109,7 +109,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="w-full bg-[#0E0E0E] text-white">
+    <footer className="w-full bg-[#0A0A0A] text-white">
       <div className="mx-auto w-full max-w-7xl px-6 py-16">
         <div className="grid gap-12 lg:grid-cols-6">
           <div className="grid gap-10 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-5">
@@ -125,7 +125,7 @@ export default function Footer() {
                   </FooterNavLink>
                 </li>
                 <li>
-                  <FooterNavLink href="/blog">Blog</FooterNavLink>
+                  <FooterNavLink href="/articles">Articles</FooterNavLink>
                 </li>
                 <li>
                   <FooterNavLink href="/press">Press</FooterNavLink>
@@ -179,18 +179,8 @@ export default function Footer() {
               </h3>
               <ul className="mt-4 space-y-3 text-sm text-gray-300 whitespace-nowrap">
                 <li>
-                  <FooterNavLink href="/reputation-platform">
-                    Reputation Platform
-                  </FooterNavLink>
-                </li>
-                <li>
                   <FooterNavLink href="/for-business">
                     Tellacity for Business
-                  </FooterNavLink>
-                </li>
-                <li>
-                  <FooterNavLink href="/for-business">
-                    Features &amp; Integrations
                   </FooterNavLink>
                 </li>
                 <li>

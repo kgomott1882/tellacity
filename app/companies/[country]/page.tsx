@@ -203,7 +203,7 @@ export default async function CompaniesCountryIndexPage(props: {
             <p className="text-sm leading-relaxed text-gray-600 sm:text-base">
               Part of the{" "}
               <Link
-                href="/reputation-platform"
+                href="/for-business"
                 className="font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]"
               >
                 Tellacity Reputation Platform

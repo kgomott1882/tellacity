@@ -3,20 +3,24 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-type TabKey = "details" | "controls" | "photos";
+type TabKey = "details" | "controls" | "photos" | "articles";
 
 type BusinessDetailTabsProps = {
   details: ReactNode;
   controls: ReactNode;
   photos: ReactNode;
+  articles: ReactNode;
   pendingPhotoCount?: number;
+  pendingArticleCount?: number;
 };
 
 export default function BusinessDetailTabs({
   details,
   controls,
   photos,
+  articles,
   pendingPhotoCount = 0,
+  pendingArticleCount = 0,
 }: BusinessDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("details");
 
@@ -43,6 +47,7 @@ export default function BusinessDetailTabs({
           {tabBtn("details", "Details")}
           {tabBtn("controls", "Controls")}
           {tabBtn("photos", "Photos", pendingPhotoCount)}
+          {tabBtn("articles", "Articles", pendingArticleCount)}
         </div>
       </div>
 
@@ -50,6 +55,7 @@ export default function BusinessDetailTabs({
         {activeTab === "details" && <>{details}</>}
         {activeTab === "controls" && <>{controls}</>}
         {activeTab === "photos" && <>{photos}</>}
+        {activeTab === "articles" && <>{articles}</>}
       </div>
     </div>
   );

@@ -1,22 +1,89 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
+const DEFAULT_IO_THRESHOLD = 0.15;
 
 export function FadeUp({
   children,
   delay = 0,
+  className = "",
+  threshold = DEFAULT_IO_THRESHOLD,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   delay?: number;
+  className?: string;
+  threshold?: number;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      viewport={{ once: true, amount: 0.2 }}
+    <div
+      ref={ref}
+      className={`home-io-fade-up ${visible ? "is-visible" : ""} ${className}`.trim()}
+      style={{ transitionDelay: `${delay}s` }}
     >
       {children}
-    </motion.div>
+    </div>
+  );
+}
+
+export function StaggerFadeUp({
+  children,
+  index = 0,
+  staggerMs = 80,
+  className = "",
+  threshold = DEFAULT_IO_THRESHOLD,
+}: {
+  children: ReactNode;
+  index?: number;
+  staggerMs?: number;
+  className?: string;
+  threshold?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return (
+    <div
+      ref={ref}
+      className={`home-stagger-fade ${visible ? "is-visible" : ""} ${className}`.trim()}
+      style={{
+        transitionDelay: visible ? `${index * staggerMs}ms` : undefined,
+      }}
+    >
+      {children}
+    </div>
   );
 }

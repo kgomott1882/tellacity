@@ -9,6 +9,7 @@ import {
   normalizePlanCodeToKey,
   pickPlanResolutionSubscriptionRow,
   PLAN_INVITE_LIMITS,
+  PLAN_ARTICLE_LIMITS,
   SUBSCRIPTION_STATUSES_FOR_PLAN,
   type PlanKey,
 } from "@/lib/plans";
@@ -132,6 +133,45 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
     );
   }
 
+  async function addBonusArticlesAction(formData: FormData) {
+    "use server";
+    const actionBusinessId = businessId;
+    const amount = asNonNegativeInt(formData.get("amount"));
+
+    if (!UUID_RE.test(actionBusinessId) || amount <= 0) {
+      return redirect(
+        `/admin/business-controls/${encodeURIComponent(
+          actionBusinessId || businessId
+        )}?e=${encodeURIComponent("Bonus articles must be a positive number.")}`
+      );
+    }
+
+    const { supabase } = await requireAdminSession(
+      `/admin/business-controls/${encodeURIComponent(actionBusinessId)}`
+    );
+
+    const { error } = await supabase.rpc("admin_add_bonus_articles", {
+      p_business_id: actionBusinessId,
+      p_amount: Number(amount),
+      p_reason: String(formData.get("reason") ?? "").trim() || null,
+    });
+
+    if (error) {
+      return redirect(
+        `/admin/business-controls/${encodeURIComponent(
+          actionBusinessId
+        )}?e=${encodeURIComponent(error.message)}`
+      );
+    }
+
+    revalidatePath(`/admin/business-controls/${actionBusinessId}`);
+    return redirect(
+      `/admin/business-controls/${encodeURIComponent(
+        actionBusinessId
+      )}?s=${encodeURIComponent("Bonus articles added.")}`
+    );
+  }
+
   async function resetBonusInvitesAction(formData: FormData) {
     "use server";
     const actionBusinessId = businessId;
@@ -240,6 +280,11 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
   let finalLimit = 0;
   let used = 0;
   let remaining = 0;
+  let articleBaseLimit = 0;
+  let articleBonus = 0;
+  let articleFinalLimit = 0;
+  let articlesUsed = 0;
+  let articlesRemaining = 0;
 
   if (idValid) {
     const { data: business, error: businessError } = await supabase
@@ -276,6 +321,17 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
     const { data: bonusInvites, error: bonusError } = await supabase.rpc("get_bonus_invites", {
       p_business_id: businessId,
     });
+    const billingMonth = `${startOfMonth.getUTCFullYear()}-${String(startOfMonth.getUTCMonth() + 1).padStart(2, "0")}`;
+    const { data: bonusArticles, error: bonusArticlesError } = await supabase.rpc(
+      "get_bonus_articles",
+      { p_business_id: businessId },
+    );
+    const { data: articleUsageRow } = await supabase
+      .from("article_usage")
+      .select("articles_used")
+      .eq("business_id", businessId)
+      .eq("billing_month", billingMonth)
+      .maybeSingle();
 
     if (businessError) {
       pageError = businessError.message;
@@ -308,8 +364,15 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
       used = monthlyUsedInvites ?? 0;
       remaining = Math.max(finalLimit - used, 0);
       currentPlan = PLAN_OPTIONS.includes(plan) ? plan : "free";
+      articleBaseLimit = PLAN_ARTICLE_LIMITS[plan] ?? 0;
+      articleBonus = asNonNegativeInt(parseRpcNumber(bonusArticles));
+      articleFinalLimit = articleBaseLimit + articleBonus;
+      articlesUsed = Number(articleUsageRow?.articles_used ?? 0);
+      articlesRemaining = Math.max(articleFinalLimit - articlesUsed, 0);
       if (bonusError?.message) {
         pageError = bonusError.message;
+      } else if (bonusArticlesError?.message) {
+        pageError = bonusArticlesError.message;
       }
     }
   }
@@ -390,11 +453,35 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
             </div>
           </AdminTableShell>
 
+          <AdminTableShell title="Business Article Controls">
+            <div className="p-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="rounded border p-4">
+                  <div className="text-sm text-gray-500">Base article limit</div>
+                  <div className="font-semibold">{articleBaseLimit}</div>
+                </div>
+                <div className="rounded border p-4">
+                  <div className="text-sm text-gray-500">Bonus articles</div>
+                  <div className="font-semibold">{articleBonus}</div>
+                </div>
+                <div className="rounded border p-4">
+                  <div className="text-sm text-gray-500">Used this month</div>
+                  <div className="font-semibold">{articlesUsed}</div>
+                </div>
+                <div className="rounded border p-4">
+                  <div className="text-sm text-gray-500">Remaining</div>
+                  <div className="font-semibold">{articlesRemaining}</div>
+                </div>
+              </div>
+            </div>
+          </AdminTableShell>
+
           <BusinessControlsForms
             businessId={businessId}
             currentPlan={currentPlan}
             updatePlanAction={updatePlanAction}
             addBonusInvitesAction={addBonusInvitesAction}
+            addBonusArticlesAction={addBonusArticlesAction}
           />
         </>
       )}

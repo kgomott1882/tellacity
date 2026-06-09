@@ -662,7 +662,7 @@ We appreciate your support and look forward to serving you again soon.
       <p>Customers don't leave reviews because they forget, it's too much effort, or no one asked. Fix those three things, and your review volume will increase dramatically.</p>
     `,
   },
-  // Original static blog pages - listed here so they appear on /blog; content lives at app/blog/[slug]/page.tsx
+  // Legacy static article pages — full JSX at app/articles/[slug]/page.tsx
   {
     slug: "import-reviews",
     title: "Bringing Your Reviews to Tellacity: A Complete Import Guide",

@@ -24,6 +24,7 @@ import {
 } from "@/lib/upgradeFlow";
 import {
   BILLING_PLAN_ORDER,
+  BILLING_PLAN_ARTICLES_LABEL,
   BILLING_PLAN_PHOTOS_LABEL,
   BILLING_PLAN_SECTIONS_LABEL,
   conversionHighlightPlanForContext,
@@ -433,7 +434,7 @@ export default function BillingPage() {
             <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
               <table className="w-full min-w-[560px] table-fixed border-collapse text-left text-sm">
                 <caption className="border-b border-gray-100 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Photos &amp; sections by plan
+                  Photos, blogs &amp; case studies by plan
                 </caption>
                 {/*
                   table-fixed + explicit column widths force Free / Grow /
@@ -485,6 +486,22 @@ export default function BillingPage() {
                         )}
                       >
                         {BILLING_PLAN_PHOTOS_LABEL[p]}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <th scope="row" className="px-4 py-3 font-medium text-gray-700">
+                      Blogs &amp; case studies
+                    </th>
+                    {BILLING_PLAN_ORDER.map((p, colIdx) => (
+                      <td
+                        key={p}
+                        className={cn(
+                          "px-3 py-3 text-center text-gray-800",
+                          colIdx === highlightColIndex && "bg-[#1FAF9E]/8"
+                        )}
+                      >
+                        {BILLING_PLAN_ARTICLES_LABEL[p]}
                       </td>
                     ))}
                   </tr>

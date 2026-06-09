@@ -41,10 +41,20 @@ const nextConfig = {
         permanent: true,
       },
 
-      // BLOG / RESOURCES
+      // BLOG → ARTICLES (content hub consolidation)
       {
         source: "/resources/blog",
-        destination: "/blog",
+        destination: "/articles",
+        permanent: true,
+      },
+      {
+        source: "/blog",
+        destination: "/articles",
+        permanent: true,
+      },
+      {
+        source: "/blog/:slug",
+        destination: "/articles/:slug",
         permanent: true,
       },
 
@@ -52,6 +62,13 @@ const nextConfig = {
       {
         source: "/business/features",
         destination: "/",
+        permanent: true,
+      },
+
+      // Reputation platform merged into for-business
+      {
+        source: "/reputation-platform",
+        destination: "/for-business",
         permanent: true,
       },
 

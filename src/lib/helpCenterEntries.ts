@@ -26,6 +26,10 @@ export const HELP_CENTER_SECTIONS = [
     sectionDesc: "Tools for business owners.",
   },
   {
+    section: "Blogs & Case Studies",
+    sectionDesc: "Publishing articles, limits, and content rules.",
+  },
+  {
     section: "Plans & Billing",
     sectionDesc: "Pricing, subscriptions, and payments.",
   },
@@ -327,7 +331,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
         value:
           "Paid plans do not affect ratings or review visibility. Learn more on the ",
       },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: " page." },
     ],
   },
@@ -375,7 +379,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
       },
       { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
       { type: "text", value: " and the " },
-      { type: "link", href: "/reputation-platform", label: "Reputation Platform" },
+      { type: "link", href: "/for-business", label: "Tellacity for Business" },
       { type: "text", value: "." },
     ],
   },
@@ -399,6 +403,89 @@ export const HELP_ENTRIES: HelpEntry[] = [
         value:
           "Structured profile data and verified reviews may help search engines and AI systems understand your reputation.",
       },
+    ],
+  },
+  {
+    section: "Blogs & Case Studies",
+    sectionDesc: "Publishing articles, limits, and content rules.",
+    title: "What are Blogs & Case Studies?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Verified businesses can publish blogs and case studies from the dashboard under Blogs & Case Studies. ",
+      },
+      {
+        type: "text",
+        value:
+          "Content is reviewed before it appears on the public Articles hub and your business profile. ",
+      },
+      { type: "text", value: "See the full policy in " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: " or browse " },
+      { type: "link", href: "/articles", label: "Articles" },
+      { type: "text", value: "." },
+    ],
+  },
+  {
+    section: "Blogs & Case Studies",
+    sectionDesc: "Publishing articles, limits, and content rules.",
+    title: "How do I create and submit an article?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Open Blogs & Case Studies in your business dashboard, create a draft, complete Setup (content type and optional writer details), add a title and featured image, write content, and use Preview to check the layout before submitting. ",
+      },
+      {
+        type: "text",
+        value:
+          "When ready, submit for review — Tellacity moderates every submission before it goes live. Manage drafts in the ",
+      },
+      { type: "link", href: "/business/dashboard/articles", label: "article dashboard" },
+      { type: "text", value: ". Read " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: " for full rules." },
+    ],
+  },
+  {
+    section: "Blogs & Case Studies",
+    sectionDesc: "Publishing articles, limits, and content rules.",
+    title: "What link rules apply to articles?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Articles may include up to 5 external links. Links to your registered business website and other Tellacity pages do not count toward that limit. ",
+      },
+      {
+        type: "text",
+        value:
+          "Affiliate links, URL shorteners, gambling, adult-content, and unsafe download links are blocked. The same external URL may not appear more than 3 times. ",
+      },
+      { type: "text", value: "Details are in " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: "." },
+    ],
+  },
+  {
+    section: "Blogs & Case Studies",
+    sectionDesc: "Publishing articles, limits, and content rules.",
+    title: "What happens when I edit a published article?",
+    segments: [
+      {
+        type: "text",
+        value:
+          "Edits to live articles create a draft update. Your current published version stays visible until Tellacity approves the changes. ",
+      },
+      {
+        type: "text",
+        value:
+          "Submitting an update does not use an extra monthly submission credit. If an update is rejected, the live article is unchanged and the reason appears in your dashboard. ",
+      },
+      { type: "text", value: "See " },
+      { type: "link", href: "/business-guidelines", label: "Business Guidelines" },
+      { type: "text", value: "." },
     ],
   },
   {

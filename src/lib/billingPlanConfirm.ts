@@ -1,4 +1,4 @@
-import type { PlanKey } from "@/lib/plans";
+import { upToPlanArticleLimitBullet, upToPlanInviteLimitBullet, type PlanKey } from "@/lib/plans";
 
 const PAID_KEYS = new Set<PlanKey>(["grow", "premium", "elite"]);
 
@@ -97,19 +97,22 @@ export function getPlanConfirmPresentation(
 
   const bullets: Record<"grow" | "premium" | "elite", string[]> = {
     grow: [
-      "Up to 150 review invites per month",
+      upToPlanInviteLimitBullet("grow"),
+      upToPlanArticleLimitBullet("grow"),
       "Email invitations & customisable templates",
       "Review & invite performance analytics",
       "Standard on-site widget library",
     ],
     premium: [
-      "Up to 500 review invites per month",
+      upToPlanInviteLimitBullet("premium"),
+      upToPlanArticleLimitBullet("premium"),
       "Advanced analytics & sentiment",
       "Integrations access",
       "Priority support",
     ],
     elite: [
-      "Up to 2,000 review invites per month",
+      upToPlanInviteLimitBullet("elite"),
+      upToPlanArticleLimitBullet("elite"),
       "White-label & enterprise integrations",
       "Strategic insights & benchmarking",
       "Dedicated account manager",

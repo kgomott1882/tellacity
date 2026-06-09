@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
-import { PAID_PLAN_USD } from "@/lib/billingPlanConfirm";
-
-const PAGE_URL = "https://tellacity.com/pricing";
+import { fetchTellacityPlatformReviewSchema } from "@/lib/fetchTellacityPlatformReviewSchema";
+import {
+  PRICING_PAGE_URL,
+  buildPricingSoftwareApplicationJsonLd,
+  buildPricingWebPageJsonLd,
+} from "@/lib/subscriptionOfferJsonLd";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing | Tellacity",
   description:
-    "Compare Tellacity pricing plans for businesses, including Free, Grow, Premium, Elite, and Custom options with transparent features and limits.",
-  alternates: { canonical: PAGE_URL },
+    "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+  alternates: { canonical: PRICING_PAGE_URL },
   openGraph: {
     title: "Pricing | Tellacity",
     description:
-      "Compare Tellacity pricing plans for businesses, including Free, Grow, Premium, Elite, and Custom options with transparent features and limits.",
-    url: PAGE_URL,
+      "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+    url: PRICING_PAGE_URL,
     siteName: "Tellacity",
     type: "website",
     images: [
@@ -27,103 +31,19 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Pricing | Tellacity",
     description:
-      "Compare Tellacity pricing plans for businesses, including Free, Grow, Premium, Elite, and Custom options with transparent features and limits.",
+      "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
   },
   robots: { index: true, follow: true },
 };
 
-const pricingJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebPage",
-  name: "Pricing | Tellacity",
-  description:
-    "Compare Tellacity pricing plans for businesses, including Free, Grow, Premium, Elite, and Custom options with transparent features and limits.",
-  url: PAGE_URL,
-  breadcrumb: {
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: "https://tellacity.com/",
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Pricing",
-        item: PAGE_URL,
-      },
-    ],
-  },
-};
+export const dynamic = "force-dynamic";
 
-const PRICING_PRODUCT_IMAGE =
-  "https://tellacity.com/brand/Tellacity%20Dash.png";
+export default async function PricingPage() {
+  const supabase = createClient();
+  const reviewSchema = await fetchTellacityPlatformReviewSchema(supabase);
+  const pricingJsonLd = buildPricingWebPageJsonLd();
+  const pricingSoftwareJsonLd = buildPricingSoftwareApplicationJsonLd(reviewSchema);
 
-const pricingOffersJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Product",
-  name: "Tellacity Business Plans",
-  description:
-    "Tellacity reputation and review plans for businesses, from Free through Elite.",
-  image: [PRICING_PRODUCT_IMAGE],
-  brand: { "@type": "Brand", name: "Tellacity" },
-  offers: [
-    {
-      "@type": "Offer",
-      name: "Free",
-      price: "0",
-      priceCurrency: "USD",
-      url: PAGE_URL,
-      availability: "https://schema.org/InStock",
-    },
-    {
-      "@type": "Offer",
-      name: "Grow",
-      price: String(PAID_PLAN_USD.grow.monthly),
-      priceCurrency: "USD",
-      url: PAGE_URL,
-      availability: "https://schema.org/InStock",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: PAID_PLAN_USD.grow.monthly,
-        priceCurrency: "USD",
-        unitText: "MONTH",
-      },
-    },
-    {
-      "@type": "Offer",
-      name: "Premium",
-      price: String(PAID_PLAN_USD.premium.monthly),
-      priceCurrency: "USD",
-      url: PAGE_URL,
-      availability: "https://schema.org/InStock",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: PAID_PLAN_USD.premium.monthly,
-        priceCurrency: "USD",
-        unitText: "MONTH",
-      },
-    },
-    {
-      "@type": "Offer",
-      name: "Elite",
-      price: String(PAID_PLAN_USD.elite.monthly),
-      priceCurrency: "USD",
-      url: PAGE_URL,
-      availability: "https://schema.org/InStock",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: PAID_PLAN_USD.elite.monthly,
-        priceCurrency: "USD",
-        unitText: "MONTH",
-      },
-    },
-  ],
-};
-
-export default function PricingPage() {
   return (
     <>
       <script
@@ -133,7 +53,7 @@ export default function PricingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(pricingOffersJsonLd),
+          __html: JSON.stringify(pricingSoftwareJsonLd),
         }}
       />
       <PricingPageContent variant="public" />

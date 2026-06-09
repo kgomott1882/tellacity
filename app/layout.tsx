@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Suspense } from "react";
+import { Inter } from "next/font/google";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
@@ -14,6 +15,12 @@ export const revalidate = 0;
 export const metadata = {
   metadataBase: new URL("https://tellacity.com"),
 };
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 const abortErrorHandlerScript = `
   (function() {
@@ -41,8 +48,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.variable}>
+      <body className={inter.className}>
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
         <CountrySync />

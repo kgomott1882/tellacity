@@ -405,62 +405,59 @@ export default async function Page(props: PageProps) {
             dangerouslySetInnerHTML={{ __html: JSON.stringify(script) }}
           />
         ))}
-        <section className="mx-auto w-full max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <nav className="text-xs text-[#1FAF9E]" aria-label="Breadcrumb">
-              <Link href="/categories" className="hover:underline">
-                Categories
-              </Link>
-              <span className="mx-1">›</span>
-              {categoryGroupSlug ? (
-                <>
-                  <Link
-                    href={`/categories/${categoryGroupSlug}?country=${countryCode}`}
-                    className="hover:underline"
-                  >
-                    {categoryGroupName}
-                  </Link>
+        <div className="category-directory-cinematic">
+          <section className="cat-dir-hero-section">
+            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="cat-dir-hero-inner cat-dir-hero-animate w-full">
+                <nav className="cat-dir-breadcrumb" aria-label="Breadcrumb">
+                  <Link href={`/categories?country=${countryCode}`}>Categories</Link>
                   <span className="mx-1">›</span>
-                </>
-              ) : null}
-              <span className="text-gray-700">{categoryName}</span>
-            </nav>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#0E0E0E]">
-              Best {categoryName} in {countryName}
-            </h1>
-            <h2 className="mt-4 text-lg font-semibold text-[#0E0E0E]">
-              Find the best {categoryName} providers in {countryName}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-gray-600">
-              Compare ratings, read real customer reviews, and choose trusted
-              providers based on verified experiences on Tellacity.
-            </p>
-            <h2 className="mt-6 text-base font-semibold text-[#0E0E0E]">
-              Top {categoryName} companies in {countryName}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-gray-600">
-              This leaderboard shows the highest-rated {categoryName} providers in{" "}
-              {countryName}, ranked by TrustScore, review volume, and recent feedback.
-              You can click through to any business to read reviews, see photos, and
-              compare services.
-            </p>
-            <div className="mt-3">
-              <Link
-                href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
-                className="text-sm font-medium text-[#1FAF9E] hover:underline"
-              >
-                View best {categoryName} companies in {countryName} →
-              </Link>
+                  {categoryGroupSlug ? (
+                    <>
+                      <Link
+                        href={`/categories/${categoryGroupSlug}?country=${countryCode}`}
+                      >
+                        {categoryGroupName}
+                      </Link>
+                      <span className="mx-1">›</span>
+                    </>
+                  ) : null}
+                  <span className="cat-dir-breadcrumb-current">{categoryName}</span>
+                </nav>
+                <h1 className="cat-dir-hero-title">
+                  Best {categoryName} in{" "}
+                  <span className="cat-dir-hero-country">{countryName}</span>
+                </h1>
+                <h2 className="cat-dir-hero-subtitle">
+                  Find trusted {categoryName} providers in {countryName}
+                </h2>
+                <p className="cat-dir-hero-tagline">
+                  Compare TrustScores and verified reviews on Tellacity.
+                </p>
+                <div className="cat-dir-trust-badges">
+                  <span className="cat-dir-trust-badge">✓ Ranked by TrustScore</span>
+                  <span className="cat-dir-trust-badge">✓ Filter by rating &amp; country</span>
+                  <span className="cat-dir-trust-badge">✓ Read &amp; share experiences</span>
+                </div>
+                <Link
+                  href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
+                  className="cat-dir-hero-cta"
+                >
+                  View best {categoryName} companies in {countryName} →
+                </Link>
+                <div className="cat-dir-hero-extra">
+                  <h2>Top {categoryName} companies in {countryName}</h2>
+                  <p>
+                    Rankings are based on TrustScore, review volume, and recent customer
+                    feedback. Browse business profiles to read reviews, view photos, compare
+                    services, and discover trusted providers.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
-              <span>• Ranked by TrustScore</span>
-              <span>• Filter by rating &amp; country</span>
-              <span>• Read &amp; share experiences</span>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <CategoryClient
+          <CategoryClient
           key={`${safeCategorySlug}-${countryCode}`}
           categorySlug={safeCategorySlug}
           initialCountryCode={countryCode}
@@ -472,6 +469,7 @@ export default async function Page(props: PageProps) {
           hasNextPage={hasNextPage}
           popularTags={popularTags}
         />
+        </div>
       </>
     );
   } catch (error) {

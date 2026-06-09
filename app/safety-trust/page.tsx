@@ -4,6 +4,10 @@ import Link from "next/link";
 
 const PAGE_URL = "https://tellacity.com/safety-trust";
 
+function brandImage(filename: string): string {
+  return `/brand/${encodeURIComponent(filename)}`;
+}
+
 export const metadata: Metadata = {
   title: "Safety & Trust | Tellacity",
   description:
@@ -184,8 +188,8 @@ export default function SafetyTrustPage() {
           </p>
           <div className="relative mx-auto mt-8 aspect-[16/9] w-full max-w-4xl overflow-hidden rounded-3xl bg-gray-100">
             <Image
-              src="/brand/what%20trust.jpg"
-              alt="What verified trust means at Tellacity"
+              src={brandImage("Trust & Verification Framework.png")}
+              alt="Tellacity trust and verification framework"
               fill
               sizes="(max-width: 768px) 100vw, 896px"
               className="object-cover object-center"
@@ -273,7 +277,7 @@ export default function SafetyTrustPage() {
             </div>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
               <Image
-                src="/brand/world.jpg"
+                src={brandImage("Globally.png")}
                 alt="Tellacity everywhere - global trust"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -413,7 +417,7 @@ export default function SafetyTrustPage() {
             </div>
             <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl bg-white">
               <Image
-                src="/brand/anly%20white%20board.jpg"
+                src={brandImage("Circle pics.png")}
                 alt="Verified Businesses - analytics and tools"
                 fill
                 sizes="(max-width: 1024px) 100vw, 896px"
@@ -495,7 +499,7 @@ export default function SafetyTrustPage() {
             </div>
             <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl bg-gray-100">
               <Image
-                src="/brand/safe%20gurad.jpg"
+                src={brandImage("Secure Lock.png")}
                 alt="Safeguarding trust - AI moderation and human oversight"
                 fill
                 sizes="(max-width: 1024px) 100vw, 896px"
@@ -569,7 +573,7 @@ export default function SafetyTrustPage() {
                 Verified businesses target
               </h3>
               <p className="mt-1 text-sm text-gray-600">
-                Expand verified businesses to 500,000+
+                Expand verified businesses to 1,000,000+
               </p>
               <h3 className="mt-4 text-sm font-semibold text-[#0E0E0E]">
                 AI accuracy target
@@ -586,7 +590,7 @@ export default function SafetyTrustPage() {
             </div>
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gray-100">
               <Image
-                src="/brand/Green%20world.png"
+                src={brandImage("Verify WOMAN.png")}
                 alt="The future of verified trust - global impact"
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -628,7 +632,7 @@ export default function SafetyTrustPage() {
               </Link>
             </li>
             <li>
-              <Link href="/reputation-platform" className={linkClass}>
+              <Link href="/for-business" className={linkClass}>
                 Reputation Platform
               </Link>
             </li>
@@ -650,7 +654,7 @@ export default function SafetyTrustPage() {
           </ul>
           <p className="mt-6 max-w-3xl text-sm text-gray-600">
             This framework sits at the heart of Tellacity&apos;s{" "}
-            <Link href="/reputation-platform" className={linkClass}>
+            <Link href="/for-business" className={linkClass}>
               trust and reputation platform
             </Link>
             .

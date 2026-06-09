@@ -364,18 +364,17 @@ export function resolveTopSectorHref(
 export const NEED_HELP_LINKS = [
   { href: "/suggest-business", label: "Suggest a missing business" },
   { href: "/for-business", label: "Tellacity for Business" },
-  { href: "/reputation-platform", label: "Reputation Management Platform" },
+  { href: "/solutions/reputation-management", label: "Reputation Management" },
   { href: "/safety-trust", label: "Safety & Trust" },
 ] as const;
 
 export const RELATED_LINKS = [
   { href: "/about", label: "About Tellacity" },
   { href: "/for-business", label: "Tellacity for Business" },
-  { href: "/reputation-platform", label: "Reputation Management Platform" },
   { href: "/write-review", label: "Write a review" },
   { href: "/suggest-business", label: "Suggest a missing business" },
   { href: "/resources", label: "Resources" },
-  { href: "/blog", label: "Blog" },
+  { href: "/articles", label: "Articles" },
   { href: "/help-center", label: "Help Center" },
   { href: "/safety-trust", label: "Safety & Trust" },
   { href: "/reviewer-guidelines", label: "Reviewer Guidelines" },

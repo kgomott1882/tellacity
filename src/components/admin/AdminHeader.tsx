@@ -10,8 +10,16 @@ const TITLES: Record<string, { title: string }> = {
   "/admin/businesses": { title: "Businesses" },
   "/admin/customers": { title: "Business Customers" },
   "/admin/reviews": { title: "Reviews" },
+  "/admin/blogs-and-articles": { title: "Blogs and Articles" },
   "/admin/system-status": { title: "System status" },
 };
+
+function titleForPath(pathname: string): string {
+  if (pathname.includes("/admin/blogs-and-articles/") && pathname.endsWith("/edit")) {
+    return "Edit article";
+  }
+  return TITLES[pathname]?.title ?? "Admin";
+}
 
 type AdminHeaderProps = {
   userEmail: string;
@@ -20,7 +28,7 @@ type AdminHeaderProps = {
 
 export default function AdminHeader({ userEmail, onToggleSidebar }: AdminHeaderProps) {
   const pathname = usePathname();
-  const meta = TITLES[pathname] ?? { title: "Admin" };
+  const meta = { title: titleForPath(pathname) };
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {

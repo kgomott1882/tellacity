@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
+import ArticleSubmitPricingBanner from "@/components/articles/editor/ArticleSubmitPricingBanner";
 import {
   BILLING_UPGRADE_SESSION_KEY,
   isUpgradeFlowContext,
@@ -34,6 +35,8 @@ export default function UsageSettingsPage() {
 
   const parsedCheckoutPlan = parseBillingPlanQuery(searchParams.get("plan") ?? undefined);
   const parsedCycle = parseBillingCycleQuery(searchParams.get("cycle") ?? undefined);
+  const articleSubmitSource = searchParams.get("source");
+  const articleSubmitIntent = searchParams.get("intent");
   const upgrade = (() => {
     const v = (searchParams.get("upgrade") ?? "").trim().toLowerCase();
     return v === "true" || v === "1" || v === "yes";
@@ -72,6 +75,13 @@ export default function UsageSettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
+      <ArticleSubmitPricingBanner
+        businessId={businessId}
+        currentPlanKey={currentPlanKey}
+        source={articleSubmitSource}
+        intentFromQuery={articleSubmitIntent}
+      />
+
       <div className="max-w-2xl space-y-3">
         <SimplePage
           title="Pricing Plans"

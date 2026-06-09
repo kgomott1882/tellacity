@@ -139,6 +139,7 @@ export async function GET(req: Request) {
       loginLifetimeCount,
       planResolution,
       expiringPhotosResult,
+      articleCountResult,
     ] = await Promise.all([
         auth.db
           .from("businesses")
@@ -222,6 +223,13 @@ export async function GET(req: Request) {
           .lte("created_at", finalWarningCutoffIso())
           .order("created_at", { ascending: true })
           .limit(100),
+        // Any blog or case study row (draft, pending, or published). Drives
+        // the "start writing" nudge on paid plans and the Free-plan upgrade
+        // nudge when the business has never created content.
+        auth.db
+          .from("articles")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId),
       ]);
 
     if (businessErr) {
@@ -396,6 +404,36 @@ export async function GET(req: Request) {
         priority: 75,
         created_at: createdAt,
       });
+    }
+
+    const articleCount = articleCountResult.error
+      ? 0
+      : parseIntCount(articleCountResult.count);
+    const articlesTableAvailable = !articleCountResult.error;
+
+    if (articlesTableAvailable && articleCount === 0) {
+      if (activePlanKey === "free") {
+        notifications.push({
+          key: "articles_free_upgrade",
+          title: "Publish blogs & case studies with a paid plan",
+          description:
+            "On the Free plan you can't submit articles for publication. Upgrade to collect verified customer reviews, publish articles, showcase photos, and build a trusted business profile that helps customers, search engines, and AI assistants understand your business.",
+          href: "/business/dashboard/billing?source=articles_upgrade",
+          priority: 77,
+          created_at: createdAt,
+          always_show: true,
+        });
+      } else {
+        notifications.push({
+          key: "articles_none_yet",
+          title: "Share your expertise with a blog or case study",
+          description:
+            "You haven't created any blogs or case studies yet. Publishing articles strengthens your profile, improves SEO, and helps customers understand what makes your business different.",
+          href: "/business/dashboard/articles",
+          priority: 76,
+          created_at: createdAt,
+        });
+      }
     }
 
     if (

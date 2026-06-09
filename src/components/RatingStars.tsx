@@ -8,6 +8,9 @@ type RatingStarsProps = {
   size?: number;
   editable?: boolean;
   onChange?: (value: number) => void;
+  /** Gold stars with shimmer — used on cinematic home cards. */
+  variant?: "default" | "gold";
+  className?: string;
 };
 
 export default function RatingStars({
@@ -16,6 +19,8 @@ export default function RatingStars({
   size = 16,
   editable = false,
   onChange,
+  variant = "default",
+  className = "",
 }: RatingStarsProps) {
   const filledCount = Math.max(0, Math.min(5, Math.round(rating)));
   const boxSize = size + 6;
@@ -26,14 +31,21 @@ export default function RatingStars({
     4: "#84CC16",
     5: "#12B76A",
   };
-  const filledColor = fillColors[filledCount] ?? "#12B76A";
+  const filledColor =
+    variant === "gold"
+      ? "#FBBF24"
+      : fillColors[filledCount] ?? "#12B76A";
   /** Empty / zero-rating stars: visible gray (transparent + #E4E7EC was nearly invisible on white). */
   const emptyStarBg = "#F2F4F7";
   const emptyStarBorder = "#D0D5DD";
   const emptyStarGlyph = "#98A2B3";
 
   return (
-    <div className="flex items-center gap-1">
+    <div
+      className={`flex items-center gap-1 ${
+        variant === "gold" ? "home-rating-gold" : ""
+      } ${className}`.trim()}
+    >
       {Array.from({ length: 5 }).map((_, index) => {
         const isFilled = index < filledCount;
         const value = index + 1;

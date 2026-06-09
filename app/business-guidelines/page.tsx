@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import BusinessGuidelinesArticlesSection from "@/components/guidelines/BusinessGuidelinesArticlesSection";
 import { ADMIN_BUSINESS_SUSPENSION_REASON_OPTIONS } from "@/lib/adminBusinessSuspensionReasons";
 
 const PAGE_URL = "https://tellacity.com/business-guidelines";
@@ -7,12 +8,12 @@ const PAGE_URL = "https://tellacity.com/business-guidelines";
 export const metadata: Metadata = {
   title: "Business Guidelines | Tellacity",
   description:
-    "Read Tellacity's Business Guidelines to understand listing requirements, review rules, verification standards, suspension reasons, and appeals.",
+    "Read Tellacity's Business Guidelines for listings, reviews, verification, blogs & case studies, suspension reasons, and appeals.",
   alternates: { canonical: PAGE_URL },
   openGraph: {
     title: "Business Guidelines | Tellacity",
     description:
-      "Read Tellacity's Business Guidelines to understand listing requirements, review rules, verification standards, suspension reasons, and appeals.",
+      "Read Tellacity's Business Guidelines for listings, reviews, verification, blogs & case studies, suspension reasons, and appeals.",
     url: PAGE_URL,
     siteName: "Tellacity",
     type: "website",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Business Guidelines | Tellacity",
     description:
-      "Read Tellacity's Business Guidelines to understand listing requirements, review rules, verification standards, suspension reasons, and appeals.",
+      "Read Tellacity's Business Guidelines for listings, reviews, verification, blogs & case studies, suspension reasons, and appeals.",
   },
   robots: { index: true, follow: true },
 };
@@ -31,7 +32,7 @@ const businessGuidelinesJsonLd = {
   "@type": "WebPage",
   name: "Business Guidelines | Tellacity",
   description:
-    "Read Tellacity's Business Guidelines to understand listing requirements, review rules, verification standards, suspension reasons, and appeals.",
+    "Read Tellacity's Business Guidelines for listings, reviews, verification, blogs & case studies, suspension reasons, and appeals.",
   url: PAGE_URL,
   breadcrumb: {
     "@type": "BreadcrumbList",
@@ -56,6 +57,8 @@ const linkClass =
   "font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]";
 
 const RELATED_PAGES = [
+  { href: "/articles", label: "Public Articles" },
+  { href: "/pricing", label: "Plans & Pricing" },
   { href: "/reviewer-guidelines", label: "Reviewer Guidelines" },
   { href: "/safety-trust", label: "Safety & Trust" },
   { href: "/help-center", label: "Help Center" },
@@ -63,7 +66,7 @@ const RELATED_PAGES = [
   { href: "/contact/support", label: "Contact Support" },
   { href: "/business/dashboard", label: "Business Dashboard" },
   { href: "/for-business", label: "Tellacity for Business" },
-  { href: "/reputation-platform", label: "Reputation Platform" },
+  { href: "/for-business", label: "Reputation Platform" },
 ];
 
 const SUSPENSION_PLAIN_ENGLISH: Record<string, string> = {
@@ -420,6 +423,8 @@ export default function BusinessGuidelinesPage() {
             </div>
           </div>
 
+          <BusinessGuidelinesArticlesSection />
+
           <div>
             <h2 className="text-xl font-semibold text-[#0E0E0E]">
               Disputing a Review
@@ -759,7 +764,7 @@ export default function BusinessGuidelinesPage() {
                 Help Center
               </Link>{" "}
               or explore the{" "}
-              <Link href="/reputation-platform" className={linkClass}>
+              <Link href="/for-business" className={linkClass}>
                 Reputation Platform
               </Link>
               .

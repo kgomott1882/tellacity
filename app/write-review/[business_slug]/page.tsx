@@ -1,15 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import WriteReviewSlugClient from "./WriteReviewSlugClient";
+import { WRITE_REVIEW_ROBOTS } from "@/lib/businessIndexability";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 /**
- * SEO contract: this route is INDEXABLE (the user wants every public page
- * crawlable). To avoid Google flagging it as "Duplicate without
- * user-selected canonical" against the matching `/b/<slug>` business
- * profile, we emit a canonical tag pointing at the business profile's
- * canonical slug. Google will then consolidate link equity to the
- * business page while still allowing crawl/follow on this form route.
+ * SEO contract: review forms canonicalise to `/b/[slug]` and must not be indexed.
  */
 export async function generateMetadata(
   props: { params: Promise<{ business_slug: string }> }
@@ -35,7 +31,7 @@ export async function generateMetadata(
     row = byCanonical ?? null;
   }
 
-  const baseRobots = { index: true, follow: true } as const;
+  const baseRobots = WRITE_REVIEW_ROBOTS;
 
   if (!row) {
     return {

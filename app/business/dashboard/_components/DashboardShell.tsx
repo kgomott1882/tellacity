@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "./Sidebar";
 import SecondarySidebar from "./SecondarySidebar";
@@ -24,6 +24,18 @@ import PageLoadingOverlay from "./PageLoadingOverlay";
 import BusinessOnboardingModal from "./BusinessOnboardingModal";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
+function isSubNavItemActive(
+  pathname: string,
+  searchParams: URLSearchParams,
+  itemPath: string,
+): boolean {
+  const [basePath, queryString] = itemPath.split("?");
+  if (pathname !== basePath) return false;
+  if (!queryString) return !searchParams.get("type");
+  const expectedType = new URLSearchParams(queryString).get("type");
+  return searchParams.get("type") === expectedType;
+}
+
 function dashboardViewActionFromPath(pathname: string): string | null {
   if (pathname.includes("/analytics")) return "analytics_viewed";
   if (pathname.includes("/manage-reviews")) return "reviews_viewed";
@@ -31,7 +43,9 @@ function dashboardViewActionFromPath(pathname: string): string | null {
   if (pathname.includes("/share/widgets") || pathname.includes("/share/email")) return "widgets_viewed";
   if (pathname.includes("/integrations")) return "integrations_viewed";
   if (pathname.includes("/billing")) return "billing_viewed";
+  if (pathname.includes("/settings/photos")) return "settings_viewed";
   if (pathname.includes("/settings")) return "settings_viewed";
+  if (pathname.includes("/dashboard/articles")) return "articles_viewed";
   return null;
 }
 
@@ -73,6 +87,13 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
     title: "UPLOAD PHOTOS",
     items: [
       { label: "Profile photos", path: "/business/dashboard/settings/photos" },
+    ],
+  },
+  articles: {
+    title: "ARTICLES",
+    items: [
+      { label: "Blogs", path: "/business/dashboard/articles?type=article" },
+      { label: "Case studies", path: "/business/dashboard/articles?type=case_study" },
     ],
   },
   integrations: {
@@ -144,6 +165,7 @@ function DashboardMainSkeleton() {
 function InnerShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { loading: authLoading, user } = useBusinessAuth();
   const {
     setBusinesses,
@@ -153,6 +175,24 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     bumpNavRefresh,
   } = useBusinessContext();
   const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onArticlesWritingStart = () => setActiveSection(null);
+    const onArticlesWritingEnd = () => {
+      if (
+        pathname?.includes("/dashboard/articles") &&
+        !/\/dashboard\/articles\/[^/]+\/edit/.test(pathname ?? "")
+      ) {
+        setActiveSection("articles");
+      }
+    };
+    window.addEventListener("tellacity-articles-writing-start", onArticlesWritingStart);
+    window.addEventListener("tellacity-articles-writing-end", onArticlesWritingEnd);
+    return () => {
+      window.removeEventListener("tellacity-articles-writing-start", onArticlesWritingStart);
+      window.removeEventListener("tellacity-articles-writing-end", onArticlesWritingEnd);
+    };
+  }, [pathname]);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
@@ -245,6 +285,14 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   // Auto-detect active section from pathname
   useEffect(() => {
     if (!pathname) return;
+
+    let articlesWriting = false;
+    try {
+      articlesWriting = sessionStorage.getItem("tc_articles_writing") === "1";
+    } catch {
+      /* ignore */
+    }
+
     if (pathname.includes("/analytics")) {
       setActiveSection("analytics");
     } else if (pathname.includes("/get-reviews")) {
@@ -255,6 +303,21 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       setActiveSection("share");
     } else if (pathname.includes("/integrations")) {
       setActiveSection("integrations");
+    } else if (pathname.includes("/dashboard/articles")) {
+      // Hide the black secondary panel once the user confirms Blog/Case study and enters the editor.
+      const onArticleEditor = /\/dashboard\/articles\/[^/]+\/edit/.test(pathname);
+      if (onArticleEditor || articlesWriting) {
+        setActiveSection(null);
+        if (onArticleEditor) {
+          try {
+            sessionStorage.removeItem("tc_articles_writing");
+          } catch {
+            /* ignore */
+          }
+        }
+      } else {
+        setActiveSection("articles");
+      }
     } else if (pathname.includes("/business/dashboard/billing")) {
       setActiveSection("settings");
     } else if (pathname.includes("/settings")) {
@@ -589,7 +652,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                   {subData?.items?.length ? (
                     <div className="space-y-1">
                       {subData.items.map((item) => {
-                        const isActive = pathname === item.path;
+                        const isActive = isSubNavItemActive(pathname ?? "", searchParams, item.path);
                         return (
                           <Link
                             key={item.path}
@@ -615,7 +678,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
                           </p>
                           <div className="mt-2 space-y-1">
                             {group.items.map((item: { label: string; path: string }) => {
-                              const isActive = pathname === item.path;
+                              const isActive = isSubNavItemActive(pathname ?? "", searchParams, item.path);
                               return (
                                 <Link
                                   key={item.path}

@@ -1,26 +1,20 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import WriteReviewPageInner from "./WriteReviewPageInner";
+import { WRITE_REVIEW_ROBOTS } from "@/lib/businessIndexability";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /**
- * SEO contract: this route is INDEXABLE and supports a `?businessSlug=`
- * query param that identifies the business being reviewed. When that
- * param is present, we resolve the business and emit a canonical tag
- * pointing at `/b/<canonical_slug>` so Google consolidates the
- * write-review URL to the matching business profile (instead of
- * flagging it as "Duplicate without user-selected canonical").
- *
- * When no `businessSlug` is passed, the page is a generic write-review
- * landing surface and self-canonicals to `/write-review`.
+ * SEO contract: review forms canonicalise to `/b/[slug]` and must not be indexed.
+ * `robots.txt` also discourages crawling `/write-review` variants.
  */
 export async function generateMetadata(
   props: { searchParams: Promise<{ businessSlug?: string }> }
 ): Promise<Metadata> {
   const { businessSlug } = await props.searchParams;
-  const baseRobots = { index: true, follow: true } as const;
+  const baseRobots = WRITE_REVIEW_ROBOTS;
   const fallback: Metadata = {
     title: "Write a review | Tellacity",
     robots: baseRobots,

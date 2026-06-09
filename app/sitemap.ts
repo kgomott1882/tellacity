@@ -2,6 +2,7 @@ export const dynamic = "force-static";
 
 import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { getAllTellacityArticles } from "@/lib/articles/tellacityArticles";
 const PAGE_SIZE = 1000;
 const SUPPORTED_BEST_COUNTRIES = new Set([
   "US",
@@ -23,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
   const sitemaps: MetadataRoute.Sitemap = [];
 
+  // Paginated business profile sitemaps (discover-first: includes unclaimed listings).
   for (let i = 1; i <= totalPages; i++) {
     sitemaps.push({
       url: `https://tellacity.com/business-sitemaps/${i}.xml`,
@@ -39,6 +41,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .map((row) => String((row as { slug?: string }).slug ?? "").trim().toLowerCase())
       .filter(Boolean),
   );
+
+  const ARTICLE_PAGE_SIZE = 1000;
+  const { count: articleCount } = await supabase
+    .from("articles")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "published");
+  const articlePages = Math.ceil((articleCount ?? 0) / ARTICLE_PAGE_SIZE) || 0;
+  const articleSitemapEntries: MetadataRoute.Sitemap = [
+    { url: "https://tellacity.com/articles", lastModified: new Date() },
+  ];
+  for (let page = 0; page < articlePages; page++) {
+    const { data: articleRows } = await supabase
+      .from("articles")
+      .select("slug, published_at, updated_at")
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .range(page * ARTICLE_PAGE_SIZE, page * ARTICLE_PAGE_SIZE + ARTICLE_PAGE_SIZE - 1);
+    for (const row of articleRows ?? []) {
+      const slug = String((row as { slug?: string }).slug ?? "").trim();
+      if (!slug) continue;
+      const lastModRaw =
+        (row as { updated_at?: string | null }).updated_at ??
+        (row as { published_at?: string | null }).published_at;
+      articleSitemapEntries.push({
+        url: `https://tellacity.com/articles/${encodeURIComponent(slug)}`,
+        lastModified: lastModRaw ? new Date(lastModRaw) : new Date(),
+      });
+    }
+  }
+
+  for (const tellacityArticle of getAllTellacityArticles()) {
+    articleSitemapEntries.push({
+      url: `https://tellacity.com/articles/${encodeURIComponent(tellacityArticle.slug)}`,
+      lastModified: new Date(tellacityArticle.date),
+    });
+  }
 
   // /tags/[slug] pages are intentionally NOT submitted in the sitemap.
   // Those routes return `<meta name="robots" content="noindex" />`
@@ -107,6 +145,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: "https://tellacity.com/companies",
     },
     ...bestPages,
+    ...articleSitemapEntries,
     ...sitemaps,
   ];
 }

@@ -1,0 +1,130 @@
+/* Shared article body styles — editor and public reader use the same rules for WYSIWYG. */
+.article-body-content {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #404040;
+}
+
+.article-body-content .ProseMirror,
+.article-body-content {
+  word-wrap: break-word;
+}
+
+.article-body-content h1,
+.article-body-content .ProseMirror h1 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #0e0e0e;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.article-body-content h2,
+.article-body-content .ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #0e0e0e;
+  margin: 1.1rem 0 0.6rem;
+}
+
+.article-body-content h3,
+.article-body-content .ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0e0e0e;
+  margin: 1rem 0 0.5rem;
+}
+
+.article-body-content p,
+.article-body-content .ProseMirror p {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #404040;
+  margin: 0.75rem 0;
+}
+
+.article-body-content ul,
+.article-body-content ol,
+.article-body-content .ProseMirror ul,
+.article-body-content .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+  color: #404040;
+}
+
+.article-body-content blockquote,
+.article-body-content .ProseMirror blockquote {
+  border-left: 4px solid #1faf9e;
+  margin: 1rem 0;
+  padding-left: 1rem;
+  color: #505050;
+  font-style: italic;
+}
+
+.article-body-content pre,
+.article-body-content .ProseMirror pre {
+  background: #f3f4f6;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.article-body-content hr,
+.article-body-content .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.article-body-content a,
+.article-body-content .ProseMirror a {
+  color: #1faf9e;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.article-body-content a:focus-visible,
+.article-body-content .ProseMirror a:focus-visible {
+  outline: 2px solid #1faf9e;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.article-body-content mark,
+.article-body-content .ProseMirror mark {
+  background-color: #fef08a;
+  border-radius: 0.125rem;
+  padding: 0 0.125rem;
+}
+
+.article-body-content .ProseMirror {
+  min-height: 600px;
+  outline: none;
+}
+
+.article-body-content .ProseMirror p.is-editor-empty:first-child::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.article-editor-sheet {
+  min-height: 1123px;
+  border-radius: 2px;
+}
+
+.article-editor-workspace {
+  background: linear-gradient(180deg, #d8d5cf 0%, #cdc9c2 100%);
+}
+
+.article-image-node.ProseMirror-selectednode {
+  outline: none;
+}

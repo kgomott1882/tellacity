@@ -100,12 +100,39 @@ const FEATURE_NAV_GROUPS: FeatureNavGroup[] = [
       },
     ],
   },
+  {
+    heading: "Publish content",
+    items: [
+      {
+        label: "Blogs & case studies",
+        href: "/for-business#blogs-case-studies",
+      },
+      {
+        label: "Rich article editor",
+        href: "/for-business#blogs-case-studies",
+      },
+      {
+        label: "Link validation & review",
+        href: "/business-guidelines",
+      },
+      {
+        label: "Author bylines",
+        href: "/for-business#blogs-case-studies",
+      },
+      {
+        label: "Browse published articles",
+        href: "/articles",
+      },
+    ],
+  },
 ];
 
 const FEATURE_NAV_HREFS = new Set([
   "/for-business",
+  "/articles",
+  "/business-guidelines",
   ...FEATURE_NAV_GROUPS.flatMap((group) =>
-    group.items.map((item) => item.href),
+    group.items.map((item) => item.href.split("#")[0] ?? item.href),
   ),
 ]);
 
@@ -169,16 +196,21 @@ export default function Navbar() {
   const isBusinessNav =
     pathname?.startsWith("/for-business") ||
     pathname?.startsWith("/pricing") ||
-    pathname?.startsWith("/reputation-platform") ||
     pathname?.startsWith("/solution") ||
     pathname?.startsWith("/solutions") ||
     pathname?.startsWith("/resources") ||
     pathname?.startsWith("/business");
+  const isArticlesNavActive =
+    pathname === "/articles" || (pathname?.startsWith("/articles/") ?? false);
   const isResourcesNavActive =
     pathname === "/resources" ||
+    isArticlesNavActive ||
     (pathname?.startsWith("/solutions/") ?? false);
-  const isFeaturesNavActive = FEATURE_NAV_HREFS.has(pathname ?? "");
+  const isFeaturesNavActive =
+    FEATURE_NAV_HREFS.has(pathname ?? "") ||
+    (pathname?.startsWith("/articles/") ?? false);
   const isHomeNav = pathname === "/";
+  const [homeNavScrolled, setHomeNavScrolled] = useState(false);
   const isAuthFlow =
     pathname?.startsWith("/auth/") ||
     pathname?.startsWith("/business/reset-password");
@@ -192,6 +224,19 @@ export default function Navbar() {
   useEffect(() => {
     ensureValidSession();
   }, []);
+
+  useEffect(() => {
+    if (!isHomeNav) {
+      setHomeNavScrolled(false);
+      return;
+    }
+    const onScroll = () => {
+      setHomeNavScrolled(window.scrollY > 48);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHomeNav]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -540,7 +585,7 @@ export default function Navbar() {
                       >
                         All features overview
                       </Link>
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
                         {FEATURE_NAV_GROUPS.map((group) => (
                           <div key={group.heading} className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
@@ -617,6 +662,18 @@ export default function Navbar() {
                         }`}
                       >
                         All resources
+                      </Link>
+                      <Link
+                        href="/articles"
+                        role="menuitem"
+                        onClick={() => setIsResourcesOpen(false)}
+                        className={`block px-4 py-2 text-sm hover:bg-gray-50 ${
+                          isArticlesNavActive
+                            ? "font-semibold text-[#124541]"
+                            : "text-[#0E0E0E]"
+                        }`}
+                      >
+                        Articles
                       </Link>
                       <div
                         className="my-1 border-t border-gray-100"
@@ -698,32 +755,12 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-30 md:hidden">
             <div
-              className="absolute inset-0 bg-black/60"
+              className="absolute inset-x-0 bottom-0 top-14 bg-black/60"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#0E0E0E] p-5 shadow-xl">
-              <div className="mb-6 flex items-center justify-between">
-                <Link
-                  href="/for-business"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center"
-                >
-                  <img
-                    src="/brand/Tellacity%20-Business%20Logo.png"
-                    alt="Tellacity Business"
-                    className="h-6 w-auto"
-                  />
-                </Link>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-white p-1"
-                  aria-label="Close menu"
-                >
-                  <X size={24} />
-                </button>
-              </div>
+            <div className="absolute right-0 top-14 flex h-[calc(100dvh-3.5rem)] w-[85%] max-w-sm flex-col overflow-y-auto bg-[#0E0E0E] p-5 shadow-xl">
               <div className="text-white">
-                <div className="mb-4">
+                <div className="mb-4 border-b border-white/10 pb-4">
                   <button
                     type="button"
                     className="flex items-center gap-2 text-xs font-medium"
@@ -881,6 +918,18 @@ export default function Navbar() {
                         >
                           All resources
                         </Link>
+                        <Link
+                          href="/articles"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsMobileResourcesOpen(false);
+                          }}
+                          className={
+                            isArticlesNavActive ? "text-[#1FAF9E]" : ""
+                          }
+                        >
+                          Articles
+                        </Link>
                         {SOLUTION_NAV_LINKS.map((item) => (
                           <Link
                             key={item.href}
@@ -938,11 +987,17 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="w-full">
+      <header className={isHomeNav ? "fixed top-0 z-50 w-full" : "w-full"}>
         <div
-          className={`sticky top-0 z-40 w-full ${
-            isHomeNav ? "bg-black" : "bg-[#0E0E0E]"
-          }`}
+          className={
+            isHomeNav
+              ? `home-nav-glass w-full transition-all duration-300 ${
+                  homeNavScrolled || isMobileMenuOpen
+                    ? "home-nav-glass-scrolled"
+                    : ""
+                }`
+              : "sticky top-0 z-40 w-full bg-[#0E0E0E]"
+          }
         >
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:h-[72px] md:gap-6 md:px-6">
             <Link href="/" className="flex items-center">
@@ -1039,6 +1094,16 @@ export default function Navbar() {
                 Categories
               </Link>
               <Link
+                href="/articles"
+                className={`border-b-2 pb-1 ${
+                  isArticlesNavActive
+                    ? "border-[#1FAF9E] text-white"
+                    : "border-transparent text-white/80 hover:border-[#1FAF9E] hover:text-white"
+                }`}
+              >
+                Articles
+              </Link>
+              <Link
                 href="/for-business"
                 className="rounded-full bg-[#1FAF9E] px-5 py-2 text-sm text-white hover:bg-[#169786]"
               >
@@ -1095,21 +1160,12 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-30 md:hidden">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-x-0 bottom-0 top-14 bg-black/60"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#0E0E0E] p-5 shadow-xl">
-            <div className="mb-6 flex justify-end">
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="text-white"
-                aria-label="Close menu"
-              >
-                <X size={24} />
-              </button>
-            </div>
+          <div className="absolute right-0 top-14 flex h-[calc(100dvh-3.5rem)] w-[85%] max-w-sm flex-col overflow-y-auto bg-[#0E0E0E] p-5 shadow-xl">
             <div className="text-white">
-              <div className="mb-4">
+              <div className="mb-4 border-b border-white/10 pb-4">
                 <button
                   type="button"
                   className="flex items-center gap-2 text-xs font-medium"
@@ -1178,6 +1234,13 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Categories
+                </Link>
+                <Link
+                  href="/articles"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={isArticlesNavActive ? "text-[#1FAF9E]" : ""}
+                >
+                  Articles
                 </Link>
                 <Link
                   href="/for-business"

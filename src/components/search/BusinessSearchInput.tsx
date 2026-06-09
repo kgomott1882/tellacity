@@ -194,9 +194,9 @@ export default function BusinessSearchInput({
       )}
 
       {heroLayout ? (
-        <div className="mt-2 flex w-full items-stretch rounded-full bg-white border border-[#124541] shadow-[0_0_16px_rgba(18,69,65,0.55)]">
+        <div className="home-search-shell mt-2 flex w-full items-stretch rounded-full border border-[#00B4A6]/50 bg-white/95 shadow-[0_0_32px_rgba(0,180,166,0.25)]">
           <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#124541] shadow">
+            <span className="pointer-events-none absolute left-4 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#00B4A6] shadow">
               <svg
                 viewBox="0 0 24 24"
                 className="h-3.5 w-3.5"
@@ -225,14 +225,14 @@ export default function BusinessSearchInput({
                 }
               }}
               placeholder={placeholder}
-              className="h-11 w-full rounded-l-full rounded-r-none border border-transparent pl-11 pr-4 text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#124541] focus:outline-none focus:ring-2 focus:ring-[#124541]/30"
+              className="h-11 w-full rounded-l-full rounded-r-none border border-transparent pl-11 pr-4 text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:border-[#00B4A6] focus:outline-none focus:ring-2 focus:ring-[#00B4A6]/35"
             />
           </div>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={!searchTerm.trim()}
-            className="h-11 rounded-r-full bg-[#124541] px-5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_0_16px_rgba(18,69,65,0.55)] disabled:opacity-60"
+            className="home-search-btn h-11 rounded-r-full px-5 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-60"
           >
             {heroButtonLabel}
           </button>

@@ -1,4 +1,4 @@
-import { PLAN_PHOTO_LIMITS, type PlanKey } from "@/lib/plans";
+import { PLAN_ARTICLE_LIMITS, PLAN_PHOTO_LIMITS, type PlanKey } from "@/lib/plans";
 import type { UpgradeFlowContext } from "@/lib/upgradeFlow";
 
 export const BILLING_PLAN_ORDER: PlanKey[] = ["free", "grow", "premium", "elite"];
@@ -9,6 +9,14 @@ export const BILLING_PLAN_PHOTOS_LABEL: Record<PlanKey, string> = {
   grow: `Up to ${PLAN_PHOTO_LIMITS.grow}`,
   premium: `Up to ${PLAN_PHOTO_LIMITS.premium}`,
   elite: `Up to ${PLAN_PHOTO_LIMITS.elite}`,
+};
+
+/** Monthly blog & case study submission limits shown on the billing page. */
+export const BILLING_PLAN_ARTICLES_LABEL: Record<PlanKey, string> = {
+  free: "Drafts only",
+  grow: `${PLAN_ARTICLE_LIMITS.grow}/mo`,
+  premium: `${PLAN_ARTICLE_LIMITS.premium}/mo`,
+  elite: `${PLAN_ARTICLE_LIMITS.elite}/mo`,
 };
 
 /**

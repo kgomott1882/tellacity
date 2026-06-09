@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     // Fetch active members
     const { data: members, error: membersErr } = await supabase
       .from("business_members")
-      .select("id, user_id, role, status, created_at")
+      .select("id, user_id, role, status, created_at, can_write_articles")
       .eq("business_id", business.id)
       .eq("status", "active")
       .order("created_at", { ascending: true });
@@ -45,6 +45,7 @@ export async function GET(req: Request) {
           role:       m.role,
           status:     m.status,
           created_at: m.created_at,
+          can_write_articles: m.can_write_articles === true,
         };
       })
     );

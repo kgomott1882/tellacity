@@ -10,49 +10,28 @@ type Input = {
   website?: string | null;
 };
 
-function domainFromWebsite(website: string | null | undefined): string | null {
-  if (!website || typeof website !== "string") return null;
-  let s = website.trim();
-  if (!s) return null;
-  try {
-    if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
-    const u = new URL(s);
-    const host = u.hostname.replace(/^www\./i, "");
-    return host || null;
-  } catch {
-    const host = s
-      .replace(/^https?:\/\//i, "")
-      .split("/")[0]
-      ?.replace(/^www\./i, "")
-      ?.trim();
-    return host || null;
-  }
-}
-
 function isLogoDevUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   return url.includes("img.logo.dev");
 }
 
-/** Free favicon fallback when stored logo is missing (avoids Logo.dev rate limits in the browser). */
-export function googleFaviconLogoUrl(
-  domain: string,
-  size: 128 | 256 = 128,
-): string {
-  return `https://www.google.com/s2/favicons?sz=${size}&domain=${encodeURIComponent(domain)}`;
+function isGoogleFaviconUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return /google\.com\/s2\/favicons/i.test(url);
 }
 
+function usableStoredLogoUrl(raw: string | null | undefined): string | null {
+  const normalized = normalizeLogoUrl(String(raw ?? "").trim());
+  if (!normalized) return null;
+  if (isLogoDevUrl(normalized)) return null;
+  if (isGoogleFaviconUrl(normalized)) return null;
+  return normalized;
+}
+
+/** Returns a stored logo URL only — no website favicon fallback. */
 export function similarBusinessLogoUrl(row: Input): string | null {
-  const fromResolved = normalizeLogoUrl(
-    String(row.resolved_logo_url ?? "").trim(),
-  );
-  if (fromResolved && !isLogoDevUrl(fromResolved)) return fromResolved;
+  const fromResolved = usableStoredLogoUrl(row.resolved_logo_url);
+  if (fromResolved) return fromResolved;
 
-  const fromLogo = normalizeLogoUrl(String(row.logo_url ?? "").trim());
-  if (fromLogo && !isLogoDevUrl(fromLogo)) return fromLogo;
-
-  const domain = domainFromWebsite(row.website);
-  if (!domain) return null;
-
-  return googleFaviconLogoUrl(domain);
+  return usableStoredLogoUrl(row.logo_url);
 }

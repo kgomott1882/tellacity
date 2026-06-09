@@ -138,3 +138,69 @@ export async function dashboardApiPost<T>(path: string, body?: unknown): Promise
 
   return json as T;
 }
+
+async function dashboardApiMutate<T>(
+  method: "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const first = abortableFetch(
+    path,
+    {
+      ...baseInit,
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    },
+    FETCH_TIMEOUT_MS,
+  );
+  let res = await first.promise;
+  first.clearTimer();
+
+  if (res.status === 401) {
+    try {
+      const { data: sessionData } = await getSessionWithTimeout();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        const second = abortableFetch(
+          path,
+          {
+            ...baseInit,
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+          },
+          FETCH_TIMEOUT_MS,
+        );
+        res = await second.promise;
+        second.clearTimer();
+      }
+    } catch {
+      /* keep 401 */
+    }
+  }
+
+  let json: T & { error?: string };
+  try {
+    json = (await res.json()) as typeof json;
+  } catch {
+    throw new Error("Invalid response from server");
+  }
+
+  if (!res.ok) {
+    throw new Error(json.error || "Request failed");
+  }
+
+  return json as T;
+}
+
+export async function dashboardApiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return dashboardApiMutate<T>("PATCH", path, body);
+}
+
+export async function dashboardApiDelete<T>(path: string): Promise<T> {
+  return dashboardApiMutate<T>("DELETE", path);
+}

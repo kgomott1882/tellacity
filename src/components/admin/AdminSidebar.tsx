@@ -15,26 +15,33 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 type NavItem = {
   href: string;
   label: string;
-  badgeKey?: "photoUploads" | "photoExpiry";
+  badgeKey?: "photoUploads" | "photoExpiry" | "articles";
 };
 
-const NAV: readonly NavItem[] = [
-  { href: "/admin", label: "Overview" },
+const NAV_ITEMS: readonly NavItem[] = [
+  { href: "/admin/business-activity", label: "Activity Feed" },
   { href: "/admin/users", label: "All Users" },
+  { href: "/admin/articles", label: "Articles", badgeKey: "articles" },
+  { href: "/admin/blogs-and-articles", label: "Blogs and Articles" },
+  { href: "/admin/customers", label: "Business Customers" },
+  { href: "/admin/business-insights", label: "Business Insights" },
   { href: "/admin/businesses", label: "Businesses" },
   { href: "/admin/categories", label: "Categories" },
-  { href: "/admin/business-activity", label: "Activity Feed" },
-  { href: "/admin/business-insights", label: "Business Insights" },
-  { href: "/admin/customers", label: "Business Customers" },
+  { href: "/admin", label: "Overview" },
   { href: "/admin/payments", label: "Payments" },
-  { href: "/admin/reviews", label: "Reviews" },
-  { href: "/admin/photo-uploads", label: "Photo Uploads", badgeKey: "photoUploads" },
   { href: "/admin/photo-expiry", label: "Photo Expiry", badgeKey: "photoExpiry" },
+  { href: "/admin/photo-uploads", label: "Photo Uploads", badgeKey: "photoUploads" },
+  { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/system-status", label: "System status" },
 ] as const;
 
+const NAV = [...NAV_ITEMS].sort((a, b) =>
+  a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+);
+
 /** How often we re-check the pending photo queue count, in ms. */
 const PHOTO_UPLOADS_POLL_MS = 60_000;
+const ARTICLES_POLL_MS = 60_000;
 /** How often we re-check the free-plan expiry count, in ms. */
 const PHOTO_EXPIRY_POLL_MS = 60_000;
 
@@ -47,6 +54,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
   const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState<number>(0);
+  const [pendingArticleCount, setPendingArticleCount] = useState<number>(0);
   const [expiringPhotoCount, setExpiringPhotoCount] = useState<number>(0);
 
   // Poll the Photo Uploads queue count. The notification must stay on
@@ -74,6 +82,31 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
     };
     void load();
     const id = window.setInterval(load, PHOTO_UPLOADS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/admin/articles/count", { cache: "no-store" });
+        if (!res.ok) return;
+        const body = (await res.json()) as { pendingCount?: number };
+        if (cancelled) return;
+        setPendingArticleCount(
+          typeof body.pendingCount === "number" && body.pendingCount >= 0
+            ? body.pendingCount
+            : 0,
+        );
+      } catch {
+        /* silent */
+      }
+    };
+    void load();
+    const id = window.setInterval(load, ARTICLES_POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -115,6 +148,7 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
 
   const badgeCountFor = (key: NavItem["badgeKey"]): number => {
     if (key === "photoUploads") return pendingPhotoCount;
+    if (key === "articles") return pendingArticleCount;
     if (key === "photoExpiry") return expiringPhotoCount;
     return 0;
   };

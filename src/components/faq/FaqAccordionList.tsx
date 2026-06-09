@@ -15,7 +15,7 @@ function FaqAnswer({ segments }: { segments: FaqSegment[] }) {
       <Link
         key={`${segment.href}-${index}`}
         href={segment.href}
-        className="font-medium text-[#124541] underline underline-offset-2 hover:text-[#1FAF9E]"
+        className="font-medium text-[#047857] underline underline-offset-2 hover:text-[#00B4A6]"
       >
         {segment.label}
       </Link>,
@@ -44,9 +44,9 @@ export default function FaqAccordionList({
           {column.map((item) => (
             <details
               key={item.question}
-              className="group rounded-md border border-gray-200 bg-white"
+              className="group"
             >
-              <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-left text-sm text-[#0E0E0E] hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-left text-sm text-[#0A0A0A] [&::-webkit-details-marker]:hidden">
                 <dt className="font-normal group-open:font-semibold">
                   {item.question}
                 </dt>

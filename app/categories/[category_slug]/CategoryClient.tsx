@@ -7,14 +7,9 @@ import {
   fetchRecentlyReviewedForCategory,
   type CategoryBusinessRow,
 } from "@/lib/categoryListingQueries";
-import { comparisonLinks } from "@/lib/comparisonLinks";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { similarBusinessLogoUrl } from "@/lib/logo";
-import {
-  formatBusinessAddressLines,
-  formatDisplayLocationLines,
-} from "@/lib/address";
 import {
   CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS,
   CATEGORY_DIRECTORY_TAB_LINK_CLASS,
@@ -23,26 +18,14 @@ import {
 } from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
-import { RefreshCw } from "lucide-react";
-import RatingStars from "@/components/RatingStars";
+import { RefreshCw, MessageSquare, Search, Shield, SlidersHorizontal, Star } from "lucide-react";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
+import CategoryDirectoryBusinessCard from "@/components/categories/CategoryDirectoryBusinessCard";
+import HomeScrollProgress from "@/components/home/HomeScrollProgress";
+import { FadeUp, StaggerFadeUp } from "@/components/ui/MotionWrapper";
 import { CATEGORY_LISTING_PAGE_SIZE } from "@/lib/categoryListingPageSize";
 
 type BusinessRow = CategoryBusinessRow;
-
-/** Match business profile / search: use stored logo + website → logo.dev fallback. */
-function categoryListLogoUrl(
-  row: Pick<BusinessRow, "website"> & {
-    logo_url?: string | null;
-    resolved_logo_url?: string | null;
-  }
-): string | null {
-  return similarBusinessLogoUrl({
-    resolved_logo_url: row.resolved_logo_url ?? null,
-    logo_url: row.logo_url ?? null,
-    website: row.website,
-  });
-}
 
 type CountryOption = {
   code: string;
@@ -51,6 +34,7 @@ type CountryOption = {
 };
 
 const PAGE_SIZE = CATEGORY_LISTING_PAGE_SIZE;
+const IO_THRESHOLD = 0.12;
 /** Prefetch window for `/api/category-listings` (same scope as main listing). */
 const LISTING_PREFETCH_AHEAD_PAGES = 5;
 
@@ -153,14 +137,6 @@ function buildPopularTagsFromCounts(
       label: formatBusinessTagLabel(tag),
       slug: toTagSlug(tag),
     }));
-}
-
-function snapshotRpcRating(row: BusinessRow): { trust: number; count: number } {
-  const trust =
-    (Number(row.trust_score ?? 0) || 0) ||
-    (Number(row.average_rating ?? 0) || 0) ||
-    (Number(row.avg_rating ?? 0) || 0);
-  return { trust, count: Number(row.review_count ?? 0) || 0 };
 }
 
 const COUNTRIES: CountryOption[] = [
@@ -919,6 +895,23 @@ export default function CategoryClient({
       : {}),
   };
 
+  const companyCountDisplay =
+    computedCount > 0 ? computedCount : sortedBusinessesList.length;
+
+  const cardSharedProps = {
+    listingKind,
+    categorySlug,
+    countryCode,
+    logoResolver: similarBusinessLogoUrl,
+    isValidSlug,
+    slugForTagChip,
+    toTagSlug,
+    categoryBrowseHref,
+    tagBrowseHref,
+    shouldShowPrimaryCategoryChip,
+    filterKeywordTagsForPage,
+  };
+
   return (
     <>
       {collectionJsonLd ? (
@@ -927,11 +920,12 @@ export default function CategoryClient({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
         />
       ) : null}
-      <main className="bg-white">
-        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <main className="category-directory-cinematic cat-dir-main">
+        <HomeScrollProgress />
+        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-16">
           {popularSearches.length > 0 && (
-            <section className="mt-6">
-              <h2 className="text-sm font-semibold text-[#0E0E0E]">Explore related categories</h2>
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-related">
+              <p className="cat-dir-related-label">Explore related categories</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {popularSearches.map((item) => {
                   const safeSlug = (item.slug ?? "").trim().toLowerCase();
@@ -940,43 +934,50 @@ export default function CategoryClient({
                     <Link
                       key={item.id}
                       href={categoryBrowseHref(safeSlug, countryCode)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:border-[#1FAF9E]"
+                      className="cat-dir-related-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/35"
                     >
-                      <span className="text-gray-500">🔍</span>
+                      <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {sanitizeText(item.name)}
                     </Link>
                   );
                 })}
               </div>
-            </section>
+            </FadeUp>
           )}
 
-          <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
-            <span>
-              Companies ({computedCount > 0 ? computedCount.toLocaleString("en-US") : sortedBusinessesList.length.toLocaleString("en-US")})
-            </span>
+          <div className="cat-dir-controls">
+            <div>
+              <p className="cat-dir-count">
+                Companies
+                <span className="cat-dir-count-pill">
+                  {companyCountDisplay.toLocaleString("en-US")}
+                </span>
+              </p>
+              {listingKind === "category" ? (
+                <div className="cat-dir-how-link">
+                  <CategoryInfoTooltip categorySlug={categorySlug} />
+                </div>
+              ) : null}
+            </div>
 
             <div className="relative">
               <button
-                className="inline-flex items-center gap-2 text-gray-600"
+                className="cat-dir-sort-btn"
                 onClick={() => setSortOpen((prev) => !prev)}
                 type="button"
                 aria-expanded={sortOpen}
                 aria-haspopup="true"
               >
-                Sort by:{" "}
-                <span className="font-medium text-gray-800">
-                  {currentSort === "rating"
-                    ? "Leaderboard (highest rated)"
-                    : currentSort === "reviews"
+                {currentSort === "rating"
+                  ? "Leaderboard (highest rated)"
+                  : currentSort === "reviews"
                     ? "Highest number of reviews"
                     : "Most reviews (activity)"}
-                </span>
-                <span className="text-gray-400">▼</span>
+                <span aria-hidden>▼</span>
               </button>
 
               {sortOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-lg">
+                <div className="cat-dir-sort-menu">
                   <button
                     className="flex w-full items-start gap-3 rounded-md p-2 text-left hover:bg-gray-50"
                     onClick={() => {
@@ -990,13 +991,18 @@ export default function CategoryClient({
                   >
                     <span
                       className={`mt-0.5 h-4 w-4 rounded-full border ${
-                        currentSort === "rating" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
+                        currentSort === "rating"
+                          ? "border-[#00B4A6] bg-[#00B4A6]"
+                          : "border-gray-300 bg-white"
                       }`}
                     />
                     <span>
-                      <span className="block font-medium text-gray-900">Leaderboard (highest rated)</span>
+                      <span className="block font-medium text-gray-900">
+                        Leaderboard (highest rated)
+                      </span>
                       <span className="block text-xs text-gray-500">
-                        Star average first, then review count. Same ordering as the category directory in Supabase.
+                        Star average first, then review count. Same ordering as the
+                        category directory in Supabase.
                       </span>
                     </span>
                   </button>
@@ -1014,10 +1020,14 @@ export default function CategoryClient({
                   >
                     <span
                       className={`mt-0.5 h-4 w-4 rounded-full border ${
-                        currentSort === "reviews" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
+                        currentSort === "reviews"
+                          ? "border-[#00B4A6] bg-[#00B4A6]"
+                          : "border-gray-300 bg-white"
                       }`}
                     />
-                    <span className="font-medium text-gray-900">Highest number of reviews</span>
+                    <span className="font-medium text-gray-900">
+                      Highest number of reviews
+                    </span>
                   </button>
 
                   <button
@@ -1033,18 +1043,23 @@ export default function CategoryClient({
                   >
                     <span
                       className={`mt-0.5 h-4 w-4 rounded-full border ${
-                        currentSort === "recent" ? "border-[#1FAF9E] bg-[#1FAF9E]" : "border-gray-300 bg-white"
+                        currentSort === "recent"
+                          ? "border-[#00B4A6] bg-[#00B4A6]"
+                          : "border-gray-300 bg-white"
                       }`}
                     />
-                    <span className="font-medium text-gray-900">Most reviews (activity)</span>
+                    <span className="font-medium text-gray-900">
+                      Most reviews (activity)
+                    </span>
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Loading / error (minimal) */}
-          {loading && <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>}
+          {loading && (
+            <p className="mt-6 text-sm text-gray-500">Loading businesses...</p>
+          )}
           {fetchError && sortedBusinessesList.length === 0 && (
             <div className="mt-2 flex flex-col items-center gap-3 text-sm text-red-600">
               <p className="max-w-2xl text-center leading-snug">{fetchError}</p>
@@ -1060,20 +1075,13 @@ export default function CategoryClient({
             </div>
           )}
 
-          <h2
-            ref={listingTopRef}
-            className="sr-only scroll-mt-24"
-          >
+          <h2 ref={listingTopRef} className="sr-only scroll-mt-24">
             Top {categoryName} companies in {countryName}
           </h2>
-          {listingKind === "category" && (
-            <div className="mb-4">
-              <CategoryInfoTooltip categorySlug={categorySlug} />
-            </div>
-          )}
-          <div className="mt-6 divide-y divide-gray-200 rounded-2xl border border-gray-200">
+
+          <div className="cat-dir-list">
             {sortedBusinessesList.length === 0 && !loading && (
-              <div className="px-4 py-6 text-sm text-gray-500">
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-6 text-sm text-gray-500 shadow-sm">
                 <p>
                   {listingKind === "tag"
                     ? "No businesses with this tag yet."
@@ -1081,7 +1089,7 @@ export default function CategoryClient({
                 </p>
                 <Link
                   href="/categories"
-                  className="mt-3 inline-flex rounded-full border border-[#1FAF9E] px-4 py-2 text-xs font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
+                  className="cat-dir-seo-pill mt-3 inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40"
                 >
                   Browse all categories
                 </Link>
@@ -1089,242 +1097,107 @@ export default function CategoryClient({
             )}
 
             {sortedBusinessesList.length > 0 &&
-              sortedBusinessesList.map((business) => {
-                const safeSlug = (business.slug ?? "").trim().toLowerCase();
-                if (!isValidSlug(safeSlug)) return null;
-                const reviewCount = (Number(business.review_count ?? 0)) || 0;
-                const ratingValue = snapshotRpcRating(business).trust;
-                const locationLines = (() => {
-                  const lines = formatBusinessAddressLines(
-                    business.address,
-                    business.city,
-                    business.country_code,
-                  );
-                  if (lines.length > 0) return lines;
-                  return formatDisplayLocationLines(business.display_location ?? "");
-                })();
-                const businessTags = mergeTagsForDisplay(
-                  business.tags,
-                  business.secondary_category_slugs,
-                  business.category_slug,
-                );
-                const keywordTags = filterKeywordTagsForPage(
-                  businessTags,
-                  listingKind,
-                  categorySlug,
-                );
-                const showPrimaryChip = shouldShowPrimaryCategoryChip(
-                  listingKind,
-                  categorySlug,
-                  business.category_slug,
-                );
-
-                const logoUrl = categoryListLogoUrl(business);
-                const pageCatNorm = categorySlug.trim().toLowerCase();
-
+              sortedBusinessesList.map((business, index) => {
+                const globalRank = effectivePageIndex * PAGE_SIZE + index + 1;
+                const rankBadge =
+                  globalRank === 1 ? 1 : globalRank === 2 ? 2 : globalRank === 3 ? 3 : null;
                 return (
-                  <div key={business.id} className="block w-full">
-                    <div className="px-4 py-5 transition-colors hover:bg-gray-50 sm:grid sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-start sm:gap-x-8">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/b/${safeSlug}`}
-                          className="flex gap-4 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1FAF9E]/40"
-                        >
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
-                            {logoUrl ? (
-                              <img
-                                src={logoUrl}
-                                alt={`${sanitizeText(business.name)} logo`}
-                                className="h-full w-full object-contain"
-                                referrerPolicy="no-referrer"
-                                loading="lazy"
-                                decoding="async"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                }}
-                              />
-                            ) : (
-                              <span className="text-sm font-semibold text-[#0E0E0E]">
-                                {(sanitizeText(business.name)?.trim()?.charAt(0) || "B").toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1 text-[#0E0E0E]">
-                            <div className="flex items-center gap-1">
-                              <div className="truncate text-base font-semibold">{sanitizeText(business.name)}</div>
-                              {reviewCount > 0 && (
-                                <img
-                                  src="/brand/Tellacity%20Vefication%20Batch.png"
-                                  alt="Tellacity verified reviews"
-                                  className="h-5 w-5 shrink-0"
-                                />
-                              )}
-                            </div>
-                            {business.website && (
-                              <div className="truncate text-sm text-gray-500">{sanitizeText(business.website)}</div>
-                            )}
-                            <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                              <RatingStars
-                                rating={ratingValue}
-                                reviewCount={reviewCount}
-                                size={12}
-                              />
-                              <span className="font-medium text-[#0E0E0E]">{ratingValue.toFixed(1)}</span>
-                              <span className="text-gray-500">
-                                • {reviewCount.toLocaleString("en-US")} reviews
-                              </span>
-                            </div>
-                          </div>
-                        </Link>
-                        {(showPrimaryChip || keywordTags.length > 0) && (
-                          <div className="mt-3 flex max-w-full flex-wrap gap-1.5 border-t border-gray-50 pt-3 sm:pl-[4.75rem]">
-                            {showPrimaryChip &&
-                              business.category_slug &&
-                              (() => {
-                                const slug =
-                                  slugForTagChip(business.category_slug) ??
-                                  business.category_slug.trim().toLowerCase();
-                                if (!isValidSlug(slug)) return null;
-                                return (
-                                  <Link
-                                    href={categoryBrowseHref(slug, countryCode)}
-                                    className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
-                                  >
-                                    {formatBusinessTagLabel(business.category_slug)}
-                                  </Link>
-                                );
-                              })()}
-                            {keywordTags.map((tag) => {
-                              const slug = slugForTagChip(tag);
-                              if (!slug) return null;
-                              const activeTag = listingKind === "tag" && slug === pageCatNorm;
-                              return activeTag ? (
-                                <span
-                                  key={`${business.id}-${tag}`}
-                                  className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
-                                  aria-current="page"
-                                >
-                                  {formatBusinessTagLabel(tag)}
-                                </span>
-                              ) : (
-                                <Link
-                                  key={`${business.id}-${tag}`}
-                                  href={tagBrowseHref(slug, countryCode)}
-                                  className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
-                                >
-                                  {formatBusinessTagLabel(tag)}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      {locationLines.length > 0 && (
-                        <aside className="mt-3 shrink-0 text-sm text-gray-500 sm:mt-0 sm:w-full sm:max-w-[12rem] sm:justify-self-end">
-                          <div className="flex flex-col gap-1 sm:items-end sm:text-right">
-                            {locationLines.map((line, idx) => (
-                              <div
-                                key={`${business.id}-loc-${idx}`}
-                                className="max-w-full break-words leading-snug"
-                              >
-                                {sanitizeText(line)}
-                              </div>
-                            ))}
-                          </div>
-                        </aside>
-                      )}
-                    </div>
-                  </div>
+                  <StaggerFadeUp
+                    key={business.id}
+                    index={index}
+                    staggerMs={40}
+                    threshold={IO_THRESHOLD}
+                  >
+                    <CategoryDirectoryBusinessCard
+                      business={business}
+                      rankBadge={rankBadge}
+                      {...cardSharedProps}
+                    />
+                  </StaggerFadeUp>
                 );
               })}
           </div>
 
           {sortedBusinessesList.length > 0 && (
-            <div className="mt-6 flex justify-center">
-              <nav
-                className="flex w-full max-w-full items-stretch overflow-hidden rounded-md border border-neutral-700 bg-white text-sm shadow-sm"
-                aria-label="Listing pagination"
+            <nav
+              className="cat-dir-pagination"
+              aria-label="Listing pagination"
+            >
+              <button
+                type="button"
+                className="cat-dir-page-btn"
+                onClick={() => goToListingPage(effectivePageIndex - 1)}
+                disabled={effectivePageIndex === 0}
               >
-                <button
-                  type="button"
-                  className="touch-manipulation shrink-0 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
-                  onClick={() => goToListingPage(effectivePageIndex - 1)}
-                  disabled={effectivePageIndex === 0}
-                >
-                  Previous
-                </button>
-                <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] sm:overflow-x-visible sm:pb-0">
-                  <div className="inline-flex min-h-[2.5rem] items-stretch">
-                    {listingPaginationItems.map((item, idx) => {
-                      const divider = "border-l border-neutral-300";
-                      if (item === "ellipsis") {
-                        return (
-                          <span
-                            key={`e-${idx}`}
-                            className={`${divider} flex min-w-[2.25rem] select-none items-center justify-center px-2 py-2 text-neutral-500`}
-                            aria-hidden
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-                      const isActive = item === effectivePageIndex + 1;
-                      if (isActive) {
-                        return (
-                          <span
-                            key={item}
-                            aria-current="page"
-                            className={`${divider} relative z-[1] inline-flex min-w-[2.5rem] items-center justify-center bg-sky-50 px-3 py-2 font-semibold text-sky-700 ring-1 ring-inset ring-sky-600`}
-                          >
-                            {item}
-                          </span>
-                        );
-                      }
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          className={`touch-manipulation ${divider} min-w-[2.5rem] shrink-0 px-3 py-2 font-medium text-neutral-800 hover:bg-sky-50`}
-                          onClick={() => goToListingPage(item - 1)}
-                        >
-                          {item}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="touch-manipulation shrink-0 border-l border-neutral-300 px-3 py-2 font-medium text-neutral-900 sm:px-4 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent hover:bg-sky-50"
-                  onClick={() => goToListingPage(effectivePageIndex + 1)}
-                  disabled={!canGoNextListingPage}
-                >
-                  Next page
-                </button>
-              </nav>
-            </div>
+                ← Previous
+              </button>
+              {listingPaginationItems.map((item, idx) => {
+                if (item === "ellipsis") {
+                  return (
+                    <span
+                      key={`e-${idx}`}
+                      className="cat-dir-page-ellipsis"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  );
+                }
+                const isActive = item === effectivePageIndex + 1;
+                if (isActive) {
+                  return (
+                    <span
+                      key={item}
+                      aria-current="page"
+                      className="cat-dir-page-num is-active"
+                    >
+                      {item}
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    className="cat-dir-page-num"
+                    onClick={() => goToListingPage(item - 1)}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className="cat-dir-page-btn"
+                onClick={() => goToListingPage(effectivePageIndex + 1)}
+                disabled={!canGoNextListingPage}
+              >
+                Next →
+              </button>
+            </nav>
           )}
 
           {popularTags.length > 0 && (
-            <section className="mt-10" aria-label="Popular searches">
-              <h2 className="text-sm font-semibold text-[#0E0E0E]">Popular searches</h2>
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-popular" aria-label="Popular searches">
+              <h2 className="cat-dir-section-title">
+                <span className="cat-dir-section-accent">Popular</span> searches
+              </h2>
               <div
-                className="mt-3 flex flex-wrap gap-1.5"
+                className="mt-3 flex flex-wrap gap-2"
                 role="tablist"
                 aria-label="Popular tag filters"
               >
                 {popularTags.map((tag) => {
                   const safe = (tag.slug ?? "").trim().toLowerCase();
                   if (!isValidSlug(safe)) return null;
-                  const active = listingKind === "tag" && safe === categorySlug.trim().toLowerCase();
+                  const active =
+                    listingKind === "tag" && safe === categorySlug.trim().toLowerCase();
                   return active ? (
                     <span
                       key={tag.slug}
                       role="tab"
                       aria-selected="true"
-                      className={CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS}
+                      className={`${CATEGORY_DIRECTORY_TAB_ACTIVE_CLASS} cat-dir-popular-tag`}
                     >
                       {tag.label}
                     </span>
@@ -1334,169 +1207,106 @@ export default function CategoryClient({
                       role="tab"
                       aria-selected="false"
                       href={tagBrowseHref(safe, countryCode)}
-                      className={CATEGORY_DIRECTORY_TAB_LINK_CLASS}
+                      className={`${CATEGORY_DIRECTORY_TAB_LINK_CLASS} cat-dir-popular-tag`}
                     >
                       {tag.label}
                     </Link>
                   );
                 })}
               </div>
-            </section>
+            </FadeUp>
           )}
 
-          <section className="mt-10" aria-label="Recently reviewed companies">
-            <h2 className="text-sm font-semibold text-[#0E0E0E]">
-              Recently reviewed companies
+          <FadeUp threshold={IO_THRESHOLD} className="cat-dir-recent" aria-label="Recently reviewed companies">
+            <h2 className="cat-dir-section-title">
+              <span className="cat-dir-section-accent">Recently</span> reviewed companies
             </h2>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="cat-dir-section-sub">
               Up to three businesses in this {listingKind === "tag" ? "tag" : "category"} with the most recently published public reviews in {countryName}. Reviews are included regardless of age.
             </p>
 
             {recentlyReviewedLoading ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {Array.from({ length: RECENTLY_REVIEWED_DISPLAY }).map((_, i) => (
                   <div
                     key={`recent-sk-${i}`}
-                    className="flex animate-pulse gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4"
-                  >
-                    <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-200" />
-                    <div className="min-w-0 flex-1 space-y-2 py-0.5">
-                      <div className="h-4 w-3/4 rounded bg-gray-200" />
-                      <div className="h-3 w-1/2 rounded bg-gray-200" />
-                    </div>
-                  </div>
+                    className="h-32 animate-pulse rounded-xl bg-gray-100"
+                  />
                 ))}
               </div>
             ) : recentlyReviewedRows.length > 0 ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                {recentlyReviewedRows.map((company) => {
-                  const safeSlug = (company.slug ?? "").trim().toLowerCase();
-                  if (!isValidSlug(safeSlug)) return null;
-                  const reviewCount =
-                    Number(company.review_count ?? 0) || 0;
-                  const ratingValue = snapshotRpcRating(company).trust;
-                  const logoUrl = categoryListLogoUrl(company);
-                  return (
-                    <Link
-                      key={company.id}
-                      href={`/b/${safeSlug}`}
-                      className="block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md no-underline text-inherit"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#EDEDED] bg-[#FCF7F6]">
-                          {logoUrl ? (
-                            <img
-                              src={logoUrl}
-                              alt={`${sanitizeText(company.name)} logo`}
-                              className="h-full w-full object-contain"
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                              decoding="async"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-[#0E0E0E]">
-                              {(
-                                sanitizeText(company.name)?.trim()?.charAt(0) || "B"
-                              ).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1">
-                            <div className="text-sm font-semibold text-[#0E0E0E]">
-                              {sanitizeText(company.name)}
-                            </div>
-                            {reviewCount > 0 && (
-                              <img
-                                src="/brand/Tellacity%20Vefication%20Batch.png"
-                                alt="Tellacity verified reviews"
-                                className="h-5 w-5 shrink-0"
-                              />
-                            )}
-                          </div>
-                          {company.website && (
-                            <div className="text-xs text-gray-500">
-                              {sanitizeText(company.website)}
-                            </div>
-                          )}
-                          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                            <RatingStars
-                              rating={ratingValue}
-                              reviewCount={reviewCount}
-                              size={12}
-                            />
-                            <span>{ratingValue.toFixed(1)}</span>
-                            <span className="text-gray-500">
-                              ({reviewCount.toLocaleString("en-US")})
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {recentlyReviewedRows.map((company) => (
+                  <CategoryDirectoryBusinessCard
+                    key={company.id}
+                    business={company}
+                    showTags={false}
+                    showAddress={false}
+                    {...cardSharedProps}
+                  />
+                ))}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">
-                No published reviews match this directory and country yet.
-              </p>
+              <div className="cat-dir-recent-empty mt-4">
+                <div className="cat-dir-recent-empty-icon">
+                  <MessageSquare className="h-5 w-5" aria-hidden />
+                </div>
+                <p className="mt-3 text-sm">
+                  No published reviews match this directory yet.
+                </p>
+              </div>
             )}
-          </section>
+          </FadeUp>
 
-          {/* How categories work */}
           {listingKind === "category" && (
-            <section className="mt-10 rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-700">
-              <h2 className="text-base font-semibold text-[#0E0E0E]">
-                How categories work
-              </h2>
-              <p className="mt-3 leading-relaxed">
-                Tellacity groups businesses into categories so you can compare trusted
-                providers in one place. Each directory is ranked using verified review
-                signals, not paid placement.
-              </p>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
-                    Ranked by TrustScore
-                  </h3>
-                  <p className="mt-1 leading-relaxed">
-                    TrustScore summarises verified reviews, response behaviour, and
-                    policy-compliance signals so higher-ranked businesses reflect
-                    consistent, authentic feedback.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
-                    Filter by rating &amp; country
-                  </h3>
-                  <p className="mt-1 leading-relaxed">
-                    Use rating and country filters to narrow results to the providers
-                    most relevant to your needs and region.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[#0E0E0E]">
-                    Read &amp; share experiences
-                  </h3>
-                  <p className="mt-1 leading-relaxed">
-                    Open any business profile to read detailed reviews or share your
-                    own experience to help others make better decisions.
-                  </p>
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-info">
+              <div className="cat-dir-info-card">
+                <h2 className="cat-dir-info-heading">How categories work</h2>
+                <p className="cat-dir-info-body">
+                  Tellacity groups businesses into categories so you can compare trusted
+                  providers in one place. Each directory is ranked using verified review
+                  signals, not paid placement.
+                </p>
+                <div className="cat-dir-feature-grid">
+                  <div className="cat-dir-feature-card">
+                    <span className="cat-dir-feature-icon" aria-hidden>
+                      <Star className="h-4 w-4" />
+                    </span>
+                    <h3 className="cat-dir-feature-label">Ranked by TrustScore</h3>
+                    <p className="cat-dir-feature-desc">
+                      TrustScore summarises verified reviews, response behaviour, and
+                      policy-compliance signals so higher-ranked businesses reflect
+                      consistent, authentic feedback.
+                    </p>
+                  </div>
+                  <div className="cat-dir-feature-card">
+                    <span className="cat-dir-feature-icon" aria-hidden>
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </span>
+                    <h3 className="cat-dir-feature-label">Filter by rating &amp; country</h3>
+                    <p className="cat-dir-feature-desc">
+                      Use rating and country filters to narrow results to the providers
+                      most relevant to your needs and region.
+                    </p>
+                  </div>
+                  <div className="cat-dir-feature-card">
+                    <span className="cat-dir-feature-icon" aria-hidden>
+                      <Shield className="h-4 w-4" />
+                    </span>
+                    <h3 className="cat-dir-feature-label">Read &amp; share experiences</h3>
+                    <p className="cat-dir-feature-desc">
+                      Open any business profile to read detailed reviews or share your
+                      own experience to help others make better decisions.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </section>
+            </FadeUp>
           )}
 
-          {/* How this page works (desktop / tablet only) */}
-          <section className="mt-8 hidden gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 sm:grid sm:grid-cols-3">
+          <section className="sr-only" aria-label="How this directory works">
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Ranked by trust
-              </h2>
+              <h2>Ranked by trust</h2>
               <p>
                 Listings are ordered using a combination of TrustScore, review volume,
                 and recent activity in this category. Comparing several providers helps
@@ -1504,18 +1314,14 @@ export default function CategoryClient({
               </p>
             </div>
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Filter by rating & location
-              </h2>
+              <h2>Filter by rating & location</h2>
               <p>
                 Use rating and country filters to focus on the businesses most relevant
                 to your situation and region.
               </p>
             </div>
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Read & share experiences
-              </h2>
+              <h2>Read & share experiences</h2>
               <p>
                 Click into a business to read detailed reviews or share your own
                 experience to help others decide.
@@ -1523,79 +1329,80 @@ export default function CategoryClient({
             </div>
           </section>
 
-          <div className="mt-10 text-sm leading-relaxed text-gray-700">
-            <h2 className="text-base font-semibold text-[#0E0E0E]">
-              About {categoryName} businesses
-            </h2>
-            <p className="mt-3">
-              Businesses in the {categoryName} category offer specialised services in
-              this sector. Tellacity helps you compare providers using verified customer
-              reviews, TrustScores, and transparent feedback.
-            </p>
-            {isHealthRelatedCategory ? (
-              <p className="mt-3">
-                Verified reviews are especially important for health-related services,
-                where trust, clarity, and service quality matter most.
+          <FadeUp threshold={IO_THRESHOLD} className="cat-dir-about">
+            <div className="cat-dir-about-inner">
+              <h2 className="cat-dir-section-title">
+                <span className="cat-dir-section-accent">About</span> {categoryName} businesses
+              </h2>
+              <p>
+                Businesses in the {categoryName} category offer specialised services in
+                this sector. Tellacity helps you compare providers using verified customer
+                reviews, TrustScores, and transparent feedback.
               </p>
-            ) : null}
-            <p className="mt-3">
-              Cross-check the headline TrustScore with individual reviews to understand
-              both the overall pattern and specific customer experiences.
-            </p>
+              {isHealthRelatedCategory ? (
+                <p>
+                  Verified reviews are especially important for health-related services,
+                  where trust, clarity, and service quality matter most.
+                </p>
+              ) : null}
+              <p>
+                Cross-check the headline TrustScore with individual reviews to understand
+                both the overall pattern and specific customer experiences.
+              </p>
 
-            <h3 className="mt-6 text-sm font-semibold text-[#0E0E0E]">
-              Trusted {categoryName} providers
-            </h3>
-            <p className="mt-2">
-              Explore ranked businesses with published reviews and public TrustScores on
-              Tellacity.
-            </p>
+              <div className="cat-dir-about-sub">
+                <h3>Trusted {categoryName} providers</h3>
+                <p>
+                  Explore ranked businesses with published reviews and public TrustScores on
+                  Tellacity.
+                </p>
+              </div>
 
-            <h3 className="mt-4 text-sm font-semibold text-[#0E0E0E]">
-              Reliable customer feedback
-            </h3>
-            <p className="mt-2">
-              Reviews are moderated for authenticity and can be reported if they violate
-              platform rules.
-            </p>
+              <div className="cat-dir-about-sub">
+                <h3>Reliable customer feedback</h3>
+                <p>
+                  Reviews are moderated for authenticity and can be reported if they violate
+                  platform rules.
+                </p>
+              </div>
 
-            <h3 className="mt-4 text-sm font-semibold text-[#0E0E0E]">
-              How to choose the right provider
-            </h3>
-            <p className="mt-2">
-              Read multiple reviews, compare ratings, and use category rankings to find
-              a provider that fits your needs.
-            </p>
-          </div>
+              <div className="cat-dir-about-sub">
+                <h3>How to choose the right provider</h3>
+                <p>
+                  Read multiple reviews, compare ratings, and use category rankings to find
+                  a provider that fits your needs.
+                </p>
+              </div>
+            </div>
+          </FadeUp>
 
-          <div className="mt-10 border-t pt-6 text-sm space-y-3">
-            <p className="text-gray-600">
+          <FadeUp threshold={IO_THRESHOLD} className="cat-dir-seo">
+            <p>
               See more reviews and categories on the{" "}
-              <Link href="/" className="font-medium text-[#1FAF9E] hover:underline">
+              <Link href="/" className="cat-dir-seo-link">
                 Tellacity Home
               </Link>{" "}
               page.
             </p>
             <Link
               href={`/companies/${countryCode.toLowerCase()}`}
-              className="inline-block text-[#1FAF9E] hover:underline"
+              className="cat-dir-seo-pill"
             >
               Browse more businesses in {countryName}
             </Link>
             {listingKind === "category" && categorySlug.trim() ? (
-              <p className="text-gray-600">
+              <p className="mt-3">
                 See more in{" "}
                 <Link
                   href={categoryBrowseHref(categorySlug.trim(), countryCode)}
-                  className="font-medium text-[#1FAF9E] hover:underline"
+                  className="cat-dir-seo-link"
                 >
-                  {categoryName}
-                </Link>{" "}
-                in {countryName}.
+                  {categoryName} in {countryName}
+                </Link>
+                .
               </p>
             ) : null}
-          </div>
-
+          </FadeUp>
         </section>
       </main>
     </>

@@ -1,0 +1,716 @@
+/**
+ * Tellacity home — cinematic visual layer (content unchanged).
+ * Tokens: teal primary, emerald accent, warm beige surfaces, deep dark hero.
+ */
+
+/* Home navbar: invisible at top, solid on scroll — no divider line */
+.home-nav-glass {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+}
+
+.home-nav-glass-scrolled {
+  background: #0a0a0a;
+  border-bottom: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.home-cinematic {
+  --home-teal: #00b4a6;
+  --home-teal-bright: #1ecfb8;
+  --home-emerald: #047857;
+  --home-forest: #064e3b;
+  --home-beige: #f5f0e8;
+  --home-beige-deep: #ebe4d8;
+  --home-ink: #0a0a0a;
+  --home-charcoal: #111111;
+  --home-text: #111827;
+  --home-muted: #4b5563;
+  --home-gold: #fbbf24;
+  background-color: var(--home-beige);
+  color: var(--home-text);
+  scroll-behavior: smooth;
+}
+
+.home-cinematic .home-section-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--home-ink);
+}
+
+.home-cinematic .home-section-title-accent {
+  color: var(--home-teal);
+}
+
+.home-cinematic .home-section-sub {
+  color: var(--home-muted);
+  line-height: 1.65;
+}
+
+/* Hero */
+.home-hero {
+  position: relative;
+  min-height: min(720px, 82dvh);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: var(--home-ink);
+  overflow: hidden;
+}
+
+.home-hero-bg-photo {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.home-hero-parallax {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 180, 166, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(4, 120, 87, 0.12), transparent 50%),
+    linear-gradient(
+      105deg,
+      rgba(10, 10, 10, 0.78) 0%,
+      rgba(10, 10, 10, 0.55) 48%,
+      rgba(18, 69, 65, 0.35) 100%
+    );
+}
+
+.home-hero-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* Slow pulsing teal orb behind headline */
+.home-hero-orb {
+  pointer-events: none;
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  z-index: 2;
+  width: min(520px, 70vw);
+  height: min(520px, 70vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(0, 180, 166, 0.35) 0%,
+    rgba(0, 180, 166, 0.12) 35%,
+    transparent 70%
+  );
+  animation: homeHeroOrbPulse 4s ease-in-out infinite;
+  filter: blur(2px);
+}
+
+@keyframes homeHeroOrbPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/* Subtle animated mesh grid */
+.home-hero-mesh {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(0, 180, 166, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 180, 166, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: homeHeroMeshDrift 20s linear infinite;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+@keyframes homeHeroMeshDrift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 48px 48px, 48px 48px;
+  }
+}
+
+/* Animated underline under "Reviews" */
+.home-hero-draw-underline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.08em;
+  height: 2px;
+  background: linear-gradient(90deg, var(--home-teal), var(--home-teal-bright));
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: homeDrawUnderline 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.55s;
+}
+
+@keyframes homeDrawUnderline {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Trust badges below search */
+.home-hero-trust-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1.25rem;
+}
+
+.home-hero-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgba(245, 240, 232, 0.82);
+  opacity: 0;
+  animation: homeTrustBadgeIn 0.6s ease forwards;
+}
+
+.home-hero-trust-badge:nth-child(1) {
+  animation-delay: 0.85s;
+}
+.home-hero-trust-badge:nth-child(2) {
+  animation-delay: 1s;
+}
+.home-hero-trust-badge:nth-child(3) {
+  animation-delay: 1.15s;
+}
+
+.home-hero-trust-badge svg {
+  color: var(--home-teal-bright);
+}
+
+@keyframes homeTrustBadgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scroll progress bar */
+.home-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  height: 3px;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--home-teal), var(--home-emerald));
+  pointer-events: none;
+}
+
+/* Stats bar */
+.home-stats-bar {
+  background-color: var(--home-charcoal);
+}
+
+.home-stat-value {
+  color: var(--home-teal-bright);
+}
+
+/* IntersectionObserver fade-up */
+.home-io-fade-up,
+.home-stagger-fade {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-io-fade-up.is-visible,
+.home-stagger-fade.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Category infinite marquee */
+.home-category-marquee-track {
+  animation: homeCategoryMarquee 35s linear infinite;
+}
+
+.home-category-marquee:hover .home-category-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes homeCategoryMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.home-category-marquee-tile {
+  border: 1px solid rgba(10, 10, 10, 0.12);
+  background: rgba(255, 255, 255, 0.65);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.home-category-marquee-tile:hover,
+.home-category-marquee-tile:focus-visible {
+  border-color: rgba(0, 180, 166, 0.45);
+  box-shadow:
+    0 0 22px rgba(0, 180, 166, 0.22),
+    0 8px 24px rgba(0, 180, 166, 0.1);
+  transform: translateY(-3px);
+}
+
+.home-category-marquee-tile:hover .home-category-icon,
+.home-category-marquee-tile:focus-visible .home-category-icon {
+  color: var(--home-teal);
+  filter: drop-shadow(0 0 10px rgba(0, 180, 166, 0.85));
+}
+
+.home-category-marquee-tile .home-category-icon {
+  color: #0a0a0a;
+  transition: color 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+}
+
+/* Section animated underline (FAQ etc.) */
+.home-section-draw-underline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.12em;
+  height: 2px;
+  background: linear-gradient(90deg, var(--home-teal), var(--home-teal-bright));
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.home-io-fade-up.is-visible .home-section-draw-underline {
+  animation: homeDrawUnderline 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.2s;
+}
+
+.home-hero-headline {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.home-hero-gradient-text {
+  background: linear-gradient(105deg, #e5e7eb 0%, #f5f0e8 45%, var(--home-teal-bright) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.home-hero-sub {
+  color: rgba(245, 240, 232, 0.88);
+  letter-spacing: 0.01em;
+  line-height: 1.65;
+}
+
+.home-hero-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 180, 166, 0.45);
+  background: rgba(0, 180, 166, 0.12);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ecfdf5;
+  transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.home-hero-cta-secondary:hover {
+  transform: scale(1.04);
+  background: rgba(0, 180, 166, 0.22);
+  border-color: var(--home-teal-bright);
+  box-shadow: 0 0 24px rgba(0, 180, 166, 0.35);
+}
+
+.home-hero-cta-secondary:active {
+  transform: scale(0.97);
+}
+
+/* Glass cards (Best in) */
+.home-glass-card {
+  border: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 4px 24px rgba(10, 10, 10, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.home-glass-card:hover {
+  transform: translateY(-6px);
+  border-color: #d1d5db;
+  box-shadow:
+    0 20px 40px rgba(10, 10, 10, 0.1),
+    0 0 0 1px rgba(229, 231, 235, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Category icon tile */
+.home-category-tile {
+  border: 1px solid rgba(10, 10, 10, 0.06);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  transition: all 0.3s ease;
+}
+
+.home-category-tile:hover {
+  border-color: rgba(0, 180, 166, 0.4);
+  background: linear-gradient(180deg, #fff 0%, rgba(0, 180, 166, 0.08) 100%);
+  box-shadow:
+    0 12px 32px rgba(0, 180, 166, 0.18),
+    0 0 20px rgba(0, 180, 166, 0.12);
+  transform: translateY(-4px) scale(1.05);
+}
+
+.home-category-tile:hover .home-category-icon {
+  color: var(--home-teal);
+  filter: drop-shadow(0 0 8px rgba(0, 180, 166, 0.5));
+}
+
+/* Review cards grid — stagger handled by StaggerFadeUp */
+.home-reviews-grid > * {
+  /* per-card timing via inline transitionDelay */
+}
+
+/* Review card hover: lift, glow, left accent */
+.home-review-card-wrap {
+  border-left: 3px solid transparent;
+  border-radius: 0.75rem;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.home-review-card-wrap:hover {
+  transform: translateY(-6px);
+  border-left-color: var(--home-teal);
+}
+
+.home-review-card-wrap:hover > * {
+  box-shadow:
+    0 16px 40px rgba(0, 180, 166, 0.18),
+    0 0 0 1px rgba(0, 180, 166, 0.12);
+}
+
+/* Star shimmer sweep on load */
+.home-rating-sweep > span > span {
+  position: relative;
+  overflow: hidden;
+}
+
+.home-rating-sweep > span > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: homeStarSweep 1.2s ease-out 0.4s 1;
+}
+
+@keyframes homeStarSweep {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* FAQ in cinematic home */
+.home-cinematic .home-faq details {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(10, 10, 10, 0.08);
+  border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    border-left-color 0.25s ease;
+}
+
+.home-cinematic .home-faq details[open] {
+  border-color: rgba(0, 180, 166, 0.35);
+  border-left: 3px solid var(--home-teal);
+  box-shadow: 0 8px 24px rgba(0, 180, 166, 0.08);
+}
+
+.home-cinematic .home-faq summary {
+  transition: background 0.2s ease;
+}
+
+.home-cinematic .home-faq summary:hover {
+  background: rgba(0, 180, 166, 0.06);
+}
+
+.home-cinematic .home-faq summary svg {
+  transition: transform 0.3s ease;
+}
+
+.home-cinematic .home-faq details[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.home-cinematic .home-faq dd {
+  max-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+  transition:
+    max-height 0.3s ease,
+    padding-bottom 0.3s ease;
+}
+
+.home-cinematic .home-faq details[open] dd {
+  max-height: 32rem;
+  padding-bottom: 1rem;
+}
+
+/* Blog featured */
+.home-blog-card {
+  border: 1px solid rgba(10, 10, 10, 0.08);
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(10, 10, 10, 0.06);
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.home-blog-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 48px rgba(0, 180, 166, 0.12);
+}
+
+.home-blog-tag {
+  background: rgba(0, 180, 166, 0.12);
+  color: var(--home-forest);
+}
+
+.home-blog-cta {
+  background: var(--home-ink);
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.home-blog-cta:hover {
+  transform: scale(1.03);
+  background: var(--home-charcoal);
+}
+
+/* Business CTA band */
+.home-business-band {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(115deg, var(--home-teal) 0%, var(--home-emerald) 55%, var(--home-forest) 100%);
+  color: #fff;
+}
+
+.home-business-band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%) skewX(-12deg);
+  animation: homeBandShimmer 2.2s ease-out 0.3s 1;
+  pointer-events: none;
+}
+
+@keyframes homeBandShimmer {
+  to {
+    transform: translateX(120%) skewX(-12deg);
+  }
+}
+
+.home-business-band h2,
+.home-business-band p {
+  color: #fff;
+}
+
+.home-business-band a:not(.home-business-pill) {
+  color: #ecfdf5;
+  font-weight: 600;
+}
+
+.home-business-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  background: var(--home-ink);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.home-business-pill:hover {
+  transform: scale(1.04);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.home-business-pill-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.home-business-pill:hover .home-business-pill-arrow {
+  transform: translateX(4px);
+}
+
+/* Best-in card stagger grid */
+.home-best-in-grid > * {
+  /* stagger via StaggerFadeUp */
+}
+
+.home-verified-pulse {
+  animation: homeVerifiedPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes homeVerifiedPulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 0 rgba(0, 180, 166, 0));
+  }
+  50% {
+    opacity: 0.92;
+    filter: drop-shadow(0 0 6px rgba(0, 180, 166, 0.45));
+  }
+}
+
+.home-review-business-btn {
+  border: 1.5px solid var(--home-teal);
+  background: transparent;
+  color: var(--home-teal);
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
+}
+
+.home-review-business-btn:hover {
+  background: var(--home-teal);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(0, 180, 166, 0.35);
+}
+
+.home-review-business-btn:active {
+  transform: scale(0.97);
+}
+
+/* About block */
+.home-about-block {
+  border: 1px solid rgba(10, 10, 10, 0.06);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+/* Nav pills on home sections */
+.home-pill-link {
+  border: 1px solid var(--home-teal);
+  color: var(--home-teal);
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.home-pill-link:hover {
+  background: var(--home-teal);
+  color: #fff;
+}
+
+.home-nav-btn {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-nav-btn:hover {
+  border-color: var(--home-teal);
+  box-shadow: 0 0 12px rgba(0, 180, 166, 0.25);
+}
+
+/* Hero search (scoped overrides) */
+.home-hero-search .home-search-shell {
+  border-color: rgba(0, 180, 166, 0.5);
+  box-shadow: 0 0 32px rgba(0, 180, 166, 0.25);
+}
+
+.home-hero-search input:focus {
+  outline: none;
+  ring: none;
+}
+
+.home-hero-search .home-search-btn {
+  background: linear-gradient(135deg, var(--home-teal), var(--home-emerald));
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.home-hero-search .home-search-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  filter: brightness(1.08);
+}
+
+/* Gold star shimmer on home cards */
+.home-rating-gold > span > span {
+  animation: homeStarShimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes homeStarShimmer {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+

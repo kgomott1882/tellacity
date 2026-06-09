@@ -21,7 +21,7 @@ const RELATED_PAGES = [
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
   { href: "/for-business", label: "Tellacity for Business" },
-  { href: "/reputation-platform", label: "Reputation Management Platform" },
+  { href: "/for-business", label: "Reputation Management Platform" },
 ];
 
 const FIELD_GUIDANCE = [
@@ -737,7 +737,7 @@ export default function SuggestBusinessForm() {
         <p className="mt-8 text-sm text-gray-600">
           Tellacity&apos;s business submission flow is part of our broader trust
           and reputation platform. Learn more on the{" "}
-          <Link href="/reputation-platform" className={linkClass}>
+          <Link href="/for-business" className={linkClass}>
             Reputation Management Platform
           </Link>{" "}
           page or explore{" "}
