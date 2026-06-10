@@ -699,7 +699,7 @@
   filter: brightness(1.08);
 }
 
-/* Gold star shimmer on home cards */
+/* Tellacity tier-color star shimmer on home cards */
 .home-rating-gold > span > span {
   animation: homeStarShimmer 2.8s ease-in-out infinite;
 }

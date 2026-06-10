@@ -3,14 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
-import {
-  FREE_PLAN_PUBLISH_LOCK_MESSAGE,
-  computePublishLockStatus,
-  isPhotoEditLocked,
-} from "@/lib/businessPhotoLock";
 import { sanitizeProductCurrencyCode } from "@/lib/productCurrency";
 
 const STORAGE_BUCKET = "business_media";
@@ -22,16 +16,8 @@ function sanitizeSlug(raw: unknown): string {
 }
 
 /**
- * Build the standard 423 response for a locked edit attempt on Free.
+ * PATCH, update a single photo: set cover, move section, preview mode, product metadata.
  */
-function publishLockResponse(lastPublishedAt: string | null) {
-  const lock = computePublishLockStatus("free", lastPublishedAt);
-  return NextResponse.json(
-    { error: FREE_PLAN_PUBLISH_LOCK_MESSAGE, lock },
-    { status: 423 }
-  );
-}
-
 type PhotoRow = {
   id: string;
   business_id: string;
@@ -75,10 +61,6 @@ function cleanProductRedirectUrl(value: unknown): string | null {
 
 /**
  * PATCH, update a single photo: set cover, move section, preview mode, product metadata.
- *
- * On Free, a published photo is locked for 30 days after it was published.
- * While locked, both cover changes and section moves return 423. Drafts
- * remain fully editable regardless of plan.
  */
 export async function PATCH(
   req: Request,
@@ -130,14 +112,6 @@ export async function PATCH(
     const photo = photoRaw as PhotoRow | null;
     if (!photo) {
       return NextResponse.json({ error: "Photo not found" }, { status: 404 });
-    }
-
-    const planByBiz = await getActivePlanKeysByBusinessIds([businessId], ctx.db);
-    const planKey = planByBiz.get(businessId) ?? "free";
-    const touchesLockedFields =
-      body.isCover !== undefined || typeof body.section === "string";
-    if (touchesLockedFields && isPhotoEditLocked(planKey, photo.status, photo.published_at)) {
-      return publishLockResponse(photo.published_at);
     }
 
     // Set cover, flip this photo to cover and clear the previous cover.
@@ -283,7 +257,6 @@ export async function PATCH(
 
 /**
  * DELETE, remove a photo (row + storage object).
- * On Free, a published photo is locked for 30 days after publish.
  */
 export async function DELETE(
   req: Request,
@@ -306,12 +279,6 @@ export async function DELETE(
     const photo = photoRaw as PhotoRow | null;
     if (!photo) {
       return NextResponse.json({ error: "Photo not found" }, { status: 404 });
-    }
-
-    const planByBiz = await getActivePlanKeysByBusinessIds([businessId], ctx.db);
-    const planKey = planByBiz.get(businessId) ?? "free";
-    if (isPhotoEditLocked(planKey, photo.status, photo.published_at)) {
-      return publishLockResponse(photo.published_at);
     }
 
     // Must run before deleting the photo: FK is ON DELETE SET NULL in older DBs, which

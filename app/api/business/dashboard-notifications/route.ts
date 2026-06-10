@@ -10,11 +10,6 @@ import {
   getPhotoLimitForPlan,
   type PlanKey,
 } from "@/lib/plans";
-import {
-  FREE_PLAN_PHOTO_RETENTION_DAYS,
-  finalWarningCutoffIso,
-  photoExpiresAtIso,
-} from "@/lib/businessPhotoExpiry";
 
 /**
  * Minimum lifetime `dashboard_login` events before the
@@ -138,7 +133,6 @@ export async function GET(req: Request) {
       photoCountResult,
       loginLifetimeCount,
       planResolution,
-      expiringPhotosResult,
       articleCountResult,
     ] = await Promise.all([
         auth.db
@@ -210,19 +204,6 @@ export async function GET(req: Request) {
           .eq("action_type", "dashboard_login"),
         // Current plan key (free / grow / premium / elite).
         getActivePlanKeyForBusinessResult(businessId, auth.db),
-        // Photos already past the 29-day retention warning cutoff. Free-plan
-        // photos become eligible for automatic removal at 30 days from
-        // `created_at`, so anything that clears the warning cutoff drives
-        // the "photos will be removed within 24 hours" urgent notice. The
-        // free plan cap is tiny (≤4), so limit(100) is well over any real
-        // per-business volume.
-        auth.db
-          .from("business_photos")
-          .select("id, created_at")
-          .eq("business_id", businessId)
-          .lte("created_at", finalWarningCutoffIso())
-          .order("created_at", { ascending: true })
-          .limit(100),
         // Any blog or case study row (draft, pending, or published). Drives
         // the "start writing" nudge on paid plans and the Free-plan upgrade
         // nudge when the business has never created content.
@@ -446,73 +427,9 @@ export async function GET(req: Request) {
         key: "photos_free_limit_upgrade",
         title: "Unlock more photos, your profile is getting noticed",
         description:
-          "You've used all of your free photo slots. Visitors are viewing your business page, upgrade your plan to upload more photos and keep them engaged.",
+          "You've used all of your free photo slots. Delete a photo to upload another, or upgrade to add more photos and keep visitors engaged.",
         href: "/business/dashboard/billing?source=upload_limit",
         priority: 78,
-        created_at: new Date().toISOString(),
-        always_show: true,
-      });
-    }
-
-    // Free-plan 30-day photo retention notices:
-    //   1) `photos_free_retention_policy`, informational nudge shown to
-    //      any free-plan business that has uploaded at least one photo but
-    //      nothing is in the final warning window yet. Dismissible.
-    //   2) `photos_free_expiring_24h`, urgent, always-visible warning
-    //      once any photo crosses the 29-day threshold. Copy names the
-    //      count and the earliest cutoff so the owner can decide before
-    //      the deletion sweep runs.
-    // Photo retention is re-evaluated at query time from `created_at` +
-    // the resolved plan, upgrading to any paid plan instantly hides both
-    // nudges on the next refresh.
-    const expiringPhotoRows = expiringPhotosResult.error
-      ? []
-      : ((expiringPhotosResult.data ?? []) as Array<{
-          id?: string;
-          created_at?: string | null;
-        }>);
-    const expiringPhotoCount = expiringPhotoRows.length;
-    const earliestExpiringCreatedAt =
-      expiringPhotoRows[0]?.created_at ?? null;
-    const earliestExpiresAtIso = photoExpiresAtIso(
-      earliestExpiringCreatedAt,
-    );
-
-    if (
-      photoTableAvailable &&
-      activePlanKey === "free" &&
-      photoCount > 0 &&
-      expiringPhotoCount === 0
-    ) {
-      notifications.push({
-        key: "photos_free_retention_policy",
-        title: `Free-plan photos are removed after ${FREE_PLAN_PHOTO_RETENTION_DAYS} days`,
-        description: `Photos uploaded on the Free plan are automatically removed ${FREE_PLAN_PHOTO_RETENTION_DAYS} calendar days after upload. Upgrade to any paid plan to keep them live for good.`,
-        href: "/business/dashboard/billing?source=upload_limit",
-        priority: 55,
-        created_at: createdAt,
-      });
-    }
-
-    if (
-      photoTableAvailable &&
-      activePlanKey === "free" &&
-      expiringPhotoCount > 0
-    ) {
-      const photosLabel = expiringPhotoCount === 1 ? "photo" : "photos";
-      const cutoffLabel = formatDateShort(earliestExpiresAtIso);
-      notifications.push({
-        key: "photos_free_expiring_24h",
-        title: `${expiringPhotoCount} ${photosLabel} will be removed within 24 hours`,
-        description: `Your Free-plan ${photosLabel} on this profile ${
-          expiringPhotoCount === 1 ? "is" : "are"
-        } about to hit the ${FREE_PLAN_PHOTO_RETENTION_DAYS}-day retention cutoff (earliest on ${cutoffLabel}). Upgrade now to keep ${
-          expiringPhotoCount === 1 ? "it" : "them"
-        } live, otherwise the photo${
-          expiringPhotoCount === 1 ? "" : "s"
-        } will be removed and you'll need to re-upload after the window rolls over.`,
-        href: "/business/dashboard/billing?source=upload_limit",
-        priority: 96,
         created_at: new Date().toISOString(),
         always_show: true,
       });

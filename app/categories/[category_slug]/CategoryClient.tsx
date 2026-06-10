@@ -18,7 +18,7 @@ import {
 } from "@/lib/businessTags";
 import { getStoredCountry, normalizeCountryCode, setStoredCountry } from "@/lib/country";
 import { sanitizeText } from "@/lib/sanitizeText";
-import { RefreshCw, MessageSquare, Search, Shield, SlidersHorizontal, Star } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import CategoryInfoTooltip from "@/components/categories/CategoryInfoTooltip";
 import CategoryDirectoryBusinessCard from "@/components/categories/CategoryDirectoryBusinessCard";
 import HomeScrollProgress from "@/components/home/HomeScrollProgress";
@@ -923,28 +923,6 @@ export default function CategoryClient({
       <main className="category-directory-cinematic cat-dir-main">
         <HomeScrollProgress />
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pb-16">
-          {popularSearches.length > 0 && (
-            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-related">
-              <p className="cat-dir-related-label">Explore related categories</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {popularSearches.map((item) => {
-                  const safeSlug = (item.slug ?? "").trim().toLowerCase();
-                  if (!isValidSlug(safeSlug)) return null;
-                  return (
-                    <Link
-                      key={item.id}
-                      href={categoryBrowseHref(safeSlug, countryCode)}
-                      className="cat-dir-related-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/35"
-                    >
-                      <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      {sanitizeText(item.name)}
-                    </Link>
-                  );
-                })}
-              </div>
-            </FadeUp>
-          )}
-
           <div className="cat-dir-controls">
             <div>
               <p className="cat-dir-count">
@@ -955,7 +933,7 @@ export default function CategoryClient({
               </p>
               {listingKind === "category" ? (
                 <div className="cat-dir-how-link">
-                  <CategoryInfoTooltip categorySlug={categorySlug} />
+                  <CategoryInfoTooltip />
                 </div>
               ) : null}
             </div>
@@ -1177,6 +1155,28 @@ export default function CategoryClient({
             </nav>
           )}
 
+          {popularSearches.length > 0 && (
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-related">
+              <p className="cat-dir-related-label">Explore related categories</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {popularSearches.map((item) => {
+                  const safeSlug = (item.slug ?? "").trim().toLowerCase();
+                  if (!isValidSlug(safeSlug)) return null;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={categoryBrowseHref(safeSlug, countryCode)}
+                      className="cat-dir-related-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/35"
+                    >
+                      <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {sanitizeText(item.name)}
+                    </Link>
+                  );
+                })}
+              </div>
+            </FadeUp>
+          )}
+
           {popularTags.length > 0 && (
             <FadeUp threshold={IO_THRESHOLD} className="cat-dir-popular" aria-label="Popular searches">
               <h2 className="cat-dir-section-title">
@@ -1217,24 +1217,14 @@ export default function CategoryClient({
             </FadeUp>
           )}
 
-          <FadeUp threshold={IO_THRESHOLD} className="cat-dir-recent" aria-label="Recently reviewed companies">
-            <h2 className="cat-dir-section-title">
-              <span className="cat-dir-section-accent">Recently</span> reviewed companies
-            </h2>
-            <p className="cat-dir-section-sub">
-              Up to three businesses in this {listingKind === "tag" ? "tag" : "category"} with the most recently published public reviews in {countryName}. Reviews are included regardless of age.
-            </p>
-
-            {recentlyReviewedLoading ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {Array.from({ length: RECENTLY_REVIEWED_DISPLAY }).map((_, i) => (
-                  <div
-                    key={`recent-sk-${i}`}
-                    className="h-32 animate-pulse rounded-xl bg-gray-100"
-                  />
-                ))}
-              </div>
-            ) : recentlyReviewedRows.length > 0 ? (
+          {!recentlyReviewedLoading && recentlyReviewedRows.length > 0 ? (
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-recent" aria-label="Recently reviewed companies">
+              <h2 className="cat-dir-section-title">
+                <span className="cat-dir-section-accent">Recently</span> reviewed companies
+              </h2>
+              <p className="cat-dir-section-sub">
+                Up to three businesses in this {listingKind === "tag" ? "tag" : "category"} with the most recently published public reviews in {countryName}. Reviews are included regardless of age.
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {recentlyReviewedRows.map((company) => (
                   <CategoryDirectoryBusinessCard
@@ -1246,88 +1236,8 @@ export default function CategoryClient({
                   />
                 ))}
               </div>
-            ) : (
-              <div className="cat-dir-recent-empty mt-4">
-                <div className="cat-dir-recent-empty-icon">
-                  <MessageSquare className="h-5 w-5" aria-hidden />
-                </div>
-                <p className="mt-3 text-sm">
-                  No published reviews match this directory yet.
-                </p>
-              </div>
-            )}
-          </FadeUp>
-
-          {listingKind === "category" && (
-            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-info">
-              <div className="cat-dir-info-card">
-                <h2 className="cat-dir-info-heading">How categories work</h2>
-                <p className="cat-dir-info-body">
-                  Tellacity groups businesses into categories so you can compare trusted
-                  providers in one place. Each directory is ranked using verified review
-                  signals, not paid placement.
-                </p>
-                <div className="cat-dir-feature-grid">
-                  <div className="cat-dir-feature-card">
-                    <span className="cat-dir-feature-icon" aria-hidden>
-                      <Star className="h-4 w-4" />
-                    </span>
-                    <h3 className="cat-dir-feature-label">Ranked by TrustScore</h3>
-                    <p className="cat-dir-feature-desc">
-                      TrustScore summarises verified reviews, response behaviour, and
-                      policy-compliance signals so higher-ranked businesses reflect
-                      consistent, authentic feedback.
-                    </p>
-                  </div>
-                  <div className="cat-dir-feature-card">
-                    <span className="cat-dir-feature-icon" aria-hidden>
-                      <SlidersHorizontal className="h-4 w-4" />
-                    </span>
-                    <h3 className="cat-dir-feature-label">Filter by rating &amp; country</h3>
-                    <p className="cat-dir-feature-desc">
-                      Use rating and country filters to narrow results to the providers
-                      most relevant to your needs and region.
-                    </p>
-                  </div>
-                  <div className="cat-dir-feature-card">
-                    <span className="cat-dir-feature-icon" aria-hidden>
-                      <Shield className="h-4 w-4" />
-                    </span>
-                    <h3 className="cat-dir-feature-label">Read &amp; share experiences</h3>
-                    <p className="cat-dir-feature-desc">
-                      Open any business profile to read detailed reviews or share your
-                      own experience to help others make better decisions.
-                    </p>
-                  </div>
-                </div>
-              </div>
             </FadeUp>
-          )}
-
-          <section className="sr-only" aria-label="How this directory works">
-            <div>
-              <h2>Ranked by trust</h2>
-              <p>
-                Listings are ordered using a combination of TrustScore, review volume,
-                and recent activity in this category. Comparing several providers helps
-                you spot consistent patterns in service quality.
-              </p>
-            </div>
-            <div>
-              <h2>Filter by rating & location</h2>
-              <p>
-                Use rating and country filters to focus on the businesses most relevant
-                to your situation and region.
-              </p>
-            </div>
-            <div>
-              <h2>Read & share experiences</h2>
-              <p>
-                Click into a business to read detailed reviews or share your own
-                experience to help others decide.
-              </p>
-            </div>
-          </section>
+          ) : null}
 
           <FadeUp threshold={IO_THRESHOLD} className="cat-dir-about">
             <div className="cat-dir-about-inner">
@@ -1375,6 +1285,29 @@ export default function CategoryClient({
               </div>
             </div>
           </FadeUp>
+
+          {listingKind === "category" ? (
+            <FadeUp threshold={IO_THRESHOLD} className="cat-dir-info">
+              <details className="cat-dir-info-card group" id="how-rankings-work">
+                <summary className="cat-dir-info-heading cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center justify-between gap-3">
+                    How rankings work
+                    <span
+                      className="text-sm font-normal text-[var(--cd-muted,#6b7280)] transition group-open:rotate-180"
+                      aria-hidden
+                    >
+                      ▼
+                    </span>
+                  </span>
+                </summary>
+                <p className="cat-dir-info-body">
+                  Rankings are based on TrustScore, review volume, and recent customer
+                  feedback. Browse profiles to read reviews, view photos, and compare
+                  services.
+                </p>
+              </details>
+            </FadeUp>
+          ) : null}
 
           <FadeUp threshold={IO_THRESHOLD} className="cat-dir-seo">
             <p>

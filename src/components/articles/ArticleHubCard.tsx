@@ -11,6 +11,14 @@ type Props = {
 export default function ArticleHubCard({ item, className }: Props) {
   const publishedLabel = formatArticlePublishedDate(item.publishedAt);
 
+  const sectionDivider = (
+    <div
+      className="-mx-1.5 my-3 h-px shrink-0 bg-gray-100"
+      role="presentation"
+      aria-hidden
+    />
+  );
+
   return (
     <Link
       href={`/articles/${encodeURIComponent(item.slug)}`}
@@ -35,21 +43,20 @@ export default function ArticleHubCard({ item, className }: Props) {
         />
       )}
       <div className="flex flex-1 flex-col p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-[#1FAF9E]">
-            {hubContentTypeLabel(item.contentType)}
-          </p>
-          {item.category && item.contentType === "tellacity" ? (
-            <span className="rounded-full bg-[#F5F3EF] px-2 py-0.5 text-[11px] font-medium text-[#707070]">
-              {item.category}
-            </span>
-          ) : null}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[8px] font-medium uppercase tracking-wide text-[#1FAF9E]">
+              {hubContentTypeLabel(item.contentType)}
+            </p>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-[#0E0E0E] group-hover:text-[#124541]">
+            {item.title}
+          </h2>
         </div>
-        <h2 className="mt-2 text-lg font-semibold text-[#0E0E0E] group-hover:text-[#124541]">
-          {item.title}
-        </h2>
-        <p className="mt-2 line-clamp-3 text-sm text-[#606060]">{item.excerpt}</p>
-        <div className="mt-auto pt-4 text-xs text-[#888]">
+        {sectionDivider}
+        <p className="line-clamp-3 text-sm text-[#606060]">{item.excerpt}</p>
+        {sectionDivider}
+        <div className="mt-auto pt-1 text-xs text-[#888]">
           <span>
             Published by{" "}
             <span className="font-medium text-[#505050]">{item.publisherName}</span>

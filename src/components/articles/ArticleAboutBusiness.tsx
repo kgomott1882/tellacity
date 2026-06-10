@@ -94,7 +94,7 @@ export default function ArticleAboutBusiness({
 
           {reviewCount > 0 ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <RatingStars rating={averageRating} size={14} variant="gold" />
+              <RatingStars rating={averageRating} size={14} />
               <span className="text-sm font-semibold text-[#0E0E0E]">
                 {averageRating.toFixed(1)}
               </span>

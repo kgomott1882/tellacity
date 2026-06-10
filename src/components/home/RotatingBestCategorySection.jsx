@@ -153,6 +153,7 @@ export default function RotatingBestCategorySection({
                             rating={ratingValue}
                             reviewCount={reviewCount}
                             size={12}
+                            className="home-rating-gold"
                           />
                           <span className="text-[#0E0E0E]">
                             {ratingValue.toFixed(1)}
@@ -248,6 +249,7 @@ export default function RotatingBestCategorySection({
                             rating={ratingValue}
                             reviewCount={reviewCount}
                             size={12}
+                            className="home-rating-gold"
                           />
                           <span className="text-[#0E0E0E]">
                             {ratingValue.toFixed(1)}

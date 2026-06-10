@@ -5,6 +5,7 @@ import { getServerEnv } from "@/lib/serverEnv";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import {
   finalWarningCutoffIso,
+  FREE_PLAN_PHOTO_RETENTION_ENABLED,
   photoExpiresAtIso,
 } from "@/lib/businessPhotoExpiry";
 import { sendPhotoExpiryReminderEmail } from "@/lib/businessPhotoExpiryEmail";
@@ -60,6 +61,13 @@ export async function POST(req: Request) {
     .maybeSingle();
   if (profile?.is_admin !== true) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!FREE_PLAN_PHOTO_RETENTION_ENABLED) {
+    return NextResponse.json(
+      { error: "Free-plan photo retention is disabled" },
+      { status: 410 }
+    );
   }
 
   let body: { businessId?: string };

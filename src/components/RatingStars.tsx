@@ -1,6 +1,12 @@
 "use client";
 
 import { Star } from "lucide-react";
+import {
+  TELLACITY_STAR_EMPTY_BORDER,
+  TELLACITY_STAR_EMPTY_FILL,
+  TELLACITY_STAR_EMPTY_ICON,
+  tellacityActiveStarColorForRating,
+} from "@/lib/tellacityStarColors";
 
 type RatingStarsProps = {
   rating: number;
@@ -8,7 +14,7 @@ type RatingStarsProps = {
   size?: number;
   editable?: boolean;
   onChange?: (value: number) => void;
-  /** Gold stars with shimmer — used on cinematic home cards. */
+  /** Subtle shimmer animation (tier colors unchanged). */
   variant?: "default" | "gold";
   className?: string;
 };
@@ -24,21 +30,10 @@ export default function RatingStars({
 }: RatingStarsProps) {
   const filledCount = Math.max(0, Math.min(5, Math.round(rating)));
   const boxSize = size + 6;
-  const fillColors: Record<number, string> = {
-    1: "#F04438",
-    2: "#F79009",
-    3: "#FEC84B",
-    4: "#84CC16",
-    5: "#12B76A",
-  };
   const filledColor =
-    variant === "gold"
-      ? "#FBBF24"
-      : fillColors[filledCount] ?? "#12B76A";
-  /** Empty / zero-rating stars: visible gray (transparent + #E4E7EC was nearly invisible on white). */
-  const emptyStarBg = "#F2F4F7";
-  const emptyStarBorder = "#D0D5DD";
-  const emptyStarGlyph = "#98A2B3";
+    filledCount > 0
+      ? tellacityActiveStarColorForRating(filledCount)
+      : tellacityActiveStarColorForRating(1);
 
   return (
     <div
@@ -80,9 +75,9 @@ export default function RatingStars({
               style={{
                 width: boxSize,
                 height: boxSize,
-                backgroundColor: isFilled ? filledColor : emptyStarBg,
-                border: `1px solid ${isFilled ? filledColor : emptyStarBorder}`,
-                color: isFilled ? "#FFFFFF" : emptyStarGlyph,
+                backgroundColor: isFilled ? filledColor : TELLACITY_STAR_EMPTY_FILL,
+                border: `1px solid ${isFilled ? filledColor : TELLACITY_STAR_EMPTY_BORDER}`,
+                color: isFilled ? "#FFFFFF" : TELLACITY_STAR_EMPTY_ICON,
               }}
             >
               <Star size={size} className="fill-current" aria-hidden />

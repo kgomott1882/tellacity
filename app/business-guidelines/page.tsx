@@ -415,9 +415,9 @@ export default function BusinessGuidelinesPage() {
               <div>
                 <h3 className="font-semibold text-[#0E0E0E]">Keep it current</h3>
                 <p className="mt-1">
-                  Photos older than our retention window may be archived. Refresh
-                  your gallery so the listing reflects what customers experience
-                  today.
+                  Refresh your gallery so the listing reflects what customers
+                  experience today. Free plans include up to four photos; delete
+                  one to replace it, or upgrade for more slots.
                 </p>
               </div>
             </div>

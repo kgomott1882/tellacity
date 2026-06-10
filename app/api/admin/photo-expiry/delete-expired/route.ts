@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
-import { expiryCutoffIso } from "@/lib/businessPhotoExpiry";
+import { expiryCutoffIso, FREE_PLAN_PHOTO_RETENTION_ENABLED } from "@/lib/businessPhotoExpiry";
 
 /**
  * POST /api/admin/photo-expiry/delete-expired
@@ -94,6 +94,21 @@ async function authorize(
 export async function POST(req: Request) {
   const gate = await authorize(req);
   if (!gate.ok) return gate.response;
+
+  if (!FREE_PLAN_PHOTO_RETENTION_ENABLED) {
+    return NextResponse.json({
+      ok: true,
+      retentionEnabled: false,
+      dryRun: false,
+      scanned: 0,
+      eligible: 0,
+      deleted: 0,
+      storageCleanedUp: 0,
+      storageFailed: 0,
+      skippedPaidPlan: 0,
+      message: "Free-plan photo retention is disabled; no photos are auto-deleted.",
+    });
+  }
 
   let dryRun = false;
   try {

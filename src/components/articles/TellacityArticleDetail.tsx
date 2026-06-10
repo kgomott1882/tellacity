@@ -78,7 +78,7 @@ export default function TellacityArticleDetail({ post }: Props) {
           </nav>
 
           <p className="text-xs font-semibold uppercase tracking-wide text-[#1FAF9E]">
-            Tellacity Article · {post.topic}
+            Tellacity Article
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">{post.title}</h1>
           <p className="mt-4 text-base leading-relaxed text-[#505050]">{post.description}</p>

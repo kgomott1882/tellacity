@@ -29,10 +29,6 @@ import {
 } from "@/lib/plans";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 import { openUpgradeFlow } from "@/lib/upgradeFlow";
-import {
-  computePublishLockStatus,
-  isPhotoEditLocked,
-} from "@/lib/businessPhotoLock";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
   evaluateFreePlanExclusiveUpload,
@@ -487,30 +483,7 @@ export default function BusinessPhotosSettingsPage() {
     return counts;
   }, [photos]);
 
-  const lastPublishedAt = useMemo<string | null>(() => {
-    let best: number | null = null;
-    for (const p of publishedPhotos) {
-      if (!p.published_at) continue;
-      const t = Date.parse(p.published_at);
-      if (!Number.isFinite(t)) continue;
-      if (best === null || t > best) best = t;
-    }
-    return best === null ? null : new Date(best).toISOString();
-  }, [publishedPhotos]);
-  const businessLock = useMemo(
-    () => computePublishLockStatus(planKey, lastPublishedAt),
-    [planKey, lastPublishedAt]
-  );
-  const lockUnlockDate = businessLock.lockedUntil
-    ? new Date(businessLock.lockedUntil)
-    : null;
-  const lockUnlockLabel = lockUnlockDate
-    ? lockUnlockDate.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : "";
+  const planPhotoLimit = getPhotoLimitForPlan(planKey);
   const sectionTitleBySlug = useMemo(() => {
     const map = new Map<string, string>();
     for (const s of sections) map.set(s.slug, s.title);
@@ -520,7 +493,6 @@ export default function BusinessPhotosSettingsPage() {
     sectionTitleBySlug.get(slug) ??
     slug.charAt(0).toUpperCase() + slug.slice(1);
 
-  const planPhotoLimit = getPhotoLimitForPlan(planKey);
   const usageLine = `You've used ${photoTotalCount} of ${planPhotoLimit} photos`;
   const nearPhotoLimit =
     photoTotalCount > 0 &&
@@ -530,8 +502,7 @@ export default function BusinessPhotosSettingsPage() {
   const canUpgrade = planKey !== "elite";
   const sectionTogglesLocked = planKey === "free";
 
-  const isLocked = (p: PhotoRow): boolean =>
-    isPhotoEditLocked(planKey, p.status, p.published_at);
+  const isLocked = (_p: PhotoRow): boolean => false;
 
   /** ----------------------------------------------------------------
    *  Published-photos preview (hero + thumbnail strip)
@@ -2352,7 +2323,7 @@ export default function BusinessPhotosSettingsPage() {
                   disabled={uploadDisabled}
                   title={
                     atPhotoLimit
-                      ? "You've reached your plan's photo limit"
+                      ? "You've reached your plan's photo limit — delete a photo or upgrade to add more"
                       : !s.is_enabled
                         ? "This section is hidden from your public profile, set it to Public to upload"
                         : "Upload photos to this section"
@@ -2842,12 +2813,8 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
       </div>
 
-      {/* Single merged Free-plan upgrade nudge, covers BOTH the 30-day
-          publish lock and the photo upload limit. Title adapts to the
-          most urgent state (limit reached > lock), while the body
-          describes whichever concerns are active and a unified list of
-          upgrade benefits. Replaces two previously-stacked banners. */}
-      {planKey === "free" && (businessLock.locked || atPhotoLimit) ? (
+      {/* Free plan: nudge at the 4-photo cap — delete one or upgrade for more. */}
+      {planKey === "free" && atPhotoLimit ? (
         <div
           role="note"
           className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-4 text-sm text-amber-950 sm:flex-row sm:items-start sm:gap-3"
@@ -2855,39 +2822,21 @@ export default function BusinessPhotosSettingsPage() {
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
           <div className="flex-1">
             <p className="font-medium text-amber-900">
-              {atPhotoLimit
-                ? `You've reached your Free plan's ${planPhotoLimit}-photo limit`
-                : `Published photos locked for ${businessLock.daysRemaining} more day${
-                    businessLock.daysRemaining === 1 ? "" : "s"
-                  }`}
+              You&apos;ve reached your Free plan&apos;s {planPhotoLimit}-photo limit
             </p>
             <p className="mt-1 text-xs leading-relaxed text-amber-900/85">
-              {businessLock.locked ? (
-                <>
-                  On the Free plan, photos you&apos;ve already published become read-only
-                  for 30 calendar days, they unlock automatically on{" "}
-                  <span className="font-semibold">{lockUnlockLabel}</span>.{" "}
-                </>
-              ) : null}
-              {atPhotoLimit
-                ? "You\u2019ve also hit your photo upload limit. "
-                : businessLock.locked
-                  ? "You can still upload new photos up to your plan limit. "
-                  : ""}
-              Upgrade to edit published photos now, add more photos, use multiple photo categories at once,
-              hide categories you don&apos;t use, and create custom ones. Your built-in categories stay visible on your
-              public page even when empty.
+              Delete a photo below to free a slot, or upgrade to upload more images, use multiple
+              photo categories at once, hide categories you don&apos;t use, and create custom ones.
+              Your photos stay on your profile until you remove them, they are not auto-deleted.
             </p>
             {canUpgrade ? (
               <div className="mt-3">
                 <button
                   type="button"
-                  onClick={() =>
-                    openUpgradeFlow(atPhotoLimit ? "upload_limit" : "publish_lock")
-                  }
+                  onClick={() => openUpgradeFlow("upload_limit")}
                   className="inline-flex items-center justify-center rounded-full bg-[#124541] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30"
                 >
-                  Upgrade to edit now
+                  Upgrade for more photos
                 </button>
               </div>
             ) : null}
@@ -3009,7 +2958,7 @@ export default function BusinessPhotosSettingsPage() {
           </h2>
           <p className="max-w-xl text-xs text-gray-500">
             {planKey === "free"
-              ? "Drafts and live photos appear together by section. Gallery uses the same strip layout as your public page; Products use a grid (eye = draft preview). Publish moves a draft to live on the same photo. Published tiles may lock cover/delete for 30 days, product fields still edit."
+              ? "Drafts and live photos appear together by section. Gallery uses the same strip layout as your public page; Products use a grid (eye = draft preview). Publish moves a draft to live on the same photo. You can change cover, reorder, or delete published photos anytime."
               : "Gallery uses the large preview and thumbnail strip (what visitors see). Products and Other use a grid; Other adds a published-only hero preview below. Publish updates each photo in place."}
           </p>
         </div>

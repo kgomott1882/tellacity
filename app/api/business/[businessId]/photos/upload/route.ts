@@ -114,12 +114,8 @@ export async function POST(
       );
     }
 
-    // Note: the old 30-day post-publish upload cooldown has been removed.
-    // Free users can now use every slot up to their plan cap at any time;
-    // the 30-day lock only applies to editing / deleting *already
-    // published* photos (see isPhotoEditLocked in the PATCH / DELETE
-    // route). The cap check below is the only remaining gate on new
-    // uploads.
+    // Note: the old 30-day post-publish upload cooldown and publish lock are removed.
+    // Free users can upload, edit, and delete up to their plan cap (4 on Free).
 
     // Enforce the total per-plan photo cap (Free: also single-category rule above).
     const planCap = PLAN_PHOTO_LIMITS[planKey] ?? PLAN_PHOTO_LIMITS.free;

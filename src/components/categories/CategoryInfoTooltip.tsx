@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 
-export default function CategoryInfoTooltip({ categorySlug }: { categorySlug: string }) {
+export default function CategoryInfoTooltip() {
   const [open, setOpen] = useState(false)
 
   return (
@@ -12,27 +11,24 @@ export default function CategoryInfoTooltip({ categorySlug }: { categorySlug: st
         onClick={() => setOpen(!open)}
         className="text-sm text-gray-600 underline hover:text-black"
       >
-        How categories work
+        How rankings work
       </button>
 
       {open && (
         <div className="absolute z-50 mt-2 w-80 rounded-xl border bg-white p-4 text-sm shadow-lg">
-          <p className="mb-2 text-gray-700">
-            Businesses on Tellacity are grouped into categories based on their
-            services, products, and customer feedback.
+          <p className="text-gray-700">
+            Rankings are based on TrustScore, review volume, and recent customer
+            feedback. Browse profiles to read reviews, view photos, and compare
+            services.
           </p>
 
-          <p className="mb-3 text-gray-700">
-            Rankings are based on reviews, ratings, and recent activity to help
-            users discover the most trusted businesses.
-          </p>
-
-          <Link
-            href={`/categories/${categorySlug}/about`}
-            className="font-medium text-blue-600 hover:underline"
+          <a
+            href="#how-rankings-work"
+            className="mt-3 inline-block font-medium text-[#00B4A6] hover:underline"
+            onClick={() => setOpen(false)}
           >
-            Read more
-          </Link>
+            Learn more
+          </a>
         </div>
       )}
     </div>

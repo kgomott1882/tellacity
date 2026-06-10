@@ -21,7 +21,7 @@ import RecentReviewCard from "@/components/reviews/RecentReviewCard";
 import BusinessProfilePhotos from "@/components/business/BusinessProfilePhotos";
 import BusinessProfileResponses from "@/components/business/BusinessProfileResponses";
 import {
-  fetchBusinessProfileResponseEntries,
+  fetchBusinessProfileResponsesBundle,
   type BusinessProfileResponseEntry,
 } from "@/lib/businessProfileResponses";
 import BusinessProfileArticles, {
@@ -371,6 +371,8 @@ export default function BusinessClient({
   const [businessResponseEntries, setBusinessResponseEntries] = useState<
     BusinessProfileResponseEntry[]
   >([]);
+  const [reviewsAwaitingResponseCount, setReviewsAwaitingResponseCount] =
+    useState(0);
   const [isLoadingBusinessResponses, setIsLoadingBusinessResponses] =
     useState(true);
   const [isLoadingBusiness, setIsLoadingBusiness] = useState(!initialBusiness);
@@ -1028,6 +1030,7 @@ export default function BusinessClient({
     const businessId = business?.id;
     if (!businessId) {
       setBusinessResponseEntries([]);
+      setReviewsAwaitingResponseCount(0);
       setIsLoadingBusinessResponses(false);
       return;
     }
@@ -1037,9 +1040,10 @@ export default function BusinessClient({
 
     const loadBusinessResponses = async () => {
       const sb = supabaseBrowser();
-      const entries = await fetchBusinessProfileResponseEntries(sb, businessId);
+      const bundle = await fetchBusinessProfileResponsesBundle(sb, businessId);
       if (!isMounted) return;
-      setBusinessResponseEntries(entries);
+      setBusinessResponseEntries(bundle.entries);
+      setReviewsAwaitingResponseCount(bundle.awaitingResponseCount);
       setIsLoadingBusinessResponses(false);
     };
 
@@ -1162,6 +1166,16 @@ export default function BusinessClient({
     totalReviewCount,
     business?.reviewCount,
     reviews.length,
+  ]);
+
+  const showBusinessResponsesSection = useMemo(() => {
+    if (isLoadingBusinessResponses) return false;
+    if (derivedReviewCount === 0) return false;
+    return reviewsAwaitingResponseCount > 0;
+  }, [
+    isLoadingBusinessResponses,
+    derivedReviewCount,
+    reviewsAwaitingResponseCount,
   ]);
 
   const categoryPublicLabel = useMemo(() => {
@@ -1331,7 +1345,6 @@ export default function BusinessClient({
                       <RatingStars
                         rating={derivedAverageRating}
                         size={14}
-                        variant="gold"
                         className="biz-rating-gold"
                       />
                       <span className="font-semibold text-[#0A0A0A]">
@@ -1440,7 +1453,6 @@ export default function BusinessClient({
                         <RatingStars
                           rating={derivedAverageRating}
                           size={16}
-                          variant="gold"
                           className="biz-rating-gold"
                         />
                       </div>
@@ -1722,15 +1734,15 @@ export default function BusinessClient({
               </div>
             </FadeUp>
 
-            <FadeUp className="biz-responses-section-wrap">
-              {business ? (
+            {showBusinessResponsesSection && business ? (
+              <FadeUp className="biz-responses-section-wrap">
                 <BusinessProfileResponses
                   businessName={business.name}
                   entries={businessResponseEntries}
-                  isLoading={isLoadingBusinessResponses}
+                  awaitingResponseCount={reviewsAwaitingResponseCount}
                 />
-              ) : null}
-            </FadeUp>
+              </FadeUp>
+            ) : null}
 
             <FadeUp className="biz-about-section">
               <div className="space-y-0 text-sm">

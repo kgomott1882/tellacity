@@ -59,13 +59,26 @@ function buildRepliesForReview(
   return replies;
 }
 
+export type BusinessProfileResponsesBundle = {
+  entries: BusinessProfileResponseEntry[];
+  awaitingResponseCount: number;
+  totalReviewCount: number;
+};
+
 /**
- * Published reviews with a business reply (`reviews.owner_response` and/or `review_replies`).
+ * Published reviews with a business reply (`reviews.owner_response` and/or `review_replies`),
+ * plus counts for whether the public profile should show the responses block.
  */
-export async function fetchBusinessProfileResponseEntries(
+export async function fetchBusinessProfileResponsesBundle(
   supabase: SupabaseClient,
   businessId: string,
-): Promise<BusinessProfileResponseEntry[]> {
+): Promise<BusinessProfileResponsesBundle> {
+  const empty: BusinessProfileResponsesBundle = {
+    entries: [],
+    awaitingResponseCount: 0,
+    totalReviewCount: 0,
+  };
+
   const { data: reviewRows, error } = await supabase
     .from("reviews")
     .select(
@@ -76,7 +89,7 @@ export async function fetchBusinessProfileResponseEntries(
     .in("visibility", ["visible", "landing_hidden"])
     .order("created_at", { ascending: false });
 
-  if (error || !reviewRows?.length) return [];
+  if (error || !reviewRows?.length) return empty;
 
   const reviewIds = reviewRows.map((row) => String(row.id));
   const replyMap: Record<string, BusinessProfileResponseReply[]> = {};
@@ -100,6 +113,7 @@ export async function fetchBusinessProfileResponseEntries(
   }
 
   const entries: BusinessProfileResponseEntry[] = [];
+  let awaitingResponseCount = 0;
 
   for (const row of reviewRows) {
     const reviewId = String(row.id);
@@ -109,7 +123,10 @@ export async function fetchBusinessProfileResponseEntries(
       row.owner_response_at,
       replyMap[reviewId] ?? [],
     );
-    if (replies.length === 0) continue;
+    if (replies.length === 0) {
+      awaitingResponseCount += 1;
+      continue;
+    }
 
     const tableLatest = (replyRows ?? [])
       .filter((reply) => String(reply.review_id) === reviewId)
@@ -135,7 +152,20 @@ export async function fetchBusinessProfileResponseEntries(
     });
   }
 
-  return entries
-    .sort((a, b) => b.latestResponseAt.localeCompare(a.latestResponseAt))
-    .slice(0, 1);
+  return {
+    entries: entries
+      .sort((a, b) => b.latestResponseAt.localeCompare(a.latestResponseAt))
+      .slice(0, 1),
+    awaitingResponseCount,
+    totalReviewCount: reviewRows.length,
+  };
+}
+
+/** @deprecated Use fetchBusinessProfileResponsesBundle */
+export async function fetchBusinessProfileResponseEntries(
+  supabase: SupabaseClient,
+  businessId: string,
+): Promise<BusinessProfileResponseEntry[]> {
+  const bundle = await fetchBusinessProfileResponsesBundle(supabase, businessId);
+  return bundle.entries;
 }

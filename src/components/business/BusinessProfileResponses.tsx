@@ -7,13 +7,13 @@ import type { BusinessProfileResponseEntry } from "@/lib/businessProfileResponse
 type Props = {
   businessName: string;
   entries: BusinessProfileResponseEntry[];
-  isLoading?: boolean;
+  awaitingResponseCount?: number;
 };
 
 export default function BusinessProfileResponses({
   businessName,
   entries,
-  isLoading = false,
+  awaitingResponseCount = 0,
 }: Props) {
   const latestEntry = entries[0] ?? null;
   const hasResponses = latestEntry != null;
@@ -32,14 +32,12 @@ export default function BusinessProfileResponses({
         Official replies from {sanitizeText(businessName)} to customer reviews.
       </p>
 
-      {isLoading ? (
-        <div className="mt-4">
-          <div className="h-24 animate-pulse rounded-xl border border-gray-200 bg-white" />
-        </div>
-      ) : !hasResponses ? (
+      {!hasResponses ? (
         <div className="mt-4 rounded-xl border border-gray-200 bg-white px-4 py-5">
           <p className="text-sm text-gray-600">
-            This business has not responded to reviews yet.
+            {awaitingResponseCount === 1
+              ? "This business has not responded to a customer review yet."
+              : `This business has not responded to ${awaitingResponseCount.toLocaleString("en-US")} customer reviews yet.`}
           </p>
         </div>
       ) : (

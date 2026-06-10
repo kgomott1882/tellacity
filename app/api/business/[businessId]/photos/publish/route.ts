@@ -99,11 +99,8 @@ export async function GET(
 /**
  * POST, publish all current drafts for this business.
  *
- * Publishing is no longer gated by a business-wide 30-day cooldown, as
- * long as the business is under its per-plan photo cap (enforced in the
- * upload route + DB trigger), any fresh drafts can be pushed live. The
- * Free-plan 30-day lock now applies only to editing / deleting *existing
- * published* photos (see isPhotoEditLocked in the per-photo route).
+ * Publishing is not gated by a cooldown or publish lock. The per-plan
+ * photo cap (enforced in the upload route + DB trigger) is the only limit.
  */
 export async function POST(
   req: Request,

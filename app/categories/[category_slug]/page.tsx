@@ -428,30 +428,13 @@ export default async function Page(props: PageProps) {
                   Best {categoryName} in{" "}
                   <span className="cat-dir-hero-country">{countryName}</span>
                 </h1>
-                <h2 className="cat-dir-hero-subtitle">
-                  Find trusted {categoryName} providers in {countryName}
-                </h2>
-                <p className="cat-dir-hero-tagline">
-                  Compare TrustScores and verified reviews on Tellacity.
+                <p className="cat-dir-hero-intro">
+                  Compare TrustScores and verified reviews to find a provider you can trust.
                 </p>
                 <div className="cat-dir-trust-badges">
                   <span className="cat-dir-trust-badge">✓ Ranked by TrustScore</span>
                   <span className="cat-dir-trust-badge">✓ Filter by rating &amp; country</span>
                   <span className="cat-dir-trust-badge">✓ Read &amp; share experiences</span>
-                </div>
-                <Link
-                  href={`/best/${countryCode.toLowerCase()}/${safeCategorySlug}`}
-                  className="cat-dir-hero-cta"
-                >
-                  View best {categoryName} companies in {countryName} →
-                </Link>
-                <div className="cat-dir-hero-extra">
-                  <h2>Top {categoryName} companies in {countryName}</h2>
-                  <p>
-                    Rankings are based on TrustScore, review volume, and recent customer
-                    feedback. Browse business profiles to read reviews, view photos, compare
-                    services, and discover trusted providers.
-                  </p>
                 </div>
               </div>
             </div>

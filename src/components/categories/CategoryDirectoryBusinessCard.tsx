@@ -188,7 +188,7 @@ export default function CategoryDirectoryBusinessCard({
                 rating={ratingValue}
                 reviewCount={reviewCount}
                 size={12}
-                variant="gold"
+                className="home-rating-gold"
               />
               <span className="cat-dir-biz-rating-num">
                 {ratingValue.toFixed(1)}

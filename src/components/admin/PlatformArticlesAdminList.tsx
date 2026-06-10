@@ -170,7 +170,6 @@ export default function PlatformArticlesAdminList() {
           <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500">
             <tr>
               <th className="px-4 py-3 font-semibold">Title</th>
-              <th className="px-4 py-3 font-semibold">Topic</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Updated</th>
               <th className="px-4 py-3 font-semibold">Actions</th>
@@ -179,13 +178,13 @@ export default function PlatformArticlesAdminList() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-neutral-500">
+                <td colSpan={4} className="px-4 py-8 text-neutral-500">
                   Loading…
                 </td>
               </tr>
             ) : articles.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-neutral-500">
+                <td colSpan={4} className="px-4 py-8 text-neutral-500">
                   No Tellacity articles in the CMS yet. Use &quot;Sync Tellacity catalog&quot; to
                   import existing published articles, or create a new one.
                 </td>
@@ -197,7 +196,6 @@ export default function PlatformArticlesAdminList() {
                     <div className="font-medium text-neutral-900">{article.title}</div>
                     <div className="font-mono text-xs text-neutral-500">/articles/{article.slug}</div>
                   </td>
-                  <td className="px-4 py-3 text-neutral-700">{article.topic}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${statusClass(article.status)}`}

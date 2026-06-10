@@ -1079,20 +1079,29 @@ export default function HomePageClient({
       <FadeUp>
       <section className="overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">
-          <div className="min-w-0 max-w-2xl">
-            <h2 className="home-section-title text-xl sm:text-2xl md:text-3xl">
-              <span className="relative inline-block">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 max-w-2xl">
+              <h2 className="home-section-title text-xl sm:text-2xl md:text-3xl">
                 <span className="relative inline-block">
-                  <span className="relative z-10 home-section-title-accent">Find</span>
-                  <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#00B4A6]/25" />
+                  <span className="relative inline-block">
+                    <span className="relative z-10 home-section-title-accent">Find</span>
+                    <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#00B4A6]/25" />
+                  </span>
+                  {" "}businesses by category
                 </span>
-                {" "}businesses by category
-              </span>
-            </h2>
-            <p className="home-section-sub mt-2 max-w-xl text-sm">
-              Browse {activeCountry.name} businesses by category. Tap to explore or use More for
-              all.
-            </p>
+              </h2>
+              <p className="home-section-sub mt-2 max-w-xl text-sm">
+                {activeCountry.name} businesses by category.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Link
+                href={`/categories?country=${encodeURIComponent(activeCountryCode)}`}
+                className="home-pill-link rounded-full px-2.5 py-1 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40 sm:px-3 sm:py-1.5 sm:text-xs"
+              >
+                More
+              </Link>
+            </div>
           </div>
           <CategoryIconMarquee
             items={marqueeItems}

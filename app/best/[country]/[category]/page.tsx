@@ -178,7 +178,7 @@ export default async function BestInCategoryPage(props: PageProps) {
               Best {categoryName} companies in {countryName}
             </h2>
             <div className="mb-4">
-              <CategoryInfoTooltip categorySlug={categorySlug} />
+              <CategoryInfoTooltip />
             </div>
 
             <div className="mt-2 divide-y divide-gray-200 rounded-2xl border border-gray-200">

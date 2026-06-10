@@ -232,8 +232,7 @@ export default function RecentReviewCard({
                 rating={rating}
                 size={12}
                 editable={false}
-                variant={isProfile ? "gold" : "default"}
-                className={isProfile ? "biz-rating-gold" : undefined}
+                className={isProfile ? "biz-rating-gold" : "home-rating-gold"}
               />
             </div>
           </div>
@@ -281,8 +280,7 @@ export default function RecentReviewCard({
               rating={rating}
               size={12}
               editable={false}
-              variant={isProfile ? "gold" : "default"}
-              className={isProfile ? "biz-rating-gold" : undefined}
+              className={isProfile ? "biz-rating-gold" : "home-rating-gold"}
             />
           </div>
         </div>

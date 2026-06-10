@@ -6,6 +6,7 @@ import { getActivePlanKeysByBusinessIds } from "@/lib/plans";
 import {
   expiryCutoffIso,
   finalWarningCutoffIso,
+  FREE_PLAN_PHOTO_RETENTION_ENABLED,
 } from "@/lib/businessPhotoExpiry";
 
 /**
@@ -43,6 +44,10 @@ export async function GET() {
     .maybeSingle();
   if (profile?.is_admin !== true) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!FREE_PLAN_PHOTO_RETENTION_ENABLED) {
+    return NextResponse.json({ expiringCount: 0, businessCount: 0, retentionEnabled: false });
   }
 
   let admin;
