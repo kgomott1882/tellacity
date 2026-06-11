@@ -48,3 +48,46 @@ export function shouldShowArticleLastUpdated(
     return false;
   }
 }
+
+function collapseArticlePlainText(text: string): string {
+  return text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstParagraphPlainFromHtml(html: string): string {
+  const match = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  if (!match?.[1]) return collapseArticlePlainText(html).slice(0, 500);
+  return collapseArticlePlainText(match[1]);
+}
+
+/**
+ * True when a lead/excerpt repeats the opening paragraph of the HTML body
+ * (common for admin platform articles where excerpt is auto-derived from content).
+ */
+export function articleLeadDuplicatesBodyOpening(
+  description: string | null | undefined,
+  bodyHtml: string | null | undefined,
+): boolean {
+  const lead = collapseArticlePlainText(description ?? "");
+  const opening = firstParagraphPlainFromHtml(bodyHtml ?? "");
+  if (!lead || !opening || lead.length < 40) return false;
+
+  const leadNorm = lead.toLowerCase().replace(/…$/, "").replace(/\.\.\.$/, "").trim();
+  const openNorm = opening.toLowerCase();
+
+  if (openNorm === leadNorm) return true;
+  if (openNorm.startsWith(leadNorm)) return true;
+  if (leadNorm.startsWith(openNorm)) return true;
+
+  const prefixLen = Math.min(leadNorm.length, 120);
+  const leadPrefix = leadNorm.slice(0, prefixLen);
+  return leadPrefix.length >= 40 && openNorm.startsWith(leadPrefix);
+}

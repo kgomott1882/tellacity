@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import ArticleContentRenderer from "@/components/articles/ArticleContentRenderer";
 import ArticleBusinessAttribution from "@/components/articles/ArticleBusinessAttribution";
+import ArticleTellacityAttribution from "@/components/articles/ArticleTellacityAttribution";
 import ArticleAboutBusiness from "@/components/articles/ArticleAboutBusiness";
 import {
   articleDisplayTitle,
@@ -194,7 +195,13 @@ export default function ArticlePreviewModal({
             <div className="mt-12 rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-[#707070]">
               Loading business profile for preview…
             </div>
-          ) : null}
+          ) : (
+            <ArticleTellacityAttribution
+              publishedAt={new Date().toISOString()}
+              authorName={authorName.trim() || null}
+              authorTitle={authorTitle.trim() || null}
+            />
+          )}
 
           <p className="mt-10 rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-3 text-center text-sm text-[#707070]">
             Share links and related articles appear on the live page after publishing.

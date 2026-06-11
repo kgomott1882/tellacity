@@ -44,7 +44,7 @@ export default function HomeLatestArticles({ articles }: Props) {
     <FadeUp>
       <section aria-labelledby="home-latest-articles-title">
         <div className="mx-auto w-full max-w-6xl px-6 py-8 sm:py-10 md:py-12">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2
                 id="home-latest-articles-title"
@@ -61,12 +61,14 @@ export default function HomeLatestArticles({ articles }: Props) {
                 businesses.
               </p>
             </div>
-            <Link
-              href="/articles"
-              className="inline-flex shrink-0 items-center text-sm font-semibold text-[#1FAF9E] hover:underline"
-            >
-              View All Articles →
-            </Link>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Link
+                href="/articles"
+                className="home-pill-link rounded-full px-2.5 py-1 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40 sm:px-3 sm:py-1.5 sm:text-xs"
+              >
+                More
+              </Link>
+            </div>
           </div>
 
           {/* Mobile: horizontal swipe strip with next card peeking */}

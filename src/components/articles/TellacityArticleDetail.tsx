@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ArticleShareSection from "@/components/articles/ArticleShareSection";
 import ArticleTellacityAttribution from "@/components/articles/ArticleTellacityAttribution";
+import { articleLeadDuplicatesBodyOpening } from "@/lib/articles/articleDisplay";
 import type { TellacityArticle } from "@/lib/articles/tellacityArticles";
 import { tellacityArticleHasHtmlBody } from "@/lib/articles/tellacityArticles";
 
@@ -36,6 +37,12 @@ const ArticleCTA = () => (
 export default function TellacityArticleDetail({ post }: Props) {
   const canonicalUrl = `${SITE_URL}/articles/${encodeURIComponent(post.slug)}`;
   const hasHtmlBody = tellacityArticleHasHtmlBody(post);
+  const showLead =
+    Boolean(post.description?.trim()) &&
+    !(hasHtmlBody && articleLeadDuplicatesBodyOpening(post.description, post.content));
+
+  const trimmedAuthorName = post.authorName?.trim() ?? "";
+  const trimmedAuthorTitle = post.authorTitle?.trim() ?? "";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -44,11 +51,17 @@ export default function TellacityArticleDetail({ post }: Props) {
     description: post.description,
     datePublished: post.date,
     image: post.thumbnail ? [post.thumbnail] : undefined,
-    author: {
-      "@type": "Organization",
-      name: "Tellacity",
-      url: SITE_URL,
-    },
+    author: trimmedAuthorName
+      ? {
+          "@type": "Person",
+          name: trimmedAuthorName,
+          ...(trimmedAuthorTitle ? { jobTitle: trimmedAuthorTitle } : {}),
+        }
+      : {
+          "@type": "Organization",
+          name: "Tellacity",
+          url: SITE_URL,
+        },
     publisher: {
       "@type": "Organization",
       name: "Tellacity",
@@ -66,22 +79,30 @@ export default function TellacityArticleDetail({ post }: Props) {
       <main className="min-h-screen bg-[#F5F3EF]">
         <article className="mx-auto max-w-3xl px-6 py-12">
           <nav className="mb-6 text-xs text-[#707070]" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-[#0E0E0E]">
-              Home
-            </Link>
-            {" / "}
-            <Link href="/articles" className="hover:text-[#0E0E0E]">
-              Articles
-            </Link>
-            {" / "}
-            <span className="text-[#0E0E0E]">{post.title}</span>
+            <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <li>
+                <Link href="/" className="hover:text-[#0E0E0E]">
+                  Home
+                </Link>
+              </li>
+              <li className="text-[#707070]/60" aria-hidden>
+                /
+              </li>
+              <li>
+                <Link href="/articles" className="hover:text-[#0E0E0E]">
+                  Articles
+                </Link>
+              </li>
+            </ol>
           </nav>
 
           <p className="text-xs font-semibold uppercase tracking-wide text-[#1FAF9E]">
             Tellacity Article
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-[#0E0E0E] sm:text-4xl">{post.title}</h1>
-          <p className="mt-4 text-base leading-relaxed text-[#505050]">{post.description}</p>
+          {showLead ? (
+            <p className="mt-4 text-base leading-relaxed text-[#505050]">{post.description}</p>
+          ) : null}
           <p className="mt-3 text-sm text-[#707070]">
             Published{" "}
             {new Date(post.date).toLocaleDateString("en-US", {
@@ -121,7 +142,11 @@ export default function TellacityArticleDetail({ post }: Props) {
 
           <InternalLinkBlock />
           <ArticleCTA />
-          <ArticleTellacityAttribution publishedAt={post.date} />
+          <ArticleTellacityAttribution
+            publishedAt={post.date}
+            authorName={post.authorName}
+            authorTitle={post.authorTitle}
+          />
           <ArticleShareSection title={post.title} url={canonicalUrl} />
         </article>
       </main>

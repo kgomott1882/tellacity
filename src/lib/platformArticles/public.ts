@@ -27,6 +27,8 @@ export function platformRowToTellacityArticle(
     content: row.body_html ?? "",
     topic,
     hasLegacyPage: false,
+    authorName: row.author_name?.trim() || null,
+    authorTitle: row.author_title?.trim() || null,
   };
 }
 

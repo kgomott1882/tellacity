@@ -11,6 +11,9 @@ import {
 export type TellacityArticle = BlogPost & {
   topic: ArticleTopic;
   hasLegacyPage: boolean;
+  /** Optional public byline from platform article setup. */
+  authorName?: string | null;
+  authorTitle?: string | null;
 };
 
 const LEGACY_PAGE_SLUGS = new Set([
