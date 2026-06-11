@@ -68,7 +68,7 @@ export default function BusinessSignupOtpModal({
         error?: string;
         message?: string;
         success?: boolean;
-        outcome?: "claimed" | "already_claimed" | "new_business" | "account_created";
+        outcome?: "claimed" | "already_claimed" | "new_business";
         businessName?: string | null;
         businessId?: string | null;
       };
