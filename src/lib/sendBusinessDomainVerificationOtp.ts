@@ -129,6 +129,23 @@ export async function sendBusinessDomainVerificationOtp(
     return { ok: true, sent: false, alreadyOwner: true };
   }
 
+  if (biz.owner_id != null && String(biz.owner_id).trim() === userId) {
+    return { ok: true, sent: false, alreadyOwner: true };
+  }
+
+  const { data: consumedSignupVerify } = await admin
+    .from("business_domain_verifications")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("user_id", userId)
+    .not("consumed_at", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (consumedSignupVerify?.id) {
+    return { ok: true, sent: false, alreadyOwner: true };
+  }
+
   if (!process.env.RESEND_API_KEY) {
     return { ok: false, status: 503, error: "email_unavailable" };
   }

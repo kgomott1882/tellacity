@@ -410,6 +410,13 @@ export default function BusinessOnboardingModal({
         );
       }
 
+      if (send.data.alreadyOwner === true || send.data.sent === false) {
+        await onCompleted();
+        onClose();
+        reset();
+        return;
+      }
+
       setStep("claim_otp");
       setInfo("We sent a 6-digit code to your email. It must match this business website domain.");
     } catch (e) {

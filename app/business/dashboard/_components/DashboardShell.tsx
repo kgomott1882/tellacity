@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -23,6 +23,10 @@ import { getPostLoginPath } from "@/lib/postLoginRedirect";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 import BusinessOnboardingModal from "./BusinessOnboardingModal";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
+import {
+  clearSignupVerifySession,
+  readSignupVerifySession,
+} from "@/lib/businessSignupPostVerify";
 
 function isSubNavItemActive(
   pathname: string,
@@ -197,11 +201,25 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const [mobileNavView, setMobileNavView] = useState<"main" | "sub">("main");
   const [mobileSubSection, setMobileSubSection] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const pendingSignupBusinessIdRef = useRef<string | null>(null);
+  const signupPostVerifyHandledRef = useRef(false);
   const {
     businesses: ownedBusinesses,
     loading: bizLoading,
     error: bizError,
   } = useBusinesses(user?.id ?? null, navRefreshKey);
+
+  useEffect(() => {
+    if (signupPostVerifyHandledRef.current) return;
+    const session = readSignupVerifySession();
+    if (!session) return;
+    signupPostVerifyHandledRef.current = true;
+    clearSignupVerifySession();
+    if (session.businessId) {
+      pendingSignupBusinessIdRef.current = session.businessId;
+    }
+    bumpNavRefresh();
+  }, [bumpNavRefresh]);
 
   // Tab sleep / background: refresh JWT before user clicks around with an expired token.
   useEffect(() => {
@@ -245,6 +263,16 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     if (ownedBusinesses.length === 0) {
       setSelectedBusiness(null);
       return;
+    }
+
+    const pendingId = pendingSignupBusinessIdRef.current;
+    if (pendingId) {
+      const claimed = ownedBusinesses.find((b) => b.id === pendingId);
+      if (claimed) {
+        pendingSignupBusinessIdRef.current = null;
+        setSelectedBusiness(claimed);
+        return;
+      }
     }
 
     setSelectedBusiness((prev: DashboardBusiness | null) => {

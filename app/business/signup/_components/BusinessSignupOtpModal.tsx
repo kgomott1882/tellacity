@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { writeSignupVerifySession } from "@/lib/businessSignupPostVerify";
 import { promptSaveLoginCredentials } from "@/lib/promptSaveLoginCredentials";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
@@ -69,6 +70,7 @@ export default function BusinessSignupOtpModal({
         success?: boolean;
         outcome?: "claimed" | "already_claimed" | "new_business" | "account_created";
         businessName?: string | null;
+        businessId?: string | null;
       };
 
       if (!res.ok) {
@@ -84,6 +86,11 @@ export default function BusinessSignupOtpModal({
           setError("This business has already been claimed.");
         } else if (data.error === "already_has_business") {
           setError("You already have a business account. Please log in.");
+        } else if (data.error === "claim_failed") {
+          setError(
+            data.message ||
+              "We could not link this business to your account. Try again or contact support."
+          );
         } else if (data.error === "account_exists") {
           setError(
             data.message ||
@@ -124,6 +131,11 @@ export default function BusinessSignupOtpModal({
       }
 
       await promptSaveLoginCredentials(email, password);
+
+      writeSignupVerifySession({
+        businessId: data.businessId ?? null,
+        outcome: data.outcome,
+      });
 
       const bizLabel = data.businessName?.trim() || "your business";
       if (data.outcome === "claimed") {

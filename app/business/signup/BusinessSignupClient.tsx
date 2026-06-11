@@ -406,7 +406,7 @@ export default function BusinessSignupClient() {
       if (error) {
         setWebsiteLookup("idle");
         setWebsiteMatchedName(null);
-        setSelectedBusinessId(null);
+        setSelectedBusinessId(claimBusinessIdFromUrlRef.current);
         return;
       }
 
@@ -469,7 +469,7 @@ export default function BusinessSignupClient() {
   };
 
   const buildPendingPayload = (): BusinessSignupPendingPayload => ({
-    selectedBusinessId,
+    selectedBusinessId: selectedBusinessId ?? claimBusinessIdFromUrlRef.current,
     website,
     companyName,
     firstName,

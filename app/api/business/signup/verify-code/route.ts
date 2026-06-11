@@ -7,11 +7,8 @@ import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
 import { notifyBusinessClaimSuccess } from "@/lib/businessClaimEmail";
-import {
-  attachUserToResolvedBusiness,
-  ensureBusinessOwnershipRow,
-  resolveBusinessForSignup,
-} from "@/lib/businessSignupVerifyHelpers";
+import { resolveBusinessForSignup } from "@/lib/businessSignupVerifyHelpers";
+import { finalizeSignupDomainClaim } from "@/lib/verifyDomainFinishServer";
 import {
   cleanupSignupUserRows,
   formatSignupProfileErrorForClient,
@@ -279,40 +276,35 @@ export async function POST(req: Request) {
       businessName = resolved.name?.trim() || companyName || null;
       businessId = resolved.id;
 
-      const attach = await attachUserToResolvedBusiness(
-        supabaseAdmin,
+      const finish = await finalizeSignupDomainClaim(supabaseAdmin, {
+        businessId: resolved.id,
         userId,
-        resolved,
-        phoneTrim
-      );
+        sessionEmail: email,
+        code: row.code,
+        expiresAt: row.expires_at,
+      });
 
-      if (attach.ok) {
-        const ownership = await ensureBusinessOwnershipRow(
-          supabaseAdmin,
-          resolved.id,
-          userId
-        );
-        if (ownership.ok) {
-          outcome = "claimed";
-          await supabaseAdmin.from("business_domain_verifications").insert({
-            user_id: userId,
-            business_id: resolved.id,
-            email,
-            code: row.code,
-            expires_at: row.expires_at,
-            consumed_at: new Date().toISOString(),
-          });
-          void notifyBusinessClaimSuccess(supabaseAdmin, userRes.user, resolved.id);
-        } else if (process.env.NODE_ENV === "development") {
-          console.warn(
-            "business signup verify ownership row:",
-            ownership.error.message
-          );
+      if (finish.ok) {
+        outcome = "claimed";
+        if (phoneTrim) {
+          await supabaseAdmin
+            .from("businesses")
+            .update({ phone: phoneTrim })
+            .eq("id", resolved.id);
         }
-      } else if (attach.kind === "already_claimed") {
+        if (!finish.already_owner) {
+          void notifyBusinessClaimSuccess(supabaseAdmin, userRes.user, resolved.id);
+        }
+      } else if (finish.error === "already_claimed") {
         outcome = "already_claimed";
-      } else if (process.env.NODE_ENV === "development") {
-        console.warn("business signup verify attach:", attach.message);
+      } else {
+        console.error("business signup verify claim finish:", finish);
+        return jsonError(
+          finish.error === "domain_mismatch" ? "domain_mismatch" : "claim_failed",
+          finish.message ??
+            "We could not link this business to your account. Try again or contact support.",
+          finish.error === "domain_mismatch" ? 400 : 500
+        );
       }
     }
 

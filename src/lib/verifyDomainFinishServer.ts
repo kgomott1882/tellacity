@@ -229,3 +229,96 @@ export async function verifyDomainFinishWithServiceRole(
 
   return { ok: true };
 }
+
+type ServiceRpcResult = {
+  ok?: boolean;
+  error?: string;
+  already_owner?: boolean;
+};
+
+/**
+ * Uses the signup OTP (same code emailed during `/business/signup`) to finalize domain claim
+ * via the same path as `POST /api/business/verify-domain` with a code.
+ */
+export async function finalizeSignupDomainClaim(
+  admin: SupabaseClient,
+  input: {
+    businessId: string;
+    userId: string;
+    sessionEmail: string;
+    code: string;
+    expiresAt: string;
+  }
+): Promise<VerifyDomainFinishOutcome> {
+  const { businessId, userId, sessionEmail, code, expiresAt } = input;
+  const sessionEmailNorm = sessionEmail.trim().toLowerCase();
+
+  await admin
+    .from("business_domain_verifications")
+    .delete()
+    .eq("business_id", businessId)
+    .eq("user_id", userId)
+    .is("consumed_at", null);
+
+  const { error: insErr } = await admin.from("business_domain_verifications").insert({
+    user_id: userId,
+    business_id: businessId,
+    email: sessionEmailNorm,
+    code,
+    expires_at: expiresAt,
+    consumed_at: null,
+  });
+
+  if (insErr) {
+    console.error("finalizeSignupDomainClaim insert:", insErr);
+    return {
+      ok: false,
+      error: "otp_persist_failed",
+      message: insErr.message,
+    };
+  }
+
+  const serviceRpc = await admin.rpc("verify_domain_finish_business_claim_service", {
+    p_business_id: businessId,
+    p_user_id: userId,
+    p_code: code,
+  });
+
+  if (!serviceRpc.error && serviceRpc.data != null) {
+    const data = serviceRpc.data as ServiceRpcResult;
+    if (data?.ok) {
+      return { ok: true, already_owner: data.already_owner };
+    }
+    return {
+      ok: false,
+      error: data?.error ?? "unknown",
+      message: messageForSignupClaimError(data?.error),
+    };
+  }
+
+  if (serviceRpc.error && !isVerifyDomainRpcMissing(serviceRpc.error)) {
+    console.error("finalizeSignupDomainClaim service rpc:", serviceRpc.error);
+  }
+
+  return verifyDomainFinishWithServiceRole(admin, {
+    businessId,
+    code,
+    userId,
+    sessionEmail: sessionEmailNorm,
+  });
+}
+
+function messageForSignupClaimError(err: string | undefined): string | undefined {
+  switch (err) {
+    case "domain_mismatch":
+      return "Your email domain must match this business website.";
+    case "already_claimed":
+      return "This business has already been claimed.";
+    case "wrong_code":
+      return "Invalid verification code.";
+    case "code_expired":
+      return "Your verification code has expired.";
+    default:
+      return undefined;
+  }
+}
