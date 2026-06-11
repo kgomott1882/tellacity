@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { promptSaveLoginCredentials } from "@/lib/promptSaveLoginCredentials";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Props = {
@@ -121,6 +122,8 @@ export default function BusinessSignupOtpModal({
         );
         return;
       }
+
+      await promptSaveLoginCredentials(email, password);
 
       const bizLabel = data.businessName?.trim() || "your business";
       if (data.outcome === "claimed") {

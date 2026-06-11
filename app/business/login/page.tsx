@@ -144,13 +144,16 @@ export default function BusinessLoginPage() {
             Access Your Tellacity Business Dashboard
           </p>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit} autoComplete="on">
             <div>
-              <label className="text-sm font-medium text-[#0E0E0E]">
+              <label htmlFor="business-login-email" className="text-sm font-medium text-[#0E0E0E]">
                 Email
               </label>
               <input
+                id="business-login-email"
+                name="email"
                 type="email"
+                autoComplete="username"
                 value={email}
                 onChange={(event) => {
                   setEmail(event.target.value);
@@ -160,10 +163,12 @@ export default function BusinessLoginPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-[#0E0E0E]">
+              <label htmlFor="business-login-password" className="text-sm font-medium text-[#0E0E0E]">
                 Password
               </label>
               <PasswordInput
+                id="business-login-password"
+                name="password"
                 value={password}
                 onChange={(event) => {
                   setPassword(event.target.value);

@@ -38,6 +38,7 @@ export default function ArticlesModerationQueue() {
   const [expandedPreviewId, setExpandedPreviewId] = useState<string | null>(null);
   const [selectedReasonId, setSelectedReasonId] = useState<Record<string, string>>({});
   const [customReasonText, setCustomReasonText] = useState<Record<string, string>>({});
+  const [adminCommentText, setAdminCommentText] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,8 +114,15 @@ export default function ArticlesModerationQueue() {
         const previewOpen = expandedPreviewId === (a.revisionId ?? a.id);
         const busyKey = a.revisionId ?? a.id;
         const reasonId = selectedReasonId[busyKey] ?? "";
-        const reasonPreview = reasonId ? articleRejectionReasonPreview(reasonId) : null;
         const isCustom = reasonId === ARTICLE_REJECTION_CUSTOM_ID;
+        const adminNotes = adminCommentText[busyKey] ?? "";
+        const reasonPreview = reasonId
+          ? articleRejectionReasonPreview(
+              reasonId,
+              isCustom ? customReasonText[busyKey] : undefined,
+              adminNotes,
+            )
+          : null;
 
         return (
           <article
@@ -225,6 +233,7 @@ export default function ArticlesModerationQueue() {
                     const reason = resolveArticleRejectionReason(
                       reasonId,
                       customReasonText[busyKey],
+                      adminCommentText[busyKey],
                     );
                     if (!reason) {
                       alert(
@@ -242,24 +251,49 @@ export default function ArticlesModerationQueue() {
                 </button>
               </div>
 
-              {isCustom ? (
-                <textarea
-                  value={customReasonText[busyKey] ?? ""}
-                  onChange={(e) =>
-                    setCustomReasonText((prev) => ({ ...prev, [busyKey]: e.target.value }))
-                  }
-                  rows={4}
-                  placeholder="Describe the issue and what the business should fix. Guidelines link is appended automatically."
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                />
-              ) : reasonPreview ? (
-                <div className="rounded-lg border border-red-100 bg-red-50/80 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-red-800">
-                    Message sent to business
-                  </p>
-                  <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-red-950">
-                    {reasonPreview}
-                  </p>
+              {reasonId ? (
+                <div className="space-y-3">
+                  {isCustom ? (
+                    <label className="block">
+                      <span className="text-xs font-medium text-neutral-700">
+                        Rejection message
+                      </span>
+                      <textarea
+                        value={customReasonText[busyKey] ?? ""}
+                        onChange={(e) =>
+                          setCustomReasonText((prev) => ({ ...prev, [busyKey]: e.target.value }))
+                        }
+                        rows={4}
+                        placeholder="Describe the issue and what the business should fix. Guidelines link is appended automatically."
+                        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  ) : null}
+                  <label className="block">
+                    <span className="text-xs font-medium text-neutral-700">
+                      Additional comments for the business{" "}
+                      <span className="font-normal text-neutral-500">(optional)</span>
+                    </span>
+                    <textarea
+                      value={adminNotes}
+                      onChange={(e) =>
+                        setAdminCommentText((prev) => ({ ...prev, [busyKey]: e.target.value }))
+                      }
+                      rows={3}
+                      placeholder="Add specific feedback, examples, or edits the business should make before resubmitting."
+                      className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  {reasonPreview ? (
+                    <div className="rounded-lg border border-red-100 bg-red-50/80 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-red-800">
+                        Message sent to business
+                      </p>
+                      <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-red-950">
+                        {reasonPreview}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>

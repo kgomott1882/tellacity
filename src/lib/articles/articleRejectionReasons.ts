@@ -213,14 +213,38 @@ export function getArticleRejectionPreset(id: string): ArticleRejectionReasonPre
   return presetById.get(id);
 }
 
+function appendAdminNotesToRejectionMessage(
+  base: string,
+  adminNotes?: string,
+): string {
+  const notes = adminNotes?.trim();
+  if (!notes) return base;
+
+  const insertion = [
+    "",
+    "Additional feedback from our review team:",
+    notes,
+  ].join("\n");
+
+  const guidelinesMarker = `\n\nTellacity Business Guidelines`;
+  const idx = base.indexOf(guidelinesMarker);
+  if (idx >= 0) {
+    return base.slice(0, idx) + insertion + base.slice(idx);
+  }
+
+  return `${base}${insertion}`;
+}
+
 /**
  * Resolve the full rejection text sent to the business.
  * @param presetId - preset id from ARTICLE_REJECTION_REASON_PRESETS
  * @param customText - required when preset is other_custom
+ * @param adminNotes - optional extra comments appended for any preset
  */
 export function resolveArticleRejectionReason(
   presetId: string,
   customText?: string,
+  adminNotes?: string,
 ): string | null {
   const preset = presetById.get(presetId);
   if (!preset) return null;
@@ -228,15 +252,18 @@ export function resolveArticleRejectionReason(
   if (preset.isCustom) {
     const trimmed = customText?.trim() ?? "";
     if (!trimmed) return null;
-    return [
+    const base = [
       trimmed,
       "",
       "Please review Tellacity Business Guidelines (Blogs & Case Studies) before resubmitting:",
       GUIDELINES_URL,
     ].join("\n");
+    return appendAdminNotesToRejectionMessage(base, adminNotes);
   }
 
-  return preset.message.trim() || null;
+  const base = preset.message.trim();
+  if (!base) return null;
+  return appendAdminNotesToRejectionMessage(base, adminNotes);
 }
 
 /** Upgrade a stored short label to the rich preset message when recognized. */
@@ -253,8 +280,10 @@ export function enrichStoredArticleRejectionReason(stored: string | null | undef
   return trimmed;
 }
 
-export function articleRejectionReasonPreview(presetId: string): string | null {
-  const preset = presetById.get(presetId);
-  if (!preset || preset.isCustom) return null;
-  return preset.message;
+export function articleRejectionReasonPreview(
+  presetId: string,
+  customText?: string,
+  adminNotes?: string,
+): string | null {
+  return resolveArticleRejectionReason(presetId, customText, adminNotes);
 }

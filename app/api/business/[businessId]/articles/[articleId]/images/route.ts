@@ -3,27 +3,21 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
-import { UUID_RE, jsonError } from "../_shared";
+import { UUID_RE, jsonError } from "../../_shared";
 import {
   parseArticleImageKind,
   registerArticleImage,
   resolveArticleOwnerBusinessId,
-} from "../_registerArticleImage";
+} from "../../_registerArticleImage";
 
-type RouteParams = { params: Promise<{ businessId: string }> };
+type RouteParams = {
+  params: Promise<{ businessId: string; articleId: string }>;
+};
 
 export async function POST(req: Request, ctx: RouteParams) {
-  const { businessId: pathBusinessId } = await ctx.params;
-  if (!UUID_RE.test(pathBusinessId)) return jsonError("Invalid business id");
-
-  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  const articleId =
-    typeof body?.articleId === "string" && UUID_RE.test(body.articleId)
-      ? body.articleId
-      : null;
-
-  if (!articleId) {
-    return jsonError("articleId is required");
+  const { businessId: pathBusinessId, articleId } = await ctx.params;
+  if (!UUID_RE.test(pathBusinessId) || !UUID_RE.test(articleId)) {
+    return jsonError("Invalid id");
   }
 
   const { ownerBusinessId, error: resolveErr } = await resolveArticleOwnerBusinessId(articleId);
@@ -35,6 +29,7 @@ export async function POST(req: Request, ctx: RouteParams) {
   const access = await requireBusinessAccess(req, ownerBusinessId);
   if (!access.ok) return access.response;
 
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const url = typeof body?.url === "string" ? body.url.trim() : "";
   const storagePath =
     typeof body?.storagePath === "string" ? body.storagePath.trim() : "";
@@ -59,10 +54,13 @@ export async function POST(req: Request, ctx: RouteParams) {
             ? 403
             : 500;
     if (status === 500) {
-      console.error("[articles/images POST]", error);
+      console.error("[articles/[articleId]/images POST]", error);
     }
     return NextResponse.json({ error }, { status });
   }
 
-  return NextResponse.json({ image: data, ownerBusinessId }, { status: 201 });
+  return NextResponse.json(
+    { image: data, ownerBusinessId },
+    { status: 201 },
+  );
 }

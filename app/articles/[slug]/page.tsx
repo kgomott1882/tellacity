@@ -203,6 +203,8 @@ export default async function ArticleDetailPage(props: PageProps) {
     typeof article.author_name === "string" ? article.author_name : null;
   const authorTitle =
     typeof article.author_title === "string" ? article.author_title : null;
+  const authorAvatarUrl =
+    typeof article.author_avatar_url === "string" ? article.author_avatar_url : null;
 
   return (
     <>
@@ -272,6 +274,7 @@ export default async function ArticleDetailPage(props: PageProps) {
             updatedAt={article.updated_at ? String(article.updated_at) : null}
             authorName={authorName}
             authorTitle={authorTitle}
+            authorAvatarUrl={authorAvatarUrl}
           />
 
           <ArticleAboutBusiness

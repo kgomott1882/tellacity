@@ -146,6 +146,7 @@ export default function TellacityArticleDetail({ post }: Props) {
             publishedAt={post.date}
             authorName={post.authorName}
             authorTitle={post.authorTitle}
+            authorAvatarUrl={post.authorAvatarUrl}
           />
           <ArticleShareSection title={post.title} url={canonicalUrl} />
         </article>

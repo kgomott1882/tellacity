@@ -3,7 +3,20 @@ import { countWordsFromDoc } from "./editorStats";
 
 export const EDITOR_PROGRESS_STORAGE_KEY = "tellacity_article_editor_progress";
 
-export const EDITOR_STEP_COUNT = 5;
+export const EDITOR_STEP_COUNT = 6;
+
+export const EDITOR_CONTENT_STEP = 3;
+export const EDITOR_WRITER_STEP = 4;
+export const EDITOR_SUBMIT_STEP = 5;
+
+export const EDITOR_STEP_LABELS = [
+  "Setup",
+  "Title",
+  "Featured image",
+  "Content",
+  "Writer",
+  "Submit",
+] as const;
 
 type ProgressEntry = {
   step: number;
@@ -69,8 +82,7 @@ export function clearEditorProgress(articleId: string): void {
 }
 
 export function editorStepLabel(step: number): string {
-  const labels = ["Setup", "Title", "Featured image", "Content", "Submit"];
-  return labels[clampStep(step)] ?? "Content";
+  return EDITOR_STEP_LABELS[clampStep(step)] ?? "Content";
 }
 
 /** Fallback when no browser progress exists — infer from saved article fields. */

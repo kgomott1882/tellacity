@@ -43,6 +43,7 @@ type Props = {
   results: string;
   authorName: string;
   authorTitle: string;
+  authorAvatarUrl?: string | null;
   business: ArticlePreviewBusiness | null;
   metrics: ArticlePreviewMetrics | null;
   loadingBusiness?: boolean;
@@ -61,6 +62,7 @@ export default function ArticlePreviewModal({
   results,
   authorName,
   authorTitle,
+  authorAvatarUrl,
   business,
   metrics,
   loadingBusiness = false,
@@ -175,6 +177,7 @@ export default function ArticlePreviewModal({
                 updatedAt={null}
                 authorName={authorName.trim() || null}
                 authorTitle={authorTitle.trim() || null}
+                authorAvatarUrl={authorAvatarUrl?.trim() || null}
               />
 
               <ArticleAboutBusiness
@@ -200,6 +203,7 @@ export default function ArticlePreviewModal({
               publishedAt={new Date().toISOString()}
               authorName={authorName.trim() || null}
               authorTitle={authorTitle.trim() || null}
+              authorAvatarUrl={authorAvatarUrl?.trim() || null}
             />
           )}
 

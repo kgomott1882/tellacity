@@ -7,7 +7,9 @@ import ArticleDocumentEditor, {
   type ArticleDocumentEditorHandle,
 } from "@/components/articles/editor/ArticleDocumentEditor";
 import ArticleEditorStepper from "@/components/articles/editor/ArticleEditorStepper";
+import ArticleEditorStepNav from "@/components/articles/editor/ArticleEditorStepNav";
 import ArticleFeaturedImageUpload from "@/components/articles/editor/ArticleFeaturedImageUpload";
+import ArticleWriterSetupFields from "@/components/articles/editor/ArticleWriterSetupFields";
 import ArticleCaseStudyFields from "@/components/articles/editor/ArticleCaseStudyFields";
 import ArticleLinkValidationBanner from "@/components/articles/editor/ArticleLinkValidationBanner";
 import ArticleExternalLinkBlocker from "@/components/articles/editor/ArticleExternalLinkBlocker";
@@ -27,7 +29,10 @@ import {
 } from "@/lib/articles/articlePreviewHint";
 import { compressImage } from "@/lib/imageCompression";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { uploadArticleFeaturedImageFile } from "@/lib/articles/clientFeaturedImage";
+import {
+  uploadArticleFeaturedImageFile,
+  uploadArticleWriterAvatarFile,
+} from "@/lib/articles/clientFeaturedImage";
 import {
   dashboardApiGet,
   dashboardApiPost,
@@ -38,6 +43,10 @@ import { formatLastSaved } from "@/lib/articles/editorStats";
 import {
   resolveEditorResumeStep,
   saveEditorProgress,
+  EDITOR_CONTENT_STEP,
+  EDITOR_STEP_LABELS,
+  EDITOR_SUBMIT_STEP,
+  EDITOR_WRITER_STEP,
   editorStepLabel,
   clearEditorProgress,
 } from "@/lib/articles/articleEditorProgress";
@@ -59,11 +68,12 @@ import { articleEditorReturnPath } from "@/lib/articleSubmitFlow";
 import { Eye, Trash2 } from "lucide-react";
 
 const UPLOAD_BUCKET = "article_media";
-const STEPS = ["Setup", "Title", "Featured image", "Content", "Submit"] as const;
+const STEPS = EDITOR_STEP_LABELS;
 const AUTO_SAVE_MS = 30_000;
 
 type ArticlePayload = {
   id: string;
+  business_id: string;
   title: string;
   slug: string;
   excerpt: string | null;
@@ -193,7 +203,10 @@ export default function ArticleEditorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedBusiness } = useBusinessContext();
-  const businessId = selectedBusiness?.id ?? "";
+  const selectedBusinessId = selectedBusiness?.id ?? "";
+  const [articleOwnerBusinessId, setArticleOwnerBusinessId] = useState<string | null>(null);
+  const [articleReady, setArticleReady] = useState(false);
+  const businessId = articleOwnerBusinessId ?? selectedBusinessId;
   const editorRef = useRef<ArticleDocumentEditorHandle>(null);
 
   const [step, setStep] = useState(0);
@@ -248,11 +261,13 @@ export default function ArticleEditorPage() {
   const isDirtyRef = useRef(false);
   const loadedRef = useRef(false);
   const guideInitializedRef = useRef(false);
+  const uploadContextRef = useRef<{ businessId: string; articleId: string } | null>(null);
 
   const isArchived = status === "archived";
   const revisionMode = status === "published";
   const titleLocked = revisionMode;
   const editable =
+    articleReady &&
     !isArchived &&
     (status === "draft" ||
       status === "rejected" ||
@@ -422,29 +437,36 @@ export default function ArticleEditorPage() {
   );
 
   const load = useCallback(async () => {
-    if (!businessId || !articleId) return;
+    if (!selectedBusinessId || !articleId) return;
     setLoading(true);
     setError(null);
+    setArticleReady(false);
+    setArticleOwnerBusinessId(null);
+    uploadContextRef.current = null;
     loadedRef.current = false;
     isDirtyRef.current = false;
     try {
       const [articleRes, usageRes] = await Promise.all([
         dashboardApiGet<{ article?: ArticlePayload; revision?: RevisionPayload | null }>(
-          `/api/business/${encodeURIComponent(businessId)}/articles/${encodeURIComponent(articleId)}`,
+          `/api/business/${encodeURIComponent(selectedBusinessId)}/articles/${encodeURIComponent(articleId)}`,
         ),
         dashboardApiGet<UsagePayload>(
-          `/api/business/${encodeURIComponent(businessId)}/articles/usage`,
+          `/api/business/${encodeURIComponent(selectedBusinessId)}/articles/usage`,
         ),
       ]);
       let article = articleRes?.article;
       if (!article) throw new Error("Blog or case study not found");
+
+      const ownerBusinessId = article.business_id || selectedBusinessId;
+      setArticleOwnerBusinessId(ownerBusinessId);
+      uploadContextRef.current = { businessId: ownerBusinessId, articleId };
 
       let revision = articleRes?.revision ?? null;
       if (article.status === "published" && !revision) {
         const beginRes = await dashboardApiPost<{
           revision?: RevisionPayload;
         }>(
-          `/api/business/${encodeURIComponent(businessId)}/articles/${encodeURIComponent(articleId)}/revision/begin`,
+          `/api/business/${encodeURIComponent(ownerBusinessId)}/articles/${encodeURIComponent(articleId)}/revision/begin`,
           {},
         );
         revision = beginRes?.revision ?? null;
@@ -503,13 +525,17 @@ export default function ArticleEditorPage() {
       });
       setStep(resume.step);
       setMaxStepReached(resume.maxStepReached);
+      setArticleReady(true);
+      loadedRef.current = true;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load blog or case study");
+      setArticleReady(false);
+      uploadContextRef.current = null;
+      loadedRef.current = false;
     } finally {
       setLoading(false);
-      loadedRef.current = true;
     }
-  }, [businessId, articleId]);
+  }, [selectedBusinessId, articleId]);
 
   useEffect(() => {
     guideInitializedRef.current = false;
@@ -568,13 +594,13 @@ export default function ArticleEditorPage() {
   }, [articleId, step, maxStepReached]);
 
   useEffect(() => {
-    if (!linkValidationBlocked || step === 3) return;
-    goToStep(3);
+    if (!linkValidationBlocked || step === EDITOR_CONTENT_STEP) return;
+    goToStep(EDITOR_CONTENT_STEP);
   }, [linkValidationBlocked, step, goToStep]);
 
   const handleStepClick = useCallback(
     (index: number) => {
-      if (linkValidationBlocked && index !== 3) return;
+      if (linkValidationBlocked && index !== EDITOR_CONTENT_STEP) return;
       goToStep(index);
     },
     [goToStep, linkValidationBlocked],
@@ -678,19 +704,38 @@ export default function ArticleEditorPage() {
     return () => window.clearInterval(timer);
   }, [editable, saveDraft, saving, submitting, linkValidation.ok]);
 
+  const resolveUploadContext = () => {
+    const ctx = uploadContextRef.current;
+    if (!articleReady || !ctx?.businessId || !ctx.articleId) {
+      throw new Error("Article is still loading — please try again in a moment.");
+    }
+    return ctx;
+  };
+
+  const uploadAuthorAvatar = async (file: File) => {
+    const ctx = resolveUploadContext();
+    try {
+      const url = await uploadArticleWriterAvatarFile(ctx.businessId, ctx.articleId, file);
+      setAuthorAvatarUrl(url);
+      markDirty();
+    } catch (e: unknown) {
+      throw e instanceof Error ? e : new Error("Avatar upload failed");
+    }
+  };
+
   const uploadFeatured = async (file: File) => {
-    if (!businessId || !articleId) return;
+    const ctx = resolveUploadContext();
     if (revisionMode && !editable) {
       throw new Error("Wait for review on your current update before changing the thumbnail.");
     }
     try {
-      const url = await uploadArticleFeaturedImageFile(businessId, articleId, file);
+      const url = await uploadArticleFeaturedImageFile(ctx.businessId, ctx.articleId, file);
       setFeaturedImageUrl(url);
       markDirty();
 
       if (revisionMode && editable) {
         await dashboardApiPatch(
-          `/api/business/${encodeURIComponent(businessId)}/articles/${encodeURIComponent(articleId)}/revision`,
+          `/api/business/${encodeURIComponent(ctx.businessId)}/articles/${encodeURIComponent(ctx.articleId)}/revision`,
           { ...buildPatchBody(), featuredImageUrl: url },
         );
         isDirtyRef.current = false;
@@ -706,7 +751,13 @@ export default function ArticleEditorPage() {
 
   const uploadInlineImage = (file?: File) => {
     const processFile = async (selected: File) => {
-      if (!businessId) return;
+      let ctx: { businessId: string; articleId: string };
+      try {
+        ctx = resolveUploadContext();
+      } catch (e: unknown) {
+        alert(e instanceof Error ? e.message : "Article is still loading");
+        return;
+      }
       try {
         markDirty();
         const sb = supabaseBrowser();
@@ -715,7 +766,7 @@ export default function ArticleEditorPage() {
           quality: 0.85,
         });
         const ext = compressed.type.includes("webp") ? "webp" : "jpg";
-        const path = `${businessId}/inline/${articleId}-${Date.now()}.${ext}`;
+        const path = `${ctx.businessId}/inline/${ctx.articleId}-${Date.now()}.${ext}`;
         const { error: upErr } = await sb.storage.from(UPLOAD_BUCKET).upload(path, compressed, {
           upsert: false,
           contentType: compressed.type,
@@ -723,12 +774,14 @@ export default function ArticleEditorPage() {
         if (upErr) throw new Error(upErr.message);
         const { data } = sb.storage.from(UPLOAD_BUCKET).getPublicUrl(path);
         const url = data.publicUrl;
-        await dashboardApiPost(`/api/business/${encodeURIComponent(businessId)}/articles/images`, {
-          url,
-          storagePath: path,
-          articleId,
-          kind: "inline",
-        });
+        await dashboardApiPost(
+          `/api/business/${encodeURIComponent(ctx.businessId)}/articles/${encodeURIComponent(ctx.articleId)}/images`,
+          {
+            url,
+            storagePath: path,
+            kind: "inline",
+          },
+        );
         editorRef.current?.insertImage(url);
       } catch (e: unknown) {
         alert(e instanceof Error ? e.message : "Image upload failed");
@@ -807,6 +860,14 @@ export default function ArticleEditorPage() {
       setError(linkValidation.issues[0]?.message ?? "Fix link issues before submitting.");
       return;
     }
+    if (step < EDITOR_WRITER_STEP) {
+      goToStep(EDITOR_WRITER_STEP);
+      return;
+    }
+    if (step === EDITOR_WRITER_STEP) {
+      goToStep(EDITOR_SUBMIT_STEP);
+      return;
+    }
     if (loading || !usage) {
       setError("Still loading your plan details — please try Submit again in a moment.");
       return;
@@ -865,7 +926,9 @@ export default function ArticleEditorPage() {
   return (
     <div
       className={`-mx-4 -my-6 flex flex-col bg-[#F5F4F0] lg:-mx-10 lg:-my-8 ${
-        step === 3 ? "h-[calc(100vh-4rem)] min-h-0" : "min-h-[calc(100vh-4rem)]"
+        step === EDITOR_CONTENT_STEP
+          ? "h-[calc(100vh-4rem)] min-h-0"
+          : "min-h-[calc(100vh-4rem)]"
       } ${linkValidationBlocked ? "opacity-95" : ""}`}
     >
       {loading && <PageLoadingOverlay />}
@@ -995,7 +1058,7 @@ export default function ArticleEditorPage() {
       <div className="flex min-h-0 flex-1">
         <div
           className={`min-w-0 flex-1 ${
-            step === 3
+            step === EDITOR_CONTENT_STEP
               ? "flex min-h-0 flex-col overflow-hidden px-3 py-3 sm:px-5 lg:px-6"
               : "overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
           }`}
@@ -1007,14 +1070,19 @@ export default function ArticleEditorPage() {
         ) : null}
 
         {!loading && editable ? (
-          <div className={`mx-auto mb-4 ${step === 3 ? "max-w-none" : "max-w-3xl"}`}>
-            <ArticleLinkValidationBanner result={linkValidation} compact={step === 3} />
+          <div
+            className={`mx-auto mb-4 ${step === EDITOR_CONTENT_STEP ? "max-w-none" : "max-w-3xl"}`}
+          >
+            <ArticleLinkValidationBanner
+              result={linkValidation}
+              compact={step === EDITOR_CONTENT_STEP}
+            />
           </div>
         ) : null}
 
         <div
           className={`mx-auto ${
-            step === 3 ? "flex min-h-0 w-full max-w-none flex-1 flex-col" : "max-w-3xl"
+            step === EDITOR_CONTENT_STEP ? "flex min-h-0 w-full max-w-none flex-1 flex-col" : "max-w-3xl"
           }`}
         >
           {!loading && editable && showWritingGuide ? (
@@ -1029,8 +1097,8 @@ export default function ArticleEditorPage() {
             <StepCard>
               <h2 className="text-lg font-semibold text-gray-900">Article setup</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Choose your content type and tell readers who wrote this piece before you start
-                writing.
+                Choose your content type before you start writing. You can add the writer byline on
+                the Writer step before submitting.
               </p>
 
               <div className="mt-6">
@@ -1077,47 +1145,6 @@ export default function ArticleEditorPage() {
                 </div>
               </div>
 
-              <div className="mt-8 border-t border-gray-100 pt-8">
-                <h3 className="text-sm font-semibold text-gray-900">Writer</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Readers like to know who wrote the article. Add a name and role for the byline on
-                  your published page.
-                </p>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="author-name" className="block text-sm font-medium text-gray-700">
-                      Writer name
-                    </label>
-                    <input
-                      id="author-name"
-                      value={authorName}
-                      onChange={(e) => {
-                        setAuthorName(e.target.value);
-                        markDirty();
-                      }}
-                      disabled={!editable}
-                      className="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                      placeholder="John Smith"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="author-title" className="block text-sm font-medium text-gray-700">
-                      Occupation
-                    </label>
-                    <input
-                      id="author-title"
-                      value={authorTitle}
-                      onChange={(e) => {
-                        setAuthorTitle(e.target.value);
-                        markDirty();
-                      }}
-                      disabled={!editable}
-                      className="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                      placeholder="Marketing Director"
-                    />
-                  </div>
-                </div>
-              </div>
             </StepCard>
           )}
 
@@ -1172,7 +1199,7 @@ export default function ArticleEditorPage() {
             </StepCard>
           )}
 
-          {step === 3 && (
+          {step === EDITOR_CONTENT_STEP && (
             <div
               className={`relative flex min-h-0 flex-1 flex-col ${
                 linkValidationBlocked ? "grayscale-[0.35]" : ""
@@ -1235,7 +1262,31 @@ export default function ArticleEditorPage() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === EDITOR_WRITER_STEP && (
+            <StepCard>
+              <ArticleWriterSetupFields
+                authorName={authorName}
+                authorTitle={authorTitle}
+                authorAvatarUrl={authorAvatarUrl}
+                disabled={!editable}
+                onAuthorNameChange={(v) => {
+                  setAuthorName(v);
+                  markDirty();
+                }}
+                onAuthorTitleChange={(v) => {
+                  setAuthorTitle(v);
+                  markDirty();
+                }}
+                onUploadAvatar={uploadAuthorAvatar}
+                onRemoveAvatar={() => {
+                  setAuthorAvatarUrl(null);
+                  markDirty();
+                }}
+              />
+            </StepCard>
+          )}
+
+          {step === EDITOR_SUBMIT_STEP && (
             <StepCard>
               <h2 className="text-lg font-semibold text-gray-900">
                 {revisionMode ? "Ready to submit your update?" : "Ready to submit?"}
@@ -1274,36 +1325,39 @@ export default function ArticleEditorPage() {
                     <>No submission credits remaining this month. Click Submit to upgrade for more.</>
                   )}
                 </div>
-              ) : (
-                <p className="mt-4 text-sm text-gray-600">
-                  Use{" "}
-                  <strong>{revisionMode ? "Submit update" : "Submit"}</strong> in the header when you
-                  are ready.
-                </p>
-              )}
+              ) : null}
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={submitDisabled}
+                  onClick={handleSubmitClick}
+                  className="rounded-lg bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#189786] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting
+                    ? "Submitting…"
+                    : revisionMode
+                      ? "Submit update"
+                      : "Submit for review"}
+                </button>
+                {!revisionMode && hasSubmitCredits ? (
+                  <p className="text-sm text-gray-500">
+                    {(usage?.remaining ?? 0) === 1
+                      ? "1 submission credit remaining this month."
+                      : `${usage?.remaining ?? 0} submission credits remaining this month.`}
+                  </p>
+                ) : null}
+              </div>
             </StepCard>
           )}
 
-          {step !== 3 ? (
-            <div className="mt-8 flex justify-between pb-8">
-            <button
-              type="button"
-              disabled={step === 0 || linkValidationBlocked}
-              onClick={() => handleStepClick(Math.max(0, step - 1))}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-white/80 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={step >= STEPS.length - 1 || linkValidationBlocked}
-              onClick={() => handleStepClick(Math.min(STEPS.length - 1, step + 1))}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-[#1FAF9E] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-            </button>
-            </div>
-          ) : null}
+          <ArticleEditorStepNav
+            step={step}
+            stepCount={STEPS.length}
+            linkValidationBlocked={linkValidationBlocked}
+            pinned={step === EDITOR_CONTENT_STEP}
+            onPrevious={() => handleStepClick(Math.max(0, step - 1))}
+            onNext={() => handleStepClick(Math.min(STEPS.length - 1, step + 1))}
+          />
         </div>
         </div>
 
@@ -1312,7 +1366,7 @@ export default function ArticleEditorPage() {
             variant="vertical"
             steps={STEPS}
             currentStep={step}
-            maxReachableStep={linkValidationBlocked ? 3 : maxStepReached}
+            maxReachableStep={linkValidationBlocked ? EDITOR_CONTENT_STEP : maxStepReached}
             onStepClick={handleStepClick}
           />
         </aside>
@@ -1400,6 +1454,7 @@ export default function ArticleEditorPage() {
         results={results}
         authorName={authorName}
         authorTitle={authorTitle}
+        authorAvatarUrl={authorAvatarUrl}
         business={previewBusiness}
         metrics={previewMetrics}
         loadingBusiness={previewBusinessLoading}

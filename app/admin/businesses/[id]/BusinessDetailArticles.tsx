@@ -104,6 +104,7 @@ export default function BusinessDetailArticles({ initial }: { initial: InitialDa
     ARTICLE_REJECTION_REASON_PRESETS[0].id,
   );
   const [rejectReasonCustom, setRejectReasonCustom] = useState("");
+  const [rejectAdminNotes, setRejectAdminNotes] = useState("");
   const [deletingArticle, setDeletingArticle] = useState<AdminArticleRow | null>(null);
 
   const reload = useCallback(async () => {
@@ -249,7 +250,11 @@ export default function BusinessDetailArticles({ initial }: { initial: InitialDa
 
   const confirmReject = async () => {
     if (!rejectingArticle) return;
-    const reason = resolveArticleRejectionReason(rejectReasonPreset, rejectReasonCustom);
+    const reason = resolveArticleRejectionReason(
+      rejectReasonPreset,
+      rejectReasonCustom,
+      rejectAdminNotes,
+    );
     if (!reason) {
       setMessage({ type: "error", text: "Please enter a rejection reason." });
       return;
@@ -453,6 +458,7 @@ export default function BusinessDetailArticles({ initial }: { initial: InitialDa
                         setRejectingArticle(a);
                         setRejectReasonPreset(ARTICLE_REJECTION_REASON_PRESETS[0].id);
                         setRejectReasonCustom("");
+                        setRejectAdminNotes("");
                       }}
                       className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
                     >
@@ -545,27 +551,55 @@ export default function BusinessDetailArticles({ initial }: { initial: InitialDa
               </select>
             </label>
             {rejectReasonPreset === ARTICLE_REJECTION_CUSTOM_ID ? (
+              <label className="mt-3 block text-xs font-medium text-neutral-700">
+                Rejection message
+                <textarea
+                  value={rejectReasonCustom}
+                  onChange={(e) => setRejectReasonCustom(e.target.value)}
+                  rows={5}
+                  className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-2 text-sm"
+                  placeholder="Describe the issue and what the business should fix…"
+                />
+              </label>
+            ) : null}
+            <label className="mt-3 block text-xs font-medium text-neutral-700">
+              Additional comments for the business{" "}
+              <span className="font-normal text-neutral-500">(optional)</span>
               <textarea
-                value={rejectReasonCustom}
-                onChange={(e) => setRejectReasonCustom(e.target.value)}
-                rows={5}
-                className="mt-2 w-full rounded-md border border-neutral-300 px-2 py-2 text-sm"
-                placeholder="Describe the issue and what the business should fix…"
+                value={rejectAdminNotes}
+                onChange={(e) => setRejectAdminNotes(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-2 text-sm"
+                placeholder="Add specific feedback, examples, or edits the business should make before resubmitting."
               />
-            ) : articleRejectionReasonPreview(rejectReasonPreset) ? (
+            </label>
+            {articleRejectionReasonPreview(
+              rejectReasonPreset,
+              rejectReasonPreset === ARTICLE_REJECTION_CUSTOM_ID ? rejectReasonCustom : undefined,
+              rejectAdminNotes,
+            ) ? (
               <div className="mt-3 rounded-lg border border-red-100 bg-red-50 p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-red-800">
                   Message sent to business
                 </p>
                 <p className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-red-950">
-                  {articleRejectionReasonPreview(rejectReasonPreset)}
+                  {articleRejectionReasonPreview(
+                    rejectReasonPreset,
+                    rejectReasonPreset === ARTICLE_REJECTION_CUSTOM_ID
+                      ? rejectReasonCustom
+                      : undefined,
+                    rejectAdminNotes,
+                  )}
                 </p>
               </div>
             ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setRejectingArticle(null)}
+                onClick={() => {
+                  setRejectingArticle(null);
+                  setRejectAdminNotes("");
+                }}
                 className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-700"
               >
                 Cancel

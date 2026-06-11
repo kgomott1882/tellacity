@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WriterBylineAvatar from "@/components/articles/WriterBylineAvatar";
 import {
   formatArticleMonthYear,
   shouldShowArticleLastUpdated,
@@ -9,20 +10,15 @@ type Props = {
   updatedAt?: string | null;
   authorName?: string | null;
   authorTitle?: string | null;
+  authorAvatarUrl?: string | null;
 };
-
-function writerInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
-}
 
 export default function ArticleTellacityAttribution({
   publishedAt,
   updatedAt = null,
   authorName,
   authorTitle,
+  authorAvatarUrl,
 }: Props) {
   const publishedLabel = formatArticleMonthYear(publishedAt);
   const showLastUpdated = shouldShowArticleLastUpdated(publishedAt, updatedAt);
@@ -47,12 +43,10 @@ export default function ArticleTellacityAttribution({
               Written by
             </p>
             <div className="mt-4 flex items-start gap-4">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#1FAF9E]/15 text-base font-semibold text-[#0E4E45]"
-                aria-hidden
-              >
-                {writerInitials(trimmedAuthorName)}
-              </div>
+              <WriterBylineAvatar
+                name={trimmedAuthorName}
+                avatarUrl={authorAvatarUrl}
+              />
               <div className="min-w-0">
                 <p className="text-xl font-semibold leading-tight text-[#0E0E0E]">
                   {trimmedAuthorName}

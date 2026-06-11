@@ -29,6 +29,7 @@ export function platformRowToTellacityArticle(
     hasLegacyPage: false,
     authorName: row.author_name?.trim() || null,
     authorTitle: row.author_title?.trim() || null,
+    authorAvatarUrl: row.author_avatar_url?.trim() || null,
   };
 }
 

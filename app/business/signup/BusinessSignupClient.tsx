@@ -258,11 +258,6 @@ const COUNTRIES = [
   { code: "ZW", name: "Zimbabwe" },
 ];
 
-function formatPhoneInput(raw: string): string {
-  const cleaned = raw.replace(/[^\d\s+()-]/g, "");
-  return cleaned.replace(/\s{2,}/g, " ");
-}
-
 type SignupFieldKey =
   | "website"
   | "companyName"
@@ -323,7 +318,6 @@ export default function BusinessSignupClient() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [country, setCountry] = useState("US");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [otpOpen, setOtpOpen] = useState(false);
@@ -483,7 +477,6 @@ export default function BusinessSignupClient() {
     jobTitle,
     country,
     plan: selectedPlan,
-    ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
   });
 
   const sendSignupCode = async (): Promise<{ ok: boolean; error?: string }> => {
@@ -783,7 +776,7 @@ export default function BusinessSignupClient() {
                 </div>
 
                 <div className="space-y-4">
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
                     <div id="signup-field-wrap-website">
                       <label
                         htmlFor="website"
@@ -951,8 +944,9 @@ export default function BusinessSignupClient() {
                       </label>
                       <input
                         id="work-email"
-                        name="work_email"
+                        name="email"
                         type="email"
+                        autoComplete="username"
                         value={emailValue}
                         onChange={(e) => {
                           setEmailValue(e.target.value);
@@ -1015,8 +1009,8 @@ export default function BusinessSignupClient() {
                       </label>
                       <PasswordInput
                         id="signup-confirm-password"
-                        name="confirm_password"
-                        autoComplete="new-password"
+                        name="password_confirm"
+                        autoComplete="off"
                         value={confirmPassword}
                         onChange={(e) => {
                           setConfirmPassword(e.target.value);
@@ -1060,29 +1054,6 @@ export default function BusinessSignupClient() {
                           Please complete this field
                         </p>
                       ) : null}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="phone"
-                        className="text-sm font-medium text-[#0E0E0E]"
-                      >
-                        Phone number (optional)
-                      </label>
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        value={phoneNumber}
-                        onChange={(e) =>
-                          setPhoneNumber(formatPhoneInput(e.target.value))
-                        }
-                        disabled={loading}
-                        placeholder="e.g. +27 82 123 4567"
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-[#0E0E0E] focus:border-[#1FAF9E] focus:outline-none focus:ring-2 focus:ring-[#1FAF9E]/20"
-                      />
                     </div>
 
                     {error && (
