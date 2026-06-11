@@ -189,6 +189,8 @@ export default function BusinessOnboardingModal({
       message?: string;
       businessId?: string;
       success?: boolean;
+      alreadyOwner?: boolean;
+      sent?: boolean;
     };
     return { res, data };
   }
