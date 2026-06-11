@@ -23,6 +23,7 @@ import { getPostLoginPath } from "@/lib/postLoginRedirect";
 import PageLoadingOverlay from "./PageLoadingOverlay";
 import BusinessOnboardingModal from "./BusinessOnboardingModal";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
+import { isBillingCheckoutFlowPath } from "@/lib/billingCheckoutPaths";
 import {
   clearSignupVerifySession,
   readSignupVerifySession,
@@ -290,7 +291,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
       !authLoading &&
       !user &&
       !pathname?.includes("/integrations/connect-shopify") &&
-      !pathname?.includes("/business/dashboard/billing/paystack-return")
+      !pathname?.includes("/business/dashboard/billing/paystack-return") &&
+      !pathname?.includes("/business/dashboard/billing/paypal-return")
     ) {
       router.replace("/business/login");
     }
@@ -408,14 +410,18 @@ function InnerShell({ children }: { children: React.ReactNode }) {
 
   const isConnectShopifyPage = pathname?.includes("/integrations/connect-shopify");
   const normalizedPath = (pathname ?? "").replace(/\/$/, "") || "";
-  const isBillingCheckoutPage = normalizedPath === "/business/dashboard/billing/checkout";
+  const isBillingCheckoutPage = isBillingCheckoutFlowPath(normalizedPath);
   const isBillingPaystackReturnPage =
     normalizedPath === "/business/dashboard/billing/paystack-return";
+  const isBillingPaypalReturnPage =
+    normalizedPath === "/business/dashboard/billing/paypal-return";
+  const isBillingPaymentReturnPage =
+    isBillingPaystackReturnPage || isBillingPaypalReturnPage;
   const emailStr = user?.email?.trim() ?? "";
   const needsOnboarding = !selectedBusiness;
 
   // Session only: full-screen loader. Business list loads inside the shell so navigation is not blocked for minutes.
-  if (!isConnectShopifyPage && !isBillingPaystackReturnPage) {
+  if (!isConnectShopifyPage && !isBillingPaymentReturnPage) {
     if (authLoading) {
       return <PageLoadingOverlay />;
     }
@@ -449,8 +455,8 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Return from Paystack should not force dashboard auth redirect mid-verify.
-  if (isBillingPaystackReturnPage) {
+  // Return from Paystack/PayPal should not force dashboard auth redirect mid-verify.
+  if (isBillingPaymentReturnPage) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F8F4F0]">
         <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">

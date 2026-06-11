@@ -2,25 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useBusinessContext } from "../../_context/BusinessContext";
+import { useBusinessContext } from "../../../_context/BusinessContext";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import type { PaidPlanKey, PlanConfirmPresentation } from "@/lib/billingPlanConfirm";
 import { POST_CHECKOUT_REDIRECT_SESSION_KEY } from "@/lib/upgradeFlow";
-import { paystackCurrencyPublic } from "@/lib/billingPaystack";
 
 type Props = {
   plan: PaidPlanKey;
   cycle: "monthly" | "annual";
   presentation: PlanConfirmPresentation;
-  /**
-   * Dashboard path to send the user back to if they cancel checkout. When
-   * set (e.g. the "Upload more photos" staging flow), `Back` routes here
-   * via Next.js SPA navigation so any in-memory dashboard state (staged
-   * photos, custom categories, active chip) survives intact.
-   */
   returnTo?: string | null;
-  /** When set, Back returns to the payment method picker (Paystack route). */
-  backHref?: string | null;
+  pickerHref: string;
 };
 
 type CreditPreview = {
@@ -45,12 +37,12 @@ function formatCurrencyMinor(minor: number, currency: string): string {
   }
 }
 
-export default function UpgradeCheckoutCard({
+export default function PayPalCheckoutCard({
   plan,
   cycle,
   presentation,
   returnTo,
-  backHref,
+  pickerHref,
 }: Props) {
   const router = useRouter();
   const { selectedBusiness } = useBusinessContext();
@@ -67,32 +59,12 @@ export default function UpgradeCheckoutCard({
       ? returnTo
       : null;
 
-  /**
-   * "Back" always returns to the immediate previous screen so the user
-   * lands in the exact state they left (e.g. the inline pricing panel
-   * still expanded on the billing page, or the in-memory staging queue
-   * on the "Upload more photos" page).
-   *
-   * - If the page was opened directly (no in-app history), router.back()
-   *   would be a no-op; we fall back to an explicit `returnTo` when set,
-   *   otherwise to the billing dashboard.
-   * - We detect "opened directly" by checking window.history.length <= 1
-   *   at click time; this keeps SSR-safe since it runs in the handler.
-   */
   const handleBack = useCallback(() => {
-    if (backHref) {
-      router.push(backHref);
-      return;
-    }
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(safeReturnTo ?? "/business/dashboard/billing");
-  }, [router, safeReturnTo, backHref]);
+    router.push(pickerHref);
+  }, [router, pickerHref]);
 
   const businessId = selectedBusiness?.id ?? null;
-  const chargeCurrency = useMemo(() => paystackCurrencyPublic(), []);
+  const chargeCurrency = useMemo(() => "USD", []);
 
   useEffect(() => {
     if (!businessId) return;
@@ -105,7 +77,7 @@ export default function UpgradeCheckoutCard({
           cycle,
           businessId,
         });
-        const res = await fetch(`/api/billing/paystack/preview?${qs.toString()}`, {
+        const res = await fetch(`/api/billing/paypal/preview?${qs.toString()}`, {
           credentials: "same-origin",
         });
         if (!res.ok) {
@@ -125,30 +97,28 @@ export default function UpgradeCheckoutCard({
     };
   }, [businessId, plan, cycle]);
 
-  const openPaystack = useCallback(async () => {
+  const openPayPal = useCallback(async () => {
     if (!selectedBusiness?.id) return;
 
     setPayBusy(true);
     try {
-      // Prefer an explicit `returnTo` (prop), then the stashed session value,
-      // then fall back to billing. Anything else could point off-dashboard.
-      let paystackReturnTo: string | undefined;
+      let paypalReturnTo: string | undefined;
       if (safeReturnTo) {
-        paystackReturnTo = safeReturnTo;
+        paypalReturnTo = safeReturnTo;
       } else {
         try {
           const stored = window.sessionStorage
             .getItem(POST_CHECKOUT_REDIRECT_SESSION_KEY)
             ?.trim();
           if (stored?.startsWith("/business/dashboard/")) {
-            paystackReturnTo = stored;
+            paypalReturnTo = stored;
           }
         } catch {
           /* ignore */
         }
       }
 
-      const initRes = await fetch("/api/billing/paystack/initialize", {
+      const initRes = await fetch("/api/billing/paypal/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
@@ -156,13 +126,13 @@ export default function UpgradeCheckoutCard({
           businessId: selectedBusiness.id,
           plan,
           cycle,
-          ...(paystackReturnTo ? { returnTo: paystackReturnTo } : {}),
+          ...(paypalReturnTo ? { returnTo: paypalReturnTo } : {}),
         }),
       });
 
       let initJson: {
         error?: string;
-        authorization_url?: string;
+        approvalUrl?: string;
       } = {};
       try {
         initJson = (await initRes.json()) as typeof initJson;
@@ -175,8 +145,7 @@ export default function UpgradeCheckoutCard({
           typeof initJson.error === "string" ? initJson.error.trim() : "";
         const isConfigError =
           initRes.status >= 500 ||
-          /paystack is not configured correctly/i.test(errorMessage) ||
-          /paystack_secret_key|sk_test_|sk_live_|invalid key/i.test(errorMessage);
+          /paypal is not configured correctly/i.test(errorMessage);
         window.alert(
           isConfigError
             ? "Payment system is temporarily unavailable"
@@ -186,9 +155,9 @@ export default function UpgradeCheckoutCard({
         return;
       }
 
-      const url = initJson.authorization_url?.trim();
+      const url = initJson.approvalUrl?.trim();
       if (!url) {
-        window.alert("Paystack did not return a checkout URL. Try again or check server logs.");
+        window.alert("PayPal did not return a checkout URL. Try again or check server logs.");
         setPayBusy(false);
         return;
       }
@@ -229,24 +198,24 @@ export default function UpgradeCheckoutCard({
     : null;
 
   return (
-    <div className="rounded-2xl border border-emerald-100/80 bg-white p-8 shadow-[0_8px_30px_-12px_rgba(18,69,65,0.12)]">
+    <div className="rounded-2xl border border-blue-100/80 bg-white p-8 shadow-[0_8px_30px_-12px_rgba(0,48,135,0.12)]">
       <div className="mb-2 flex items-center justify-start">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[#124541]"
+          className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[#003087]"
         >
           <span aria-hidden>←</span>
           Back
         </button>
       </div>
-      <p className="text-center text-xs font-medium uppercase tracking-wide text-emerald-800/80">
-        Paystack checkout
+      <p className="text-center text-xs font-medium uppercase tracking-wide text-[#003087]/80">
+        PayPal checkout · USD
       </p>
       <h1 className="mt-2 text-center text-2xl font-semibold capitalize tracking-tight text-[#0E0E0E]">
         {presentation.title}
       </h1>
-      <p className="mt-4 text-center text-3xl font-semibold text-[#124541]">{presentation.priceLine}</p>
+      <p className="mt-4 text-center text-3xl font-semibold text-[#003087]">{presentation.priceLine}</p>
       {presentation.priceSubLine ? (
         <p className="mt-2 text-center text-sm leading-snug text-gray-600">{presentation.priceSubLine}</p>
       ) : null}
@@ -256,7 +225,7 @@ export default function UpgradeCheckoutCard({
           {presentation.bullets.map((line) => (
             <li key={line} className="flex gap-2">
               <span
-                className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700"
+                className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-[#003087]"
                 aria-hidden
               >
                 ✓
@@ -299,27 +268,27 @@ export default function UpgradeCheckoutCard({
       ) : null}
       {!canPay ? (
         <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-          Add an email address to your Tellacity account to pay with Paystack.
+          Add an email address to your Tellacity account to pay with PayPal.
         </p>
       ) : null}
       <button
         type="button"
         disabled={payBusy || !canPay}
-        className="mt-6 w-full rounded-xl bg-[#124541] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60"
-        onClick={() => void openPaystack()}
+        className="mt-6 w-full rounded-xl bg-[#003087] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#001f5c] disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={() => void openPayPal()}
       >
         {payBusy
           ? "Redirecting…"
           : hasCredit && netLine
-            ? `Pay ${netLine}`
-            : "Proceed to payment"}
+            ? `Pay ${netLine} with PayPal`
+            : "Continue to PayPal"}
       </button>
       <button
         type="button"
         onClick={handleBack}
         className="mt-4 block w-full text-center text-sm text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline"
       >
-        Back
+        Choose another payment method
       </button>
       {safeReturnTo ? (
         <p className="mt-2 text-center text-[11px] text-gray-400">
