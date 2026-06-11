@@ -28,6 +28,7 @@ import {
   isWidgetTypeWithReviewStarFilter,
   resolveWidgetReviewStarRatings,
 } from "@/lib/widgetReviewStarFilter";
+import { WIDGET_GALLERY_CANVAS_HEIGHT } from "@/lib/widgetGalleryThumb";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,7 @@ export default async function WidgetEmbedPage({
     wl_logo?: string;
     show_business_name?: string;
     review_stars?: string;
+    gallery?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -147,6 +149,7 @@ export default async function WidgetEmbedPage({
   const limit = Math.min(cap, Math.max(1, n));
   const dashboardDemo =
     params.dashboard_demo === "1" || params.dashboard_demo === "true";
+  const galleryThumb = params.gallery === "1" || params.gallery === "true";
   const emptyStarBorder = "#9CA3AF";
 
   if (!slug) {
@@ -283,26 +286,50 @@ export default async function WidgetEmbedPage({
         }
         body {
           padding: ${
-            minimal
+            galleryThumb
               ? "0"
-              : type === "review_slider"
-                ? "12px 18px 8px"
-                : "20px 24px"
+              : minimal
+                ? "0"
+                : type === "review_slider"
+                  ? "12px 18px 8px"
+                  : "20px 24px"
           };
           background: transparent;
           color: var(--tc-widget-text-color);
           font-family: var(--tc-widget-font-family);
         }
         ${
-          type === "carousel" ||
-          type === "spotlight_carousel" ||
-          type === "review_slider" ||
-          type === "micro_trustscore"
-            ? `html, body { width: 100%; min-width: 100%; }`
-            : ""
+          galleryThumb
+            ? `
+        html {
+          background: transparent;
+          height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          overflow: hidden;
+          width: 100%;
+        }
+        body {
+          height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          min-height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
+          padding: 0 !important;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background: transparent;
+        }
+        `
+            : type === "carousel" ||
+                type === "spotlight_carousel" ||
+                type === "review_slider" ||
+                type === "micro_trustscore"
+              ? `html, body { width: 100%; min-width: 100%; }`
+              : ""
         }
         ${
-          type === "tellacity_trust"
+          !galleryThumb && type === "tellacity_trust"
             ? `
         html { height: 100%; }
         body {
@@ -339,7 +366,7 @@ export default async function WidgetEmbedPage({
         <div
           style={{
             display: "flex",
-            justifyContent: minimal ? "flex-start" : "center",
+            justifyContent: galleryThumb || !minimal ? "center" : "flex-start",
             alignItems: "center",
             minHeight: minimal ? undefined : 44,
           }}

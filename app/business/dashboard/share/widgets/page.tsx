@@ -37,12 +37,13 @@ import {
 } from "@/lib/widgetReviewStarFilter";
 import type { WidgetType } from "@/components/widgets/types";
 import {
-  WIDGET_CATEGORIES,
-  WIDGET_CATEGORY_KEYS,
   WEBSITE_WIDGETS as WIDGETS,
   WIDGET_EMBED_IDS_WITH_PREVIEW_AND_STAR_CONTROLS,
+  planDisplayName,
+  requiredPlanForWebsiteWidget,
   type WebsiteWidgetId as WidgetId,
 } from "@/lib/widgetsConfig";
+import WebsiteWidgetsGallery from "./WebsiteWidgetsGallery";
 
 /** Iframe `location.href` vs parent `previewUrl` can differ in hash/trailing slash; compare path+query. */
 function embedResizeMessageMatchesPreview(previewUrl: string, messageSrc: unknown): boolean {
@@ -87,51 +88,6 @@ function isSameWhiteLabel(
     a.font === b.font &&
     a.showTellacityLogo === b.showTellacityLogo
   );
-}
-
-function requiredPlanForWebsiteWidget(
-  widget: Parameters<typeof canAccessWebsiteWidget>[1],
-): PlanKey {
-  switch (widget) {
-    case "review_collector":
-    case "review_strip":
-      return "free";
-    case "review_carousel":
-    case "trust_badge":
-      return "grow";
-    case "review_list":
-    case "review_showcase":
-      return "premium";
-    case "tellacity_trust":
-    case "tellacity_score":
-    case "trust_strip_icon":
-      return "elite";
-    case "trust_strip":
-    case "trust_stacked":
-      return "premium";
-    case "trust_mini":
-      return "elite";
-    case "spotlight_carousel":
-    case "review_slider":
-    case "review_dropdown":
-    case "micro_trustscore":
-      return "premium";
-    default:
-      return "grow";
-  }
-}
-
-function planDisplayName(plan: PlanKey): string {
-  switch (plan) {
-    case "grow":
-      return "Grow";
-    case "premium":
-      return "Premium";
-    case "elite":
-      return "Elite";
-    default:
-      return "Free";
-  }
 }
 
 /** Multi-review widgets: dashboard can tune how many reviews load in preview & embed (`data-limit`). Available on every plan. */
@@ -910,134 +866,30 @@ export default function WebsiteWidgetsPage() {
   if (!selectedBusiness?.id) return null;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-10 px-0">
+    <div className="mx-auto max-w-7xl space-y-8 px-0">
       <div>
-        <h1 className="text-2xl font-semibold text-[#0E0E0E]">Website widgets</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Showcase verified feedback across your website and channels.
+        <h1 className="text-2xl font-semibold tracking-tight text-[#0E0E0E] sm:text-3xl">
+          Website widgets
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
+          Embed verified reviews and trust signals on your site. Pick any widget below for a live
+          preview, then copy the embed code when you are ready.
         </p>
       </div>
 
-      {/* Widget gallery (Trustpilot Essentials–style): click any card for full preview & settings */}
-      <div>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Choose a widget
-        </h2>
-        <p className="mb-4 text-sm text-gray-600">
-          Select a style to preview it full size. Locked widgets still show a live preview, upgrade your plan to
-          copy embed code.
-        </p>
-        <div className="space-y-10">
-          {WIDGET_CATEGORY_KEYS.map((categoryKey) => {
-            const cat = WIDGET_CATEGORIES[categoryKey];
-            return (
-              <div key={categoryKey}>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{cat.label}</h3>
-                <p className="mt-1 max-w-3xl text-xs text-gray-500">{cat.description}</p>
-                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {cat.widgets.map((widget) => {
-                    const isActive = selected === widget.id;
-                    const cardLocked = !canAccessWebsiteWidget(planKey, widget.planWidget);
-                    const openCard = () => {
-                      setSelected(widget.id);
-                      setWidgetConfigureOpen(true);
-                    };
-                    // Mini live preview for each card so owners can see what each
-                    // widget looks like before clicking in, including locked ones.
-                    // We use the same `/widgets/embed` route as the main preview,
-                    // but with `pointer-events: none` so clicks still select the
-                    // card. `loading="lazy"` keeps off-screen iframes idle.
-                    const galleryPreviewSrc = slug
-                      ? `${previewBaseUrl}/widgets/embed?business=${encodeURIComponent(
-                          slug,
-                        )}&type=${encodeURIComponent(
-                          widget.id,
-                        )}&dashboard_demo=1&theme=minimal&show_business_name=1${previewExtraParams}`
-                      : "";
-                    return (
-                      <div
-                        key={widget.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={openCard}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            openCard();
-                          }
-                        }}
-                        className={`cursor-pointer text-left rounded-xl border-2 p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2fb2a8] ${
-                          isActive
-                            ? "border-[#2fb2a8] bg-[#2fb2a8]/5 shadow-sm"
-                            : "border-gray-200 hover:border-[#2fb2a8]/50 bg-white shadow-sm"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-[#0E0E0E]">
-                            <span>{widget.name}</span>
-                            {!cardLocked ? <AvailableToUseLabel /> : null}
-                          </h3>
-                          <div className="flex shrink-0 items-center gap-1">
-                            {cardLocked ? (
-                              <span
-                                className="inline-flex rounded-full bg-gray-100 p-1 text-gray-600"
-                                title="Requires higher plan"
-                              >
-                                <Lock size={14} strokeWidth={2} aria-hidden />
-                              </span>
-                            ) : null}
-                            {isActive && widgetConfigureOpen ? (
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2fb2a8]">
-                                <Check size={10} strokeWidth={3} className="text-white" />
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <p className="mt-2 line-clamp-2 text-xs leading-snug text-gray-500">{widget.description}</p>
-                        {galleryPreviewSrc ? (
-                          <div
-                            className="relative mt-3 overflow-hidden rounded-md border border-gray-100 bg-white"
-                            style={{ height: 140 }}
-                            aria-hidden
-                          >
-                            {/*
-                              The gallery card is tiny, so rendering the widget at
-                              native size produces the "clustered / unreadable"
-                              look. We give the iframe twice the available
-                              width/height and scale it down to 50% so the widget
-                              has a normal desktop-width canvas internally and
-                              simply appears thumbnail-sized. Readability of
-                              small text isn't a requirement here, owners open
-                              the full preview modal for that.
-                            */}
-                            <iframe
-                              src={galleryPreviewSrc}
-                              title={`${widget.name} preview`}
-                              className="pointer-events-none absolute left-0 top-0"
-                              style={{
-                                border: 0,
-                                backgroundColor: "transparent",
-                                width: "200%",
-                                height: "200%",
-                                transform: "scale(0.5)",
-                                transformOrigin: "top left",
-                              }}
-                              scrolling="no"
-                              loading="lazy"
-                              tabIndex={-1}
-                            />
-                          </div>
-                        ) : null}
-                        <p className="mt-3 text-[11px] font-medium text-[#124541]">Preview &amp; configure →</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <WebsiteWidgetsGallery
+        planKey={planKey}
+        slug={slug}
+        previewBaseUrl={previewBaseUrl}
+        previewExtraParams={previewExtraParams}
+        selected={selected}
+        configureOpen={widgetConfigureOpen}
+        onSelect={setSelected}
+        onOpenConfigure={(id) => {
+          setSelected(id);
+          setWidgetConfigureOpen(true);
+        }}
+      />
 
       <div
         className="border-t border-gray-100 pt-8 text-sm text-[#374151]"
@@ -1050,7 +902,7 @@ export default function WebsiteWidgetsPage() {
           How to add a widget to your website
         </h2>
         <ol className="list-decimal space-y-3 pl-4 marker:font-semibold marker:text-[#2fb2a8]">
-          <li>Pick a widget from the gallery above and open <strong>Preview &amp; configure</strong>.</li>
+          <li>Pick a widget from the library above and open <strong>Preview &amp; configure</strong>.</li>
           <li>
             Copy the embed code from the HTML box. It loads{" "}
             <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">/widgets/v1.js</code> and shows your reviews.

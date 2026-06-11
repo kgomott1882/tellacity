@@ -1,4 +1,5 @@
 import type { WidgetType } from "@/components/widgets/types";
+import type { PlanKey } from "@/lib/plans";
 
 /**
  * Central Tellacity website-widget registry: categories, display names, canonical slugs,
@@ -232,4 +233,59 @@ export function getWidgetCategoryKey(widgetId: string): WidgetCategoryKey | unde
 
 export function getWebsiteWidgetById(id: string): WebsiteWidgetDefinition | undefined {
   return WEBSITE_WIDGETS.find((w) => w.id === id);
+}
+
+export function requiredPlanForWebsiteWidget(widget: WebsiteWidgetPlanKey): PlanKey {
+  switch (widget) {
+    case "review_collector":
+    case "review_strip":
+      return "free";
+    case "review_carousel":
+    case "trust_badge":
+      return "grow";
+    case "review_list":
+    case "review_showcase":
+    case "trust_strip":
+    case "trust_stacked":
+    case "spotlight_carousel":
+    case "review_slider":
+    case "review_dropdown":
+    case "micro_trustscore":
+      return "premium";
+    case "tellacity_trust":
+    case "tellacity_score":
+    case "trust_strip_icon":
+    case "trust_mini":
+      return "elite";
+    default:
+      return "grow";
+  }
+}
+
+export function planDisplayName(plan: PlanKey): string {
+  switch (plan) {
+    case "grow":
+      return "Grow";
+    case "premium":
+      return "Premium";
+    case "elite":
+      return "Elite";
+    default:
+      return "Free";
+  }
+}
+
+export function planBadgeClasses(plan: PlanKey): string {
+  switch (plan) {
+    case "free":
+      return "bg-emerald-50 text-emerald-800 ring-emerald-200/80";
+    case "grow":
+      return "bg-sky-50 text-sky-800 ring-sky-200/80";
+    case "premium":
+      return "bg-violet-50 text-violet-800 ring-violet-200/80";
+    case "elite":
+      return "bg-amber-50 text-amber-900 ring-amber-200/80";
+    default:
+      return "bg-gray-50 text-gray-700 ring-gray-200/80";
+  }
 }

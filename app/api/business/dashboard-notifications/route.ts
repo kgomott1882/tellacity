@@ -393,28 +393,15 @@ export async function GET(req: Request) {
     const articlesTableAvailable = !articleCountResult.error;
 
     if (articlesTableAvailable && articleCount === 0) {
-      if (activePlanKey === "free") {
-        notifications.push({
-          key: "articles_free_upgrade",
-          title: "Publish blogs & case studies with a paid plan",
-          description:
-            "On the Free plan you can't submit articles for publication. Upgrade to collect verified customer reviews, publish articles, showcase photos, and build a trusted business profile that helps customers, search engines, and AI assistants understand your business.",
-          href: "/business/dashboard/billing?source=articles_upgrade",
-          priority: 77,
-          created_at: createdAt,
-          always_show: true,
-        });
-      } else {
-        notifications.push({
-          key: "articles_none_yet",
-          title: "Share your expertise with a blog or case study",
-          description:
-            "You haven't created any blogs or case studies yet. Publishing articles strengthens your profile, improves SEO, and helps customers understand what makes your business different.",
-          href: "/business/dashboard/articles",
-          priority: 76,
-          created_at: createdAt,
-        });
-      }
+      notifications.push({
+        key: "articles_none_yet",
+        title: "Share your expertise with a blog or case study",
+        description:
+          "You haven't created any blogs or case studies yet. Start a draft to tell your story — articles strengthen your profile, improve SEO, and help customers understand what makes your business different.",
+        href: "/business/dashboard/articles",
+        priority: 76,
+        created_at: createdAt,
+      });
     }
 
     if (

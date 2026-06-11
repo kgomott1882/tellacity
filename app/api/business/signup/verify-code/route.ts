@@ -6,7 +6,6 @@ import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
-import { notifyBusinessClaimSuccess } from "@/lib/businessClaimEmail";
 import { resolveBusinessForSignup } from "@/lib/businessSignupVerifyHelpers";
 import { finalizeSignupDomainClaim } from "@/lib/verifyDomainFinishServer";
 import {
@@ -291,9 +290,6 @@ export async function POST(req: Request) {
             .from("businesses")
             .update({ phone: phoneTrim })
             .eq("id", resolved.id);
-        }
-        if (!finish.already_owner) {
-          void notifyBusinessClaimSuccess(supabaseAdmin, userRes.user, resolved.id);
         }
       } else if (finish.error === "already_claimed") {
         outcome = "already_claimed";

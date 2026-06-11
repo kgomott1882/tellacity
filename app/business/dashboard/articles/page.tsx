@@ -794,16 +794,7 @@ export default function ArticlesDashboardPage() {
             <div className="mt-1 text-lg font-semibold capitalize text-gray-900">
               {usage.plan ?? "free"}
             </div>
-            {(usage.limit ?? 0) === 0 ? (
-              <p className="mt-2 text-sm text-amber-800">
-                Your plan includes 0 blog or case study submissions per month. You can save drafts
-                and{" "}
-                <Link href="/business/dashboard/pricing" className="font-medium underline">
-                  {usage.upgradeCta ?? "upgrade to Grow"}
-                </Link>{" "}
-                to submit for review.
-              </p>
-            ) : !canSubmit ? (
+            {!canSubmit && (usage.limit ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-amber-800">
                 Monthly limit reached.{" "}
                 <Link href="/business/dashboard/pricing" className="font-medium underline">

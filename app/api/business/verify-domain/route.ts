@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sendBusinessDomainVerificationOtp } from "@/lib/sendBusinessDomainVerificationOtp";
-import { notifyBusinessClaimSuccess } from "@/lib/businessClaimEmail";
 import {
   httpStatusForVerifyDomainOutcome,
   isVerifyDomainRpcMissing,
@@ -147,9 +146,6 @@ export async function POST(req: Request) {
 
     if (!serviceRpc.error && serviceRpc.data != null) {
       const data = serviceRpc.data as RpcResult;
-      if (data?.ok && !data?.already_owner) {
-        void notifyBusinessClaimSuccess(admin, user, businessId);
-      }
       return nextResponseForRpcResult(data);
     }
 
@@ -187,9 +183,6 @@ export async function POST(req: Request) {
 
       if (!jwtRpc.error && jwtRpc.data != null) {
         const data = jwtRpc.data as RpcResult;
-        if (data?.ok && !data?.already_owner) {
-          void notifyBusinessClaimSuccess(admin, user, businessId);
-        }
         return nextResponseForRpcResult(data);
       }
 
@@ -236,7 +229,6 @@ export async function POST(req: Request) {
     if (fallback.already_owner) {
       return NextResponse.json({ ok: true, alreadyOwner: true });
     }
-    void notifyBusinessClaimSuccess(admin, user, businessId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("verify-domain:", e);

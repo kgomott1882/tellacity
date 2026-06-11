@@ -24,6 +24,7 @@ import {
   isWidgetTypeWithReviewStarFilter,
   resolveWidgetReviewStarRatings,
 } from "@/lib/widgetReviewStarFilter";
+import { WIDGET_GALLERY_CANVAS_HEIGHT } from "@/lib/widgetGalleryThumb";
 
 export const metadata: Metadata = {
   robots: {
@@ -89,6 +90,8 @@ export default async function WidgetEmbedPage({
   const limit = requestedLimit;
   const dashboardRaw = Array.isArray(params.dashboard_demo) ? params.dashboard_demo[0] : params.dashboard_demo;
   const dashboardDemo = dashboardRaw === "1" || dashboardRaw === "true";
+  const galleryRaw = Array.isArray(params.gallery) ? params.gallery[0] : params.gallery;
+  const galleryThumb = galleryRaw === "1" || galleryRaw === "true";
   const themeRaw = Array.isArray(params.theme) ? params.theme[0] : params.theme;
   const rawTheme = (themeRaw ?? "minimal").toString().trim().toLowerCase();
   const minimal = rawTheme === "minimal";
@@ -145,11 +148,40 @@ export default async function WidgetEmbedPage({
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { background: transparent; }
         body { padding: ${
-          minimal ? "0" : type === "review_slider" ? "12px 18px 8px" : "20px 24px"
+          galleryThumb ? "0" : minimal ? "0" : type === "review_slider" ? "12px 18px 8px" : "20px 24px"
         }; font-family: system-ui, -apple-system, sans-serif; }
-        ${type === "carousel" || type === "spotlight_carousel" || type === "review_slider" || type === "micro_trustscore" ? `html, body { width: 100%; min-width: 100%; }` : ""}
         ${
-          type === "tellacity_trust"
+          galleryThumb
+            ? `
+        html {
+          background: transparent;
+          height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          overflow: hidden;
+          width: 100%;
+        }
+        body {
+          height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          min-height: ${WIDGET_GALLERY_CANVAS_HEIGHT}px;
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
+          padding: 0 !important;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background: transparent;
+        }
+        `
+            : type === "carousel" ||
+                type === "spotlight_carousel" ||
+                type === "review_slider" ||
+                type === "micro_trustscore"
+              ? `html, body { width: 100%; min-width: 100%; }`
+              : ""
+        }
+        ${
+          !galleryThumb && type === "tellacity_trust"
             ? `
         html { height: 100%; }
         body {
@@ -190,7 +222,7 @@ export default async function WidgetEmbedPage({
             <div
               style={{
                 display: "flex",
-                justifyContent: minimal ? "flex-start" : "center",
+                justifyContent: galleryThumb || !minimal ? "center" : "flex-start",
                 alignItems: "center",
                 minHeight: minimal ? undefined : 44,
               }}

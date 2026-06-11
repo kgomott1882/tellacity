@@ -1305,25 +1305,9 @@ export default function ArticleEditorPage() {
                   </>
                 )}
               </p>
-              {!revisionMode && (usage?.limit ?? 0) === 0 ? (
+              {!revisionMode && !hasSubmitCredits && (usage?.limit ?? 0) > 0 ? (
                 <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  Your plan includes 0 blog or case study submissions per month. You can save drafts
-                  and{" "}
-                  <Link href="/business/dashboard/pricing" className="font-semibold underline">
-                    {usage?.upgradeCta ?? "upgrade to Grow"}
-                  </Link>{" "}
-                  to submit for review.
-                </div>
-              ) : !revisionMode && !hasSubmitCredits ? (
-                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  {(usage?.limit ?? 0) === 0 ? (
-                    <>
-                      Your plan does not include blog or case study submissions. You can save drafts
-                      and click <strong>Submit</strong> to see upgrade options.
-                    </>
-                  ) : (
-                    <>No submission credits remaining this month. Click Submit to upgrade for more.</>
-                  )}
+                  No submission credits remaining this month. Click Submit to upgrade for more.
                 </div>
               ) : null}
               <div className="mt-6 flex flex-wrap items-center gap-3">

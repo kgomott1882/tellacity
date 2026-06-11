@@ -9,13 +9,10 @@ import { supabaseBrowser } from "@/lib/supabaseBrowser";
 // to the label.
 //   - `photoUploads` fetches /api/admin/photo-uploads/count and shows the
 //     number of photos still waiting on an approve/reject decision.
-//   - `photoExpiry` fetches /api/admin/photo-expiry/count and shows the
-//     number of free-plan photos that are within 24 hours of the 30-day
-//     retention cutoff, prompting the admin to send a reminder email.
 type NavItem = {
   href: string;
   label: string;
-  badgeKey?: "photoUploads" | "photoExpiry" | "articles";
+  badgeKey?: "photoUploads" | "articles";
 };
 
 const NAV_ITEMS: readonly NavItem[] = [
@@ -29,7 +26,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin", label: "Overview" },
   { href: "/admin/payments", label: "Payments" },
-  { href: "/admin/photo-expiry", label: "Photo Expiry", badgeKey: "photoExpiry" },
   { href: "/admin/photo-uploads", label: "Photo Uploads", badgeKey: "photoUploads" },
   { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/system-status", label: "System status" },
@@ -42,8 +38,6 @@ const NAV = [...NAV_ITEMS].sort((a, b) =>
 /** How often we re-check the pending photo queue count, in ms. */
 const PHOTO_UPLOADS_POLL_MS = 60_000;
 const ARTICLES_POLL_MS = 60_000;
-/** How often we re-check the free-plan expiry count, in ms. */
-const PHOTO_EXPIRY_POLL_MS = 60_000;
 
 type AdminSidebarProps = {
   isOpen?: boolean;
@@ -55,7 +49,6 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState<number>(0);
   const [pendingArticleCount, setPendingArticleCount] = useState<number>(0);
-  const [expiringPhotoCount, setExpiringPhotoCount] = useState<number>(0);
 
   // Poll the Photo Uploads queue count. The notification must stay on
   // while any photo is still awaiting a final decision, visiting the
@@ -113,43 +106,9 @@ export default function AdminSidebar({ isOpen = false, onClose }: AdminSidebarPr
     };
   }, [pathname]);
 
-  // Poll the Photo Expiry warning queue. Driven by
-  // /api/admin/photo-expiry/count, which counts free-plan photos that
-  // have crossed the 29-day retention warning threshold but are not yet
-  // past the 30-day deletion cutoff. The badge clears itself naturally
-  // once the admin notifies owners and the deletion sweep removes the
-  // backlog, visiting the page does not reset it.
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/admin/photo-expiry/count", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const body = (await res.json()) as { expiringCount?: number };
-        if (cancelled) return;
-        setExpiringPhotoCount(
-          typeof body.expiringCount === "number" && body.expiringCount >= 0
-            ? body.expiringCount
-            : 0
-        );
-      } catch {
-        // Silent, badge just won't update this tick.
-      }
-    };
-    void load();
-    const id = window.setInterval(load, PHOTO_EXPIRY_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [pathname]);
-
   const badgeCountFor = (key: NavItem["badgeKey"]): number => {
     if (key === "photoUploads") return pendingPhotoCount;
     if (key === "articles") return pendingArticleCount;
-    if (key === "photoExpiry") return expiringPhotoCount;
     return 0;
   };
 
