@@ -143,13 +143,14 @@ export default function PayPalCheckoutCard({
       if (!initRes.ok) {
         const errorMessage =
           typeof initJson.error === "string" ? initJson.error.trim() : "";
-        const isConfigError =
-          initRes.status >= 500 ||
-          /paypal is not configured correctly/i.test(errorMessage);
+        const isGenericUnavailable =
+          errorMessage === "Server error." ||
+          /paypal api keys are missing on the server/i.test(errorMessage);
         window.alert(
-          isConfigError
+          isGenericUnavailable
             ? "Payment system is temporarily unavailable"
-            : errorMessage || "Could not start checkout."
+            : errorMessage ||
+                "Could not start checkout. Ask your admin to add PayPal keys on the hosting platform, then redeploy."
         );
         setPayBusy(false);
         return;

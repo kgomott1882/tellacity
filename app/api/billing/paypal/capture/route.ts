@@ -42,8 +42,10 @@ export async function POST(req: Request) {
   try {
     getValidatedPaypalCredentials();
   } catch (error) {
-    console.error("[billing/paypal/capture] config:", error);
-    return NextResponse.json({ error: "PayPal is not configured correctly" }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "PayPal is not configured correctly";
+    console.error("[billing/paypal/capture] config:", message);
+    return NextResponse.json({ error: message }, { status: 503 });
   }
 
   try {

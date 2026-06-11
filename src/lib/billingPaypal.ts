@@ -18,7 +18,9 @@ export function getValidatedPaypalCredentials(): { clientId: string; clientSecre
   const clientId = process.env.PAYPAL_CLIENT_ID?.trim() ?? "";
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET?.trim() ?? "";
   if (!clientId || !clientSecret) {
-    throw new Error("PayPal is not configured correctly");
+    throw new Error(
+      "PayPal API keys are missing on the server (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET)."
+    );
   }
   return { clientId, clientSecret };
 }
@@ -49,7 +51,13 @@ export async function getPaypalAccessToken(): Promise<string> {
   };
 
   if (!res.ok || !json.access_token) {
-    throw new Error(json.error ?? "PayPal auth failed");
+    const err = typeof json.error === "string" ? json.error : "PayPal auth failed";
+    if (err === "invalid_client") {
+      throw new Error(
+        "PayPal rejected the API credentials. Check PAYPAL_MODE matches sandbox vs live keys."
+      );
+    }
+    throw new Error(err);
   }
 
   const ttlSec = typeof json.expires_in === "number" ? json.expires_in : 3600;

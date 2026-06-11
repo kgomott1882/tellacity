@@ -77,8 +77,10 @@ export async function POST(req: Request) {
   try {
     getValidatedPaypalCredentials();
   } catch (error) {
-    console.error("[billing/paypal/create-order] config:", error);
-    return NextResponse.json({ error: "PayPal is not configured correctly" }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "PayPal is not configured correctly";
+    console.error("[billing/paypal/create-order] config:", message);
+    return NextResponse.json({ error: message }, { status: 503 });
   }
 
   try {
@@ -168,9 +170,6 @@ export async function POST(req: Request) {
         return_url: buildPaypalBillingReturnUrl(req, businessId, { returnPath: returnTo }),
         cancel_url: buildPaypalBillingCancelUrl(req, plan, cycle, returnTo),
       },
-      payer: {
-        email_address: email,
-      },
     };
 
     const orderRes = await fetch(`${getPaypalApiBase()}/v2/checkout/orders`, {
@@ -217,7 +216,9 @@ export async function POST(req: Request) {
       credit_applied_usd_minor: charge.credit_applied_usd_minor,
     });
   } catch (e) {
-    console.error("[billing/paypal/create-order] unhandled:", e);
-    return NextResponse.json({ error: "Server error." }, { status: 500 });
+    const message = e instanceof Error ? e.message : "Server error.";
+    console.error("[billing/paypal/create-order] unhandled:", message);
+    const status = /paypal|credentials|auth failed/i.test(message) ? 502 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
