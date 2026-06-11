@@ -338,6 +338,9 @@ export default function BusinessSignupClient() {
   const [websiteMatchedName, setWebsiteMatchedName] = useState<string | null>(null);
   const autoCompanyFromDomainRef = useRef<{ host: string; label: string } | null>(null);
   const claimQueryPrefillAppliedRef = useRef(false);
+  /** When arriving from “Claim this profile”, keep listing id even if domain lookup is empty. */
+  const claimBusinessIdFromUrlRef = useRef<string | null>(null);
+  const [claimListingId, setClaimListingId] = useState<string | null>(null);
 
   useEffect(() => {
     const em = searchParams.get("email");
@@ -355,7 +358,11 @@ export default function BusinessSignupClient() {
     if (!bid && !bname && !ws) return;
     claimQueryPrefillAppliedRef.current = true;
 
-    if (bid) setSelectedBusinessId(bid);
+    if (bid) {
+      setSelectedBusinessId(bid);
+      claimBusinessIdFromUrlRef.current = bid;
+      setClaimListingId(bid);
+    }
     if (bname) {
       setCompanyName(bname);
       setFieldErrors((prev) => {
@@ -386,7 +393,9 @@ export default function BusinessSignupClient() {
     if (!website.trim() || !domain || domain.length < 3) {
       setWebsiteLookup("idle");
       setWebsiteMatchedName(null);
-      setSelectedBusinessId(null);
+      if (!claimBusinessIdFromUrlRef.current) {
+        setSelectedBusinessId(null);
+      }
       return;
     }
 
@@ -426,7 +435,7 @@ export default function BusinessSignupClient() {
         return;
       }
 
-      setSelectedBusinessId(null);
+      setSelectedBusinessId(claimBusinessIdFromUrlRef.current);
       setWebsiteMatchedName(null);
       setWebsiteLookup("none");
 
@@ -804,7 +813,17 @@ export default function BusinessSignupClient() {
                       websiteMatchedName &&
                       selectedBusinessId ? (
                         <p className="mt-1 text-sm text-emerald-700">
-                          ✅ We found your business: {websiteMatchedName}
+                          ✅ We found your business: {websiteMatchedName}. One verification code
+                          will create your account and claim this profile.
+                        </p>
+                      ) : null}
+                      {claimListingId &&
+                      selectedBusinessId === claimListingId &&
+                      websiteLookup !== "found" &&
+                      normalizeBusinessDomain(website).length >= 3 ? (
+                        <p className="mt-1 text-sm text-emerald-700">
+                          ✅ Claiming this profile. Use a work email on the same domain — one code
+                          verifies your account and ownership.
                         </p>
                       ) : null}
                       {websiteLookup === "none" &&
@@ -949,7 +968,8 @@ export default function BusinessSignupClient() {
                           emailValue ? "text-green-600" : "text-gray-500"
                         }`}
                       >
-                        Use your business email that is same as domain to verify ownership
+                        Use your work email on the same domain as your website. One code verifies
+                        your account and business ownership.
                       </p>
                       {fieldErrors.workEmail || workEmailDomainError ? (
                         <p className="mt-1 text-sm text-red-500">

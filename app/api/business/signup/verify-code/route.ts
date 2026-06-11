@@ -6,6 +6,12 @@ import type { BusinessSignupPendingPayload } from "@/lib/businessSignupPayload";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
+import { notifyBusinessClaimSuccess } from "@/lib/businessClaimEmail";
+import {
+  attachUserToResolvedBusiness,
+  ensureBusinessOwnershipRow,
+  resolveBusinessForSignup,
+} from "@/lib/businessSignupVerifyHelpers";
 import {
   cleanupSignupUserRows,
   formatSignupProfileErrorForClient,
@@ -258,9 +264,63 @@ export async function POST(req: Request) {
       .eq("id", row.id)
       .is("consumed_at", null);
 
+    type SignupOutcome = "claimed" | "already_claimed" | "new_business";
+    let outcome: SignupOutcome = "new_business";
+    let businessName: string | null = null;
+    let businessId: string | null = null;
+
+    const resolved = await resolveBusinessForSignup(
+      supabaseAdmin,
+      payload.selectedBusinessId ?? null,
+      websiteDomain
+    );
+
+    if (resolved) {
+      businessName = resolved.name?.trim() || companyName || null;
+      businessId = resolved.id;
+
+      const attach = await attachUserToResolvedBusiness(
+        supabaseAdmin,
+        userId,
+        resolved,
+        phoneTrim
+      );
+
+      if (attach.ok) {
+        const ownership = await ensureBusinessOwnershipRow(
+          supabaseAdmin,
+          resolved.id,
+          userId
+        );
+        if (ownership.ok) {
+          outcome = "claimed";
+          await supabaseAdmin.from("business_domain_verifications").insert({
+            user_id: userId,
+            business_id: resolved.id,
+            email,
+            code: row.code,
+            expires_at: row.expires_at,
+            consumed_at: new Date().toISOString(),
+          });
+          void notifyBusinessClaimSuccess(supabaseAdmin, userRes.user, resolved.id);
+        } else if (process.env.NODE_ENV === "development") {
+          console.warn(
+            "business signup verify ownership row:",
+            ownership.error.message
+          );
+        }
+      } else if (attach.kind === "already_claimed") {
+        outcome = "already_claimed";
+      } else if (process.env.NODE_ENV === "development") {
+        console.warn("business signup verify attach:", attach.message);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      outcome: "account_created" as const,
+      outcome,
+      businessName,
+      businessId,
     });
   } catch (err) {
     console.error("VERIFY CODE ERROR:", err);

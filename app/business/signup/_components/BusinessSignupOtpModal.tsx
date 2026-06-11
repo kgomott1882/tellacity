@@ -66,7 +66,8 @@ export default function BusinessSignupOtpModal({
         error?: string;
         message?: string;
         success?: boolean;
-        outcome?: string;
+        outcome?: "claimed" | "already_claimed" | "new_business" | "account_created";
+        businessName?: string | null;
       };
 
       if (!res.ok) {
@@ -98,7 +99,7 @@ export default function BusinessSignupOtpModal({
         return;
       }
 
-      if (!data.success || data.outcome !== "account_created") {
+      if (!data.success) {
         setError(
           typeof data.message === "string" && data.message.trim()
             ? data.message
@@ -121,7 +122,18 @@ export default function BusinessSignupOtpModal({
         return;
       }
 
-      setSuccessMessage("Account created. Taking you to your dashboard…");
+      const bizLabel = data.businessName?.trim() || "your business";
+      if (data.outcome === "claimed") {
+        setSuccessMessage(
+          `Account created and ${bizLabel} is linked to your dashboard. Opening now…`
+        );
+      } else if (data.outcome === "already_claimed") {
+        setSuccessMessage(
+          "Account created. This listing is already claimed — opening your dashboard…"
+        );
+      } else {
+        setSuccessMessage("Account created. Taking you to your dashboard…");
+      }
       window.location.href = "/business/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
@@ -166,10 +178,12 @@ export default function BusinessSignupOtpModal({
           ×
         </button>
 
-        <h2 className="text-center text-2xl font-semibold text-[#0E0E0E]">Verify your email</h2>
+        <h2 className="text-center text-2xl font-semibold text-[#0E0E0E]">
+          Verify your business email
+        </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Enter the 6-digit code we sent to{" "}
-          <span className="font-medium text-[#0E0E0E]">{email}</span>
+          One code creates your account and confirms you control this company domain. We sent it
+          to <span className="font-medium text-[#0E0E0E]">{email}</span>
         </p>
         <p className="mt-3 text-center text-xs text-gray-500">
           {"Didn't receive the email? Check your spam or junk folder."}
