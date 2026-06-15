@@ -5,6 +5,8 @@ export const COUNTRY_COOKIE_NAME = "tellacity_country";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const ALLOWED_COUNTRIES = ["US", "ZA", "GB", "AU", "CA", "NZ", "IE"] as const;
 
+import { hasFunctionalConsent } from "@/lib/cookieConsent";
+
 function writeCountryCookieClient(normalized: string) {
   if (typeof document === "undefined") return;
   document.cookie = `${COUNTRY_COOKIE_NAME}=${encodeURIComponent(normalized)}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
@@ -37,6 +39,7 @@ export function clearStoredCountry() {
 export function setStoredCountry(code: string) {
   if (typeof window === "undefined") return;
   const normalized = normalizeCountryCode(code);
+  if (!hasFunctionalConsent()) return;
   localStorage.setItem(COUNTRY_COOKIE_NAME, normalized);
   writeCountryCookieClient(normalized);
   window.dispatchEvent(

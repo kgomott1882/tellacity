@@ -4,9 +4,12 @@ import { Inter } from "next/font/google";
 import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 import ConditionalFooter from "@/components/layout/ConditionalFooter";
 import AbortErrorHandler from "@/components/AbortErrorHandler";
+import ConsentModeBootstrap from "@/components/common/ConsentModeBootstrap";
 import CookieBar from "@/components/CookieBar";
 import AnalyticsGate from "@/components/common/AnalyticsGate";
 import MarketingGate from "@/components/common/MarketingGate";
+import MarketingScripts from "@/components/marketing/MarketingScripts";
+import VisitTracker from "@/components/common/VisitTracker";
 import CountrySync from "@/components/common/CountrySync";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className={inter.className}>
+        <ConsentModeBootstrap />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
         <CountrySync />
@@ -61,8 +65,11 @@ export default function RootLayout({
           <ConditionalFooter />
         </Suspense>
         <CookieBar />
+        <VisitTracker />
         <AnalyticsGate />
-        <MarketingGate />
+        <MarketingGate>
+          <MarketingScripts />
+        </MarketingGate>
       </body>
     </html>
   );

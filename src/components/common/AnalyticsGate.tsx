@@ -7,6 +7,7 @@ import {
   COOKIE_CONSENT_UPDATED_EVENT,
   getCookieConsent,
   getGoogleAnalyticsMeasurementId,
+  applyGoogleConsentMode,
 } from "@/lib/cookieConsent";
 
 export default function AnalyticsGate() {
@@ -18,6 +19,7 @@ export default function AnalyticsGate() {
   useEffect(() => {
     const refresh = () => {
       const consent = getCookieConsent();
+      applyGoogleConsentMode(consent);
       setAllowAnalytics(consent?.analytics === true);
     };
 

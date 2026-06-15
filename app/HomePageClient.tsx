@@ -35,6 +35,7 @@ import { CarouselNavChevron } from "@/components/ui/CarouselNavChevron";
 import FaqAccordionList from "@/components/faq/FaqAccordionList";
 import { buildFaqJsonLd } from "@/lib/faqItems";
 import HomeLatestArticles from "@/components/home/HomeLatestArticles";
+import RecentlyViewedBusinesses from "@/components/home/RecentlyViewedBusinesses";
 import type { HubArticleCard } from "@/lib/articles/hubArticles";
 
 type HomeReview = {
@@ -1044,6 +1045,8 @@ export default function HomePageClient({
           </div>
         </div>
       </section>
+
+      <RecentlyViewedBusinesses />
 
       <RotatingBestCategorySection
         categorySlug={activeBestInSlug}
