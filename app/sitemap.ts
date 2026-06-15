@@ -3,6 +3,7 @@ export const dynamic = "force-static";
 import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { getAllTellacityArticles } from "@/lib/articles/tellacityArticles";
+import { buildTagHubSitemapEntries } from "@/lib/tagSitemapEntries";
 const PAGE_SIZE = 1000;
 const SUPPORTED_BEST_COUNTRIES = new Set([
   "US",
@@ -78,13 +79,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // /tags/[slug] pages are intentionally NOT submitted in the sitemap.
-  // Those routes return `<meta name="robots" content="noindex" />`
-  // (see app/tags/[tag_slug]/page.tsx). Submitting noindex URLs in the
-  // sitemap is contradictory. Google reports them as
-  // "Excluded by 'noindex' tag" in Search Console. Tag pages stay
-  // reachable via internal links from category and business pages;
-  // they just aren't asked to be crawled here.
+  // /tags/[slug] thin hubs stay noindex until they have enough listings; see
+  // app/tags/[tag_slug]/page.tsx (TAG_INDEX_THRESHOLD). We only submit
+  // tag hubs with >= 3 businesses in US/GB/CA/AU via buildTagHubSitemapEntries.
   const bestPagePairs = new Set<string>();
   let offset = 0;
 
@@ -128,6 +125,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
     .sort((a, b) => a.url.localeCompare(b.url));
 
+  const tagHubPages = await buildTagHubSitemapEntries(supabase);
+
   return [
     {
       url: "https://tellacity.com",
@@ -145,6 +144,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: "https://tellacity.com/companies",
     },
     ...bestPages,
+    ...tagHubPages,
     ...articleSitemapEntries,
     ...sitemaps,
   ];

@@ -10,8 +10,15 @@ import { normalizeLogoUrl, similarBusinessLogoUrl } from "@/lib/logo";
 import SimilarBusinessLogo from "@/components/business/SimilarBusinessLogo";
 import {
   formatBusinessTagLabel,
+  businessTagPillClassName,
   mergeTagsForDisplay,
 } from "@/lib/businessTags";
+import {
+  buildBusinessProfileIntro,
+  buildCategoryBrowseHref,
+  buildTagBrowseHref,
+  profileDisplayTags,
+} from "@/lib/businessProfileSeo";
 import { formatBusinessAddress, getCountryName } from "@/lib/address";
 import { normalizeCountryCode } from "@/lib/country";
 import { getActiveCountry } from "@/lib/getActiveCountry";
@@ -1192,6 +1199,31 @@ export default function BusinessClient({
     categoryTrail?.categoryName,
   ]);
 
+  const profileTagSlugs = useMemo(
+    () =>
+      profileDisplayTags(business?.tags ?? [], business?.categorySlug ?? null),
+    [business?.tags, business?.categorySlug],
+  );
+
+  const profileIntro = useMemo(() => {
+    if (!business?.name?.trim()) return "";
+    return buildBusinessProfileIntro({
+      name: business.name,
+      city: business.city,
+      countryCode: business.countryCode,
+      categoryLabel: categoryPublicLabel || null,
+      tagSlugs: profileTagSlugs,
+      reviewCount: derivedReviewCount,
+    });
+  }, [
+    business?.name,
+    business?.city,
+    business?.countryCode,
+    categoryPublicLabel,
+    profileTagSlugs,
+    derivedReviewCount,
+  ]);
+
   const categoryArticlesHref = useMemo(() => {
     const slug = business?.categorySlug?.trim();
     if (!slug) return null;
@@ -1300,6 +1332,7 @@ export default function BusinessClient({
                 businessSlug: business.slug ?? null,
                 website: business.website ?? null,
               })}
+              rel="nofollow"
               className="biz-btn-claim inline-flex shrink-0 items-center self-start rounded-full px-3 py-1.5 text-xs font-semibold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40"
             >
               Claim this profile
@@ -1365,12 +1398,41 @@ export default function BusinessClient({
                         ? formatBusinessTagLabel(business.categorySlug)
                         : "");
                     if (!primaryLabel) return null;
+                    const categorySlug = business?.categorySlug?.trim();
                     return (
                       <p className="mt-2 text-sm text-gray-600">
-                        {primaryLabel}
+                        {categorySlug ? (
+                          <Link
+                            href={buildCategoryBrowseHref(
+                              categorySlug,
+                              business?.countryCode,
+                            )}
+                            className="text-[#0E4A42] underline-offset-2 hover:underline"
+                          >
+                            {primaryLabel}
+                          </Link>
+                        ) : (
+                          primaryLabel
+                        )}
                       </p>
                     );
                   })()}
+                  {profileTagSlugs.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-medium text-gray-500">
+                        Topics:
+                      </span>
+                      {profileTagSlugs.map((tagSlug, index) => (
+                        <Link
+                          key={tagSlug}
+                          href={buildTagBrowseHref(tagSlug, business?.countryCode)}
+                          className={businessTagPillClassName(index)}
+                        >
+                          {formatBusinessTagLabel(tagSlug)}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
                 </>
               )}
               <div className="mt-4 flex flex-wrap gap-3">
@@ -1410,11 +1472,15 @@ export default function BusinessClient({
               </div>
             </div>
           </div>
-          {business && (
+          {business && profileIntro ? (
+            <p className="biz-hero-tagline mt-2 max-w-2xl text-sm text-gray-600">
+              {profileIntro}
+            </p>
+          ) : business ? (
             <p className="biz-hero-tagline mt-2 max-w-2xl text-sm">
               Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews or share your experience.
             </p>
-          )}
+          ) : null}
         </div>
         </div>
 

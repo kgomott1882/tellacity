@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/write-review/",
         "/write-review?",
+        "/business/signup",
         "/business/dashboard/",
         "/admin/",
         "/dashboard/",
