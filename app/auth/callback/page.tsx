@@ -1,180 +1,54 @@
-"use client";
-
-import { useEffect, useMemo, useState, Suspense } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseBrowser";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sanitizeAuthNext } from "@/lib/sanitizeAuthNext";
-import { handleRedirect } from "@/lib/postLoginRedirect";
-import { WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY } from "@/lib/writeReviewGoogleSession";
-import {
-  GOOGLE_REVIEW_ITEM_CONTEXT_KEY,
-  WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY,
-} from "@/lib/writeReviewItemGoogleSession";
+import CallbackClient from "./CallbackClient";
 
-/**
- * OAuth callback: Supabase redirects here with hash (#access_token=...).
- * This page lets the client establish the session, then redirects to `next` or dashboard.
- * Exception: password recovery (type=recovery in hash) is sent to /auth/reset-password so the user can set a new password instead of being auto-signed in.
- */
-function CallbackInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const safeNext = useMemo(
-    () => sanitizeAuthNext(searchParams.get("next"), "/dashboard"),
-    [searchParams]
-  );
-  const nextRaw = useMemo(
-    () => searchParams.get("next"),
-    [searchParams]
-  );
-  const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const run = async () => {
-      // Password recovery: send to the correct reset page (business vs consumer) with hash intact
-      if (typeof window !== "undefined" && window.location.hash) {
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        if (hashParams.get("type") === "recovery") {
-          const nextParam = searchParams.get("next");
-          const sanitized = nextParam
-            ? sanitizeAuthNext(nextParam, "/auth/reset-password")
-            : "/auth/reset-password";
-          const recoveryPath =
-            sanitized === "/business/reset-password" ||
-            sanitized.startsWith("/business/reset-password")
-              ? "/business/reset-password"
-              : "/auth/reset-password";
-          router.replace(recoveryPath + window.location.hash);
-          return;
-        }
-      }
-      // Give Supabase a moment to read the URL hash and set the session
-      await new Promise((r) => setTimeout(r, 100));
-      if (!isMounted) return;
-
-      try {
-        if (typeof window !== "undefined") {
-          const url = new URL(window.location.href);
-          const code = url.searchParams.get("code");
-          if (code) {
-            const { error: exchangeError } =
-              await supabaseBrowser().auth.exchangeCodeForSession(code);
-            if (exchangeError) {
-              console.error("[auth/callback] exchangeCodeForSession:", exchangeError.message);
-              if (isMounted) setStatus("error");
-              return;
-            }
-            url.searchParams.delete("code");
-            const cleaned = `${url.pathname}${url.search}${url.hash}`;
-            window.history.replaceState({}, "", cleaned);
-          }
-        }
-
-        const { data } = await supabaseBrowser().auth.getSession();
-        const user = data?.session?.user;
-
-        if (!isMounted) return;
-        if (user?.id) {
-          if (
-            typeof window !== "undefined" &&
-            user.email &&
-            user.email.trim()
-          ) {
-            window.localStorage.setItem("user_email", user.email.trim());
-            window.localStorage.setItem("google_review_email", user.email.trim());
-          }
-          if (
-            typeof window !== "undefined" &&
-            window.sessionStorage.getItem(WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY) === "1"
-          ) {
-            window.sessionStorage.removeItem(WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY);
-            let businessSlug = "";
-            let photoId = "";
-            try {
-              const rawCtx = window.localStorage.getItem(GOOGLE_REVIEW_ITEM_CONTEXT_KEY);
-              if (rawCtx) {
-                const parsed = JSON.parse(rawCtx) as {
-                  business_slug?: string;
-                  photo_id?: string;
-                  product_photo_id?: string;
-                };
-                businessSlug =
-                  typeof parsed.business_slug === "string" ? parsed.business_slug.trim() : "";
-                photoId =
-                  typeof parsed.photo_id === "string" && parsed.photo_id.trim()
-                    ? parsed.photo_id.trim()
-                    : typeof parsed.product_photo_id === "string"
-                      ? parsed.product_photo_id.trim()
-                      : "";
-              }
-            } catch {
-              // ignore malformed local context; fallback route still supports retry
-            }
-            const q = new URLSearchParams();
-            q.set("google_continue", "1");
-            if (businessSlug) q.set("businessSlug", businessSlug);
-            if (photoId) q.set("photoId", photoId);
-            window.location.href = `${window.location.origin}/write-review/item?${q.toString()}`;
-            return;
-          }
-          if (
-            typeof window !== "undefined" &&
-            window.sessionStorage.getItem(WRITE_REVIEW_GOOGLE_MODE_SESSION_KEY) === "1"
-          ) {
-            window.location.href = `${window.location.origin}/write-review?google_continue=1`;
-            return;
-          }
-          if (nextRaw && nextRaw.trim()) {
-            const sanitized = sanitizeAuthNext(nextRaw, "/dashboard");
-            window.location.href = `${window.location.origin}${sanitized}`;
-            return;
-          }
-          await handleRedirect(user.id);
-          return;
-        } else {
-          // No session (e.g. user closed OAuth) – send to login with return url
-          const loginPath = safeNext.startsWith("/business")
-            ? "/business/login"
-            : "/auth/login";
-          router.replace(`${loginPath}?next=${encodeURIComponent(safeNext)}`);
-        }
-        setStatus("done");
-      } catch {
-        if (isMounted) setStatus("error");
-      }
-    };
-
-    run();
-    return () => {
-      isMounted = false;
-    };
-  }, [router, safeNext, nextRaw, searchParams]);
-
-  if (status === "error") {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
-        <p className="text-sm text-red-600">Something went wrong signing you in.</p>
-        <Link
-          href={`/auth/login?next=${encodeURIComponent(safeNext)}`}
-          className="mt-4 text-sm font-medium text-[#1FAF9E] hover:underline"
-        >
-          Back to sign in
-        </Link>
-      </main>
-    );
+function buildCallbackRedirectQuery(
+  params: Record<string, string | string[] | undefined>,
+): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "code" || value == null) continue;
+    if (Array.isArray(value)) {
+      for (const v of value) qs.append(key, v);
+    } else {
+      qs.set(key, value);
+    }
   }
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#F8F4F0] px-4">
-      <p className="text-sm text-neutral-600">Signing you in…</p>
-    </main>
-  );
+  const s = qs.toString();
+  return s ? `?${s}` : "";
 }
 
-export default function AuthCallbackPage() {
+/**
+ * OAuth callback: Supabase redirects here with ?code= (PKCE) or hash (#access_token=...).
+ * PKCE exchange runs on the server so the code verifier is read from auth cookies set
+ * when signInWithOAuth started in the browser.
+ */
+export default async function AuthCallbackPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const code = typeof params.code === "string" ? params.code : null;
+
+  if (code) {
+    const supabase = await createSupabaseServerCookies();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error("[auth/callback] server exchangeCodeForSession:", error.message);
+      const next =
+        typeof params.next === "string"
+          ? sanitizeAuthNext(params.next, "/dashboard")
+          : "/dashboard";
+      redirect(
+        `/auth/login?next=${encodeURIComponent(next)}&error=${encodeURIComponent(error.message)}`,
+      );
+    }
+    redirect(`/auth/callback${buildCallbackRedirectQuery(params)}`);
+  }
+
   return (
     <Suspense
       fallback={
@@ -183,7 +57,7 @@ export default function AuthCallbackPage() {
         </main>
       }
     >
-      <CallbackInner />
+      <CallbackClient />
     </Suspense>
   );
 }
