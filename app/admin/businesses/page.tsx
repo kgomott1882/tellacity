@@ -1,5 +1,6 @@
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminBusinessesTable from "@/components/admin/AdminBusinessesTable";
+import AdminManualBusinessLauncher from "@/components/admin/AdminManualBusinessLauncher";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export default async function AdminBusinessesPage(props: PageProps) {
   return (
     <div className="space-y-4">
       {err ? <AdminActionMessage type="error" text={err} /> : null}
+      <div className="flex justify-end">
+        <AdminManualBusinessLauncher />
+      </div>
       <AdminBusinessesTable />
     </div>
   );

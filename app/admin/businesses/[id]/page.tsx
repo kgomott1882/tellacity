@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import AdminActionMessage from "@/components/admin/AdminActionMessage";
+import AdminClaimBusinessPanel from "@/components/admin/AdminClaimBusinessPanel";
 import AdminDangerButton from "@/components/admin/AdminDangerButton";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
@@ -77,6 +77,7 @@ function formatSource(raw: string | null | undefined): string {
   const t = String(raw ?? "").trim().toLowerCase();
   if (t === "user_suggested") return "User suggested";
   if (t === "seeded") return "Seeded";
+  if (t === "admin_manual") return "Admin manual";
   if (!t) return "-";
   return String(raw).trim();
 }
@@ -157,6 +158,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
   const { supabase } = await requireAdminSession();
 
   let rpcError: string | null = null;
+  let businessOwnerLinkId: string | null = null;
   let business: AdminBusinessDetailRow | null = null;
   const businessId = params.id;
 
@@ -220,7 +222,8 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
       });
-      const [{ data: photoRows }, { data: articleRows }] = await Promise.all([
+      const [{ data: photoRows }, { data: articleRows }, { data: ownerLink }] =
+        await Promise.all([
         admin
           .from("business_photos")
           .select(
@@ -236,7 +239,14 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
           )
           .eq("business_id", business.id)
           .order("updated_at", { ascending: false }),
+        admin
+          .from("business_owners")
+          .select("owner_user_id")
+          .eq("business_id", business.id)
+          .maybeSingle(),
       ]);
+      businessOwnerLinkId =
+        ownerLink?.owner_user_id != null ? String(ownerLink.owner_user_id) : null;
       initialPhotos = (photoRows ?? []) as AdminPhotoRow[];
       pendingPhotoCount = initialPhotos.filter(
         (p) =>
@@ -250,6 +260,8 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
       console.error("[admin business detail] preload photos/articles", e);
     }
   }
+
+  const isClaimed = Boolean(business?.owner_id || businessOwnerLinkId);
 
   return (
     <div className="space-y-4">
@@ -409,7 +421,7 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
               <div>
                 <div className="text-sm text-gray-500">Owner</div>
 
-                {business?.owner_id ? (
+                {isClaimed ? (
                   <>
                     <div className="font-medium">{ownerName || "-"}</div>
                     <div className="text-sm text-gray-500">
@@ -417,7 +429,15 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
                     </div>
                   </>
                 ) : (
-                  <div className="text-sm text-gray-500">Unclaimed</div>
+                  <>
+                    <div className="text-sm text-gray-500">Unclaimed</div>
+                    {business?.id ? (
+                      <AdminClaimBusinessPanel
+                        businessId={business.id}
+                        businessName={business.name?.trim() || "Business"}
+                      />
+                    ) : null}
+                  </>
                 )}
               </div>
             </section>

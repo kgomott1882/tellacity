@@ -68,6 +68,7 @@ function sourceLabel(source: unknown): string {
   if (normalized === "seeded") return "Seeded";
   if (normalized === "user_suggested") return "Suggested";
   if (normalized === "owner_signup") return "Owner Signup";
+  if (normalized === "admin_manual") return "Admin manual";
   return "-";
 }
 
