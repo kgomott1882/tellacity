@@ -238,6 +238,7 @@ export async function resolveOrCreateOwnerUser(
       first_name: owner.firstName.trim(),
       last_name: owner.lastName.trim(),
       full_name: [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim(),
+      admin_manual_claim: true,
     },
   });
 

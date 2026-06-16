@@ -5,11 +5,16 @@ import Link from "next/link";
 import PasswordInput from "@/components/ui/PasswordInput";
 
 type Variant = "consumer" | "business";
+type Flow = "reset" | "setup";
 
 type Props = {
   variant: Variant;
   loginHref: string;
   headerExtra?: ReactNode;
+  /** Prefill email (e.g. admin manual claim link). */
+  initialEmail?: string;
+  /** `setup` = first-time password for a new claimed business account. */
+  flow?: Flow;
 };
 
 const consumerBtn =
@@ -27,12 +32,28 @@ const linkClass = (v: Variant) =>
     ? "font-semibold text-black hover:underline"
     : "font-semibold text-[#1FAF9E] hover:underline";
 
-export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtra }: Props) {
+function normalizeInitialEmail(value: string | undefined): string {
+  const t = (value ?? "").trim().toLowerCase();
+  if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return "";
+  return t;
+}
+
+export default function ForgotPasswordMultiStep({
+  variant,
+  loginHref,
+  headerExtra,
+  initialEmail,
+  flow = "reset",
+}: Props) {
   const btn = variant === "consumer" ? consumerBtn : businessBtn;
   const input = variant === "consumer" ? consumerInput : businessInput;
+  const prefilledEmail = normalizeInitialEmail(initialEmail);
+  const isSetup = flow === "setup";
 
-  const [step, setStep] = useState<"email" | "password" | "otp" | "done">("email");
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<"email" | "password" | "otp" | "done">(() =>
+    isSetup && prefilledEmail ? "password" : "email",
+  );
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -212,7 +233,9 @@ export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtr
         {headerExtra}
         {step === "email" ? (
         <>
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Reset your password</h1>
+          <h1 className="text-2xl font-semibold text-[#0E0E0E]">
+            {isSetup ? "Create your password" : "Reset your password"}
+          </h1>
           <p className="mt-2 text-sm text-gray-600">Enter your email to continue.</p>
           <form className="mt-6 space-y-4" onSubmit={goPassword}>
             <div>
@@ -238,7 +261,9 @@ export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtr
 
       {step === "password" ? (
         <>
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Choose a new password</h1>
+          <h1 className="text-2xl font-semibold text-[#0E0E0E]">
+            {isSetup ? "Create your password" : "Choose a new password"}
+          </h1>
           <p className="mt-2 text-sm text-gray-600">
             Next we&apos;ll email a 6-digit code to <strong>{email}</strong> to confirm it&apos;s you.
           </p>
@@ -283,9 +308,13 @@ export default function ForgotPasswordMultiStep({ variant, loginHref, headerExtr
 
         {step === "done" ? (
         <>
-          <h1 className="text-2xl font-semibold text-[#0E0E0E]">Password updated</h1>
+          <h1 className="text-2xl font-semibold text-[#0E0E0E]">
+            {isSetup ? "Password created" : "Password updated"}
+          </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Your new password is active. Sign in with your email and new password.
+            {isSetup
+              ? "Your password is set. Sign in with your email and password to open your business dashboard."
+              : "Your new password is active. Sign in with your email and new password."}
           </p>
           <Link
             href={loginHref}

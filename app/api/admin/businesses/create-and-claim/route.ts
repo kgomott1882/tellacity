@@ -9,6 +9,7 @@ import {
   parseAdminManualOwnerFields,
   parseAdminManualOwnerRequired,
 } from "@/lib/admin/adminBusinessManualOps";
+import { sendAdminManualClaimPasswordSetupEmail } from "@/lib/admin/sendAdminManualClaimPasswordSetupEmail";
 
 export async function POST(req: Request) {
   const auth = await requireAdminApi();
@@ -43,11 +44,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
+  const emailResult = await sendAdminManualClaimPasswordSetupEmail({
+    to: owner.email,
+    ownerFirstName: owner.firstName,
+    businessName: fields.name,
+    isNewAccount: result.result.ownerCreated,
+  });
+
   return NextResponse.json({
     ok: true,
     businessId: result.result.businessId,
     slug: result.result.slug,
     ownerUserId: result.result.ownerUserId,
     ownerCreated: result.result.ownerCreated,
+    passwordSetupEmailSent: emailResult.ok,
+    ...(emailResult.ok ? {} : { emailError: emailResult.error }),
   });
 }

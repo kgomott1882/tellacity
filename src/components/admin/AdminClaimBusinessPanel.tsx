@@ -42,15 +42,22 @@ export default function AdminClaimBusinessPanel({ businessId, businessName }: Pr
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         ownerCreated?: boolean;
+        passwordSetupEmailSent?: boolean;
+        emailError?: string;
       };
       if (!res.ok) {
         setError(data.error ?? "Could not claim business.");
         return;
       }
+      const emailNote = data.passwordSetupEmailSent
+        ? " A password-setup email was sent to the owner."
+        : data.emailError
+          ? ` Claim succeeded but the password-setup email could not be sent (${data.emailError}).`
+          : "";
       setSuccess(
-        data.ownerCreated
+        (data.ownerCreated
           ? "Business claimed. A new owner account was created for this email."
-          : "Business claimed for the existing owner account.",
+          : "Business claimed for the existing owner account.") + emailNote,
       );
       router.refresh();
     } catch {

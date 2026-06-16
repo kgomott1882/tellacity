@@ -78,6 +78,8 @@ export default function AdminManualBusinessModal({ open, onClose }: Props) {
         error?: string;
         businessId?: string;
         ownerCreated?: boolean;
+        passwordSetupEmailSent?: boolean;
+        emailError?: string;
       };
       if (!res.ok) {
         setError(data.error ?? "Could not create business.");
