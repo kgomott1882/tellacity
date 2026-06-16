@@ -4,8 +4,11 @@
 -- Preferred: use Admin → Businesses → "Add business" or claim panel on an
 -- unclaimed business detail page. Those call secured APIs (admin session only).
 --
--- Use this SQL only for emergency / one-off fixes in Supabase SQL Editor when
--- you already know the owner's auth.users UUID.
+-- Required migration (already in repo):
+--   supabase/migrations/20260616180000_admin_manual_business_create_claim_service.sql
+-- Creates service-role RPCs that avoid "permission denied for table users".
+--
+-- Use the manual SQL below only for emergency / one-off fixes in Supabase SQL Editor.
 -- =============================================================================
 
 -- 1) Claim an EXISTING unclaimed business for a known user

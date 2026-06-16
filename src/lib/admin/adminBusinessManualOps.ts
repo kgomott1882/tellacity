@@ -1,15 +1,90 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAuthUserIdByEmail } from "@/lib/authAdminUsers";
 import { allocateUniqueBusinessSlug } from "@/lib/businessSlug";
-import { ensureBusinessOwnershipRow } from "@/lib/businessSignupVerifyHelpers";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
-import {
-  ensureProfilesShellRow,
-  syncSignupIdentityAfterAuthUserCreated,
-  type SignupProfileSyncPayload,
-} from "@/lib/signupIdentitySync";
+import { releaseTableEmailForNewUser } from "@/lib/signupIdentitySync";
 import { validateSuggestCategory } from "@/lib/businessSuggestShared";
+
+type AdminServiceRpc = {
+  ok?: boolean;
+  error?: string;
+  business_id?: string;
+  slug?: string;
+};
+
+async function rpcAdminUpsertOwnerProfile(
+  admin: SupabaseClient,
+  userId: string,
+  email: string,
+  displayName: string | null,
+  businessName: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await admin.rpc("admin_upsert_owner_profile_service", {
+    p_user_id: userId,
+    p_email: email,
+    p_owner_display_name: displayName,
+    p_business_name: businessName,
+  });
+  if (error) return { ok: false, error: error.message };
+  const row = data as AdminServiceRpc | null;
+  if (!row?.ok) {
+    return { ok: false, error: row?.error ?? "Could not save owner profile." };
+  }
+  return { ok: true };
+}
+
+async function rpcAdminInsertBusiness(
+  admin: SupabaseClient,
+  fields: AdminManualBusinessFields,
+  slug: string,
+): Promise<{ ok: true; businessId: string; slug: string } | { ok: false; error: string }> {
+  const { data, error } = await admin.rpc("admin_insert_business_manual_service", {
+    p_name: fields.name,
+    p_slug: slug,
+    p_website: fields.website,
+    p_country_code: fields.countryCode,
+    p_category_slug: fields.categorySlug,
+    p_primary_group_slug: fields.primaryGroupSlug,
+    p_address: fields.address,
+    p_city: fields.city,
+    p_phone: fields.phone,
+    p_email: fields.publicEmail,
+  });
+  if (error) return { ok: false, error: error.message };
+  const row = data as AdminServiceRpc | null;
+  if (!row?.ok || !row.business_id) {
+    const msg =
+      row?.error === "duplicate_business"
+        ? "A business with this website or slug already exists."
+        : row?.error ?? "Could not create business.";
+    return { ok: false, error: msg };
+  }
+  return { ok: true, businessId: String(row.business_id), slug: String(row.slug ?? slug) };
+}
+
+async function rpcAdminClaimBusiness(
+  admin: SupabaseClient,
+  businessId: string,
+  ownerUserId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await admin.rpc("admin_claim_business_service", {
+    p_business_id: businessId,
+    p_owner_user_id: ownerUserId,
+  });
+  if (error) return { ok: false, error: error.message };
+  const row = data as AdminServiceRpc | null;
+  if (!row?.ok) {
+    const msg =
+      row?.error === "already_claimed"
+        ? "This business is already claimed by another user."
+        : row?.error === "business_not_found"
+          ? "Business not found."
+          : row?.error ?? "Could not claim business.";
+    return { ok: false, error: msg };
+  }
+  return { ok: true };
+}
 
 export type AdminManualBusinessFields = {
   name: string;
@@ -117,31 +192,12 @@ export function parseAdminManualOwnerRequired(
   return { ok: true };
 }
 
-async function upsertOwnerBusinessProfile(
-  admin: SupabaseClient,
-  userId: string,
-  email: string,
-  businessName: string,
-): Promise<void> {
-  const { error } = await admin.from("business_profiles").upsert(
-    {
-      id: userId,
-      email,
-      business_name: businessName,
-    },
-    { onConflict: "id" },
-  );
-  if (error) {
-    console.warn("[admin manual business] business_profiles upsert:", error.message);
-  }
-}
-
 async function enrichOwnerIdentity(
   admin: SupabaseClient,
   userId: string,
   owner: AdminManualOwnerFields,
   businessName: string,
-): Promise<void> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const displayName = [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim();
   const emailNorm = owner.email.trim().toLowerCase();
 
@@ -159,21 +215,7 @@ async function enrichOwnerIdentity(
     },
   });
 
-  const profilePatch: Record<string, unknown> = {
-    id: userId,
-    email: emailNorm,
-  };
-  if (displayName) {
-    profilePatch.display_name = displayName;
-  }
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .upsert(profilePatch, { onConflict: "id" });
-  if (profileErr) {
-    console.warn("[admin manual business] profiles upsert:", profileErr.message);
-  }
-
-  await upsertOwnerBusinessProfile(admin, userId, emailNorm, businessName);
+  return rpcAdminUpsertOwnerProfile(admin, userId, emailNorm, displayName || null, businessName);
 }
 
 export async function resolveOrCreateOwnerUser(
@@ -185,10 +227,6 @@ export async function resolveOrCreateOwnerUser(
 
   let userId = await getAuthUserIdByEmail(supabaseUrl, serviceRoleKey, emailNorm);
   if (userId) {
-    const shell = await ensureProfilesShellRow(admin, userId, emailNorm);
-    if (!shell.ok) {
-      return { ok: false, error: shell.error.message };
-    }
     return { ok: true, userId, created: false };
   }
 
@@ -208,16 +246,10 @@ export async function resolveOrCreateOwnerUser(
   }
 
   userId = created.user.id;
-  const syncPayload: SignupProfileSyncPayload = {
-    userId,
-    emailNorm,
-    firstName: owner.firstName.trim(),
-    lastName: owner.lastName.trim(),
-  };
-  const sync = await syncSignupIdentityAfterAuthUserCreated(admin, syncPayload);
-  if (!sync.ok) {
+  const released = await releaseTableEmailForNewUser(admin, emailNorm, userId);
+  if (!released.ok) {
     await admin.auth.admin.deleteUser(userId);
-    return { ok: false, error: sync.error?.message ?? "Could not create owner profile." };
+    return { ok: false, error: released.message };
   }
 
   return { ok: true, userId, created: true };
@@ -256,45 +288,30 @@ export async function adminClaimBusinessForUser(
     return { ok: false, error: "This business is already linked to another owner." };
   }
 
-  const shell = await ensureProfilesShellRow(
-    admin,
-    ownerUserId,
-    options?.owner?.email.trim().toLowerCase() ?? `user_${ownerUserId.replace(/-/g, "")}@tellacity.auth`,
-  );
-  if (!shell.ok) {
-    return { ok: false, error: shell.error.message };
-  }
-
-  const { data: updated, error: updateErr } = await admin
-    .from("businesses")
-    .update({
-      owner_id: ownerUserId,
-      is_claimed: true,
-      status: "active",
-      submission_status: "approved",
-    })
-    .eq("id", businessId)
-    .select("id")
-    .maybeSingle();
-
-  if (updateErr) return { ok: false, error: updateErr.message };
-  if (!updated) return { ok: false, error: "Could not claim business." };
-
-  const ownership = await ensureBusinessOwnershipRow(admin, businessId, ownerUserId);
-  if (!ownership.ok) {
-    return { ok: false, error: ownership.error.message };
-  }
-
   if (options?.owner) {
-    await enrichOwnerIdentity(
+    const profile = await enrichOwnerIdentity(
       admin,
       ownerUserId,
       options.owner,
       options.businessName ?? String(biz.name ?? "").trim(),
     );
+    if (!profile.ok) {
+      return profile;
+    }
+  } else {
+    const profile = await rpcAdminUpsertOwnerProfile(
+      admin,
+      ownerUserId,
+      `user_${ownerUserId.replace(/-/g, "")}@tellacity.auth`,
+      null,
+      options?.businessName ?? String(biz.name ?? "").trim(),
+    );
+    if (!profile.ok) {
+      return profile;
+    }
   }
 
-  return { ok: true };
+  return rpcAdminClaimBusiness(admin, businessId, ownerUserId);
 }
 
 export async function adminCreateBusiness(
@@ -331,47 +348,23 @@ export async function adminCreateBusiness(
   const slug = await allocateUniqueBusinessSlug(admin, fields.name);
   const claimUserId = options?.claimForUserId?.trim() || null;
 
-  const { data: inserted, error: insertErr } = await admin
-    .from("businesses")
-    .insert({
-      name: fields.name,
-      slug,
-      website: fields.website,
-      country_code: fields.countryCode,
-      category_slug: fields.categorySlug,
-      primary_group_slug: fields.primaryGroupSlug,
-      address: fields.address,
-      city: fields.city,
-      phone: fields.phone,
-      email: fields.publicEmail,
-      source: "admin_manual",
-      submission_status: "approved",
-      status: "active",
-      owner_id: null,
-      is_claimed: false,
-    })
-    .select("id, slug")
-    .single();
-
-  if (insertErr) {
-    if (insertErr.code === "23505") {
-      return { ok: false, error: "A business with this website or slug already exists." };
-    }
-    return { ok: false, error: insertErr.message };
+  const inserted = await rpcAdminInsertBusiness(admin, fields, slug);
+  if (!inserted.ok) {
+    return inserted;
   }
 
   if (claimUserId) {
-    const claim = await adminClaimBusinessForUser(admin, inserted.id, claimUserId, {
+    const claim = await adminClaimBusinessForUser(admin, inserted.businessId, claimUserId, {
       businessName: fields.name,
       owner: options?.owner,
     });
     if (!claim.ok) {
-      await admin.from("businesses").delete().eq("id", inserted.id);
+      await admin.from("businesses").delete().eq("id", inserted.businessId);
       return { ok: false, error: claim.error };
     }
   }
 
-  return { ok: true, businessId: inserted.id, slug: inserted.slug };
+  return { ok: true, businessId: inserted.businessId, slug: inserted.slug };
 }
 
 export async function adminCreateAndClaimBusiness(
@@ -387,7 +380,10 @@ export async function adminCreateAndClaimBusiness(
     return { ok: false, error: ownerResolved.error };
   }
 
-  await enrichOwnerIdentity(admin, ownerResolved.userId, owner, fields.name);
+  const identity = await enrichOwnerIdentity(admin, ownerResolved.userId, owner, fields.name);
+  if (!identity.ok) {
+    return { ok: false, error: identity.error };
+  }
 
   const created = await adminCreateBusiness(admin, fields, {
     claimForUserId: ownerResolved.userId,
