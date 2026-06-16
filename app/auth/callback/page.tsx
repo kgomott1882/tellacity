@@ -56,6 +56,23 @@ function CallbackInner() {
       if (!isMounted) return;
 
       try {
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          const code = url.searchParams.get("code");
+          if (code) {
+            const { error: exchangeError } =
+              await supabaseBrowser().auth.exchangeCodeForSession(code);
+            if (exchangeError) {
+              console.error("[auth/callback] exchangeCodeForSession:", exchangeError.message);
+              if (isMounted) setStatus("error");
+              return;
+            }
+            url.searchParams.delete("code");
+            const cleaned = `${url.pathname}${url.search}${url.hash}`;
+            window.history.replaceState({}, "", cleaned);
+          }
+        }
+
         const { data } = await supabaseBrowser().auth.getSession();
         const user = data?.session?.user;
 

@@ -9,7 +9,7 @@ import {
   plainTextFromDoc,
   sanitizeArticleContent,
 } from "@/lib/articles/sanitize";
-import { isValidArticleSlug, resolveUniqueSlug, slugifyTitle } from "@/lib/articles/slug";
+import { allocateArticleSlug } from "@/lib/articles/articleSlugServer";
 import { UUID_RE, jsonError, parseContentType } from "./_shared";
 
 type RouteParams = { params: Promise<{ businessId: string }> };
@@ -99,12 +99,13 @@ export async function POST(req: Request, ctx: RouteParams) {
   const contentType = parseContentType(body?.contentType ?? body?.content_type) ?? "article";
   const title = typeof body?.title === "string" ? body.title.trim() : "";
 
-  const { data: slugRows } = await access.db.from("articles").select("slug");
-  const taken = new Set((slugRows ?? []).map((r) => String((r as { slug: string }).slug)));
-  const baseForSlug = title || "untitled-article";
-  const slug = isValidArticleSlug(slugifyTitle(baseForSlug))
-    ? resolveUniqueSlug(baseForSlug, taken)
-    : resolveUniqueSlug("article", taken);
+  let slug: string;
+  try {
+    slug = await allocateArticleSlug({ title });
+  } catch (slugErr) {
+    console.error("[articles POST] slug allocation", slugErr);
+    return jsonError("Could not allocate article slug", 500);
+  }
 
   const content = sanitizeArticleContent(body?.content ?? emptyArticleDoc());
   const excerpt =

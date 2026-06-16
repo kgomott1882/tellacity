@@ -8,6 +8,7 @@ import {
   plainTextFromDoc,
   sanitizeArticleContent,
 } from "@/lib/articles/sanitize";
+import { allocateArticleSlug, loadTakenArticleSlugs } from "@/lib/articles/articleSlugServer";
 import { isValidArticleSlug, resolveUniqueSlug, slugifyTitle } from "@/lib/articles/slug";
 import { applyEditorialFieldsPatch } from "@/lib/articles/editorialFields";
 import { enforceArticleLinkValidation } from "@/lib/articles/linkValidation/serverEnforce";
@@ -135,19 +136,26 @@ export async function PATCH(req: Request, ctx: RouteParams) {
       return jsonError("Invalid slug format");
     }
     if (nextSlug !== existing.slug) {
-      const { data: slugRows } = await access.db
-        .from("articles")
-        .select("slug")
-        .neq("id", articleId);
-      const taken = new Set((slugRows ?? []).map((r) => String((r as { slug: string }).slug)));
-      patch.slug = taken.has(nextSlug)
-        ? resolveUniqueSlug(nextSlug, taken)
-        : nextSlug;
+      try {
+        const taken = await loadTakenArticleSlugs(articleId);
+        patch.slug = taken.has(nextSlug)
+          ? resolveUniqueSlug(nextSlug, taken)
+          : nextSlug;
+      } catch (slugErr) {
+        console.error("[articles PATCH] slug check", slugErr);
+        return jsonError("Could not validate article slug", 500);
+      }
     }
   } else if (typeof patch.title === "string" && patch.title !== existing.title) {
-    const { data: slugRows } = await access.db.from("articles").select("slug").neq("id", articleId);
-    const taken = new Set((slugRows ?? []).map((r) => String((r as { slug: string }).slug)));
-    patch.slug = resolveUniqueSlug(String(patch.title), taken);
+    try {
+      patch.slug = await allocateArticleSlug({
+        title: String(patch.title),
+        excludeArticleId: articleId,
+      });
+    } catch (slugErr) {
+      console.error("[articles PATCH] slug allocation", slugErr);
+      return jsonError("Could not allocate article slug", 500);
+    }
   }
 
   if (Object.keys(patch).length === 0) {
