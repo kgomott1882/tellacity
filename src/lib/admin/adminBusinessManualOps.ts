@@ -5,6 +5,7 @@ import { ensureBusinessOwnershipRow } from "@/lib/businessSignupVerifyHelpers";
 import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { getServerEnv } from "@/lib/serverEnv";
 import {
+  ensureProfilesShellRow,
   syncSignupIdentityAfterAuthUserCreated,
   type SignupProfileSyncPayload,
 } from "@/lib/signupIdentitySync";
@@ -158,13 +159,18 @@ async function enrichOwnerIdentity(
     },
   });
 
-  const profilePatch: Record<string, unknown> = { email: emailNorm };
+  const profilePatch: Record<string, unknown> = {
+    id: userId,
+    email: emailNorm,
+  };
   if (displayName) {
     profilePatch.display_name = displayName;
   }
-  const { error: profileErr } = await admin.from("profiles").update(profilePatch).eq("id", userId);
+  const { error: profileErr } = await admin
+    .from("profiles")
+    .upsert(profilePatch, { onConflict: "id" });
   if (profileErr) {
-    console.warn("[admin manual business] profiles update:", profileErr.message);
+    console.warn("[admin manual business] profiles upsert:", profileErr.message);
   }
 
   await upsertOwnerBusinessProfile(admin, userId, emailNorm, businessName);
@@ -179,6 +185,10 @@ export async function resolveOrCreateOwnerUser(
 
   let userId = await getAuthUserIdByEmail(supabaseUrl, serviceRoleKey, emailNorm);
   if (userId) {
+    const shell = await ensureProfilesShellRow(admin, userId, emailNorm);
+    if (!shell.ok) {
+      return { ok: false, error: shell.error.message };
+    }
     return { ok: true, userId, created: false };
   }
 
@@ -246,6 +256,15 @@ export async function adminClaimBusinessForUser(
     return { ok: false, error: "This business is already linked to another owner." };
   }
 
+  const shell = await ensureProfilesShellRow(
+    admin,
+    ownerUserId,
+    options?.owner?.email.trim().toLowerCase() ?? `user_${ownerUserId.replace(/-/g, "")}@tellacity.auth`,
+  );
+  if (!shell.ok) {
+    return { ok: false, error: shell.error.message };
+  }
+
   const { data: updated, error: updateErr } = await admin
     .from("businesses")
     .update({
@@ -310,7 +329,7 @@ export async function adminCreateBusiness(
   }
 
   const slug = await allocateUniqueBusinessSlug(admin, fields.name);
-  const claimNow = Boolean(options?.claimForUserId);
+  const claimUserId = options?.claimForUserId?.trim() || null;
 
   const { data: inserted, error: insertErr } = await admin
     .from("businesses")
@@ -328,8 +347,8 @@ export async function adminCreateBusiness(
       source: "admin_manual",
       submission_status: "approved",
       status: "active",
-      owner_id: claimNow ? options!.claimForUserId : null,
-      is_claimed: claimNow,
+      owner_id: null,
+      is_claimed: false,
     })
     .select("id, slug")
     .single();
@@ -341,13 +360,11 @@ export async function adminCreateBusiness(
     return { ok: false, error: insertErr.message };
   }
 
-  if (claimNow && options?.claimForUserId) {
-    const claim = await adminClaimBusinessForUser(
-      admin,
-      inserted.id,
-      options.claimForUserId,
-      { businessName: fields.name, owner: options.owner },
-    );
+  if (claimUserId) {
+    const claim = await adminClaimBusinessForUser(admin, inserted.id, claimUserId, {
+      businessName: fields.name,
+      owner: options?.owner,
+    });
     if (!claim.ok) {
       await admin.from("businesses").delete().eq("id", inserted.id);
       return { ok: false, error: claim.error };
@@ -370,6 +387,8 @@ export async function adminCreateAndClaimBusiness(
     return { ok: false, error: ownerResolved.error };
   }
 
+  await enrichOwnerIdentity(admin, ownerResolved.userId, owner, fields.name);
+
   const created = await adminCreateBusiness(admin, fields, {
     claimForUserId: ownerResolved.userId,
     owner,
@@ -377,8 +396,6 @@ export async function adminCreateAndClaimBusiness(
   if (!created.ok) {
     return { ok: false, error: created.error };
   }
-
-  await enrichOwnerIdentity(admin, ownerResolved.userId, owner, fields.name);
 
   return {
     ok: true,
