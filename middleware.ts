@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { COUNTRY_COOKIE_NAME, normalizeCountryCode } from "@/lib/country";
+import { handleAuthCallbackCodeExchange } from "@/lib/supabase/authCallbackMiddleware";
 
 /**
  * If the user has a country preference cookie but the URL has no `country`
  * query param, add it before SSR so listings and copy match the navbar
  * without a second client round-trip.
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const authCallbackResponse = await handleAuthCallbackCodeExchange(request);
+  if (authCallbackResponse) {
+    return authCallbackResponse;
+  }
+
   const countryParam = request.nextUrl.searchParams.get("country");
   if (countryParam && countryParam.trim() !== "") {
     return NextResponse.next();
@@ -25,5 +31,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/categories/:path*", "/tags/:path*"],
+  matcher: ["/auth/callback", "/categories/:path*", "/tags/:path*"],
 };
