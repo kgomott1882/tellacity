@@ -106,12 +106,12 @@ export function parseAdminManualBusinessFields(
 
 export function parseAdminManualOwnerRequired(
   owner: AdminManualOwnerFields,
-): { ok: true } | { error: string } {
+): { ok: true } | { ok: false; error: string } {
   if (!owner.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner.email)) {
-    return { error: "A valid owner email is required." };
+    return { ok: false, error: "A valid owner email is required." };
   }
   if (!owner.firstName.trim()) {
-    return { error: "Owner first name is required." };
+    return { ok: false, error: "Owner first name is required." };
   }
   return { ok: true };
 }
