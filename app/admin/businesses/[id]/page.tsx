@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminClaimBusinessPanel from "@/components/admin/AdminClaimBusinessPanel";
 import AdminDangerButton from "@/components/admin/AdminDangerButton";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
