@@ -4,7 +4,7 @@ export const RECENT_VIEWS_COOKIE = "tellacity_recent_views";
 export const VISITOR_ID_COOKIE = "tellacity_vid";
 export const UTM_COOKIE = "tellacity_utm";
 
-const RECENT_VIEWS_MAX = 8;
+const RECENT_VIEWS_MAX = 4;
 const RECENT_VIEWS_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 const VISITOR_MAX_AGE_SEC = 60 * 60 * 24 * 400;
 const UTM_MAX_AGE_SEC = 60 * 60 * 24 * 30;
@@ -67,7 +67,7 @@ function parseRecentViews(raw: string | null): RecentBusinessView[] {
 
 export function getRecentBusinessViews(): RecentBusinessView[] {
   if (!hasFunctionalConsent()) return [];
-  return parseRecentViews(readCookie(RECENT_VIEWS_COOKIE));
+  return parseRecentViews(readCookie(RECENT_VIEWS_COOKIE)).slice(0, RECENT_VIEWS_MAX);
 }
 
 export function recordBusinessProfileView(slug: string): void {

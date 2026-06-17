@@ -5,6 +5,8 @@ import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { requireAdminSession } from "@/components/admin/RequireAdmin";
+import { adminUpdateBusinessPlan } from "@/lib/admin/adminUpdateBusinessPlan";
+import { createAdminServiceClient } from "@/lib/admin/adminServiceClient";
 import {
   normalizePlanCodeToKey,
   pickPlanResolutionSubscriptionRow,
@@ -72,17 +74,13 @@ export default async function AdminBusinessControlsPage(props: PageProps) {
         )}?e=${encodeURIComponent("Invalid plan selection.")}`
       );
     }
-    const { supabase } = await requireAdminSession(
-      `/admin/business-controls/${businessId}`
-    );
-    const { error } = await supabase.rpc("admin_update_business_plan", {
-      p_business_id: businessId,
-      p_plan_code: plan,
-    });
-    if (error) {
+    await requireAdminSession(`/admin/business-controls/${businessId}`);
+    const admin = createAdminServiceClient();
+    const result = await adminUpdateBusinessPlan(admin, businessId, plan as PlanKey);
+    if (!result.ok) {
       return redirect(
         `/admin/business-controls/${businessId}?e=${encodeURIComponent(
-          error.message
+          result.error
         )}`
       );
     }

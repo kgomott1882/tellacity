@@ -4,7 +4,101 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 
-const MAX_SLUGS = 8;
+const MAX_SLUGS = 4;
+
+type BusinessRow = {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  website: string | null;
+  trust_score: number | null;
+  average_rating: number | null;
+  review_count: number;
+  city: string | null;
+  country_code: string | null;
+};
+
+function snapshotFromBusinessRow(row: Record<string, unknown>): {
+  trust: number;
+  count: number;
+} {
+  const trust =
+    Number((row as { trust_score?: number | null }).trust_score ?? 0) ||
+    Number((row as { average_rating?: number | null }).average_rating ?? 0) ||
+    0;
+  const count = Number((row as { review_count?: number | null }).review_count ?? 0) || 0;
+  return { trust, count };
+}
+
+function mapBusinessRow(row: Record<string, unknown>): BusinessRow {
+  const canonical = String((row as { canonical_slug?: string }).canonical_slug ?? "")
+    .trim()
+    .toLowerCase();
+  const slug = String((row as { slug?: string }).slug ?? "").trim().toLowerCase();
+  const snap = snapshotFromBusinessRow(row);
+
+  return {
+    id: String((row as { id?: string }).id ?? ""),
+    name: String((row as { name?: string }).name ?? "").trim(),
+    slug: canonical || slug,
+    logo_url: (row as { logo_url?: string | null }).logo_url ?? null,
+    website: (row as { website?: string | null }).website ?? null,
+    trust_score: snap.trust > 0 ? snap.trust : null,
+    average_rating: snap.trust > 0 ? snap.trust : null,
+    review_count: snap.count,
+    city: (row as { city?: string | null }).city ?? null,
+    country_code: (row as { country_code?: string | null }).country_code ?? null,
+  };
+}
+
+async function applyLiveReviewMetrics(
+  db: ReturnType<typeof createClient>,
+  businesses: BusinessRow[],
+): Promise<BusinessRow[]> {
+  const ids = businesses.map((b) => b.id).filter(Boolean);
+  if (ids.length === 0) return businesses;
+
+  const snapshots = new Map(
+    businesses.map((b) => [b.id, { trust: b.trust_score ?? 0, count: b.review_count }]),
+  );
+
+  const agg = new Map<string, { count: number; avg: number }>();
+
+  const { data: aggRpc, error: aggErr } = await db.rpc("get_public_review_aggregates", {
+    p_business_ids: ids,
+  });
+
+  if (!aggErr && Array.isArray(aggRpc)) {
+    for (const row of aggRpc as {
+      business_id?: string;
+      review_count?: number | null;
+      average_rating?: number | null;
+    }[]) {
+      const id = String(row.business_id ?? "");
+      if (!id) continue;
+      const count = Number(row.review_count ?? 0) || 0;
+      const avg = Number(row.average_rating ?? 0) || 0;
+      if (count > 0) {
+        agg.set(id, { count, avg });
+      }
+    }
+  }
+
+  return businesses.map((business) => {
+    const live = agg.get(business.id);
+    const snap = snapshots.get(business.id);
+    const count = live?.count ?? snap?.count ?? 0;
+    const rating = live?.avg ?? (count > 0 ? snap?.trust ?? 0 : 0);
+
+    return {
+      ...business,
+      trust_score: count > 0 && rating > 0 ? rating : null,
+      average_rating: count > 0 && rating > 0 ? rating : null,
+      review_count: count,
+    };
+  });
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -59,27 +153,12 @@ export async function GET(req: Request) {
     const businesses = slugs
       .map((slug) => bySlug.get(slug))
       .filter((row): row is Record<string, unknown> => Boolean(row))
-      .map((row) => {
-        const canonical = String((row as { canonical_slug?: string }).canonical_slug ?? "")
-          .trim()
-          .toLowerCase();
-        const slug = String((row as { slug?: string }).slug ?? "").trim().toLowerCase();
-        return {
-          id: String((row as { id?: string }).id ?? ""),
-          name: String((row as { name?: string }).name ?? "").trim(),
-          slug: canonical || slug,
-          logo_url: (row as { logo_url?: string | null }).logo_url ?? null,
-          website: (row as { website?: string | null }).website ?? null,
-          trust_score: (row as { trust_score?: number | null }).trust_score ?? null,
-          average_rating: (row as { average_rating?: number | null }).average_rating ?? null,
-          review_count: (row as { review_count?: number | null }).review_count ?? 0,
-          city: (row as { city?: string | null }).city ?? null,
-          country_code: (row as { country_code?: string | null }).country_code ?? null,
-        };
-      });
+      .map((row) => mapBusinessRow(row));
+
+    const withLiveMetrics = await applyLiveReviewMetrics(db, businesses);
 
     return NextResponse.json(
-      { businesses },
+      { businesses: withLiveMetrics },
       {
         headers: {
           "Cache-Control": "private, no-store",
