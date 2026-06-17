@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 
 const MAX_SLUGS = 4;
@@ -53,7 +53,7 @@ function mapBusinessRow(row: Record<string, unknown>): BusinessRow {
 }
 
 async function applyLiveReviewMetrics(
-  db: ReturnType<typeof createClient>,
+  db: SupabaseClient,
   businesses: BusinessRow[],
 ): Promise<BusinessRow[]> {
   const ids = businesses.map((b) => b.id).filter(Boolean);
@@ -67,7 +67,7 @@ async function applyLiveReviewMetrics(
 
   const { data: aggRpc, error: aggErr } = await db.rpc("get_public_review_aggregates", {
     p_business_ids: ids,
-  });
+  } as never);
 
   if (!aggErr && Array.isArray(aggRpc)) {
     for (const row of aggRpc as {
