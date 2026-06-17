@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { loadCategoryCatalogFromBrowser } from "@/lib/categoryCatalogBrowser";
 
 export type CategoryGroupOption = { name: string; group_slug: string };
 export type CategoryOption = { name: string; slug: string; group_slug: string };
@@ -8,18 +9,41 @@ export type CategoryOption = { name: string; slug: string; group_slug: string };
 /** Match categories to the selected primary group (same logic as /suggest-business). */
 export function filterCategoriesByPrimaryGroup(
   categories: CategoryOption[],
-  primaryGroupSlug: string
+  primaryGroupSlug: string,
 ): CategoryOption[] {
   const g = primaryGroupSlug.trim().toLowerCase();
   if (!g) return [];
-  return categories.filter(
-    (c) => (c.group_slug ?? "").trim().toLowerCase() === g
-  );
+  return categories.filter((c) => (c.group_slug ?? "").trim().toLowerCase() === g);
+}
+
+async function fetchCatalogFromApi(): Promise<{
+  groups: CategoryGroupOption[];
+  categories: CategoryOption[];
+} | null> {
+  const res = await fetch("/api/business/category-catalog", {
+    method: "GET",
+    credentials: "same-origin",
+  }).catch(() => null);
+
+  if (!res?.ok) {
+    return null;
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    groups?: CategoryGroupOption[];
+    categories?: CategoryOption[];
+    error?: string;
+  };
+
+  return {
+    groups: Array.isArray(json.groups) ? json.groups : [],
+    categories: Array.isArray(json.categories) ? json.categories : [],
+  };
 }
 
 /**
- * Loads category_groups + categories via GET /api/business/category-catalog
- * (server reads with service role , same dataset as suggest-business, reliable for logged-in users).
+ * Loads category_groups + categories via GET /api/business/category-catalog,
+ * with a direct Supabase browser fallback when the API route is unavailable.
  */
 export function useCategoryGroupCatalog(enabled: boolean) {
   const [groups, setGroups] = useState<CategoryGroupOption[]>([]);
@@ -41,28 +65,25 @@ export function useCategoryGroupCatalog(enabled: boolean) {
       setLoading(true);
       setLoadError(null);
       try {
-        const res = await fetch("/api/business/category-catalog", {
-          method: "GET",
-          credentials: "same-origin",
-        });
-        const json = (await res.json().catch(() => ({}))) as {
-          groups?: CategoryGroupOption[];
-          categories?: CategoryOption[];
-          error?: string;
-        };
+        const apiPayload = await fetchCatalogFromApi();
+        const browserPayload =
+          apiPayload &&
+          (apiPayload.groups.length > 0 || apiPayload.categories.length > 0)
+            ? apiPayload
+            : await loadCategoryCatalogFromBrowser();
 
         if (!mounted) return;
 
-        if (!res.ok) {
+        if (!browserPayload || browserPayload.groups.length === 0) {
           setGroups([]);
           setCategories([]);
-          setLoadError(json.error || "Could not load categories.");
+          setLoadError("Could not load categories.");
           setLoading(false);
           return;
         }
 
-        setGroups(Array.isArray(json.groups) ? json.groups : []);
-        setCategories(Array.isArray(json.categories) ? json.categories : []);
+        setGroups(browserPayload.groups);
+        setCategories(browserPayload.categories);
       } catch {
         if (!mounted) return;
         setGroups([]);

@@ -162,34 +162,42 @@ export default function RecentlyViewedBusinesses() {
   if (loading || businesses.length === 0) return null;
 
   return (
-    <FadeUp className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-5 max-w-3xl">
-        <h2 className="text-2xl font-semibold tracking-tight text-[#0E0E0E]">
-          Pick up where you left off
-        </h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Businesses you recently viewed on Tellacity.
-        </p>
-      </div>
+    <FadeUp>
+      <section className="mx-auto max-w-7xl px-6 py-10 sm:py-12 md:py-14">
+        <div className="mb-6 max-w-2xl">
+          <h2 className="home-section-title text-xl sm:text-2xl md:text-3xl">
+            <span className="relative inline-block">
+              <span className="relative inline-block">
+                <span className="relative z-10 home-section-title-accent">Pick</span>
+                <span className="absolute left-0 right-0 bottom-1 h-2 bg-[#00B4A6]/25" />
+              </span>
+              {" "}up where you left off
+            </span>
+          </h2>
+          <p className="home-section-sub mt-2 max-w-xl text-sm">
+            Businesses you recently viewed on Tellacity.
+          </p>
+        </div>
 
-      {/* Mobile: horizontal swipe */}
-      <div
-        className="flex gap-3 overflow-x-auto pb-1 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        aria-label="Recently viewed businesses"
-      >
-        {businesses.map((business) => (
-          <div key={business.id} className="w-[min(85vw,18rem)] shrink-0">
-            <RecentBusinessCard business={business} />
-          </div>
-        ))}
-      </div>
+        {/* Mobile: horizontal swipe */}
+        <div
+          className="flex gap-3 overflow-x-auto pb-1 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Recently viewed businesses"
+        >
+          {businesses.map((business) => (
+            <div key={business.id} className="w-[min(85vw,18rem)] shrink-0">
+              <RecentBusinessCard business={business} />
+            </div>
+          ))}
+        </div>
 
-      {/* Tablet / desktop: grid (max 4) */}
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
-        {businesses.map((business) => (
-          <RecentBusinessCard key={business.id} business={business} />
-        ))}
-      </div>
+        {/* Tablet / desktop: grid (max 4) */}
+        <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+          {businesses.map((business) => (
+            <RecentBusinessCard key={business.id} business={business} />
+          ))}
+        </div>
+      </section>
     </FadeUp>
   );
 }

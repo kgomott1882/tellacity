@@ -5,6 +5,10 @@ import {
   buildCategoriesJsonLd,
   buildCategoriesMetadata,
 } from "@/lib/categoriesPageContent";
+import {
+  buildCategoryGroupsFromCatalog,
+  loadCategoryCatalog,
+} from "@/lib/categoryCatalogServer";
 
 type PageProps = {
   searchParams: Promise<{ country?: string }>;
@@ -21,6 +25,10 @@ export default async function CategoriesPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const jsonLd = buildCategoriesJsonLd(sp.country);
 
+  const catalog = await loadCategoryCatalog();
+  const initialGroups =
+    "error" in catalog ? undefined : buildCategoryGroupsFromCatalog(catalog);
+
   return (
     <>
       <script
@@ -28,7 +36,10 @@ export default async function CategoriesPage({ searchParams }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Suspense fallback={null}>
-        <CategoriesClient countryParam={sp.country} />
+        <CategoriesClient
+          countryParam={sp.country}
+          initialGroups={initialGroups?.length ? initialGroups : undefined}
+        />
       </Suspense>
     </>
   );

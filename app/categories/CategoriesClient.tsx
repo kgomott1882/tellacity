@@ -14,6 +14,8 @@ import {
   getGroupDescription,
   NEED_HELP_LINKS,
 } from "@/lib/categoriesPageContent";
+import { loadCategoryCatalogFromBrowser } from "@/lib/categoryCatalogBrowser";
+import { buildCategoryGroupsFromCatalog } from "@/lib/categoryCatalogServer";
 import HomeScrollProgress from "@/components/home/HomeScrollProgress";
 import { FadeUp, StaggerFadeUp } from "@/components/ui/MotionWrapper";
 import {
@@ -234,8 +236,10 @@ function getGroupIcon(slug: string) {
 
 export default function CategoriesPage({
   countryParam,
+  initialGroups,
 }: {
   countryParam?: string;
+  initialGroups?: CategoryGroup[];
 }) {
   const searchParams = useSearchParams();
   const urlCountry = searchParams.get("country");
@@ -243,9 +247,9 @@ export default function CategoriesPage({
   const countryMeta = getCategoriesCountryMeta(countryCode);
   const countryQuerySuffix = `?country=${encodeURIComponent(countryCode)}`;
 
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [dataCount, setDataCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [groups, setGroups] = useState<CategoryGroup[]>(initialGroups ?? []);
+  const [dataCount, setDataCount] = useState(initialGroups?.length ?? 0);
+  const [isLoading, setIsLoading] = useState(!initialGroups?.length);
 
   useEffect(() => {
     setStoredCountry(countryCode);
@@ -285,12 +289,37 @@ export default function CategoriesPage({
   }, [groups, popularGroupSlugs]);
 
   useEffect(() => {
+    if (initialGroups?.length) {
+      return;
+    }
+
     let isMounted = true;
 
     const fetchGroups = async () => {
       const setFallback = () => {
         setGroups(FALLBACK_GROUPS);
         setDataCount(FALLBACK_GROUPS.length);
+        setIsLoading(false);
+      };
+
+      const applyCatalog = (payload: {
+        groups?: Array<{ name: string; group_slug: string }>;
+        categories?: Array<{ name: string; slug: string; group_slug: string }>;
+      }) => {
+        const cleanedGroups = (
+          buildCategoryGroupsFromCatalog({
+            groups: payload.groups ?? [],
+            categories: payload.categories ?? [],
+          }) as CategoryGroup[]
+        ).filter((group) => group.categories.length > 0);
+
+        if (cleanedGroups.length === 0) {
+          setFallback();
+          return;
+        }
+
+        setGroups(cleanedGroups);
+        setDataCount(cleanedGroups.length);
         setIsLoading(false);
       };
 
@@ -303,53 +332,44 @@ export default function CategoriesPage({
         return;
       }
 
-      if (!response || !response.ok) {
-        console.error("Categories load error:", response?.status ?? "network_error");
-        setFallback();
+      if (response?.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              groups?: Array<{ name: string; group_slug: string }>;
+              categories?: Array<{ name: string; slug: string; group_slug: string }>;
+            }
+          | null;
+        if (payload) {
+          applyCatalog(payload);
+          return;
+        }
+      }
+
+      const browserCatalog = await loadCategoryCatalogFromBrowser();
+      if (!isMounted) {
         return;
       }
 
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            groups?: Array<{ name: string; group_slug: string }>;
-            categories?: Array<{ name: string; slug: string; group_slug: string }>;
-          }
-        | null;
-
-      const groupsData = payload?.groups ?? [];
-      const categoriesData = payload?.categories ?? [];
-
-      const cleanedGroups = groupsData.map((group) => ({
-        id: group.group_slug,
-        name: group.name,
-        slug: group.group_slug,
-        categories: categoriesData
-          .filter((cat) => cat.group_slug === group.group_slug)
-          .map((cat) => ({
-            id: cat.slug,
-            name: cat.name,
-            slug: cat.slug,
-            group_slug: cat.group_slug,
-            is_active: true,
-          })),
-      })) as CategoryGroup[];
-
-      if (cleanedGroups.length === 0) {
-        setFallback();
+      if (browserCatalog) {
+        applyCatalog(browserCatalog);
         return;
       }
 
-      setGroups(cleanedGroups.filter((group) => group.categories.length > 0));
-      setDataCount(cleanedGroups.length);
-      setIsLoading(false);
+      if (!response?.ok) {
+        console.warn(
+          "Categories load fell back to static list:",
+          response?.status ?? "network_error",
+        );
+      }
+      setFallback();
     };
 
-    fetchGroups();
+    void fetchGroups();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialGroups]);
 
   const { headingName, code: countryMetaCode } = countryMeta;
   const introParagraph = getCategoriesIntro(headingName);
