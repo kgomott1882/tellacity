@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -41,6 +41,7 @@ import {
   getAnnualTotalDueUsd,
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
+import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
 import { cn } from "@/lib/utils";
 
 type Plan = {
@@ -77,7 +78,7 @@ const plans: Plan[] = [
   },
   {
     name: "Grow",
-    price: "$39",
+    price: `$${PAID_PLAN_USD.grow.monthly}`,
     priceSub: "/ month",
     description: "Collect reviews consistently and build trust faster.",
     features: [
@@ -93,7 +94,7 @@ const plans: Plan[] = [
   },
   {
     name: "Premium",
-    price: "$149",
+    price: `$${PAID_PLAN_USD.premium.monthly}`,
     priceSub: "/ month",
     description: "Powerful automation for growing teams.",
     features: [
@@ -112,7 +113,7 @@ const plans: Plan[] = [
   },
   {
     name: "Elite",
-    price: "$329",
+    price: `$${PAID_PLAN_USD.elite.monthly}`,
     priceSub: "/ month",
     description: "Advanced reputation management at scale.",
     features: [
@@ -468,6 +469,8 @@ export function PricingPageContent({
   dashboardHideMarketingHero = false,
 }: PricingPageContentProps = {}) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [billing, setBilling] = useState<"monthly" | "annual">(
     () => dashboardInitialBillingMode ?? "monthly"
   );
@@ -494,11 +497,13 @@ export function PricingPageContent({
       if (targetKey === current) return;
       if (!isPlanUpgrade(targetKey, current)) return;
       if (!isPaidPlanForConfirm(targetKey)) return;
-      router.push(
-        `/business/dashboard/billing/checkout?plan=${encodeURIComponent(targetKey)}&cycle=${encodeURIComponent(billing)}`
-      );
+      const returnTo =
+        pathname?.startsWith("/business/dashboard/") === true
+          ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+          : null;
+      router.push(billingCheckoutPickerPath(targetKey, billing, returnTo));
     },
-    [billing, dashboardCurrentPlanKey, router]
+    [billing, dashboardCurrentPlanKey, pathname, router, searchParams]
   );
 
   const handlePublicPlanSignup = useCallback(

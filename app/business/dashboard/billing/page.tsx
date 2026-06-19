@@ -11,6 +11,8 @@ import {
   parseBillingPlanQuery,
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
+import { stashBillingCheckoutBackPath } from "@/lib/billingCheckoutBack";
+import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
 import {
   BILLING_UPGRADE_SESSION_KEY,
   clearBillingUpgradeContext,
@@ -150,11 +152,11 @@ export default function BillingPage() {
     if (!upgrade || !parsedCheckoutPlan || !isPaidPlanForConfirm(parsedCheckoutPlan)) {
       return;
     }
-    const qs = new URLSearchParams({
-      plan: parsedCheckoutPlan,
-      cycle: parsedCycle,
-    });
-    router.replace(`/business/dashboard/billing/checkout?${qs.toString()}`);
+    const returnTo = "/business/dashboard/billing";
+    stashBillingCheckoutBackPath(returnTo);
+    router.replace(
+      billingCheckoutPickerPath(parsedCheckoutPlan, parsedCycle, returnTo)
+    );
   }, [upgrade, parsedCheckoutPlan, parsedCycle, router]);
 
   useEffect(() => {
@@ -553,7 +555,11 @@ export default function BillingPage() {
                             </span>
                           ) : (
                             <Link
-                              href={`/business/dashboard/billing/checkout?plan=${p}&cycle=monthly`}
+                              href={billingCheckoutPickerPath(
+                                p as "grow" | "premium" | "elite",
+                                "monthly",
+                                "/business/dashboard/billing"
+                              )}
                               className={cn(
                                 "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                                 isUpgrade

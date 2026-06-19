@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import type { PaidPlanKey, PlanConfirmPresentation } from "@/lib/billingPlanConfirm";
+import { navigateBillingCheckoutBack } from "@/lib/billingCheckoutBack";
 import { POST_CHECKOUT_REDIRECT_SESSION_KEY } from "@/lib/upgradeFlow";
 import { paystackCurrencyPublic } from "@/lib/billingPaystack";
 
@@ -80,15 +81,7 @@ export default function UpgradeCheckoutCard({
    *   at click time; this keeps SSR-safe since it runs in the handler.
    */
   const handleBack = useCallback(() => {
-    if (backHref) {
-      router.push(backHref);
-      return;
-    }
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(safeReturnTo ?? "/business/dashboard/billing");
+    navigateBillingCheckoutBack(router, { returnTo: safeReturnTo, backHref });
   }, [router, safeReturnTo, backHref]);
 
   const businessId = selectedBusiness?.id ?? null;

@@ -61,13 +61,22 @@ export type PlanConfirmPresentation = {
  * Amounts are always US dollars; ZA Paystack charges convert in `billingPaystack` / `billingUsdZarRate`.
  */
 export const PAID_PLAN_USD = {
-  grow: { monthly: 39, annualPerMonth: 31 },
-  premium: { monthly: 149, annualPerMonth: 119 },
-  elite: { monthly: 329, annualPerMonth: 263 },
+  grow: { monthly: 29, annualPerMonth: 23 },
+  premium: { monthly: 99, annualPerMonth: 79 },
+  elite: { monthly: 249, annualPerMonth: 199 },
 } as const satisfies Record<
   PaidPlanKey,
   { monthly: number; annualPerMonth: number }
 >;
+
+/** Lowest paid tier (Grow) for marketing/compare copy. */
+export function getPaidPlanEntryPriceLabel(): string {
+  return `From $${PAID_PLAN_USD.grow.monthly}/mo`;
+}
+
+export function formatPaidPlanMonthlyUsd(plan: PaidPlanKey): string {
+  return `$${PAID_PLAN_USD[plan].monthly}`;
+}
 
 export function getAnnualTotalDueUsd(plan: PaidPlanKey): number {
   const row = PAID_PLAN_USD[plan];

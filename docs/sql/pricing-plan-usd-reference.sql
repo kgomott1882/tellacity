@@ -1,0 +1,28 @@
+-- Tellacity plan list prices (USD) — reference only
+--
+-- Paid plan amounts are NOT stored in Postgres as catalog rows.
+-- Source of truth in application code:
+--   src/lib/billingPlanConfirm.ts  →  PAID_PLAN_USD
+--
+-- Current list prices (monthly / annual effective per month at ~20% off):
+--   Grow     $29 / $23
+--   Premium  $99 / $79
+--   Elite    $249 / $199
+--
+-- Checkout (Paystack, PayPal) computes charge amounts from PAID_PLAN_USD at runtime.
+-- billing_transactions.amount_* stores what was actually charged per payment.
+--
+-- No migration required when list prices change — deploy the app update instead.
+--
+-- Optional audit: recent paid charges by plan (does not change pricing):
+-- select
+--   bt.business_id,
+--   bt.provider,
+--   bt.amount_minor,
+--   bt.currency,
+--   bt.created_at,
+--   s.plan_code
+-- from public.billing_transactions bt
+-- left join public.subscriptions s on s.business_id = bt.business_id
+-- order by bt.created_at desc
+-- limit 50;

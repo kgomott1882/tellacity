@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { navigateBillingCheckoutBack } from "@/lib/billingCheckoutBack";
 import type { PaidPlanKey, PlanConfirmPresentation } from "@/lib/billingPlanConfirm";
 import {
   billingCheckoutPaypalPath,
@@ -30,11 +31,7 @@ export default function PaymentMethodPicker({
   const chargeCurrency = paystackCurrencyPublic();
 
   const handleBack = useCallback(() => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push(returnTo ?? "/business/dashboard/billing");
+    navigateBillingCheckoutBack(router, { returnTo });
   }, [router, returnTo]);
 
   return (

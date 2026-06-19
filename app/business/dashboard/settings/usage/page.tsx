@@ -14,6 +14,8 @@ import {
   parseBillingPlanQuery,
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
+import { stashBillingCheckoutBackPath } from "@/lib/billingCheckoutBack";
+import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
 import { normalizePlanCodeToKey } from "@/lib/plans";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 import { useBusinessContext } from "../../_context/BusinessContext";
@@ -44,11 +46,11 @@ export default function UsageSettingsPage() {
 
   useEffect(() => {
     if (!upgrade || !parsedCheckoutPlan || !isPaidPlanForConfirm(parsedCheckoutPlan)) return;
-    const qs = new URLSearchParams({
-      plan: parsedCheckoutPlan,
-      cycle: parsedCycle,
-    });
-    router.replace(`/business/dashboard/billing/checkout?${qs.toString()}`);
+    const returnTo = "/business/dashboard/settings/usage";
+    stashBillingCheckoutBackPath(returnTo);
+    router.replace(
+      billingCheckoutPickerPath(parsedCheckoutPlan, parsedCycle, returnTo)
+    );
   }, [upgrade, parsedCheckoutPlan, parsedCycle, router]);
 
   useEffect(() => {

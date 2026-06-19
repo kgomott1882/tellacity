@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PAID_PLAN_USD } from "@/lib/billingPlanConfirm";
 
 export default function BestReviewPlatformsPage() {
   return (
@@ -73,7 +74,7 @@ export default function BestReviewPlatformsPage() {
             <div className="rounded-xl border border-white/10 p-4">
               <p className="mb-1 font-medium text-white">Pricing</p>
               <p className="text-sm text-white">
-                Tellacity offers clear, fixed pricing starting at $49/month. Other platforms often start higher and scale
+                Tellacity offers clear, fixed pricing starting at ${PAID_PLAN_USD.grow.monthly}/month. Other platforms often start higher and scale
                 with usage - see the hub table for a direct comparison.
               </p>
             </div>
