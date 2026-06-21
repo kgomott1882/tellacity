@@ -42,6 +42,8 @@ import {
   isPaidPlanForConfirm,
 } from "@/lib/billingPlanConfirm";
 import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
+import { startGrowTrial } from "@/lib/startGrowTrialClient";
+import { trialDaysRemaining } from "@/lib/trialDaysRemaining";
 import { cn } from "@/lib/utils";
 
 type Plan = {
@@ -346,6 +348,14 @@ export type PricingPageContentProps = {
   dashboardUserEmail?: string;
   /** Current workspace plan (your-plan card + upgrade CTA copy on dashboard). */
   dashboardCurrentPlanKey?: PlanKey;
+  /** Owner-only: free workspace eligible for a one-time Grow trial. */
+  dashboardTrialEligible?: boolean;
+  /** Dashboard: subscription status from billing/plans context. */
+  dashboardSubscriptionStatus?: string | null;
+  /** Dashboard: trial end when status is trialing. */
+  dashboardTrialEndsAt?: string | null;
+  /** Called after a successful start-trial (refresh dashboard plan context). */
+  onTrialStarted?: () => void;
   /** Stronger Premium card emphasis (e.g. billing deep-link with upgrade reason). */
   emphasizePremiumAnchor?: boolean;
   /** Dashboard: smart card highlight from upgrade flow (photos vs sections). */
@@ -462,6 +472,10 @@ export function PricingPageContent({
   dashboardBusinessId,
   dashboardUserEmail,
   dashboardCurrentPlanKey,
+  dashboardTrialEligible = false,
+  dashboardSubscriptionStatus = null,
+  dashboardTrialEndsAt = null,
+  onTrialStarted,
   emphasizePremiumAnchor = false,
   dashboardPricingHighlightContext = null,
   embedInDashboard = false,
@@ -486,10 +500,17 @@ export function PricingPageContent({
     volume: "",
     message: "",
   });
+  const [growTrialStarting, setGrowTrialStarting] = useState(false);
+  const [growTrialError, setGrowTrialError] = useState<string | null>(null);
   const isDashboardCheckout =
     variant === "dashboard" &&
     Boolean(dashboardBusinessId?.trim()) &&
     Boolean(dashboardUserEmail?.trim());
+  const dashboardTrialDaysLeft = trialDaysRemaining(dashboardTrialEndsAt);
+  const dashboardCheckoutReturnTo =
+    pathname?.startsWith("/business/dashboard/") === true
+      ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+      : "/business/dashboard/billing";
 
   const handleDashboardUpgrade = useCallback(
     (targetKey: PlanKey) => {
@@ -505,6 +526,20 @@ export function PricingPageContent({
     },
     [billing, dashboardCurrentPlanKey, pathname, router, searchParams]
   );
+
+  const handleStartGrowTrial = useCallback(async () => {
+    const id = dashboardBusinessId?.trim();
+    if (!id || growTrialStarting) return;
+    setGrowTrialStarting(true);
+    setGrowTrialError(null);
+    const result = await startGrowTrial(id);
+    if (result.ok) {
+      onTrialStarted?.();
+    } else {
+      setGrowTrialError(result.message);
+    }
+    setGrowTrialStarting(false);
+  }, [dashboardBusinessId, growTrialStarting, onTrialStarted]);
 
   const handlePublicPlanSignup = useCallback(
     (key: "free" | "grow" | "premium" | "elite") => {
@@ -964,6 +999,49 @@ export function PricingPageContent({
                   >
                     Choose This Plan
                   </button>
+                ) : isDashboardCheckout &&
+                  plan.name === "Grow" &&
+                  dashboardCurrentPlanKey === "free" &&
+                  dashboardTrialEligible ? (
+                  <div className="mt-6 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleStartGrowTrial()}
+                      disabled={growTrialStarting}
+                      className={cn(
+                        pricingButtonClass,
+                        "disabled:cursor-not-allowed disabled:opacity-60",
+                      )}
+                    >
+                      {growTrialStarting ? "Starting…" : "Start free trial"}
+                    </button>
+                    <p className="text-center text-xs text-gray-500">No card required</p>
+                    {growTrialError ? (
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-center text-xs text-amber-900">
+                        {growTrialError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : isDashboardCheckout &&
+                  plan.name === "Grow" &&
+                  dashboardSubscriptionStatus === "trialing" &&
+                  dashboardTrialDaysLeft != null ? (
+                  <Link
+                    href={billingCheckoutPickerPath(
+                      "grow",
+                      billing,
+                      dashboardCheckoutReturnTo,
+                    )}
+                    className={cn(
+                      pricingButtonClass,
+                      "inline-flex items-center justify-center",
+                      dashboardTrialDaysLeft <= 3
+                        ? "bg-amber-700 text-white hover:bg-amber-800"
+                        : "",
+                    )}
+                  >
+                    Keep Grow
+                  </Link>
                 ) : isDashboardCheckout && isWorkspaceOnThisPlan ? (
                   <button
                     type="button"

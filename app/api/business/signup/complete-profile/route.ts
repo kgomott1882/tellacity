@@ -6,7 +6,6 @@ import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { allocateUniqueBusinessSlug } from "@/lib/businessSlug";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
-import { provisionReverseTrialIfEligible } from "@/lib/provisionReverseTrial";
 
 function normalizeWebsiteInput(website: string): string {
   let domain = website.trim().toLowerCase();
@@ -155,8 +154,6 @@ export async function POST(req: Request) {
       await admin.from("businesses").delete().eq("id", inserted.id);
       return NextResponse.json({ error: "owner_link_failed" }, { status: 500 });
     }
-
-    await provisionReverseTrialIfEligible(inserted.id, admin);
 
     return NextResponse.json({
       ok: true,

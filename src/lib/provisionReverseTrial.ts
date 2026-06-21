@@ -12,6 +12,18 @@ export type ProvisionReverseTrialResult =
       reason: "not_free" | "subscription_exists" | "insert_failed" | "error";
     };
 
+/** Why a business cannot start a user-triggered reverse trial (API / plans UI). */
+export type ReverseTrialIneligibilityReason =
+  | "not_free"
+  | "already_trialed"
+  | "paid_or_real_subscription"
+  | "multiple_subscription_rows"
+  | "lookup_error";
+
+export type ReverseTrialEligibilityResult =
+  | { eligible: true }
+  | { eligible: false; reason: ReverseTrialIneligibilityReason };
+
 type SubscriptionRowSnapshot = {
   id?: string | null;
   plan_code?: string | null;
@@ -24,35 +36,31 @@ function trialProviderSubId(businessId: string): string {
   return `trial:${businessId}`;
 }
 
-/** Matches migration 20260623103000 backfill placeholder pattern. */
-function backfillPlaceholderProviderSubId(businessId: string): string {
-  return `tellacity:${businessId}`;
-}
-
 function trialPeriodEndIso(from: Date = new Date()): string {
   return new Date(from.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
 /**
- * Strict backfill placeholder signature:
- * plan_code = 'free' AND status = 'active' AND
- * provider_sub_id = 'tellacity:' || business_id AND current_period_end IS NULL
+ * Shape-based placeholder: no real paid/trial subscription yet.
+ * provider_sub_id format is ignored (tellacity:, manual_, admin:, etc.).
  */
-function isBackfillPlaceholderRow(
-  row: SubscriptionRowSnapshot,
-  businessId: string,
-): boolean {
+function isShapePlaceholderRow(row: SubscriptionRowSnapshot): boolean {
   const planCode = String(row.plan_code ?? "").trim().toLowerCase();
   const status = String(row.status ?? "").trim().toLowerCase();
-  const providerSubId = String(row.provider_sub_id ?? "").trim();
   const periodEnd = row.current_period_end;
 
   return (
     planCode === "free" &&
     status === "active" &&
-    providerSubId === backfillPlaceholderProviderSubId(businessId) &&
     (periodEnd == null || String(periodEnd).trim() === "")
   );
+}
+
+function hasTrialMarkerRow(rows: SubscriptionRowSnapshot[]): boolean {
+  return rows.some((row) => {
+    const providerSubId = String(row.provider_sub_id ?? "").trim();
+    return providerSubId.startsWith("trial:");
+  });
 }
 
 function summarizeSubscriptionRows(rows: SubscriptionRowSnapshot[]) {
@@ -96,8 +104,57 @@ async function finalizeReverseTrialProvision(
 }
 
 /**
- * Provisions a one-time 14-day Grow reverse trial when a business first becomes
- * owned+verified. Never throws — callers must not block onboarding on failure.
+ * Whether a business may start a user-triggered 14-day Grow trial.
+ * Mirrors the guards in {@link provisionReverseTrialIfEligible} for route/UI use.
+ */
+export async function getReverseTrialEligibility(
+  businessId: string,
+  db: SupabaseClient,
+): Promise<ReverseTrialEligibilityResult> {
+  const trimmedId = businessId.trim();
+  if (!trimmedId) {
+    return { eligible: false, reason: "lookup_error" };
+  }
+
+  const planKey = await getActivePlanKeyForBusiness(trimmedId, db);
+  if (planKey !== "free") {
+    return { eligible: false, reason: "not_free" };
+  }
+
+  const { data: existingRows, error: existingErr } = await db
+    .from("subscriptions")
+    .select("id, plan_code, status, provider_sub_id, current_period_end")
+    .eq("business_id", trimmedId);
+
+  if (existingErr) {
+    console.error("[provisionReverseTrial] eligibility lookup:", existingErr.message);
+    return { eligible: false, reason: "lookup_error" };
+  }
+
+  const rows = (existingRows ?? []) as SubscriptionRowSnapshot[];
+
+  if (hasTrialMarkerRow(rows)) {
+    return { eligible: false, reason: "already_trialed" };
+  }
+
+  if (rows.length === 0) {
+    return { eligible: true };
+  }
+
+  if (rows.length === 1 && isShapePlaceholderRow(rows[0]!)) {
+    return { eligible: true };
+  }
+
+  if (rows.length > 1) {
+    return { eligible: false, reason: "multiple_subscription_rows" };
+  }
+
+  return { eligible: false, reason: "paid_or_real_subscription" };
+}
+
+/**
+ * Provisions a one-time 14-day Grow reverse trial on demand (user-triggered).
+ * Never throws — callers must not block the caller on failure.
  */
 export async function provisionReverseTrialIfEligible(
   businessId: string,
@@ -132,6 +189,16 @@ export async function provisionReverseTrialIfEligible(
     const rows = (existingRows ?? []) as SubscriptionRowSnapshot[];
     const now = new Date().toISOString();
     const periodEnd = trialPeriodEndIso();
+
+    if (hasTrialMarkerRow(rows)) {
+      console.info("[provisionReverseTrial] skipped", {
+        businessId: trimmedId,
+        reason: "subscription_exists",
+        note: "trial marker present (already_trialed)",
+        existingRows: summarizeSubscriptionRows(rows),
+      });
+      return { provisioned: false, reason: "subscription_exists" };
+    }
 
     if (rows.length === 0) {
       const insertPayload = {
@@ -169,7 +236,7 @@ export async function provisionReverseTrialIfEligible(
       return { provisioned: true };
     }
 
-    if (rows.length === 1 && isBackfillPlaceholderRow(rows[0]!, trimmedId)) {
+    if (rows.length === 1 && isShapePlaceholderRow(rows[0]!)) {
       const rowId = rows[0]!.id;
       if (!rowId) {
         console.info("[provisionReverseTrial] skipped", {

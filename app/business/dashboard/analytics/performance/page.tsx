@@ -7,9 +7,12 @@ import { useBusinessContext } from "../../_context/BusinessContext";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
-  nextTierUpgradeCtaLabel,
-  normalizePlanCodeToKey,
-} from "@/lib/plans";
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { normalizePlanCodeToKey } from "@/lib/plans";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import type { GrowUnlockCtaResult } from "@/hooks/useGrowUnlockCta";
 import {
   useDashboardPerformanceData,
   type DailyReview,
@@ -118,10 +121,10 @@ function SectionHeading({ title, sub, note }: { title: string; sub: string; note
 
 function AnalyticsUpgradeBanner({
   message,
-  ctaLabel,
+  cta,
 }: {
   message: string;
-  ctaLabel: string;
+  cta: GrowUnlockCtaResult;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-600 bg-neutral-800/90 px-5 py-4">
@@ -129,28 +132,26 @@ function AnalyticsUpgradeBanner({
         <Lock className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
         {message}
       </p>
-      <Link
-        href={ANALYTICS_UPGRADE_HREF}
+      <GrowUnlockButton
+        {...cta}
         className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#185a87]"
-      >
-        {ctaLabel}
-      </Link>
+      />
     </div>
   );
 }
 
 function LockedAnalyticsPanel({
   message,
-  ctaLabel,
+  cta,
   minHeight = "min-h-[140px]",
 }: {
   message: string;
-  ctaLabel: string;
+  cta: GrowUnlockCtaResult;
   minHeight?: string;
 }) {
   return (
     <div className={`flex flex-col justify-center gap-4 rounded-xl border border-neutral-700 bg-neutral-800 p-5 ${minHeight}`}>
-      <AnalyticsUpgradeBanner message={message} ctaLabel={ctaLabel} />
+      <AnalyticsUpgradeBanner message={message} cta={cta} />
       <p className="text-center text-xs text-neutral-500">
         Upgrade to Grow for trends, outreach analytics, and review momentum insights.
       </p>
@@ -627,14 +628,14 @@ function PerformanceAnalyticsContent({
   businessId: string;
   showIncludedGuide: boolean;
 }) {
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
-  const upgradeCtaLabel = nextTierUpgradeCtaLabel(planKey);
 
   const {
     data,
     error,
     loading,
+    refetch,
     daily,
     reviews,
     inviteChart,
@@ -642,6 +643,18 @@ function PerformanceAnalyticsContent({
     realInvites30,
     analyticsLocked,
   } = useDashboardPerformanceData(businessId);
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: planKey,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    onTrialSuccess: () => {
+      void refetch();
+    },
+    paidDestination: { type: "href", href: ANALYTICS_UPGRADE_HREF },
+  });
 
   const hasAnalytics = !analyticsLocked;
   const locked = analyticsLocked;
@@ -734,6 +747,8 @@ function PerformanceAnalyticsContent({
         <div className="rounded-xl border border-red-800/40 bg-red-950/30 px-4 py-3 text-sm text-red-400">{error}</div>
       )}
 
+      {locked ? <GrowUnlockError message={growUnlock.errorMessage} /> : null}
+
       <>
           {/* ════════════════════════════════════════════
               1) EXECUTIVE SUMMARY
@@ -779,7 +794,7 @@ function PerformanceAnalyticsContent({
             {locked ? (
               <LockedAnalyticsPanel
                 message={lockMessage}
-                ctaLabel={upgradeCtaLabel}
+                cta={growUnlock}
                 minHeight="min-h-0"
               />
             ) : (
@@ -856,7 +871,7 @@ function PerformanceAnalyticsContent({
             {locked ? (
               <LockedAnalyticsPanel
                 message="Get the Grow plan to unlock review sentiment breakdown."
-                ctaLabel={upgradeCtaLabel}
+                cta={growUnlock}
               />
             ) : (
               <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-5">
@@ -893,7 +908,7 @@ function PerformanceAnalyticsContent({
               <div className="sm:col-span-2">
                 <LockedAnalyticsPanel
                   message="Get the Grow plan to unlock invite trends and conversion metrics."
-                  ctaLabel={upgradeCtaLabel}
+                  cta={growUnlock}
                   minHeight="min-h-0"
                 />
               </div>
@@ -929,7 +944,7 @@ function PerformanceAnalyticsContent({
             ) : locked ? (
               <LockedAnalyticsPanel
                 message="Get the Grow plan to unlock invite activity over time."
-                ctaLabel={upgradeCtaLabel}
+                cta={growUnlock}
                 minHeight="min-h-[200px]"
               />
             ) : (
@@ -941,7 +956,7 @@ function PerformanceAnalyticsContent({
           {locked ? (
             <LockedAnalyticsPanel
               message="Get the Grow plan to see recent review invites and outreach status."
-              ctaLabel={upgradeCtaLabel}
+                  cta={growUnlock}
               minHeight="min-h-[180px]"
             />
           ) : (
@@ -959,7 +974,7 @@ function PerformanceAnalyticsContent({
           {locked ? (
             <LockedAnalyticsPanel
               message="Get the Grow plan to unlock review momentum trends and activity charts."
-              ctaLabel={upgradeCtaLabel}
+                  cta={growUnlock}
               minHeight="min-h-[280px]"
             />
           ) : (

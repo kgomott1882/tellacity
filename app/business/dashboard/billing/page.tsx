@@ -41,6 +41,8 @@ import { cn } from "@/lib/utils";
 import type { BillingOverviewHistoryRow, BillingOverviewResponse } from "@/lib/billingOverview";
 import PaymentHistory from "./_components/PaymentHistory";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
+import { startGrowTrial } from "@/lib/startGrowTrialClient";
+import { trialDaysRemaining } from "@/lib/trialDaysRemaining";
 import { ChevronDown } from "lucide-react";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
@@ -119,8 +121,37 @@ export default function BillingPage() {
    * mounted while still giving the user the full comparison + checkout UX.
    */
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [growTrialStarting, setGrowTrialStarting] = useState(false);
+  const [growTrialTableError, setGrowTrialTableError] = useState<string | null>(null);
 
   const businessId = selectedBusiness?.id ?? null;
+  const trialEligible = selectedBusiness?.trialEligible === true;
+  const subscriptionStatusRaw =
+    billingOverview?.current?.status?.trim().toLowerCase() ??
+    selectedBusiness?.subscriptionStatus?.trim().toLowerCase() ??
+    null;
+  const isTrialing = subscriptionStatusRaw === "trialing";
+  const trialEndsAt = isTrialing
+    ? billingOverview?.current?.current_period_end ??
+      selectedBusiness?.trialEndsAt ??
+      null
+    : null;
+  const trialDaysLeft = trialDaysRemaining(trialEndsAt);
+  const showTrialStatus = isTrialing && trialDaysLeft != null;
+  const trialEndsLabel = (() => {
+    if (!trialEndsAt) return null;
+    const d = new Date(trialEndsAt);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  })();
+  const keepGrowCheckoutHref = billingCheckoutPickerPath(
+    "grow",
+    "monthly",
+    "/business/dashboard/billing",
+  );
   const planKey = billingOverview?.current?.plan_code
     ? normalizePlanCodeToKey(billingOverview.current.plan_code)
     : normalizePlanCodeToKey(selectedBusiness?.plan);
@@ -376,6 +407,19 @@ export default function BillingPage() {
     }
   };
 
+  const handleStartGrowTrialFromTable = async () => {
+    if (!businessId || growTrialStarting) return;
+    setGrowTrialStarting(true);
+    setGrowTrialTableError(null);
+    const result = await startGrowTrial(businessId);
+    if (result.ok) {
+      bumpNavRefresh();
+    } else {
+      setGrowTrialTableError(result.message);
+    }
+    setGrowTrialStarting(false);
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
       {showSuccess && successPlan ? (
@@ -432,6 +476,40 @@ export default function BillingPage() {
                 </button>
               ) : null}
             </div>
+
+            {showTrialStatus ? (
+              <div
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm",
+                  trialDaysLeft <= 3
+                    ? "border-amber-200 bg-amber-50 text-amber-950"
+                    : "border-blue-100 bg-blue-50/80 text-[#0E0E0E]",
+                )}
+                role="status"
+              >
+                <div>
+                  <p className="font-semibold">
+                    Grow trial · {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left
+                  </p>
+                  {trialEndsLabel ? (
+                    <p className="mt-1 text-xs opacity-80">
+                      Trial ends {trialEndsLabel}. Subscribe to keep Grow features.
+                    </p>
+                  ) : null}
+                </div>
+                <Link
+                  href={keepGrowCheckoutHref}
+                  className={cn(
+                    "inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2 text-xs font-semibold text-white transition",
+                    trialDaysLeft <= 3
+                      ? "bg-amber-700 hover:bg-amber-800"
+                      : "bg-[#124541] hover:bg-[#0f3a35]",
+                  )}
+                >
+                  Keep Grow
+                </Link>
+              </div>
+            ) : null}
 
             <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
               <table className="w-full min-w-[560px] table-fixed border-collapse text-left text-sm">
@@ -535,6 +613,7 @@ export default function BillingPage() {
                         elite: 3,
                       };
                       const isCurrent = p === planKey;
+                      const isTrialingGrow = showTrialStatus && p === "grow";
                       const isUpgrade = tierRank[p] > tierRank[planKey];
                       const isFree = p === "free";
                       return (
@@ -545,7 +624,19 @@ export default function BillingPage() {
                             colIdx === highlightColIndex && "bg-[#1FAF9E]/8"
                           )}
                         >
-                          {isCurrent ? (
+                          {isTrialingGrow ? (
+                            <Link
+                              href={keepGrowCheckoutHref}
+                              className={cn(
+                                "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition",
+                                trialDaysLeft <= 3
+                                  ? "bg-amber-700 hover:bg-amber-800"
+                                  : "bg-[#124541] hover:bg-[#0f3a35]",
+                              )}
+                            >
+                              Keep Grow
+                            </Link>
+                          ) : isCurrent ? (
                             <span className="inline-flex items-center rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700">
                               Current plan
                             </span>
@@ -553,6 +644,22 @@ export default function BillingPage() {
                             <span className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-white px-3 py-1 text-[11px] font-medium text-gray-500">
                               -
                             </span>
+                          ) : p === "grow" &&
+                            planKey === "free" &&
+                            trialEligible ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => void handleStartGrowTrialFromTable()}
+                                disabled={growTrialStarting}
+                                className={cn(
+                                  "inline-flex items-center justify-center rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:opacity-60",
+                                )}
+                              >
+                                {growTrialStarting ? "Starting…" : "Start free trial"}
+                              </button>
+                              <span className="text-[10px] text-gray-500">No card required</span>
+                            </div>
                           ) : (
                             <Link
                               href={billingCheckoutPickerPath(
@@ -578,6 +685,12 @@ export default function BillingPage() {
               </table>
             </div>
 
+            {growTrialTableError ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {growTrialTableError}
+              </p>
+            ) : null}
+
             {planKey !== "free" ? (
               <p className="text-xs text-gray-500">
                 Upgrading mid-cycle? We credit the unused days on your current plan
@@ -586,8 +699,11 @@ export default function BillingPage() {
             ) : null}
 
             <p className="text-xs text-gray-500">
-              You are on <span className="font-semibold text-[#0E0E0E]">{currentPlanLabel}</span>. Limits
-              apply per business; paid plans use the same five sections with no upload cap in the app.
+              You are on{" "}
+              <span className="font-semibold text-[#0E0E0E]">
+                {showTrialStatus ? `${currentPlanLabel} (trial)` : currentPlanLabel}
+              </span>
+              . Limits apply per business; paid plans use the same five sections with no upload cap in the app.
             </p>
 
             <button
@@ -694,6 +810,10 @@ export default function BillingPage() {
                     dashboardBusinessId={businessId}
                     dashboardUserEmail={dashboardEmail}
                     dashboardCurrentPlanKey={planKey}
+                    dashboardTrialEligible={trialEligible}
+                    dashboardSubscriptionStatus={subscriptionStatusRaw}
+                    dashboardTrialEndsAt={trialEndsAt}
+                    onTrialStarted={bumpNavRefresh}
                     dashboardPricingHighlightContext={pricingHighlightContext}
                     embedInDashboard
                     dashboardHideMarketingHero

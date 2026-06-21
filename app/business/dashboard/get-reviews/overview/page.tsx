@@ -9,11 +9,15 @@ import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
 import {
   canUseCustomEmail,
   normalizePlanCodeToKey,
-  nextTierUpgradeCtaLabel,
   type PlanKey,
 } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
@@ -94,7 +98,7 @@ type SentInviteRow = {
 export default function GetReviewsOverviewPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const isOverviewRoute = pathname?.includes("/get-reviews") && (pathname?.endsWith("overview") || pathname?.endsWith("get-reviews"));
 
@@ -177,6 +181,40 @@ export default function GetReviewsOverviewPage() {
 
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
   const canQrReviews = canUseCustomEmail(normalizedPlan);
+
+  const growUnlockUsage = useGrowUnlockCta({
+    businessId,
+    currentPlan: normalizedPlan,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "href",
+      href: "/business/dashboard/settings/usage",
+    },
+  });
+
+  const growUnlockQr = useGrowUnlockCta({
+    businessId,
+    currentPlan: normalizedPlan,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "action",
+      run: () => {
+        if (businessId) {
+          logDashboardActivityClient({
+            businessId,
+            action: "feature_locked_clicked",
+            metadata: { feature: QR_UPGRADE_FEATURE_KEY, destination: "pricing_plans" },
+          });
+        }
+        router.push("/business/dashboard/settings/usage");
+      },
+    },
+  });
+
   const remainingInvites = Math.max(monthlyLimit - monthlyUsage, 0);
   const isLimitReached = monthlyUsage >= monthlyLimit;
   const nearMonthlyInviteLimit =
@@ -194,17 +232,11 @@ export default function GetReviewsOverviewPage() {
         metadata: { destination: "pricing_plans" },
       });
     }
-    router.push("/business/dashboard/settings/usage");
+    growUnlockUsage.onClick();
   };
 
   const openQrUpgradeModal = () => {
-    if (!businessId) return;
-    logDashboardActivityClient({
-      businessId,
-      action: "feature_locked_clicked",
-      metadata: { feature: QR_UPGRADE_FEATURE_KEY, destination: "pricing_plans" },
-    });
-    router.push("/business/dashboard/settings/usage");
+    growUnlockQr.onClick();
   };
 
   const handleSetUpInvitations = () => {
@@ -424,7 +456,14 @@ export default function GetReviewsOverviewPage() {
         Collect verified customer feedback through automated invites.
       </p>
 
-      <PlanStatusBanner plan={normalizedPlan} />
+      <PlanStatusBanner
+        plan={normalizedPlan}
+        businessId={businessId ?? ""}
+        trialEligible={selectedBusiness?.trialEligible === true}
+        subscriptionStatus={selectedBusiness?.subscriptionStatus}
+        trialEndsAt={selectedBusiness?.trialEndsAt}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       {/* Section A - KPI strip */}
       <div className="mt-8">
@@ -487,13 +526,7 @@ export default function GetReviewsOverviewPage() {
                 <p className="text-xs font-medium text-emerald-900">
                   You&apos;re actively collecting reviews. Upgrade your plan to accelerate growth.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => router.push("/business/dashboard/settings/usage")}
-                  className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
-                >
-                  {nextTierUpgradeCtaLabel(normalizedPlan)}
-                </button>
+                <GrowUnlockButton {...growUnlockUsage} variant="compact" />
               </div>
             ) : null}
             {nearMonthlyInviteLimit ? (
@@ -502,15 +535,10 @@ export default function GetReviewsOverviewPage() {
                   You&apos;re close to your limit. New review requests will stop when you hit your
                   cap. Upgrade before then to avoid interruptions in your review flow.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => router.push("/business/dashboard/settings/usage")}
-                  className="shrink-0 rounded-lg bg-[#124541] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3a35]"
-                >
-                  {nextTierUpgradeCtaLabel(normalizedPlan)}
-                </button>
+                <GrowUnlockButton {...growUnlockUsage} variant="compact" />
               </div>
             ) : null}
+            <GrowUnlockError message={growUnlockUsage.errorMessage} className="mt-2" />
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-gray-500">
@@ -808,13 +836,11 @@ export default function GetReviewsOverviewPage() {
                       </li>
                     </ul>
                     <div className="mt-6 flex flex-col items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={openQrUpgradeModal}
+                      <GrowUnlockButton
+                        {...growUnlockQr}
                         className="inline-flex w-full items-center justify-center rounded-lg bg-[#1FAF9E] px-6 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-[#2fb2a8] sm:w-auto"
-                      >
-                        {nextTierUpgradeCtaLabel(normalizedPlan)}
-                      </button>
+                      />
+                      <GrowUnlockError message={growUnlockQr.errorMessage} className="w-full text-center" />
                       <p className="text-center text-xs text-neutral-500">
                         After upgrading, use <strong className="text-neutral-400">Download QR as PNG</strong>{" "}
                         on the right. It activates instantly.

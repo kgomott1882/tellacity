@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { dashboardApiPost } from "@/lib/dashboardApiFetch";
@@ -9,18 +8,21 @@ import {
   canAccessEmailWidget,
   canUseCustomEmail,
   normalizePlanCodeToKey,
-  nextTierUpgradeCtaLabel,
   type PlanKey,
 } from "@/lib/plans";
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import { logDashboardActivityClient } from "@/lib/logDashboardActivityClient";
 
 type TemplateChoice = "standard" | "custom" | "widget";
 
 export default function InvitationMethodsPage() {
-  const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
   const businessId = selectedBusiness.id;
 
@@ -36,6 +38,18 @@ export default function InvitationMethodsPage() {
   const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
   const canChooseCustom = canUseCustomEmail(normalizedPlan);
   const canChooseWidget = canAccessEmailWidget(normalizedPlan, "premium_layout");
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: normalizedPlan,
+    trialEligible: selectedBusiness.trialEligible === true,
+    subscriptionStatus: selectedBusiness.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "href",
+      href: "/business/dashboard/settings/usage",
+    },
+  });
 
   const isInviteLimitReached = monthlyLimit > 0 && monthlyUsage >= monthlyLimit;
 
@@ -153,7 +167,14 @@ export default function InvitationMethodsPage() {
         subtitle="Collect verified customer feedback through automated invites."
       />
 
-      <PlanStatusBanner plan={normalizedPlan} />
+      <PlanStatusBanner
+        plan={normalizedPlan}
+        businessId={businessId}
+        trialEligible={selectedBusiness.trialEligible === true}
+        subscriptionStatus={selectedBusiness.subscriptionStatus}
+        trialEndsAt={selectedBusiness.trialEndsAt}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
@@ -303,17 +324,15 @@ export default function InvitationMethodsPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
+              <GrowUnlockButton
+                {...growUnlock}
                 onClick={() => {
                   setInviteLimitModalOpen(false);
-                  router.push("/business/dashboard/settings/usage");
+                  growUnlock.onClick();
                 }}
-                className="rounded-lg bg-[#124541] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f3a35]"
-              >
-                {nextTierUpgradeCtaLabel(normalizedPlan)}
-              </button>
+              />
             </div>
+            <GrowUnlockError message={growUnlock.errorMessage} className="mt-4" />
           </div>
         </div>
       ) : null}

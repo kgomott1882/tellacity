@@ -26,6 +26,11 @@ import {
 } from "@/lib/plans";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import {
   DASHBOARD_PREVIEW_REVIEW_LIMIT_MIN,
   dashboardPreviewReviewLimitCap,
 } from "@/lib/widgetDashboardDemoPayload";
@@ -179,7 +184,7 @@ function parsePreviewSiteHex(raw: string): string | null {
 
 export default function WebsiteWidgetsPage() {
   const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const planKey: PlanKey = selectedBusiness?.id
     ? normalizePlanCodeToKey(selectedBusiness.plan)
     : "free";
@@ -310,6 +315,18 @@ export default function WebsiteWidgetsPage() {
     });
     router.push("/business/dashboard/settings/usage");
   };
+
+  const growUnlock = useGrowUnlockCta({
+    businessId: selectedBusiness?.id,
+    currentPlan: planKey,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "action",
+      run: () => goToPricingPlans("grow"),
+    },
+  });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const baseUrl = useMemo(() => resolveWidgetBaseUrl(), []);
   const previewBaseUrl = useMemo(
@@ -329,6 +346,8 @@ export default function WebsiteWidgetsPage() {
 
   const currentWidget = WIDGETS.find((w) => w.id === selected)!;
   const previewLocked = !canAccessWebsiteWidget(planKey, currentWidget.planWidget);
+  const previewLockedRequiredPlan = requiredPlanForWebsiteWidget(currentWidget.planWidget);
+  const previewLockedByGrow = previewLocked && previewLockedRequiredPlan === "grow";
   const canWhiteLabelCurrentWidget = planKey === "elite";
 
   useEffect(() => {
@@ -952,16 +971,23 @@ export default function WebsiteWidgetsPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#E9E1D2] bg-[#F9F6EF] px-5 py-3">
                 <p className="flex items-center gap-2 text-sm font-medium text-[#1f2937]">
                   <Lock size={16} className="shrink-0 text-[#92400e]" aria-hidden />
-                  Get the {planDisplayName(requiredPlanForWebsiteWidget(currentWidget.planWidget))} plan to use this
+                  Get the {planDisplayName(previewLockedRequiredPlan)} plan to use this
                   widget on your site.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => goToPricingPlans(requiredPlanForWebsiteWidget(currentWidget.planWidget))}
-                  className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185a87]"
-                >
-                  Upgrade
-                </button>
+                {previewLockedByGrow ? (
+                  <GrowUnlockButton
+                    {...growUnlock}
+                    className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185a87]"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => goToPricingPlans(previewLockedRequiredPlan)}
+                    className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185a87]"
+                  >
+                    Upgrade
+                  </button>
+                )}
               </div>
             ) : null}
 

@@ -37,6 +37,11 @@ import {
 } from "@/lib/photoUploadFreeLimit";
 import { compressImage } from "@/lib/imageCompression";
 import PhotoLimitModal from "@/components/business/PhotoLimitModal";
+import {
+  GrowUnlockButton,
+  GrowUnlockLink,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 import WriteReviewItemContent from "@/components/reviews/WriteReviewItemContent";
 
 const UPLOAD_BUCKET = "business_media";
@@ -118,6 +123,18 @@ export default function BusinessPhotosSettingsPage() {
   const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const planKey: PlanKey = normalizePlanCodeToKey(selectedBusiness?.plan ?? null);
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: planKey,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "action",
+      run: () => openUpgradeFlow("upload_limit"),
+    },
+  });
 
   const [loading, setLoading] = useState(!!businessId);
   const [photos, setPhotos] = useState<PhotoRow[]>([]);
@@ -2293,12 +2310,13 @@ export default function BusinessPhotosSettingsPage() {
             {isSelected && showUpgradeForMore ? (
               <button
                 type="button"
-                onClick={() => openUpgradeFlow("upload_limit")}
+                onClick={growUnlock.onClick}
+                disabled={growUnlock.loading}
                 title="Upgrade to add more photos beyond your current limit"
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#4B5563] bg-[#4B5563] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B5563]/40 sm:text-sm"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#4B5563] bg-[#4B5563] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B5563]/40 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
               >
                 <Lock className="h-3.5 w-3.5 text-white/90" aria-hidden />
-                Upgrade for more photos
+                {growUnlock.loading ? "Starting…" : growUnlock.label}
               </button>
             ) : isSelected && exclusiveHintText ? (
               <p className="max-w-[14rem] rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2 text-left text-[11px] leading-snug text-amber-950">
@@ -2386,7 +2404,15 @@ export default function BusinessPhotosSettingsPage() {
 
   return (
     <div className="w-full space-y-6">
-      <PhotoLimitModal open={limitModalOpen} onClose={() => setLimitModalOpen(false)} />
+      <PhotoLimitModal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        businessId={businessId}
+        currentPlan={planKey}
+        trialEligible={selectedBusiness?.trialEligible === true}
+        subscriptionStatus={selectedBusiness?.subscriptionStatus}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       {galleryExampleOpen ? (
         <div
@@ -2831,13 +2857,10 @@ export default function BusinessPhotosSettingsPage() {
             </p>
             {canUpgrade ? (
               <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={() => openUpgradeFlow("upload_limit")}
+                <GrowUnlockButton
+                  {...growUnlock}
                   className="inline-flex items-center justify-center rounded-full bg-[#124541] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0f3a35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/30"
-                >
-                  Upgrade for more photos
-                </button>
+                />
               </div>
             ) : null}
           </div>
@@ -3826,13 +3849,7 @@ export default function BusinessPhotosSettingsPage() {
             {atPhotoLimit && canUpgrade ? (
               <p className="mt-3 text-xs text-gray-500">
                 Want more than {planPhotoLimit} photos?{" "}
-                <button
-                  type="button"
-                  onClick={() => openUpgradeFlow("upload_limit")}
-                  className="font-semibold text-[#1FAF9E] underline-offset-2 hover:underline"
-                >
-                  Upgrade
-                </button>
+                <GrowUnlockLink {...growUnlock} className="font-semibold text-[#1FAF9E] underline-offset-2 hover:underline" />
               </p>
             ) : null}
       </div>

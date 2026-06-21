@@ -20,7 +20,7 @@ import { useConnectedIntegrationSlugs } from "../../../_hooks/useConnectedIntegr
 export default function IntegrationConnectorDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
 
   const businessId = selectedBusiness.id;
@@ -66,6 +66,10 @@ export default function IntegrationConnectorDetailPage() {
       category={category}
       state={state}
       plan={plan}
+      businessId={businessId}
+      trialEligible={selectedBusiness.trialEligible === true}
+      subscriptionStatus={selectedBusiness.subscriptionStatus}
+      onTrialStarted={bumpNavRefresh}
       connectHref={connectHref}
       manageHref={manageHref}
     />

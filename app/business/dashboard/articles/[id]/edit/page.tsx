@@ -202,7 +202,7 @@ export default function ArticleEditorPage() {
   const articleId = params?.id ?? "";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const selectedBusinessId = selectedBusiness?.id ?? "";
   const [articleOwnerBusinessId, setArticleOwnerBusinessId] = useState<string | null>(null);
   const [articleReady, setArticleReady] = useState(false);
@@ -1450,6 +1450,10 @@ export default function ArticleEditorPage() {
         reason={upgradeModalReason}
         usage={usage}
         articleReturnPath={articleReturnPath}
+        businessId={businessId}
+        trialEligible={selectedBusiness?.trialEligible === true}
+        subscriptionStatus={selectedBusiness?.subscriptionStatus}
+        onTrialStarted={bumpNavRefresh}
       />
     </div>
   );

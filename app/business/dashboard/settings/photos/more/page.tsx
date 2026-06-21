@@ -66,6 +66,11 @@ import {
 } from "@/lib/plans";
 import { POST_CHECKOUT_REDIRECT_SESSION_KEY } from "@/lib/upgradeFlow";
 import PageLoadingOverlay from "../../../_components/PageLoadingOverlay";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 
 /* ------------------------------------------------------------------------ */
 /*  Category model                                                           */
@@ -134,7 +139,7 @@ function slugifyTitle(input: string): string {
 
 export default function UploadMorePhotosPage() {
   const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const planKey: PlanKey = normalizePlanCodeToKey(
     selectedBusiness?.plan ?? null
   );
@@ -512,6 +517,19 @@ export default function UploadMorePhotosPage() {
       `/business/dashboard/billing/checkout?${qs.toString()}`
     );
   };
+
+  const growUnlock = useGrowUnlockCta({
+    businessId: selectedBusiness?.id,
+    currentPlan: planKey,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    onTrialSuccess: () => setUpgradeOpen(false),
+    paidDestination: {
+      type: "action",
+      run: onUpgradeConfirm,
+    },
+  });
 
   if (!selectedBusiness) return <PageLoadingOverlay />;
   if (planKey !== "free") return <PageLoadingOverlay />;
@@ -948,6 +966,7 @@ export default function UploadMorePhotosPage() {
                 </p>
               </div>
             </div>
+            <GrowUnlockError message={growUnlock.errorMessage} className="mt-4" />
             <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
@@ -956,14 +975,10 @@ export default function UploadMorePhotosPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={onUpgradeConfirm}
+              <GrowUnlockButton
+                {...growUnlock}
                 className="inline-flex items-center gap-1 rounded-md bg-[#1FAF9E] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#179487]"
-              >
-                Upgrade plan
-                <span aria-hidden>→</span>
-              </button>
+              />
             </div>
           </div>
         </div>

@@ -16,10 +16,11 @@ import { useConnectedIntegrationSlugs } from "../../_hooks/useConnectedIntegrati
 export default function IntegrationsCategoryPage() {
   const params = useParams<{ category: string }>();
   const rawCategory = params?.category ?? "";
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
 
   const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
+  const currentPlan = normalizePlanCodeToKey(selectedBusiness?.plan);
   const category = getCategoryById(rawCategory);
   const connectedSlugs = useConnectedIntegrationSlugs(selectedBusiness.id);
 
@@ -53,6 +54,10 @@ export default function IntegrationsCategoryPage() {
         title="Integrations in this category"
         integrations={integrations}
         businessId={selectedBusiness.id}
+        currentPlan={currentPlan}
+        trialEligible={selectedBusiness.trialEligible === true}
+        subscriptionStatus={selectedBusiness.subscriptionStatus}
+        onTrialStarted={bumpNavRefresh}
         emptyLabel="No integrations are available in this category yet."
       />
     </div>

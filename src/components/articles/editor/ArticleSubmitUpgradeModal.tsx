@@ -6,6 +6,11 @@ import {
   type ArticleSubmitIntent,
 } from "@/lib/articleSubmitFlow";
 import { formatPlanArticleLimitModal, type PlanKey } from "@/lib/plans";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 
 export type ArticleSubmitBlockReason = "plan" | "quota";
 
@@ -23,6 +28,10 @@ type Props = {
   reason: ArticleSubmitBlockReason;
   usage: UsageSnapshot | null;
   articleReturnPath: string;
+  businessId?: string | null;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
 };
 
 function planLabel(plan: string | undefined): string {
@@ -37,7 +46,35 @@ export default function ArticleSubmitUpgradeModal({
   reason,
   usage,
   articleReturnPath,
+  businessId,
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
 }: Props) {
+  const planKey = (usage?.plan ?? "free").trim().toLowerCase() as PlanKey;
+  const onPaidPlan = planKey !== "free";
+  const limit = usage?.limit ?? 0;
+  const used = usage?.used ?? 0;
+  const remaining = usage?.remaining ?? 0;
+  const intent: ArticleSubmitIntent = reason === "quota" ? "need_quota" : "need_plan";
+  const isGrowPlanBlock = reason === "plan" && !onPaidPlan;
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: planKey,
+    trialEligible: trialEligible === true,
+    subscriptionStatus,
+    onTrialStarted,
+    onTrialSuccess: onClose,
+    paidDestination: {
+      type: "action",
+      run: () => {
+        onClose();
+        openArticleSubmitPricingPage(articleReturnPath, intent);
+      },
+    },
+  });
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -58,13 +95,6 @@ export default function ArticleSubmitUpgradeModal({
 
   if (!open) return null;
 
-  const planKey = (usage?.plan ?? "free").trim().toLowerCase() as PlanKey;
-  const onPaidPlan = planKey !== "free";
-  const limit = usage?.limit ?? 0;
-  const used = usage?.used ?? 0;
-  const remaining = usage?.remaining ?? 0;
-  const intent: ArticleSubmitIntent = reason === "quota" ? "need_quota" : "need_plan";
-
   let title = "Upgrade to publish";
   let body: ReactNode;
   let footnote: ReactNode = null;
@@ -79,7 +109,7 @@ export default function ArticleSubmitUpgradeModal({
       </>
     );
     footnote = `Grow includes ${formatPlanArticleLimitModal("grow").replace("/month", " per month")}.`;
-    primaryLabel = "View plans to publish";
+    primaryLabel = growUnlock.label;
   } else if (reason === "quota" && onPaidPlan) {
     title = "Monthly submission limit reached";
     body = (
@@ -121,6 +151,10 @@ export default function ArticleSubmitUpgradeModal({
       onClose();
       return;
     }
+    if (isGrowPlanBlock) {
+      growUnlock.onClick();
+      return;
+    }
     goToPricing();
   };
 
@@ -143,6 +177,7 @@ export default function ArticleSubmitUpgradeModal({
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-gray-600">{body}</p>
         {footnote ? <p className="mt-2 text-sm text-gray-500">{footnote}</p> : null}
+        <GrowUnlockError message={isGrowPlanBlock ? growUnlock.errorMessage : null} className="mt-4" />
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
@@ -151,13 +186,20 @@ export default function ArticleSubmitUpgradeModal({
           >
             Keep editing draft
           </button>
-          <button
-            type="button"
-            onClick={handlePrimary}
-            className="inline-flex w-full items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#169786] sm:w-auto"
-          >
-            {primaryLabel}
-          </button>
+          {isGrowPlanBlock ? (
+            <GrowUnlockButton
+              {...growUnlock}
+              className="inline-flex w-full items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#169786] sm:w-auto"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={handlePrimary}
+              className="inline-flex w-full items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#169786] sm:w-auto"
+            >
+              {primaryLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

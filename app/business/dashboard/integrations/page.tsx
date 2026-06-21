@@ -125,9 +125,10 @@ export default function IntegrationsDashboardPage() {
   const webhooksPending = searchParams.get("webhooks") === "pending";
   const refreshKey = `${connectedParam ?? ""}|${disconnectedParam ?? ""}|${errorParam ?? ""}|${webhooksPending}`;
 
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? null;
   const plan: PlanId = normalizePlanId(normalizePlanCodeToKey(selectedBusiness?.plan));
+  const currentPlan = normalizePlanCodeToKey(selectedBusiness?.plan);
   const connectedSlugs = useConnectedIntegrationSlugs(businessId, refreshKey);
 
   const [notice, setNotice] = useState<string | null>(() =>
@@ -164,6 +165,10 @@ export default function IntegrationsDashboardPage() {
       <IntegrationsOverview
         plan={plan}
         businessId={businessId}
+        currentPlan={currentPlan}
+        trialEligible={selectedBusiness?.trialEligible === true}
+        subscriptionStatus={selectedBusiness?.subscriptionStatus}
+        onTrialStarted={bumpNavRefresh}
         connected={connected}
         available={available}
         locked={locked}

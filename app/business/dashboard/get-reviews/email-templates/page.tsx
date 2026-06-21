@@ -54,7 +54,7 @@ type TemplateRow = {
 
 export default function EmailTemplatesPage() {
   const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
   const businessId = selectedBusiness.id;
 
@@ -265,7 +265,14 @@ export default function EmailTemplatesPage() {
         subtitle="Manage templates for review invitation emails."
       />
 
-      <PlanStatusBanner plan={normalizedPlan} />
+      <PlanStatusBanner
+        plan={normalizedPlan}
+        businessId={businessId}
+        trialEligible={selectedBusiness.trialEligible === true}
+        subscriptionStatus={selectedBusiness.subscriptionStatus}
+        trialEndsAt={selectedBusiness.trialEndsAt}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       {error && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3" role="alert">

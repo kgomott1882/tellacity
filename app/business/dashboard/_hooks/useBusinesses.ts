@@ -36,7 +36,10 @@ function cleanDomain(url: string) {
 
 function mergePlans(
   base: Awaited<ReturnType<typeof getUserBusinesses>>,
-  planByBiz: Map<string, PlanKey>
+  planByBiz: Map<string, PlanKey>,
+  trialEligibleByBiz: Map<string, boolean>,
+  subscriptionStatusByBiz: Map<string, string | null>,
+  trialEndsAtByBiz: Map<string, string | null>,
 ): DashboardBusiness[] {
   return base.map((b) => ({
     id: b.id,
@@ -44,11 +47,17 @@ function mergePlans(
     slug: b.slug ?? null,
     website: b.website ?? null,
     plan: planByBiz.get(b.id) ?? b.plan ?? "free",
+    trialEligible: trialEligibleByBiz.get(b.id) ?? false,
+    subscriptionStatus: subscriptionStatusByBiz.get(b.id) ?? null,
+    trialEndsAt: trialEndsAtByBiz.get(b.id) ?? null,
   }));
 }
 
 type DashboardPlansResponse = {
   plansByBusinessId?: Partial<Record<string, PlanKey>>;
+  trialEligibleByBusinessId?: Partial<Record<string, boolean>>;
+  subscriptionStatusByBusinessId?: Partial<Record<string, string | null>>;
+  trialEndsAtByBusinessId?: Partial<Record<string, string | null>>;
   error?: string;
 };
 
@@ -103,12 +112,13 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
           return;
         }
 
-        const mergedNoPlans = mergePlans(base, new Map());
+        const mergedNoPlans = mergePlans(base, new Map(), new Map(), new Map(), new Map());
         setData(mergedNoPlans);
         setLoading(false);
 
         try {
-          const planByBiz = await withTimeout(
+          const { planByBiz, trialEligibleByBiz, subscriptionStatusByBiz, trialEndsAtByBiz } =
+            await withTimeout(
             (async () => {
               const res = await fetch("/api/business/dashboard/plans", {
                 credentials: "same-origin",
@@ -121,17 +131,44 @@ export function useBusinesses(userId: string | null, refreshKey = 0) {
                     : "Could not load subscription plans."
                 );
               }
-              return new Map<string, PlanKey>(
-                Object.entries(data.plansByBusinessId ?? {}) as [string, PlanKey][]
-              );
+              return {
+                planByBiz: new Map<string, PlanKey>(
+                  Object.entries(data.plansByBusinessId ?? {}) as [string, PlanKey][],
+                ),
+                trialEligibleByBiz: new Map<string, boolean>(
+                  Object.entries(data.trialEligibleByBusinessId ?? {}) as [string, boolean][],
+                ),
+                subscriptionStatusByBiz: new Map<string, string | null>(
+                  Object.entries(data.subscriptionStatusByBusinessId ?? {}) as [
+                    string,
+                    string | null,
+                  ][],
+                ),
+                trialEndsAtByBiz: new Map<string, string | null>(
+                  Object.entries(data.trialEndsAtByBusinessId ?? {}) as [string, string | null][],
+                ),
+              };
             })(),
             SUBSCRIPTIONS_FETCH_MAX_MS,
-            new Map<string, PlanKey>(),
+            {
+              planByBiz: new Map<string, PlanKey>(),
+              trialEligibleByBiz: new Map<string, boolean>(),
+              subscriptionStatusByBiz: new Map<string, string | null>(),
+              trialEndsAtByBiz: new Map<string, string | null>(),
+            },
           );
 
           if (!mounted) return;
 
-          setData(mergePlans(base, planByBiz));
+          setData(
+            mergePlans(
+              base,
+              planByBiz,
+              trialEligibleByBiz,
+              subscriptionStatusByBiz,
+              trialEndsAtByBiz,
+            ),
+          );
         } catch {
           /* keep plan=null from mergedNoPlans */
         }

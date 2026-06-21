@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type {
   IntegrationDefinition,
   IntegrationState,
@@ -8,12 +9,23 @@ import type {
   PlanId,
 } from "@/lib/integrationsCatalog";
 import IntegrationStateBadge from "./IntegrationStateBadge";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
+import { integrationConnectorPath } from "@/lib/integrationConnectPaths";
 
 type Props = {
   integration: IntegrationDefinition;
   category: IntegrationCategory;
   state: IntegrationState;
   plan: PlanId;
+  businessId?: string | null;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
   /** When set and state is `available`, primary CTA navigates here (e.g. Shopify / WooCommerce connect flow). */
   connectHref?: string | null;
   /** When set and state is `connected`, primary CTA navigates here (e.g. WooCommerce manage). */
@@ -42,10 +54,30 @@ export default function IntegrationDetailView({
   category,
   state,
   plan,
+  businessId,
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
   connectHref,
   manageHref,
 }: Props) {
-  const ctaLabel = primaryCtaLabel(state);
+  const router = useRouter();
+  const currentPlan: PlanKey = normalizePlanCodeToKey(plan);
+  const isGrowUpgrade = state === "upgrade_required" && integration.minimumPlan === "grow";
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan,
+    trialEligible: trialEligible === true,
+    subscriptionStatus,
+    onTrialStarted,
+    paidDestination: {
+      type: "action",
+      run: () => router.push(integrationConnectorPath(integration.slug)),
+    },
+  });
+
+  const ctaLabel = isGrowUpgrade ? growUnlock.label : primaryCtaLabel(state);
   const disabled = state === "coming_soon";
   const connectLink =
     Boolean(connectHref) && state === "available" && !disabled ? connectHref! : null;
@@ -96,19 +128,28 @@ export default function IntegrationDetailView({
             <Link href={actionLink} className={ctaClassName}>
               {ctaLabel}
             </Link>
+          ) : isGrowUpgrade ? (
+            <GrowUnlockButton
+              {...growUnlock}
+              disabled={disabled}
+              className={ctaClassName}
+            />
           ) : (
             <button type="button" disabled={disabled} className={ctaClassName}>
               {ctaLabel}
             </button>
           )}
-          {state === "upgrade_required" && (
+          {state === "upgrade_required" && !isGrowUpgrade ? (
             <Link
               href="/for-business"
               className="text-xs font-medium text-[#1FAF9E] hover:underline"
             >
               View plans
             </Link>
-          )}
+          ) : null}
+          {isGrowUpgrade ? (
+            <GrowUnlockError message={growUnlock.errorMessage} className="w-full" />
+          ) : null}
           {state === "enterprise" && (
             <Link
               href="/contact/sales"
@@ -203,4 +244,3 @@ export default function IntegrationDetailView({
     </div>
   );
 }
-

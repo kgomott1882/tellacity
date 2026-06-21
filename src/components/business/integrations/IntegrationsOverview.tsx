@@ -2,6 +2,7 @@
 
 import IntegrationSection from "./IntegrationSection";
 import type { IntegrationWithState, PlanId } from "@/lib/integrationsCatalog";
+import type { PlanKey } from "@/lib/plans";
 
 type Props = {
   plan: PlanId;
@@ -10,6 +11,10 @@ type Props = {
   locked: IntegrationWithState[];
   enterprise: IntegrationWithState[];
   businessId: string | null;
+  currentPlan?: PlanKey;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
 };
 
 function planLabel(plan: PlanId): string {
@@ -30,12 +35,24 @@ function planLabel(plan: PlanId): string {
 export default function IntegrationsOverview({
   plan,
   businessId,
+  currentPlan,
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
   connected,
   available,
   locked,
   enterprise,
 }: Props) {
   const total = connected.length + available.length + locked.length + enterprise.length;
+
+  const trialSectionProps = {
+    businessId,
+    currentPlan,
+    trialEligible,
+    subscriptionStatus,
+    onTrialStarted,
+  };
 
   return (
     <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm">
@@ -75,7 +92,7 @@ export default function IntegrationsOverview({
           title="Connected integrations"
           description="These integrations are already connected for this business."
           integrations={connected}
-          businessId={businessId}
+          {...trialSectionProps}
           emptyLabel="No integrations are connected yet."
         />
 
@@ -83,7 +100,7 @@ export default function IntegrationsOverview({
           title="Available on your plan"
           description="You can connect these integrations on your current plan without upgrading."
           integrations={available}
-          businessId={businessId}
+          {...trialSectionProps}
           emptyLabel="No additional integrations are available on your current plan."
         />
 
@@ -91,7 +108,7 @@ export default function IntegrationsOverview({
           title="More connectors on higher plans"
           description="Unlock these integrations to sync reviews with the tools your team already uses."
           integrations={locked}
-          businessId={businessId}
+          {...trialSectionProps}
           emptyLabel="All currently available integrations are already included in your plan."
         />
 
@@ -99,7 +116,7 @@ export default function IntegrationsOverview({
           title="Enterprise & assisted setup"
           description="These integrations are available for Elite and enterprise customers. Our team will help you design and implement the connection."
           integrations={enterprise}
-          businessId={businessId}
+          {...trialSectionProps}
           emptyLabel="Enterprise integrations are not yet available."
         />
       </div>

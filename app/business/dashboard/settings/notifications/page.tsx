@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import {
-  canAccessNotifications,
-  normalizePlanCodeToKey,
-  nextTierUpgradeCtaLabel,
-} from "@/lib/plans";
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { canAccessNotifications, normalizePlanCodeToKey } from "@/lib/plans";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 
 type Prefs = {
   newsletter_enabled: boolean;
@@ -24,7 +24,7 @@ const DEFAULT_PREFS: Prefs = {
 };
 
 export default function NotificationsPage() {
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +35,18 @@ export default function NotificationsPage() {
 
   const businessId = selectedBusiness.id;
   const planKey = normalizePlanCodeToKey(selectedBusiness.plan);
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: planKey,
+    trialEligible: selectedBusiness.trialEligible === true,
+    subscriptionStatus: selectedBusiness.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "href",
+      href: "/business/dashboard/settings/usage",
+    },
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,12 +146,11 @@ export default function NotificationsPage() {
         <p className="mt-3 text-sm text-gray-600">
           Stay on top of new reviews and activity. Enable notifications with a Grow plan.
         </p>
-        <Link
-          href="/business/dashboard/settings/usage"
+        <GrowUnlockButton
+          {...growUnlock}
           className="mt-8 inline-flex rounded-xl bg-[#124541] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a36]"
-        >
-          {nextTierUpgradeCtaLabel(planKey)}
-        </Link>
+        />
+        <GrowUnlockError message={growUnlock.errorMessage} className="mt-4" />
       </div>
     );
   }

@@ -2,12 +2,23 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import { normalizePlanCodeToKey, type PlanKey } from "@/lib/plans";
 import { openUpgradeFlow } from "@/lib/upgradeFlow";
 
 export type PhotoLimitModalProps = {
   open: boolean;
   onClose: () => void;
-  /** If set, "Upgrade plan" is a normal link. If omitted, uses `openUpgradeFlow("upload_limit")`. */
+  businessId?: string | null;
+  currentPlan?: PlanKey;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
+  /** If set, paid upgrade is a normal link. If omitted, uses `openUpgradeFlow("upload_limit")`. */
   upgradeHref?: string;
 };
 
@@ -18,8 +29,28 @@ export type PhotoLimitModalProps = {
 export default function PhotoLimitModal({
   open,
   onClose,
+  businessId,
+  currentPlan,
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
   upgradeHref,
 }: PhotoLimitModalProps) {
+  const planKey = currentPlan ?? normalizePlanCodeToKey(null);
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: planKey,
+    trialEligible: trialEligible === true,
+    subscriptionStatus,
+    onTrialStarted,
+    paidDestination: upgradeHref
+      ? { type: "href", href: upgradeHref }
+      : {
+          type: "action",
+          run: () => openUpgradeFlow("upload_limit"),
+        },
+  });
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -62,6 +93,7 @@ export default function PhotoLimitModal({
           or upgrade to add more images across gallery, products, services, and your own custom
           sections.
         </p>
+        <GrowUnlockError message={growUnlock.errorMessage} className="mt-4" />
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
@@ -70,25 +102,23 @@ export default function PhotoLimitModal({
           >
             Maybe later
           </button>
-          {upgradeHref ? (
+          {upgradeHref && growUnlock.mode !== "trial" ? (
             <Link
               href={upgradeHref}
               onClick={onClose}
               className="inline-flex w-full items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#169786] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:w-auto"
             >
-              Upgrade plan
+              {growUnlock.label}
             </Link>
           ) : (
-            <button
-              type="button"
+            <GrowUnlockButton
+              {...growUnlock}
               onClick={() => {
                 onClose();
-                openUpgradeFlow("upload_limit");
+                growUnlock.onClick();
               }}
               className="inline-flex w-full items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#169786] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40 sm:w-auto"
-            >
-              Upgrade plan
-            </button>
+            />
           )}
         </div>
       </div>

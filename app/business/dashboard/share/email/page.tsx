@@ -34,6 +34,11 @@ function planAllowsEmailWidgetLayout(plan: PlanKey, layoutStyle: string): boolea
 import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
+  GrowUnlockButton,
+  GrowUnlockError,
+} from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import {
   EmailWidgetEliteBrandedCard,
   EmailWidgetInviteBlock,
   EmailWidgetRatingLadderPreview,
@@ -101,6 +106,15 @@ function upgradeLabelForPlan(plan: PlanKey): string {
   }
 }
 
+/** Plan required to send with the saved widget layout (mirrors `planAllowsEmailWidgetLayout`). */
+function requiredPlanForSendLayout(layoutStyle: string): PlanKey {
+  const ls = (layoutStyle || "standard").trim().toLowerCase();
+  if (ls === "elite_branded") return "elite";
+  if (ls === "review_hunter" || ls === "reviews_showcase") return "premium";
+  if (ls === "rating_ladder") return "grow";
+  return "free";
+}
+
 /**
  * Small corner chip shown on locked email layout cards. The card preview
  * itself stays fully visible so owners can see what each layout looks like
@@ -147,7 +161,7 @@ function EmailLayoutLockOverlay({
 
 export default function EmailWidgetsPage() {
   const router = useRouter();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   if (!selectedBusiness?.id) return null;
   const businessId = selectedBusiness.id;
 
@@ -182,6 +196,18 @@ export default function EmailWidgetsPage() {
     });
     router.push("/business/dashboard/settings/usage");
   };
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: normalizePlanCodeToKey(selectedBusiness.plan),
+    trialEligible: selectedBusiness.trialEligible === true,
+    subscriptionStatus: selectedBusiness.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "action",
+      run: () => goToPricingPlans("grow"),
+    },
+  });
 
   const fetchTemplate = useCallback(
     async (opts?: { signal?: AbortSignal }) => {
@@ -367,6 +393,8 @@ export default function EmailWidgetsPage() {
     normalizedPlan,
     widgetLayoutStyle,
   );
+  const sendBlockedByGrowOnly =
+    !canSend && requiredPlanForSendLayout(widgetLayoutStyle) === "grow";
 
   const persistWidgetLayout = useCallback(
     async (layout: EmailLayoutKey) => {
@@ -551,7 +579,14 @@ export default function EmailWidgetsPage() {
         subtitle="Promote your Tellacity profile via email."
       />
 
-      <PlanStatusBanner plan={normalizedPlan} />
+      <PlanStatusBanner
+        plan={normalizedPlan}
+        businessId={businessId}
+        trialEligible={selectedBusiness.trialEligible === true}
+        subscriptionStatus={selectedBusiness.subscriptionStatus}
+        trialEndsAt={selectedBusiness.trialEndsAt}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       {/* Toast */}
       {toast && (
@@ -716,10 +751,8 @@ export default function EmailWidgetsPage() {
                 </div>
                 {!canRatingLadderLayout ? (
                   <EmailLayoutLockOverlay
-                    onUnlockClick={() => goToPricingPlans(requiredPlanForEmailLayout("rating_ladder"))}
-                    ctaLabel={upgradeLabelForPlan(
-                      requiredPlanForEmailLayout("rating_ladder"),
-                    )}
+                    onUnlockClick={growUnlock.onClick}
+                    ctaLabel={growUnlock.loading ? "Starting…" : growUnlock.label}
                   />
                 ) : null}
               </div>
@@ -1089,13 +1122,21 @@ export default function EmailWidgetsPage() {
 
           {/* Toolbar: Send primary; Save message lives in the dark header above */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50/60 px-3 py-3 sm:px-4">
-            <button
-              type="submit"
-              disabled={!canSend || sending || !businessId}
-              className="rounded-full bg-[#124541] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
-            >
-              {!canSend ? "Upgrade to send" : sending ? "Sending…" : "Send"}
-            </button>
+            {sendBlockedByGrowOnly ? (
+              <GrowUnlockButton
+                {...growUnlock}
+                className="rounded-full bg-[#124541] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+              />
+            ) : (
+              <button
+                type="submit"
+                disabled={!canSend || sending || !businessId}
+                className="rounded-full bg-[#124541] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3a35] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+              >
+                {!canSend ? "Upgrade to send" : sending ? "Sending…" : "Send"}
+              </button>
+            )}
+            <GrowUnlockError message={sendBlockedByGrowOnly ? growUnlock.errorMessage : null} className="w-full sm:order-last sm:w-auto" />
             <p className="max-w-full text-right text-[11px] text-gray-500 sm:max-w-[min(100%,20rem)]">
               Save message stores subject &amp; intro for sends. Separate addresses with commas or new lines.
             </p>

@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sessionEmailDomainMatchesBusinessWebsite } from "@/lib/businessDomainVerification";
 import { ensureBusinessOwnershipRow } from "@/lib/businessSignupVerifyHelpers";
-import { provisionReverseTrialIfEligible } from "@/lib/provisionReverseTrial";
 
 /** PostgREST: RPC not in schema cache / not created yet. */
 export function isVerifyDomainRpcMissing(err: { message?: string; code?: string }): boolean {
@@ -228,8 +227,6 @@ export async function verifyDomainFinishWithServiceRole(
     .update({ consumed_at: new Date().toISOString() })
     .eq("id", vRow.id);
 
-  await provisionReverseTrialIfEligible(businessId, admin);
-
   return { ok: true };
 }
 
@@ -290,9 +287,6 @@ export async function finalizeSignupDomainClaim(
   if (!serviceRpc.error && serviceRpc.data != null) {
     const data = serviceRpc.data as ServiceRpcResult;
     if (data?.ok) {
-      if (!data.already_owner) {
-        await provisionReverseTrialIfEligible(businessId, admin);
-      }
       return { ok: true, already_owner: data.already_owner };
     }
     return {

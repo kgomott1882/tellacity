@@ -160,11 +160,14 @@ export function formatPlanWebsiteWidgetLimitTableCell(plan: PlanKey): string {
   return countWebsiteWidgetsForPlan(plan).toLocaleString("en-US");
 }
 
-export {
-  SUBSCRIPTION_STATUSES_FOR_PLAN,
+import {
   pickPlanResolutionSubscriptionRow,
+  SUBSCRIPTION_STATUSES_FOR_PLAN,
   type PlanResolutionSubscriptionRow,
 } from "@/lib/subscriptionPlanPick";
+
+export { SUBSCRIPTION_STATUSES_FOR_PLAN, pickPlanResolutionSubscriptionRow };
+export type { PlanResolutionSubscriptionRow };
 
 async function loadSubscriptionPlanResolution(
   businessId: string,
@@ -225,6 +228,82 @@ export async function getActivePlanKeysByBusinessIds(
   for (const bid of businessIds) {
     const resolved = await getActivePlanKeyForBusinessResult(bid, db);
     out.set(bid, resolved.ok ? resolved.plan : "free");
+  }
+
+  return out;
+}
+
+export type DashboardPlanContext = {
+  plan: PlanKey;
+  subscriptionStatus: string | null;
+  trialEndsAt: string | null;
+};
+
+/**
+ * Resolved plan + subscription metadata for dashboard clients.
+ * One batch `subscriptions` read, then per-business reconcile (same as plan resolution).
+ */
+export async function getDashboardPlanContextByBusinessIds(
+  businessIds: string[],
+  db: SupabaseClient,
+): Promise<Map<string, DashboardPlanContext>> {
+  const out = new Map<string, DashboardPlanContext>();
+  if (businessIds.length === 0) return out;
+
+  const { data: subRows, error: subErr } = await db
+    .from("subscriptions")
+    .select(
+      "business_id, plan_code, status, updated_at, current_period_end, pending_plan_code, pending_change_at",
+    )
+    .in("business_id", businessIds);
+
+  const byBiz = new Map<string, PlanResolutionSubscriptionRow[]>();
+  if (!subErr) {
+    for (const row of subRows ?? []) {
+      const bid =
+        (row as { business_id?: string | null }).business_id != null
+          ? String((row as { business_id?: string | null }).business_id).trim()
+          : "";
+      if (!bid) continue;
+      const list = byBiz.get(bid) ?? [];
+      list.push(row as PlanResolutionSubscriptionRow);
+      byBiz.set(bid, list);
+    }
+  } else {
+    console.error("[plans] batch subscriptions lookup:", subErr.message);
+  }
+
+  for (const bid of businessIds) {
+    const reconciled = await reconcileSubscriptionPeriodEnd(db, bid);
+    if (!reconciled.ok) {
+      out.set(bid, { plan: "free", subscriptionStatus: null, trialEndsAt: null });
+      continue;
+    }
+
+    const plan = normalizePlanCodeToKey(reconciled.rawPlanCode);
+
+    if (reconciled.action.type !== "none") {
+      out.set(bid, { plan, subscriptionStatus: "active", trialEndsAt: null });
+      continue;
+    }
+
+    const picked = pickPlanResolutionSubscriptionRow(byBiz.get(bid));
+    if (!picked) {
+      out.set(bid, { plan, subscriptionStatus: null, trialEndsAt: null });
+      continue;
+    }
+
+    const statusRaw =
+      picked.status != null ? String(picked.status).trim().toLowerCase() : "";
+    const subscriptionStatus = statusRaw || null;
+    const periodEnd =
+      picked.current_period_end != null && String(picked.current_period_end).trim()
+        ? String(picked.current_period_end).trim()
+        : null;
+    const trialEndsAt =
+      subscriptionStatus === "trialing" && periodEnd ? periodEnd : null;
+
+    out.set(bid, { plan, subscriptionStatus, trialEndsAt });
   }
 
   return out;

@@ -8,6 +8,10 @@ export type DashboardBusiness = {
   slug: string | null;
   website: string | null;
   plan: string | null;
+  /** Owner-only: free workspace eligible for a one-time Grow trial. */
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  trialEndsAt?: string | null;
 };
 
 type Ctx = {

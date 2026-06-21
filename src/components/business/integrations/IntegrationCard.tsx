@@ -9,6 +9,9 @@ import {
   integrationConnectorPath,
   integrationManagePath,
 } from "@/lib/integrationConnectPaths";
+import { GrowUnlockButton } from "@/components/dashboard/GrowUnlockCta";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
+import type { PlanKey } from "@/lib/plans";
 
 function primaryCtaLabel(state: IntegrationWithState["state"]): string {
   switch (state) {
@@ -30,11 +33,37 @@ function primaryCtaLabel(state: IntegrationWithState["state"]): string {
 type Props = {
   integration: IntegrationWithState;
   businessId?: string;
+  currentPlan?: PlanKey;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
 };
 
-export default function IntegrationCard({ integration, businessId }: Props) {
+export default function IntegrationCard({
+  integration,
+  businessId,
+  currentPlan = "free",
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
+}: Props) {
   const router = useRouter();
-  const ctaLabel = primaryCtaLabel(integration.state);
+  const isGrowUpgrade =
+    integration.state === "upgrade_required" && integration.minimumPlan === "grow";
+
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan,
+    trialEligible: trialEligible === true,
+    subscriptionStatus,
+    onTrialStarted,
+    paidDestination: {
+      type: "action",
+      run: () => router.push(integrationConnectorPath(integration.slug)),
+    },
+  });
+
+  const ctaLabel = isGrowUpgrade ? growUnlock.label : primaryCtaLabel(integration.state);
   const disabled = integration.state === "coming_soon";
   const description = integration.shortDescription;
 
@@ -47,6 +76,16 @@ export default function IntegrationCard({ integration, businessId }: Props) {
     businessId && integration.state === "connected"
       ? integrationManagePath(integration.slug, businessId)
       : null;
+
+  const upgradeButtonClassName = `inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+    disabled
+      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+      : integration.state === "upgrade_required"
+        ? "bg-[#0E0E0E] text-white hover:bg-black"
+        : integration.state === "enterprise"
+          ? "bg-[#1F2937] text-white hover:bg-black"
+          : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
+  }`;
 
   const primaryCta =
     manageHref ? (
@@ -65,6 +104,12 @@ export default function IntegrationCard({ integration, businessId }: Props) {
       </Link>
     ) : integration.state === "connected" ? (
       <span className="text-sm font-medium text-green-600">Connected ✓</span>
+    ) : isGrowUpgrade ? (
+      <GrowUnlockButton
+        {...growUnlock}
+        disabled={disabled}
+        className={upgradeButtonClassName}
+      />
     ) : (
       <button
         type="button"
@@ -73,15 +118,7 @@ export default function IntegrationCard({ integration, businessId }: Props) {
           router.push(integrationConnectorPath(integration.slug));
         }}
         disabled={disabled}
-        className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-          disabled
-            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : integration.state === "upgrade_required"
-              ? "bg-[#0E0E0E] text-white hover:bg-black"
-              : integration.state === "enterprise"
-                ? "bg-[#1F2937] text-white hover:bg-black"
-                : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
-        }`}
+        className={upgradeButtonClassName}
       >
         {ctaLabel}
       </button>

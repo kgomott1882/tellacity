@@ -2,12 +2,17 @@
 
 import IntegrationCard from "./IntegrationCard";
 import type { IntegrationWithState } from "@/lib/integrationsCatalog";
+import type { PlanKey } from "@/lib/plans";
 
 type Props = {
   title: string;
   description?: string;
   integrations: IntegrationWithState[];
   businessId?: string | null;
+  currentPlan?: PlanKey;
+  trialEligible?: boolean;
+  subscriptionStatus?: string | null;
+  onTrialStarted?: () => void;
   emptyLabel?: string;
 };
 
@@ -16,6 +21,10 @@ export default function IntegrationSection({
   description,
   integrations,
   businessId,
+  currentPlan,
+  trialEligible,
+  subscriptionStatus,
+  onTrialStarted,
   emptyLabel,
 }: Props) {
   if (integrations.length === 0 && !emptyLabel) {
@@ -40,6 +49,10 @@ export default function IntegrationSection({
               key={integration.slug}
               integration={integration}
               businessId={businessId ?? undefined}
+              currentPlan={currentPlan}
+              trialEligible={trialEligible}
+              subscriptionStatus={subscriptionStatus}
+              onTrialStarted={onTrialStarted}
             />
           ))}
         </div>

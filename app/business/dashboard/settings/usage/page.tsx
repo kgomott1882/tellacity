@@ -24,7 +24,7 @@ import SimplePage from "../../_components/SimplePage";
 export default function UsageSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const { user } = useBusinessAuth();
 
   const [pricingHighlightContext, setPricingHighlightContext] = useState<
@@ -33,6 +33,7 @@ export default function UsageSettingsPage() {
 
   const businessId = selectedBusiness?.id ?? null;
   const currentPlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const trialEligible = selectedBusiness?.trialEligible === true;
   const dashboardEmail = user?.email?.trim() ?? "";
 
   const parsedCheckoutPlan = parseBillingPlanQuery(searchParams.get("plan") ?? undefined);
@@ -105,6 +106,8 @@ export default function UsageSettingsPage() {
             dashboardBusinessId={businessId}
             dashboardUserEmail={dashboardEmail}
             dashboardCurrentPlanKey={currentPlanKey}
+            dashboardTrialEligible={trialEligible}
+            onTrialStarted={bumpNavRefresh}
             dashboardPricingHighlightContext={pricingHighlightContext}
             embedInDashboard
             dashboardHideMarketingHero
