@@ -16,7 +16,8 @@ import MicroTrustScoreWidget from "@/components/widgets/MicroTrustScoreWidget";
 import ReviewShowcaseEmbed from "@/components/widgets/ReviewShowcaseEmbed";
 import TellacityTrustBadgeEmbed from "@/components/widgets/TellacityTrustBadgeEmbed";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
-import { getActivePlanKeyForBusiness } from "@/lib/plans";
+import { getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
+import { resolveEntitledWidgetEmbedType } from "@/lib/widgetEmbedEntitlement";
 import { resolveWidgetShowBusinessName } from "@/lib/widgetEmbedShowBusinessName";
 import {
   applyDashboardPreviewReviewLimit,
@@ -31,6 +32,7 @@ import {
 import { WIDGET_GALLERY_CANVAS_HEIGHT } from "@/lib/widgetGalleryThumb";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const VALID_TYPES: WidgetType[] = [
   "badge",
@@ -131,10 +133,37 @@ export default async function WidgetEmbedPage({
 }) {
   const params = await searchParams;
   const slug = params.business?.trim();
+  const dashboardDemo =
+    params.dashboard_demo === "1" || params.dashboard_demo === "true";
+  const galleryThumb = params.gallery === "1" || params.gallery === "true";
   const rawType = params.type ?? "badge";
-  const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
+  const requestedType: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
     ? (rawType as WidgetType)
     : "badge";
+
+  if (!slug) {
+    return <Fallback message="Missing business slug." />;
+  }
+
+  const supabase = getSupabase();
+  const adminDb = getServiceSupabase();
+
+  const { data: themeRow } = await supabase
+    .from("businesses")
+    .select("id, widget_white_label, widget_embed_settings")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  const businessId = (themeRow as { id?: string | null } | null)?.id ?? null;
+  let plan: PlanKey = "free";
+  if (businessId) {
+    plan = await getActivePlanKeyForBusiness(businessId, adminDb);
+  }
+
+  const type = resolveEntitledWidgetEmbedType(requestedType, plan, {
+    skipEntitlementCheck: dashboardDemo,
+  });
+
   const cap = widgetEmbedDataLimitCap(type);
   const defaultLimitStr =
     type === "review_dropdown" || type === "carousel" || type === "list" || type === "showcase"
@@ -147,16 +176,8 @@ export default async function WidgetEmbedPage({
   const n =
     Number.isFinite(parsedLimit) && parsedLimit >= 1 ? parsedLimit : fallbackLimit;
   const limit = Math.min(cap, Math.max(1, n));
-  const dashboardDemo =
-    params.dashboard_demo === "1" || params.dashboard_demo === "true";
-  const galleryThumb = params.gallery === "1" || params.gallery === "true";
   const emptyStarBorder = "#9CA3AF";
 
-  if (!slug) {
-    return <Fallback message="Missing business slug." />;
-  }
-
-  const supabase = getSupabase();
   const { data, error } = await supabase.rpc("get_widget_payload_v1", {
     p_business_slug: slug,
     p_limit: limit,
@@ -178,12 +199,6 @@ export default async function WidgetEmbedPage({
   if (dashboardDemo) {
     embedPayload = applyDashboardPreviewReviewLimit(embedPayload, limit, type);
   }
-
-  const { data: themeRow } = await supabase
-    .from("businesses")
-    .select("id, widget_white_label, widget_embed_settings")
-    .eq("slug", slug)
-    .maybeSingle();
 
   const rawTheme = (params.theme ?? "inherit").trim().toLowerCase();
   const embedSettingsRaw = (themeRow as { widget_embed_settings?: unknown } | null)?.widget_embed_settings;
@@ -227,17 +242,7 @@ export default async function WidgetEmbedPage({
     minimal = !savedIsLight;
   }
 
-  const businessId = (themeRow as { id?: string | null } | null)?.id ?? null;
-  let allowWhiteLabel = false;
-  if (businessId) {
-    try {
-      const adminDb = getServiceSupabase();
-      const plan = await getActivePlanKeyForBusiness(businessId, adminDb);
-      allowWhiteLabel = plan === "elite";
-    } catch {
-      allowWhiteLabel = false;
-    }
-  }
+  let allowWhiteLabel = plan === "elite";
 
   if (allowWhiteLabel) {
     const raw = (themeRow as { widget_white_label?: unknown } | null)?.widget_white_label;

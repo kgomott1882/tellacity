@@ -41,6 +41,12 @@ import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
 import { buildBusinessSignupClaimPrefillUrl } from "@/lib/businessSignupClaimPrefill";
+import {
+  BUSINESS_PROFILE_REVIEWS_CLIENT_PAGE_SIZE,
+  fetchBusinessProfileReviewsPage,
+  type BusinessProfileReview,
+} from "@/lib/businessProfileReviews";
+import type { PublishedReviewAggregates } from "@/lib/businessReviewJsonLd";
 
 interface BusinessRow {
   address?: string | null;
@@ -79,20 +85,7 @@ type Business = {
   phone: string;
 };
 
-type Review = {
-  id: string;
-  reviewerName: string;
-  rating: number;
-  title: string;
-  body: string;
-  createdAt: string;
-  createdAtRaw: string | null;
-  likeCount: number;
-  /** From linked product photo when review is for a specific item. */
-  productName: string | null;
-  ownerResponse: string | null;
-  ownerResponseAt: string | null;
-};
+type Review = BusinessProfileReview;
 
 type ReviewReply = {
   id: string;
@@ -186,52 +179,6 @@ const formatDate = (value: string | null | undefined) => {
   });
 };
 
-async function mapReviewRowsWithProductNames(
-  sb: ReturnType<typeof supabaseBrowser>,
-  rows: Array<Record<string, unknown>>,
-): Promise<Review[]> {
-  const photoIds = [
-    ...new Set(
-      rows
-        .map((r) => r.product_photo_id as string | null | undefined)
-        .filter((id): id is string => typeof id === "string" && id.length > 0),
-    ),
-  ];
-  const nameByPhoto = new Map<string, string>();
-  if (photoIds.length > 0) {
-    const { data: photos } = await sb
-      .from("business_photos")
-      .select("id, product_name")
-      .in("id", photoIds);
-    for (const p of photos ?? []) {
-      const id = String((p as { id?: string }).id ?? "");
-      const nm = String((p as { product_name?: string | null }).product_name ?? "").trim();
-      if (id && nm) nameByPhoto.set(id, nm);
-    }
-  }
-  return rows.map((review) => {
-    const pid = review.product_photo_id as string | null | undefined;
-    const productName = pid ? nameByPhoto.get(pid) ?? null : null;
-    return {
-      id: String(review.id),
-      reviewerName: String(review.guest_name ?? "Anonymous"),
-      rating: Number(review.rating ?? 0),
-      title: String(review.title ?? ""),
-      body: String(review.body ?? ""),
-      createdAt: formatDate(review.created_at as string | null | undefined),
-      createdAtRaw: (review.created_at as string | null | undefined) ?? null,
-      likeCount: Number((review as { like_count?: number }).like_count ?? 0),
-      productName,
-      ownerResponse: String(
-        (review as { owner_response?: string | null }).owner_response ?? "",
-      ).trim() || null,
-      ownerResponseAt: formatDate(
-        (review as { owner_response_at?: string | null }).owner_response_at,
-      ),
-    };
-  });
-}
-
 const buildWebsiteHref = (value: string | null | undefined) => {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
@@ -312,6 +259,11 @@ type BusinessClientProps = {
    */
   initialIsClaimed?: boolean;
   initialPublishedArticles?: BusinessProfileArticleCard[];
+  /** First page of reviews from SSR (`/b/[slug]`). */
+  initialReviews?: BusinessProfileReview[];
+  initialTotalReviewCount?: number;
+  /** Live published/visible aggregates — matches JSON-LD hero counts. */
+  initialPublishedReviewAggregates?: PublishedReviewAggregates;
 };
 
 export default function BusinessClient({
@@ -319,7 +271,12 @@ export default function BusinessClient({
   initialBusinessPhotos,
   initialIsClaimed = false,
   initialPublishedArticles = [],
+  initialReviews,
+  initialTotalReviewCount,
+  initialPublishedReviewAggregates,
 }: BusinessClientProps) {
+  const ssrReviewSeed =
+    initialBusiness != null && Array.isArray(initialReviews);
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
   const pathname = usePathname();
@@ -371,7 +328,9 @@ export default function BusinessClient({
       phone,
     };
   });
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<Review[]>(() =>
+    ssrReviewSeed ? [...initialReviews!] : [],
+  );
   const [repliesByReviewId, setRepliesByReviewId] = useState<
     Record<string, ReviewReply[]>
   >({});
@@ -383,12 +342,23 @@ export default function BusinessClient({
   const [isLoadingBusinessResponses, setIsLoadingBusinessResponses] =
     useState(true);
   const [isLoadingBusiness, setIsLoadingBusiness] = useState(!initialBusiness);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(!ssrReviewSeed);
   const [notFound, setNotFound] = useState(false);
-  const [reviewOffset, setReviewOffset] = useState(0);
-  const [hasMoreReviews, setHasMoreReviews] = useState(false);
+  const [reviewOffset, setReviewOffset] = useState(() =>
+    ssrReviewSeed ? initialReviews!.length : 0,
+  );
+  const [hasMoreReviews, setHasMoreReviews] = useState(() => {
+    if (!ssrReviewSeed) return false;
+    const total = initialTotalReviewCount ?? initialReviews!.length;
+    return initialReviews!.length < total;
+  });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [totalReviewCount, setTotalReviewCount] = useState(0);
+  const [totalReviewCount, setTotalReviewCount] = useState(() =>
+    ssrReviewSeed
+      ? (initialTotalReviewCount ?? initialReviews!.length)
+      : 0,
+  );
+  const skipInitialReviewFetchRef = useRef(ssrReviewSeed);
   const [isTrustScoreOpen, setIsTrustScoreOpen] = useState(false);
   const [trustScoreStep, setTrustScoreStep] = useState(0);
   const [categoryTrail, setCategoryTrail] = useState<CategoryTrail | null>(null);
@@ -966,39 +936,32 @@ export default function BusinessClient({
     ) => {
       const silent = options?.silent === true;
       const sb = supabaseBrowser();
-      const { data, error, count } = await sb
-        .from("reviews")
-        .select(
-          "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id, owner_response, owner_response_at",
-          { count: "exact" }
-        )
-        .eq("business_id", businessId)
-        .eq("status", "published")
-        .in("visibility", ["visible", "landing_hidden"])
-        .order("created_at", { ascending: false })
-        .range(offset, offset + 4);
+      const { reviews: mapped, totalCount } = await fetchBusinessProfileReviewsPage(
+        sb,
+        businessId,
+        offset,
+        BUSINESS_PROFILE_REVIEWS_CLIENT_PAGE_SIZE,
+      );
 
       if (!isMounted) {
         return;
       }
 
-      if (!error) {
-        const mapped = await mapReviewRowsWithProductNames(
-          sb,
-          (data ?? []) as Array<Record<string, unknown>>,
-        );
-        setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
-        void fetchReplies(mapped, !append);
-        const totalCount = count ?? mapped.length;
-        setTotalReviewCount(totalCount);
-        setHasMoreReviews(offset + mapped.length < totalCount);
-        setReviewOffset(offset + mapped.length);
-      }
+      setReviews((prev) => (append ? [...prev, ...mapped] : mapped));
+      void fetchReplies(mapped, !append);
+      setTotalReviewCount(totalCount);
+      setHasMoreReviews(offset + mapped.length < totalCount);
+      setReviewOffset(offset + mapped.length);
     };
 
     const loadReviewsAndStats = async (opts?: { silent?: boolean }) => {
       const silent = opts?.silent === true;
-      if (!silent) {
+      const skipInitialPageFetch = skipInitialReviewFetchRef.current;
+      if (skipInitialReviewFetchRef.current) {
+        skipInitialReviewFetchRef.current = false;
+      }
+
+      if (!silent && !skipInitialPageFetch) {
         setReviews([]);
         setRepliesByReviewId({});
         setReviewOffset(0);
@@ -1006,7 +969,17 @@ export default function BusinessClient({
         setIsLoadingReviews(true);
       }
       await fetchReviewStats();
-      await fetchReviewsPage(0, false, { silent });
+      if (skipInitialPageFetch) {
+        if (initialReviews && initialReviews.length > 0) {
+          void fetchReplies(initialReviews, true);
+        }
+      } else if (!silent) {
+        try {
+          await fetchReviewsPage(0, false, { silent });
+        } catch (err) {
+          console.error("[BusinessClient] fetch reviews:", err);
+        }
+      }
       if (isMounted && !silent) {
         setIsLoadingReviews(false);
       }
@@ -1127,12 +1100,11 @@ export default function BusinessClient({
       return reviewStats.average;
     }
 
-    if (business.trustScore != null && business.trustScore > 0) {
-      return business.trustScore;
-    }
-
-    if (business.averageRating > 0) {
-      return business.averageRating;
+    if (
+      initialPublishedReviewAggregates &&
+      initialPublishedReviewAggregates.averageRating > 0
+    ) {
+      return initialPublishedReviewAggregates.averageRating;
     }
 
     if (ratingCounts.total > 0) {
@@ -1150,28 +1122,37 @@ export default function BusinessClient({
       return sum / reviews.length;
     }
 
+    if (business.averageRating > 0) {
+      return business.averageRating;
+    }
+
     return 0;
-  }, [business, reviewStats, ratingCounts, reviews]);
+  }, [
+    business,
+    reviewStats,
+    ratingCounts,
+    reviews,
+    initialPublishedReviewAggregates,
+  ]);
 
   const derivedReviewCount = useMemo(() => {
     if (reviewStats) {
       return reviewStats.total;
     }
-    if (!isLoadingReviews && totalReviewCount > 0) {
-      return totalReviewCount;
-    }
-    if (business?.reviewCount && business.reviewCount > 0) {
-      return business.reviewCount;
-    }
     if (totalReviewCount > 0) {
       return totalReviewCount;
+    }
+    if (
+      initialPublishedReviewAggregates &&
+      initialPublishedReviewAggregates.reviewCount > 0
+    ) {
+      return initialPublishedReviewAggregates.reviewCount;
     }
     return reviews.length;
   }, [
     reviewStats,
-    isLoadingReviews,
     totalReviewCount,
-    business?.reviewCount,
+    initialPublishedReviewAggregates,
     reviews.length,
   ]);
 
@@ -1704,24 +1685,16 @@ export default function BusinessClient({
                         setIsLoadingMore(true);
                         const offset = reviewOffset;
 
-                        const sb = supabaseBrowser();
-                        const { data, error, count } = await sb
-                          .from("reviews")
-                          .select(
-                            "id, guest_name, rating, title, body, created_at, status, like_count, product_photo_id, owner_response, owner_response_at",
-                            { count: "exact" }
-                          )
-                          .eq("business_id", business.id)
-                          .eq("status", "published")
-                          .in("visibility", ["visible", "landing_hidden"])
-                          .order("created_at", { ascending: false })
-                          .range(offset, offset + 4);
+                        try {
+                          const sb = supabaseBrowser();
+                          const { reviews: mapped, totalCount } =
+                            await fetchBusinessProfileReviewsPage(
+                              sb,
+                              business.id,
+                              offset,
+                              BUSINESS_PROFILE_REVIEWS_CLIENT_PAGE_SIZE,
+                            );
 
-                        if (!error) {
-                          const mapped = await mapReviewRowsWithProductNames(
-                            sb,
-                            (data ?? []) as Array<Record<string, unknown>>,
-                          );
                           setReviews((prevReviews) => [
                             ...prevReviews,
                             ...mapped,
@@ -1782,14 +1755,16 @@ export default function BusinessClient({
                               ...merged,
                             }));
                           }
-                          const totalCount = count ?? mapped.length;
+                          setTotalReviewCount(totalCount);
                           setHasMoreReviews(
-                            offset + mapped.length < totalCount
+                            offset + mapped.length < totalCount,
                           );
                           setReviewOffset(offset + mapped.length);
+                        } catch (err) {
+                          console.error("[BusinessClient] load more reviews:", err);
+                        } finally {
+                          setIsLoadingMore(false);
                         }
-
-                        setIsLoadingMore(false);
                       }}
                       className="rounded-full border border-[#1FAF9E] px-6 py-2 text-sm font-semibold text-[#1FAF9E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1FAF9E]/40"
                     >

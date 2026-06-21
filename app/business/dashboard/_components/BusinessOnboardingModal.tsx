@@ -14,6 +14,7 @@ import {
   type AccountApiOnboarding,
 } from "@/lib/businessOnboardingPrefill";
 import { emailDomainToBusinessSearchHint } from "@/lib/emailDomainBusinessHint";
+import { readSignupVerifySession } from "@/lib/businessSignupPostVerify";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 
 function sanitizeClaimSearchToken(q: string): string {
@@ -195,6 +196,11 @@ export default function BusinessOnboardingModal({
     return { res, data };
   }
 
+  function signupGrowTrialProvisionBody(): { provisionGrowTrial?: boolean } {
+    const pending = readSignupVerifySession()?.growTrialPending === true;
+    return pending ? { provisionGrowTrial: true } : {};
+  }
+
   async function submitCreateDraft() {
     setError("");
     setInfo("");
@@ -289,6 +295,7 @@ export default function BusinessOnboardingModal({
       const { res, data } = await postJson("/api/business/verify-domain", {
         businessId: createBusinessId,
         code,
+        ...signupGrowTrialProvisionBody(),
       });
       if (!res.ok) {
         throw new Error(data.message || data.error || "Verification failed");
@@ -442,6 +449,7 @@ export default function BusinessOnboardingModal({
       const { res, data } = await postJson("/api/business/verify-domain", {
         businessId: claimBusinessId,
         code,
+        ...signupGrowTrialProvisionBody(),
       });
       if (!res.ok) {
         throw new Error(data.message || data.error || "Verification failed");

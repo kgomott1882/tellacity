@@ -4,6 +4,7 @@ export const SIGNUP_VERIFY_SESSION_KEY = "tellacity_signup_verify_complete";
 export type SignupVerifySession = {
   businessId?: string | null;
   outcome?: "claimed" | "already_claimed" | "new_business";
+  growTrialPending?: boolean;
   ts: number;
 };
 

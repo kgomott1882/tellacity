@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  BUSINESS_PROFILE_REVIEW_STATUS,
+  BUSINESS_PROFILE_REVIEW_VISIBILITY,
+} from "@/lib/businessProfileReviews";
 
 /**
  * Count + average for reviews shown on the public profile and Manage reviews:
@@ -13,8 +17,8 @@ export async function getPublishedVisibleReviewAggregates(
     .from("reviews")
     .select("rating")
     .eq("business_id", businessId)
-    .eq("status", "published")
-    .in("visibility", ["visible", "landing_hidden"]);
+    .eq("status", BUSINESS_PROFILE_REVIEW_STATUS)
+    .in("visibility", [...BUSINESS_PROFILE_REVIEW_VISIBILITY]);
 
   if (error) {
     console.warn("[review aggregates]", error.message);

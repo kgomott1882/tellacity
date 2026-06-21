@@ -256,21 +256,35 @@ export default function CinematicPricingCards({
 
                 <PlanPriceBlock plan={plan} billing={billing} />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChoosePlan(plan.name.toLowerCase() as "free" | "grow" | "premium" | "elite")
-                  }
-                  className={cn(
-                    "pc-cta",
-                    plan.name === "Free" && "pc-cta--dark",
-                    plan.name === "Grow" && "pc-cta--dark",
-                    isPremiumFeatured && "pc-cta--premium",
-                    plan.name === "Elite" && "pc-cta--elite"
-                  )}
-                >
-                  Choose This Plan
-                </button>
+                {plan.name === "Grow" ? (
+                  <div className="pc-grow-cta-wrap">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onChoosePlan(plan.name.toLowerCase() as "free" | "grow" | "premium" | "elite")
+                      }
+                      className={cn("pc-cta", "pc-cta--dark")}
+                    >
+                      Start 14-day free trial
+                    </button>
+                    <p className="pc-grow-cta-sub">No card required</p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChoosePlan(plan.name.toLowerCase() as "free" | "grow" | "premium" | "elite")
+                    }
+                    className={cn(
+                      "pc-cta",
+                      plan.name === "Free" && "pc-cta--free",
+                      isPremiumFeatured && "pc-cta--premium",
+                      plan.name === "Elite" && "pc-cta--elite"
+                    )}
+                  >
+                    {plan.name === "Free" ? "Get Started" : "Choose This Plan"}
+                  </button>
+                )}
 
                 <hr className={cn("pc-divider", isDark && "pc-divider--dark")} />
 

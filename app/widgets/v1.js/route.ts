@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+/** Plan entitlement is enforced server-side on /widgets/embed (not in this loader). */
 const SCRIPT = `
 (function () {
   var scripts = document.querySelectorAll('script[data-business]');

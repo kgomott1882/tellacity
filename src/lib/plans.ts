@@ -18,8 +18,8 @@ export const PLAN_INVITE_LIMITS: Record<PlanKey, number> = {
 export const PLAN_PHOTO_LIMITS: Record<PlanKey, number> = {
   free: 4,
   grow: 25,
-  premium: 50,
-  elite: 100,
+  premium: 75,
+  elite: 150,
 };
 
 /** Monthly article submissions (consumed on submit for review, not on draft). */

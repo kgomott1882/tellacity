@@ -14,6 +14,11 @@ import {
   isAuthEmailAlreadyRegistered,
   syncSignupIdentityAfterAuthUserCreated,
 } from "@/lib/signupIdentitySync";
+import {
+  isSignupGrowTrialPlan,
+  markSignupGrowTrialPending,
+  maybeProvisionSignupGrowTrial,
+} from "@/lib/signupGrowTrial";
 
 type VerificationRow = {
   id: string;
@@ -291,6 +296,9 @@ export async function POST(req: Request) {
             .update({ phone: phoneTrim })
             .eq("id", resolved.id);
         }
+        if (isSignupGrowTrialPlan(payload.plan)) {
+          await maybeProvisionSignupGrowTrial(resolved.id, supabaseAdmin);
+        }
       } else if (finish.error === "already_claimed") {
         outcome = "already_claimed";
       } else {
@@ -304,11 +312,18 @@ export async function POST(req: Request) {
       }
     }
 
+    const growTrialPending =
+      isSignupGrowTrialPlan(payload.plan) && outcome === "new_business";
+    if (growTrialPending) {
+      await markSignupGrowTrialPending(supabaseAdmin, userId);
+    }
+
     return NextResponse.json({
       success: true,
       outcome,
       businessName,
       businessId,
+      growTrialPending,
     });
   } catch (err) {
     console.error("VERIFY CODE ERROR:", err);

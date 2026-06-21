@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  createPlanResolutionAdminClient,
+  isPublishedPhotoWithinPublicDisplayCap,
+} from "@/lib/loadPublicBusinessPhotos";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -30,5 +34,15 @@ export async function validatedProductPhotoIdForReview(
   const status = String(data.status ?? "").toLowerCase();
   if (status !== "published") return null;
   if (data.is_live === false) return null;
+
+  const planAdmin = createPlanResolutionAdminClient();
+  const visible = await isPublishedPhotoWithinPublicDisplayCap({
+    supabase,
+    planAdmin,
+    businessId,
+    photoId: id,
+  });
+  if (!visible) return null;
+
   return id;
 }

@@ -1,18 +1,27 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  type BusinessProfileReview,
+  BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
+  fetchBusinessProfileReviewsPage,
+} from "@/lib/businessProfileReviews";
 import { getPublishedVisibleReviewAggregates } from "@/lib/reviewAggregatesForBusiness";
-import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
 
 const BEST_RATING = 5;
 const WORST_RATING = 1;
 const TERMS_URL = "https://tellacity.com/terms-of-service";
 const LICENSE_PAGE_URL = TERMS_URL;
+const TELLACITY_SITE_URL = "https://tellacity.com";
 
-type JsonLdReviewRow = {
-  rating?: number | null;
-  title?: string | null;
-  body?: string | null;
-  guest_name?: string | null;
-  created_at?: string | null;
+/** Third-party review platform hosting reviews about the listed business. */
+const TELLACITY_PUBLISHER = {
+  "@type": "Organization" as const,
+  name: "Tellacity",
+  url: TELLACITY_SITE_URL,
+};
+
+export type PublishedReviewAggregates = {
+  reviewCount: number;
+  averageRating: number;
 };
 
 export type BusinessProfileJsonLdInput = {
@@ -27,6 +36,10 @@ export type BusinessProfileJsonLdInput = {
   postcode?: string | null;
   countryCode?: string | null;
   photos?: { id: string; url: string }[];
+  /** When set, nested Review JSON-LD uses these rows (same filter as the visible list). */
+  profileReviewsForJsonLd?: BusinessProfileReview[];
+  /** When set, avoids a duplicate aggregate query and aligns with visible hero counts. */
+  publishedReviewAggregates?: PublishedReviewAggregates;
 };
 
 function clampRating(value: number): number {
@@ -92,6 +105,45 @@ function buildImageObjectJsonLd(
   };
 }
 
+/** Map visible profile reviews to nested schema.org Review objects. */
+export function mapProfileReviewsToJsonLdReviews(
+  profileReviews: BusinessProfileReview[],
+): Record<string, unknown>[] {
+  return profileReviews
+    .map((row) => {
+      const reviewBody = row.body.trim() || row.title.trim();
+      if (!reviewBody) return null;
+
+      const rating = Number(row.rating);
+      if (!Number.isFinite(rating) || rating < WORST_RATING || rating > BEST_RATING) {
+        return null;
+      }
+
+      const datePublished = toIsoDate(row.createdAtRaw);
+      const authorName = row.reviewerName.trim() || "Customer";
+
+      // Reviews nested under LocalBusiness must not include `itemReviewed`
+      // (Google: directional conflict with the parent entity).
+      return {
+        "@type": "Review" as const,
+        author: {
+          "@type": "Person" as const,
+          name: authorName,
+        },
+        publisher: TELLACITY_PUBLISHER,
+        reviewRating: {
+          "@type": "Rating" as const,
+          ratingValue: roundRating(rating),
+          bestRating: BEST_RATING,
+          worstRating: WORST_RATING,
+        },
+        reviewBody,
+        ...(datePublished ? { datePublished } : {}),
+      };
+    })
+    .filter(Boolean) as Record<string, unknown>[];
+}
+
 /**
  * JSON-LD blocks for business profile SEO: LocalBusiness (+ ratings/reviews),
  * plus ImageObject entries for logo and uploaded photos.
@@ -113,16 +165,16 @@ export async function buildBusinessProfileJsonLdScripts(
     "@id": pageUrl,
     name: businessName,
     url: pageUrl,
+    publisher: TELLACITY_PUBLISHER,
     ...(logoUrl ? { image: logoUrl } : {}),
     ...(phone ? { telephone: phone } : {}),
     ...(email ? { email } : {}),
     ...(postalAddress ? { address: postalAddress } : {}),
   };
 
-  const { reviewCount, averageRating } = await getPublishedVisibleReviewAggregates(
-    db,
-    opts.businessId,
-  );
+  const { reviewCount, averageRating } =
+    opts.publishedReviewAggregates ??
+    (await getPublishedVisibleReviewAggregates(db, opts.businessId));
 
   const scripts: Record<string, unknown>[] = [];
 
@@ -132,47 +184,18 @@ export async function buildBusinessProfileJsonLdScripts(
     const ratingValue = roundRating(averageRating);
     const normalizedReviewCount = Math.floor(reviewCount);
 
-    const { data: reviewRows } = await db
-      .from("reviews")
-      .select("rating, title, body, guest_name, created_at")
-      .eq("business_id", opts.businessId)
-      .eq("status", "published")
-      .or(REVIEWS_PUBLIC_VISIBILITY_OR)
-      .order("created_at", { ascending: false })
-      .limit(3);
+    let profileReviewsForJsonLd = opts.profileReviewsForJsonLd;
+    if (!profileReviewsForJsonLd) {
+      const { reviews } = await fetchBusinessProfileReviewsPage(
+        db,
+        opts.businessId,
+        0,
+        BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
+      );
+      profileReviewsForJsonLd = reviews;
+    }
 
-    const reviews = (reviewRows ?? [])
-      .map((row: JsonLdReviewRow) => {
-        const reviewBody =
-          String(row.body ?? "").trim() || String(row.title ?? "").trim();
-        if (!reviewBody) return null;
-
-        const rating = Number(row.rating);
-        if (!Number.isFinite(rating) || rating < WORST_RATING || rating > BEST_RATING) {
-          return null;
-        }
-
-        const datePublished = toIsoDate(row.created_at);
-
-        // Reviews nested under LocalBusiness must not include `itemReviewed`
-        // (Google: directional conflict with the parent entity).
-        return {
-          "@type": "Review" as const,
-          author: {
-            "@type": "Person" as const,
-            name: String(row.guest_name ?? "").trim() || "Customer",
-          },
-          reviewRating: {
-            "@type": "Rating" as const,
-            ratingValue: roundRating(rating),
-            bestRating: BEST_RATING,
-            worstRating: WORST_RATING,
-          },
-          reviewBody,
-          ...(datePublished ? { datePublished } : {}),
-        };
-      })
-      .filter(Boolean);
+    const reviews = mapProfileReviewsToJsonLdReviews(profileReviewsForJsonLd);
 
     scripts.push({
       ...localBusiness,

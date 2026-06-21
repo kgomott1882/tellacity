@@ -10,6 +10,7 @@ import {
   isVerifyDomainRpcMissing,
   verifyDomainFinishWithServiceRole,
 } from "@/lib/verifyDomainFinishServer";
+import { finishSignupGrowTrialIfRequested } from "@/lib/signupGrowTrial";
 
 type RpcResult = {
   ok?: boolean;
@@ -62,23 +63,31 @@ function messageForVerifyError(err: string): string | undefined {
   }
 }
 
-function nextResponseForRpcResult(result: RpcResult | null): NextResponse {
-  if (!result?.ok) {
-    const err = result?.error ?? "unknown";
-    const status = statusForRpcError(err);
-    const message = messageForVerifyError(err);
-    return NextResponse.json(
-      {
-        error: err,
-        ...(message ? { message } : {}),
-      },
-      { status }
-    );
-  }
-  if (result.already_owner) {
-    return NextResponse.json({ ok: true, alreadyOwner: true });
-  }
-  return NextResponse.json({ ok: true });
+function nextResponseForRpcResult(
+  result: RpcResult | null,
+  onSuccess?: () => Promise<void>
+): Promise<NextResponse> {
+  return (async () => {
+    if (!result?.ok) {
+      const err = result?.error ?? "unknown";
+      const status = statusForRpcError(err);
+      const message = messageForVerifyError(err);
+      return NextResponse.json(
+        {
+          error: err,
+          ...(message ? { message } : {}),
+        },
+        { status }
+      );
+    }
+    if (onSuccess) {
+      await onSuccess();
+    }
+    if (result.already_owner) {
+      return NextResponse.json({ ok: true, alreadyOwner: true });
+    }
+    return NextResponse.json({ ok: true });
+  })();
 }
 
 /**
@@ -104,6 +113,7 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as {
       businessId?: string;
       code?: string;
+      provisionGrowTrial?: boolean;
     };
     const businessId = typeof body.businessId === "string" ? body.businessId.trim() : "";
     const codeRaw = typeof body.code === "string" ? body.code.trim() : "";
@@ -116,6 +126,17 @@ export async function POST(req: Request) {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    const userMetadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+
+    const finishGrowTrialIfRequested = async () => {
+      await finishSignupGrowTrialIfRequested(admin, {
+        businessId,
+        userId: user.id,
+        bodyProvisionGrowTrial: body.provisionGrowTrial,
+        userMetadata,
+      });
+    };
 
     if (!codeRaw) {
       const otpResult = await sendBusinessDomainVerificationOtp(
@@ -132,6 +153,7 @@ export async function POST(req: Request) {
         return NextResponse.json(payload, { status: otpResult.status });
       }
       if (otpResult.sent === false && otpResult.alreadyOwner) {
+        await finishGrowTrialIfRequested();
         return NextResponse.json({ ok: true, sent: false, alreadyOwner: true });
       }
       return NextResponse.json({ ok: true, sent: true });
@@ -146,7 +168,7 @@ export async function POST(req: Request) {
 
     if (!serviceRpc.error && serviceRpc.data != null) {
       const data = serviceRpc.data as RpcResult;
-      return nextResponseForRpcResult(data);
+      return nextResponseForRpcResult(data, finishGrowTrialIfRequested);
     }
 
     if (serviceRpc.error && !isVerifyDomainRpcMissing(serviceRpc.error)) {
@@ -183,7 +205,7 @@ export async function POST(req: Request) {
 
       if (!jwtRpc.error && jwtRpc.data != null) {
         const data = jwtRpc.data as RpcResult;
-        return nextResponseForRpcResult(data);
+        return nextResponseForRpcResult(data, finishGrowTrialIfRequested);
       }
 
       if (jwtRpc.error && !isVerifyDomainRpcMissing(jwtRpc.error)) {
@@ -227,8 +249,10 @@ export async function POST(req: Request) {
       );
     }
     if (fallback.already_owner) {
+      await finishGrowTrialIfRequested();
       return NextResponse.json({ ok: true, alreadyOwner: true });
     }
+    await finishGrowTrialIfRequested();
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("verify-domain:", e);

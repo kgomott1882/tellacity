@@ -28,6 +28,7 @@ import {
   type PlanKey,
 } from "@/lib/plans";
 import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
+import { countPhotosHiddenOnPublicProfile } from "@/lib/businessPhotosPublicCap";
 import { openUpgradeFlow } from "@/lib/upgradeFlow";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
@@ -501,6 +502,10 @@ export default function BusinessPhotosSettingsPage() {
   }, [photos]);
 
   const planPhotoLimit = getPhotoLimitForPlan(planKey);
+  const hiddenOnPublicProfileCount = countPhotosHiddenOnPublicProfile(
+    publishedPhotos.length,
+    planKey,
+  );
   const sectionTitleBySlug = useMemo(() => {
     const map = new Map<string, string>();
     for (const s of sections) map.set(s.slug, s.title);
@@ -2838,6 +2843,20 @@ export default function BusinessPhotosSettingsPage() {
           </Link>
         ) : null}
       </div>
+
+      {hiddenOnPublicProfileCount > 0 ? (
+        <div
+          role="note"
+          className="rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 text-sm text-sky-950"
+        >
+          <p className="font-medium">
+            {hiddenOnPublicProfileCount} published{" "}
+            {hiddenOnPublicProfileCount === 1 ? "photo is" : "photos are"} hidden on your public
+            profile on the {planKey === "free" ? "Free" : planKey.charAt(0).toUpperCase() + planKey.slice(1)}{" "}
+            plan (showing up to {planPhotoLimit}). Upgrade to display all of them again.
+          </p>
+        </div>
+      ) : null}
 
       {/* Free plan: nudge at the 4-photo cap, delete one or upgrade for more. */}
       {planKey === "free" && atPhotoLimit ? (

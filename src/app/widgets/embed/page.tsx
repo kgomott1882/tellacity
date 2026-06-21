@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
 import { createWidgetClient } from "@/lib/supabaseServerWidget";
 import type { WidgetPayload, WidgetType } from "@/components/widgets/types";
 import TrustBadge from "@/components/widgets/TrustBadge";
@@ -13,6 +14,8 @@ import ReviewSliderWidget from "@/components/widgets/ReviewSliderWidget";
 import ReviewDropdownWidget from "@/components/widgets/ReviewDropdownWidget";
 import MicroTrustScoreWidget from "@/components/widgets/MicroTrustScoreWidget";
 import { getPublicAppOrigin, getPublicWriteReviewUrl } from "@/lib/emailBranding";
+import { getActivePlanKeyForBusiness, type PlanKey } from "@/lib/plans";
+import { resolveEntitledWidgetEmbedType } from "@/lib/widgetEmbedEntitlement";
 import { resolveWidgetShowBusinessName } from "@/lib/widgetEmbedShowBusinessName";
 import {
   applyDashboardPreviewReviewLimit,
@@ -33,6 +36,15 @@ export const metadata: Metadata = {
   },
 };
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+function getServiceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
 
 const VALID_TYPES: WidgetType[] = [
   "badge",
@@ -82,14 +94,35 @@ export default async function WidgetEmbedPage({
   const params = await searchParams;
   const business = (Array.isArray(params.business) ? params.business[0] : params.business)?.trim() ?? "";
   const rawType = (Array.isArray(params.type) ? params.type[0] : params.type) ?? "badge";
-  const type: WidgetType = VALID_TYPES.includes(rawType as WidgetType) ? (rawType as WidgetType) : "badge";
+  const requestedType: WidgetType = VALID_TYPES.includes(rawType as WidgetType)
+    ? (rawType as WidgetType)
+    : "badge";
+  const dashboardRaw = Array.isArray(params.dashboard_demo) ? params.dashboard_demo[0] : params.dashboard_demo;
+  const dashboardDemo = dashboardRaw === "1" || dashboardRaw === "true";
+
+  let plan: PlanKey = "free";
+  if (business) {
+    const sb = createWidgetClient();
+    const { data: bizRow } = await sb
+      .from("businesses")
+      .select("id")
+      .eq("slug", business)
+      .maybeSingle();
+    const businessId = (bizRow as { id?: string | null } | null)?.id ?? null;
+    if (businessId) {
+      plan = await getActivePlanKeyForBusiness(businessId, getServiceSupabase());
+    }
+  }
+
+  const type = resolveEntitledWidgetEmbedType(requestedType, plan, {
+    skipEntitlementCheck: dashboardDemo,
+  });
+
   const requestedLimit = clampLimit(
     Array.isArray(params.limit) ? params.limit[0] : params.limit,
     type,
   );
   const limit = requestedLimit;
-  const dashboardRaw = Array.isArray(params.dashboard_demo) ? params.dashboard_demo[0] : params.dashboard_demo;
-  const dashboardDemo = dashboardRaw === "1" || dashboardRaw === "true";
   const galleryRaw = Array.isArray(params.gallery) ? params.gallery[0] : params.gallery;
   const galleryThumb = galleryRaw === "1" || galleryRaw === "true";
   const themeRaw = Array.isArray(params.theme) ? params.theme[0] : params.theme;

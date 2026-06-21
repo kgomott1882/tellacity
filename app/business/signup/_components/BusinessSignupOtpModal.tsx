@@ -71,6 +71,7 @@ export default function BusinessSignupOtpModal({
         outcome?: "claimed" | "already_claimed" | "new_business";
         businessName?: string | null;
         businessId?: string | null;
+        growTrialPending?: boolean;
       };
 
       if (!res.ok) {
@@ -135,6 +136,7 @@ export default function BusinessSignupOtpModal({
       writeSignupVerifySession({
         businessId: data.businessId ?? null,
         outcome: data.outcome,
+        growTrialPending: data.growTrialPending === true,
       });
 
       const bizLabel = data.businessName?.trim() || "your business";

@@ -543,6 +543,10 @@ export function PricingPageContent({
 
   const handlePublicPlanSignup = useCallback(
     (key: "free" | "grow" | "premium" | "elite") => {
+      if (key === "grow") {
+        router.push("/business/signup?plan=grow&trial=grow");
+        return;
+      }
       router.push(`/business/signup?plan=${encodeURIComponent(key)}`);
     },
     [router]
@@ -1242,7 +1246,7 @@ export function PricingPageContent({
                     planKey === "Free"
                       ? "Start Free →"
                       : planKey === "Grow"
-                        ? "Choose Grow →"
+                        ? "Start 14-day free trial →"
                         : planKey === "Premium"
                           ? "Choose Premium →"
                           : "Choose Elite →";

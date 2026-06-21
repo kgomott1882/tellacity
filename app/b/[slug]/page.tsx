@@ -3,11 +3,21 @@ import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import SuspendedBusinessPublicView from "@/components/public/SuspendedBusinessPublicView";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
-import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
+import {
+  createPlanResolutionAdminClient,
+  loadPublicBusinessPhotosForDisplay,
+} from "@/lib/loadPublicBusinessPhotos";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
 import { getCountryName } from "@/lib/address";
 import { buildBusinessProfileJsonLdScripts } from "@/lib/businessReviewJsonLd";
+import {
+  BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
+  BUSINESS_PROFILE_REVIEWS_SSR_LIMIT,
+  fetchBusinessProfileReviewsPage,
+  type BusinessProfileReview,
+} from "@/lib/businessProfileReviews";
+import { getPublishedVisibleReviewAggregates } from "@/lib/reviewAggregatesForBusiness";
 import {
   businessProfileRobots,
   isCanonicalBusinessProfileUrl,
@@ -216,65 +226,13 @@ export default async function BusinessPage({
     }
   }
 
-  const primaryPhotosRes = await applyBusinessPhotosOrdering(
-    supabase
-      .from("business_photos")
-      .select("id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
-      .eq("business_id", String(business.id))
-      .eq("status", "published")
-      // Publish-first visibility: rows are live as soon as the owner
-      // publishes them, and an admin `Reject` / `Flag` flips `is_live`
-      // back to false to pull them down. RLS also enforces this; the
-      // explicit filter lets the planner use
-      // `business_photos_public_live_idx` and documents the intent.
-      .eq("is_live", true)
-  );
-  const { data: businessPhotosRows } = primaryPhotosRes.error
-    ? await applyBusinessPhotosOrdering(
-        supabase
-          .from("business_photos")
-          .select(
-            "id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url"
-          )
-          .eq("business_id", String(business.id))
-          .eq("status", "published")
-          .eq("is_live", true)
-      )
-    : primaryPhotosRes;
-
-  const initialBusinessPhotos: BusinessPhotoPublic[] = (businessPhotosRows ?? []).map((row) => ({
-    id: String((row as { id?: string }).id ?? ""),
-    url: String((row as { url?: string }).url ?? ""),
-    section: String((row as { section?: string }).section ?? "gallery"),
-    sort_order: Number((row as { sort_order?: unknown }).sort_order) || 0,
-    created_at: (row as { created_at?: string | null }).created_at ?? null,
-    is_cover: (row as { is_cover?: boolean | null }).is_cover === true,
-    preview_zoom: Number((row as { preview_zoom?: unknown }).preview_zoom) || 1,
-    preview_x: Number((row as { preview_x?: unknown }).preview_x) || 50,
-    preview_y: Number((row as { preview_y?: unknown }).preview_y) || 50,
-    preview_frame:
-      String((row as { preview_frame?: string | null }).preview_frame ?? "landscape") ===
-      "portrait"
-        ? ("portrait" as const)
-        : ("landscape" as const),
-    product_name: (row as { product_name?: string | null }).product_name ?? null,
-    product_description:
-      (row as { product_description?: string | null }).product_description ?? null,
-    product_price:
-      typeof (row as { product_price?: number | null }).product_price === "number"
-        ? (row as { product_price?: number | null }).product_price ?? null
-        : null,
-    product_currency: (() => {
-      const c = (row as { product_currency?: string | null }).product_currency;
-      if (typeof c === "string" && c.trim()) return c.trim().toUpperCase().slice(0, 3);
-      return "USD";
-    })(),
-    product_redirect_url: (() => {
-      const u = (row as { product_redirect_url?: string | null }).product_redirect_url;
-      if (typeof u === "string" && u.trim()) return u.trim();
-      return null;
-    })(),
-  })).filter((p) => p.id && p.url);
+  const planAdmin = createPlanResolutionAdminClient();
+  const initialBusinessPhotos: BusinessPhotoPublic[] =
+    await loadPublicBusinessPhotosForDisplay({
+      supabase,
+      planAdmin,
+      businessId: String(business.id),
+    });
 
   // Claimed = business has a registered owner. When false we show the
   // "Claim this profile" teaser in the photos section; when true we show a
@@ -299,13 +257,37 @@ export default async function BusinessPage({
     published_at: (row as { published_at?: string | null }).published_at ?? null,
   }));
 
+  let initialReviews: BusinessProfileReview[] = [];
+  let initialTotalReviewCount = 0;
+  let initialPublishedReviewAggregates = {
+    reviewCount: 0,
+    averageRating: 0,
+  };
+  const businessId = String(business.id);
+  try {
+    const [aggregates, reviewPack] = await Promise.all([
+      getPublishedVisibleReviewAggregates(supabase, businessId),
+      fetchBusinessProfileReviewsPage(
+        supabase,
+        businessId,
+        0,
+        BUSINESS_PROFILE_REVIEWS_SSR_LIMIT,
+      ),
+    ]);
+    initialPublishedReviewAggregates = aggregates;
+    initialReviews = reviewPack.reviews;
+    initialTotalReviewCount = reviewPack.totalCount;
+  } catch (reviewErr) {
+    console.error("[business profile] initial reviews:", reviewErr);
+  }
+
   const canonicalSlugForJsonLd = pickCanonicalSlug({
     slug: (business as { slug?: string | null }).slug ?? null,
     canonical_slug: (business as { canonical_slug?: string | null }).canonical_slug ?? null,
   });
 
   const businessJsonLdScripts = await buildBusinessProfileJsonLdScripts(supabase, {
-    businessId: String(business.id),
+    businessId,
     name: String((business as { name?: string | null }).name ?? ""),
     url: `https://tellacity.com/b/${canonicalSlugForJsonLd}`,
     logoUrl: (business as { logo_url?: string | null }).logo_url,
@@ -319,6 +301,11 @@ export default async function BusinessPage({
       id: photo.id,
       url: photo.url,
     })),
+    profileReviewsForJsonLd: initialReviews.slice(
+      0,
+      BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
+    ),
+    publishedReviewAggregates: initialPublishedReviewAggregates,
   });
 
   const renderBusinessClient = () => (
@@ -335,6 +322,9 @@ export default async function BusinessPage({
         initialBusinessPhotos={initialBusinessPhotos}
         initialIsClaimed={initialIsClaimed}
         initialPublishedArticles={initialPublishedArticles}
+        initialReviews={initialReviews}
+        initialTotalReviewCount={initialTotalReviewCount}
+        initialPublishedReviewAggregates={initialPublishedReviewAggregates}
       />
     </>
   );

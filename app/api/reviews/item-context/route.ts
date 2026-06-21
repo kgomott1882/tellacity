@@ -4,6 +4,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  createPlanResolutionAdminClient,
+  isPublishedPhotoWithinPublicDisplayCap,
+} from "@/lib/loadPublicBusinessPhotos";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 function isUuid(value: string): boolean {
@@ -57,11 +61,26 @@ export async function GET(req: Request) {
     const status = String(photo.status ?? "").toLowerCase();
     const live = photo.is_live !== false;
     const publishedOk = status === "published" && live;
+    let withinPublicCap = true;
 
     if (!publishedOk) {
       const dash = await requireBusinessAccess(req, biz.id);
       if (!dash.ok) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    } else {
+      const planAdmin = createPlanResolutionAdminClient();
+      withinPublicCap = await isPublishedPhotoWithinPublicDisplayCap({
+        supabase: admin,
+        planAdmin,
+        businessId: biz.id,
+        photoId,
+      });
+      if (!withinPublicCap) {
+        const dash = await requireBusinessAccess(req, biz.id);
+        if (!dash.ok) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
       }
     }
 
@@ -95,8 +114,8 @@ export async function GET(req: Request) {
           imageUrl: typeof photo.url === "string" ? photo.url : null,
           section: String(photo.section ?? ""),
         },
-        /** Linked item reviews require a published, live photo (validated on submit). */
-        canSubmitItemReview: publishedOk,
+        /** Linked item reviews require a published, live photo within the public display cap. */
+        canSubmitItemReview: publishedOk && withinPublicCap,
       },
       { headers: { "Cache-Control": "no-store" } }
     );

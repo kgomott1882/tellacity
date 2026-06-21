@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
-import { applyBusinessPhotosOrdering } from "@/lib/businessPhotosQuery";
+import {
+  createPlanResolutionAdminClient,
+  loadPublicBusinessPhotosForDisplay,
+} from "@/lib/loadPublicBusinessPhotos";
 import { buildBusinessLocalBusinessJsonLd } from "@/lib/businessReviewJsonLd";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
@@ -81,60 +84,13 @@ export default async function DomainReviewPage({
     return notFound();
   }
 
-  const primaryPhotosRes = await applyBusinessPhotosOrdering(
-    supabase
-      .from("business_photos")
-      .select("id, url, section, created_at, is_cover, sort_order, status, preview_zoom, preview_x, preview_y, preview_frame, product_name, product_description, product_price, product_currency, product_redirect_url")
-      .eq("business_id", String(business.id))
-      .eq("status", "published")
-      .eq("is_live", true)
-  );
-  const { data: businessPhotosRows } = primaryPhotosRes.error
-    ? await applyBusinessPhotosOrdering(
-        supabase
-          .from("business_photos")
-          .select("id, url, section, created_at, is_cover, sort_order, status")
-          .eq("business_id", String(business.id))
-          .eq("status", "published")
-          .eq("is_live", true)
-      )
-    : primaryPhotosRes;
-
-  const initialBusinessPhotos: BusinessPhotoPublic[] = (businessPhotosRows ?? [])
-    .map((row) => ({
-      id: String((row as { id?: string }).id ?? ""),
-      url: String((row as { url?: string }).url ?? ""),
-      section: String((row as { section?: string }).section ?? "gallery"),
-      sort_order: Number((row as { sort_order?: unknown }).sort_order) || 0,
-      created_at: (row as { created_at?: string | null }).created_at ?? null,
-      is_cover: (row as { is_cover?: boolean | null }).is_cover === true,
-      preview_zoom: Number((row as { preview_zoom?: unknown }).preview_zoom) || 1,
-      preview_x: Number((row as { preview_x?: unknown }).preview_x) || 50,
-      preview_y: Number((row as { preview_y?: unknown }).preview_y) || 50,
-      preview_frame:
-        String((row as { preview_frame?: string | null }).preview_frame ?? "landscape") ===
-        "portrait"
-          ? ("portrait" as const)
-          : ("landscape" as const),
-      product_name: (row as { product_name?: string | null }).product_name ?? null,
-      product_description:
-        (row as { product_description?: string | null }).product_description ?? null,
-      product_price:
-        typeof (row as { product_price?: number | null }).product_price === "number"
-          ? (row as { product_price?: number | null }).product_price ?? null
-          : null,
-      product_currency: (() => {
-        const c = (row as { product_currency?: string | null }).product_currency;
-        if (typeof c === "string" && c.trim()) return c.trim().toUpperCase().slice(0, 3);
-        return "USD";
-      })(),
-      product_redirect_url: (() => {
-        const u = (row as { product_redirect_url?: string | null }).product_redirect_url;
-        if (typeof u === "string" && u.trim()) return u.trim();
-        return null;
-      })(),
-    }))
-    .filter((photo) => photo.id && photo.url);
+  const planAdmin = createPlanResolutionAdminClient();
+  const initialBusinessPhotos: BusinessPhotoPublic[] =
+    await loadPublicBusinessPhotosForDisplay({
+      supabase,
+      planAdmin,
+      businessId: String(business.id),
+    });
 
   const initialIsClaimed = Boolean(
     (business as { owner_id?: string | null }).owner_id
