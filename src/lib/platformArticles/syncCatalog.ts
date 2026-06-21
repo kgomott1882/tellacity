@@ -22,7 +22,7 @@ function publishedAtFromDate(date: string): string {
 
 /**
  * Import Tellacity catalog posts from `data/blogPosts.ts` into `platform_articles`.
- * Inserts missing slugs only — does not overwrite articles already in the CMS.
+ * Inserts missing slugs only, does not overwrite articles already in the CMS.
  */
 export async function syncTellacityCatalogToPlatformArticles(
   admin: SupabaseClient,

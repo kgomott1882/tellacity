@@ -5,7 +5,10 @@ import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import { useBusinessAuth } from "@/lib/useBusinessAuth";
 
 /** Slugs from `/api/business/[id]/integrations-connected` (e.g. `shopify`). */
-export function useConnectedIntegrationSlugs(businessId: string | null): string[] {
+export function useConnectedIntegrationSlugs(
+  businessId: string | null,
+  refreshKey?: string | null,
+): string[] {
   const [slugs, setSlugs] = useState<string[]>([]);
   const { user, loading: authLoading } = useBusinessAuth();
 
@@ -33,7 +36,7 @@ export function useConnectedIntegrationSlugs(businessId: string | null): string[
     return () => {
       cancelled = true;
     };
-  }, [authLoading, businessId, user?.id]);
+  }, [authLoading, businessId, user?.id, refreshKey]);
 
   return slugs;
 }

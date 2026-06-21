@@ -25,7 +25,7 @@ const WHAT_CARDS = [
     icon: Shield,
     title: "Independent platform",
     copy:
-      "Neutral by design — not owned by advertisers. Credibility comes from fairness, not paid placement.",
+      "Neutral by design, not owned by advertisers. Credibility comes from fairness, not paid placement.",
   },
   {
     icon: BadgeCheck,
@@ -62,7 +62,7 @@ const HOW_STEPS: HowStep[] = [
   {
     title: "Respond & improve",
     copy:
-      "Teams reply publicly, track sentiment, and improve from real customer language — not guesswork.",
+      "Teams reply publicly, track sentiment, and improve from real customer language, not guesswork.",
   },
   {
     title: "Trust signals everywhere",
@@ -95,7 +95,7 @@ const VALUES = [
   {
     icon: Lightbulb,
     title: "Bold Innovation",
-    copy: "From verification to analytics — we keep improving how trust is built.",
+    copy: "From verification to analytics, we keep improving how trust is built.",
   },
   {
     icon: TrendingUp,
@@ -172,7 +172,7 @@ export default function AboutClient() {
               <div className="about-who-copy">
                 <p>
                   Tellacity is an independent customer reviews platform between consumers
-                  and businesses — where verified experiences matter more than marketing
+                  and businesses, where verified experiences matter more than marketing
                   claims alone.
                 </p>
                 <p>
@@ -215,7 +215,7 @@ export default function AboutClient() {
           </h2>
           <p className="mt-3 max-w-2xl text-base text-gray-600">
             A customer reviews and feedback platform where honest, moderated reviews and
-            reputation insights live in one place — connecting real feedback to better
+            reputation insights live in one place, connecting real feedback to better
             decisions.
           </p>
           <div className="about-feature-grid">
@@ -237,14 +237,14 @@ export default function AboutClient() {
         </div>
       </FadeUp>
 
-      {/* 5. How it works — dark section */}
+      {/* 5. How it works, dark section */}
       <FadeUp threshold={IO} className="about-how">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <h2 className="about-section-title">
             <span className="about-section-accent">How</span> it works
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-white/65">
-            Verified feedback in, trust signals out — the{" "}
+            Verified feedback in, trust signals out. The{" "}
             <Link href="/for-business" className="text-[#1ecfb8] underline underline-offset-2">
               reputation management platform
             </Link>{" "}
@@ -371,7 +371,7 @@ export default function AboutClient() {
             <h2 className="about-split-title">Build trust that compounds.</h2>
             <p className="about-split-sub">
               Verified reviews, public replies, and analytics powered by the reputation
-              platform — act on real-world feedback every day.
+              platform, act on real-world feedback every day.
             </p>
             <Link href="/for-business" className="about-btn-dark">
               Tellacity for Business →
@@ -392,7 +392,7 @@ export default function AboutClient() {
                 <span className="about-section-accent">Category</span> insights
               </h2>
               <p className="mt-3 text-base leading-relaxed text-gray-600">
-                Compare businesses by rating, volume, and recent sentiment — not just a
+                Compare businesses by rating, volume, and recent sentiment, not just a
                 static score from years ago. Recency and authenticity matter when trust is
                 on the line.
               </p>
@@ -507,7 +507,7 @@ export default function AboutClient() {
         </p>
         <p>
           Real teams turn everyday customer experiences into insight for support,
-          marketing, product, and leadership — one shared source of truth instead
+          marketing, product, and leadership, one shared source of truth instead
           of scattered spreadsheets.
         </p>
       </div>

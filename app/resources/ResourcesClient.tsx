@@ -117,7 +117,7 @@ export default function ResourcesClient() {
           </h2>
           <p className="res-section-sub">
             Review invitations, widgets, analytics, reputation management, photo uploads,
-            and blogs or case studies — one platform, one dashboard.
+            and blogs or case studies, one platform, one dashboard.
           </p>
           <div className="res-featured-banner">
             <div className="res-featured-grid">

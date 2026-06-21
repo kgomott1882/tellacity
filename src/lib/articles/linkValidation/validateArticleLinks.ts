@@ -33,7 +33,7 @@ function issue(code: LinkValidationIssue["code"], message?: string): LinkValidat
 
 /**
  * Validates all links in article content (client + server).
- * Pure function — no I/O.
+ * Pure function, no I/O.
  */
 export function validateArticleLinks(input: ArticleLinkValidationInput): LinkValidationResult {
   const issues: LinkValidationIssue[] = [];

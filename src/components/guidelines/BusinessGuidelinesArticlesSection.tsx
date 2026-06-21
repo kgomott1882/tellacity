@@ -33,12 +33,12 @@ export default function BusinessGuidelinesArticlesSection() {
         <Link href="/articles" className={linkClass}>
           Articles
         </Link>{" "}
-        section and your business profile — alongside Tellacity&apos;s own editorial
+        section and your business profile, alongside Tellacity&apos;s own editorial
         articles on the same hub.
       </p>
       <p className="mt-3">
         The goal is to help customers learn from your expertise, discover your business, and
-        trust the brand behind the reviews — without turning articles into spam, affiliate
+        trust the brand behind the reviews, without turning articles into spam, affiliate
         funnels, or misleading marketing.
       </p>
 
@@ -47,11 +47,11 @@ export default function BusinessGuidelinesArticlesSection() {
           <h3 className="font-semibold text-[#0E0E0E]">Content types</h3>
           <ul className="mt-2 list-disc space-y-2 pl-5">
             <li>
-              <strong>Business article</strong> — guides, updates, tips, and thought leadership about your
+              <strong>Business article:</strong> guides, updates, tips, and thought leadership about your
               industry or services.
             </li>
             <li>
-              <strong>Case study</strong> — a structured story with client industry, challenge,
+              <strong>Case study:</strong> a structured story with client industry, challenge,
               solution, and results fields, plus the main article body.
             </li>
           </ul>
@@ -107,19 +107,19 @@ export default function BusinessGuidelinesArticlesSection() {
           <h3 className="font-semibold text-[#0E0E0E]">Editor workflow</h3>
           <ul className="mt-2 list-disc space-y-2 pl-5">
             <li>
-              <strong>Setup</strong> — choose blog or case study; optionally add a writer name
+              <strong>Setup:</strong> choose blog or case study; optionally add a writer name
               and occupation for the public byline.
             </li>
             <li>
-              <strong>Title &amp; featured image</strong> — clear headline and a representative
+              <strong>Title &amp; featured image:</strong> clear headline and a representative
               hero image.
             </li>
             <li>
-              <strong>Content</strong> — write in the visual editor; use{" "}
+              <strong>Content:</strong> write in the visual editor; use{" "}
               <strong>Preview</strong> to check layout, images, and links before submitting.
             </li>
             <li>
-              <strong>Submit</strong> — sends the piece to Tellacity for human review. Until
+              <strong>Submit:</strong> sends the piece to Tellacity for human review. Until
               approved, it stays off the public site.
             </li>
           </ul>
@@ -151,7 +151,7 @@ export default function BusinessGuidelinesArticlesSection() {
           <h3 className="font-semibold text-[#0E0E0E]">Attribution &amp; public display</h3>
           <p className="mt-2">
             Tellacity is a business-focused platform. The <strong>business</strong> is the
-            primary entity on every article — not a standalone author profile system.
+            primary entity on every article, not a standalone author profile system.
           </p>
           <ul className="mt-2 list-disc space-y-2 pl-5">
             <li>
@@ -175,29 +175,29 @@ export default function BusinessGuidelinesArticlesSection() {
           <p className="mt-2">Articles must be:</p>
           <ul className="mt-2 list-disc space-y-2 pl-5">
             <li>
-              <strong>Original and accurate</strong> — written by or for your business; no
+              <strong>Original and accurate:</strong> written by or for your business; no
               plagiarised or AI-spun filler without real value.
             </li>
             <li>
-              <strong>Honest</strong> — no false claims, fake statistics, or impersonation of
+              <strong>Honest:</strong> no false claims, fake statistics, or impersonation of
               customers or competitors.
             </li>
             <li>
-              <strong>Relevant</strong> — related to your industry, services, or genuine client
+              <strong>Relevant:</strong> related to your industry, services, or genuine client
               outcomes (for case studies).
             </li>
             <li>
-              <strong>Professional</strong> — no hate speech, harassment, illegal content, or
+              <strong>Professional:</strong> no hate speech, harassment, illegal content, or
               adult material.
             </li>
             <li>
-              <strong>Non-spammy</strong> — not keyword-stuffed advertorials, link schemes, or
+              <strong>Non-spammy:</strong> not keyword-stuffed advertorials, link schemes, or
               duplicate posts submitted repeatedly to manipulate search.
             </li>
           </ul>
           <p className="mt-2">
             Images (featured and inline) must be owned or licensed, appropriate, and must not
-            misrepresent your products or premises — the same standards as profile photos above
+            misrepresent your products or premises, the same standards as profile photos above
             apply.
           </p>
         </div>
@@ -242,8 +242,8 @@ export default function BusinessGuidelinesArticlesSection() {
           <h3 className="font-semibold text-[#0E0E0E]">Enforcement</h3>
           <p className="mt-2">
             Articles that break these rules may be rejected during review or removed after
-            publication. Repeated abuse — spam links, misleading content, or attempts to bypass
-            link limits — may lead to restrictions on submissions or broader account enforcement
+            publication. Repeated abuse, spam links, misleading content, or attempts to bypass
+            link limits, may lead to restrictions on submissions or broader account enforcement
             under the suspension reasons above.
           </p>
           <p className="mt-2">

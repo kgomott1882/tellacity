@@ -14,7 +14,7 @@ export async function sendBusinessClaimSuccessEmails(_input: {
   return;
 }
 
-/** No-op — kept for call-site compatibility after domain claim / signup verify. */
+/** No-op, kept for call-site compatibility after domain claim / signup verify. */
 export async function notifyBusinessClaimSuccess(
   _admin: SupabaseClient,
   _user: User,

@@ -177,7 +177,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       "Surface reviews, NPS, and feedback data on Salesforce accounts and opportunities.",
     logoFile: "Salesforce.jpg",
     minimumPlan: "elite",
-    isEnterpriseOnly: true,
   },
   {
     slug: "netsuite",
@@ -187,7 +186,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       "Connect NetSuite customer records to Tellacity for unified feedback reporting.",
     logoFile: "NetSuite.jpg",
     minimumPlan: "elite",
-    isEnterpriseOnly: true,
   },
 
   // Support & Feedback Operations
@@ -228,7 +226,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       "Enterprise-grade integration between Tellacity and SAP with assisted onboarding.",
     logoFile: "SAP.jpg",
     minimumPlan: "elite",
-    isEnterpriseOnly: true,
   },
 ];
 

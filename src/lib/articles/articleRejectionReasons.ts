@@ -32,7 +32,7 @@ export const ARTICLE_REJECTION_REASON_PRESETS: ArticleRejectionReasonPreset[] = 
     message: [
       "Your submission reads primarily as advertising or sales copy rather than informative content for readers.",
       "",
-      "Under our Business Guidelines, blogs and case studies must provide genuine value — industry insights, practical guidance, or documented client outcomes — not advertorials, discount pushes, or keyword-stuffed marketing pages.",
+      "Under our Business Guidelines, blogs and case studies must provide genuine value, industry insights, practical guidance, or documented client outcomes, not advertorials, discount pushes, or keyword-stuffed marketing pages.",
       "",
       "Common issues we saw:",
       "• Heavy focus on promotions, pricing, or calls to buy without educational substance",
@@ -52,7 +52,7 @@ export const ARTICLE_REJECTION_REASON_PRESETS: ArticleRejectionReasonPreset[] = 
     message: [
       "Your submission does not yet meet our minimum quality bar for publication on Tellacity.",
       "",
-      "Published articles should be substantive, well structured, and useful to someone researching your industry or business — not thin placeholders or unfinished drafts.",
+      "Published articles should be substantive, well structured, and useful to someone researching your industry or business, not thin placeholders or unfinished drafts.",
       "",
       "Common issues we saw:",
       "• Very short body text with little detail or structure",
@@ -73,7 +73,7 @@ export const ARTICLE_REJECTION_REASON_PRESETS: ArticleRejectionReasonPreset[] = 
     message: [
       "Your submission does not comply with Tellacity's Blogs & Case Studies content standards.",
       "",
-      "All business articles are reviewed before publication. Content must be original, accurate, professional, and aligned with our Business Guidelines — the same trust standards that apply to listings and reviews.",
+      "All business articles are reviewed before publication. Content must be original, accurate, professional, and aligned with our Business Guidelines, the same trust standards that apply to listings and reviews.",
       "",
       "This rejection may relate to:",
       "• Content that is off-topic, inappropriate, or not relevant to your business or industry",
@@ -145,7 +145,7 @@ export const ARTICLE_REJECTION_REASON_PRESETS: ArticleRejectionReasonPreset[] = 
       "What to do next:",
       "• Upload a clear, relevant featured image",
       "• Replace inline images with owned or licensed visuals that match the article",
-      "• See Business Guidelines — Photos, Logos, and Listing Content — for visual content rules",
+      "• See Business Guidelines: Photos, Logos, and Listing Content for visual content rules",
       guidelinesFooter(),
     ].join("\n"),
   },
@@ -155,7 +155,7 @@ export const ARTICLE_REJECTION_REASON_PRESETS: ArticleRejectionReasonPreset[] = 
     message: [
       "Your case study submission is missing required structure or detail.",
       "",
-      "Case studies on Tellacity must tell a complete story: client industry, challenge, solution, and results — in addition to the main article body.",
+      "Case studies on Tellacity must tell a complete story: client industry, challenge, solution, and results, in addition to the main article body.",
       "",
       "Common issues we saw:",
       "• One or more case study fields left empty or too vague",
@@ -199,7 +199,7 @@ const presetById = new Map(
   ARTICLE_REJECTION_REASON_PRESETS.map((preset) => [preset.id, preset]),
 );
 
-/** @deprecated Legacy labels stored before preset IDs — map to full messages when possible. */
+/** @deprecated Legacy labels stored before preset IDs, map to full messages when possible. */
 const legacyLabelToId: Record<string, string> = {
   "Promotional / advertorial content": "promotional_advertorial",
   "Low quality or too short": "low_quality_short",

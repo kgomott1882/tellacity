@@ -29,7 +29,7 @@ function renderMarks(text: string, marks?: TipTapNode["marks"]): ReactNode {
         <a
           href={mark.attrs.href}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener noreferrer ugc nofollow"
           className="font-medium text-[#1FAF9E] underline underline-offset-2"
         >
           {node}

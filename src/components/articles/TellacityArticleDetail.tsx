@@ -3,6 +3,7 @@ import Link from "next/link";
 import ArticleShareSection from "@/components/articles/ArticleShareSection";
 import ArticleTellacityAttribution from "@/components/articles/ArticleTellacityAttribution";
 import { articleLeadDuplicatesBodyOpening } from "@/lib/articles/articleDisplay";
+import { applyTellacityArticleAnchorRelPolicy } from "@/lib/articles/articleContentConversion";
 import type { TellacityArticle } from "@/lib/articles/tellacityArticles";
 import { tellacityArticleHasHtmlBody } from "@/lib/articles/tellacityArticles";
 
@@ -37,6 +38,9 @@ const ArticleCTA = () => (
 export default function TellacityArticleDetail({ post }: Props) {
   const canonicalUrl = `${SITE_URL}/articles/${encodeURIComponent(post.slug)}`;
   const hasHtmlBody = tellacityArticleHasHtmlBody(post);
+  const htmlWithRelPolicy = hasHtmlBody
+    ? applyTellacityArticleAnchorRelPolicy(post.content)
+    : "";
   const showLead =
     Boolean(post.description?.trim()) &&
     !(hasHtmlBody && articleLeadDuplicatesBodyOpening(post.description, post.content));
@@ -136,7 +140,7 @@ export default function TellacityArticleDetail({ post }: Props) {
                 [&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-gray-200 [&_pre]:bg-white [&_pre]:p-4 [&_pre]:text-sm [&_pre]:text-[#404040]
                 [&_table]:text-sm [&_td]:py-2 [&_th]:font-semibold [&_th]:text-[#505050]
                 [&_ul]:my-4 [&_ul]:space-y-2 [&_a]:font-medium [&_a]:text-[#1FAF9E] [&_a]:hover:underline"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: htmlWithRelPolicy }}
             />
           ) : null}
 

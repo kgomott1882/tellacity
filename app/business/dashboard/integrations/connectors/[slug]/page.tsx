@@ -10,6 +10,10 @@ import {
   type PlanId,
 } from "@/lib/integrationsCatalog";
 import { normalizePlanCodeToKey } from "@/lib/plans";
+import {
+  integrationConnectPath,
+  integrationManagePath,
+} from "@/lib/integrationConnectPaths";
 import { useBusinessContext } from "../../../_context/BusinessContext";
 import { useConnectedIntegrationSlugs } from "../../../_hooks/useConnectedIntegrationSlugs";
 
@@ -51,13 +55,10 @@ export default function IntegrationConnectorDetailPage() {
   const state = deriveIntegrationState(integration, plan, connectedSlugs);
 
   const connectHref =
-    state === "available"
-      ? integration.slug === "shopify"
-        ? `/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`
-        : integration.slug === "woocommerce"
-          ? `/business/dashboard/integrations/connect-woocommerce?business_id=${encodeURIComponent(businessId)}`
-          : null
-      : null;
+    state === "available" ? integrationConnectPath(integration.slug, businessId) : null;
+
+  const manageHref =
+    state === "connected" ? integrationManagePath(integration.slug, businessId) : null;
 
   return (
     <IntegrationDetailView
@@ -66,6 +67,7 @@ export default function IntegrationConnectorDetailPage() {
       state={state}
       plan={plan}
       connectHref={connectHref}
+      manageHref={manageHref}
     />
   );
 }

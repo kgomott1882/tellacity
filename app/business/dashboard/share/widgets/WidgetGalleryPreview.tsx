@@ -11,7 +11,7 @@ type Props = {
   title: string;
 };
 
-/** Live iframe thumb — content is centered inside the embed via `gallery=1`. */
+/** Live iframe thumb, content is centered inside the embed via `gallery=1`. */
 export default function WidgetGalleryPreview({ src, title }: Props) {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">

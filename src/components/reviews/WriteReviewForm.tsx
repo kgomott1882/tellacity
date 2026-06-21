@@ -18,11 +18,17 @@ import {
   primeHomeFeedHighlightNewest,
   primeHomeFeedHighlightReviewId,
 } from "@/lib/homeFeedHighlight";
+import { recordRecentBusinessReviewPublished } from "@/lib/firstPartyCookies";
 import {
   BUSINESS_SUSPENDED_USER_MESSAGE,
   isBusinessPubliclyActive,
   isBusinessReviewRestricted,
 } from "@/lib/businessPublicAccess";
+
+function markRecentViewReviewPublished(slug: string | null | undefined): void {
+  const normalized = slug?.trim();
+  if (normalized) recordRecentBusinessReviewPublished(normalized);
+}
 
 type WriteReviewFormProps = {
   inviteId?: string | null;
@@ -1063,6 +1069,7 @@ export default function WriteReviewForm({
         }
         clearGoogleReviewStorage();
         resetGoogleReviewMode();
+        markRecentViewReviewPublished(payload.business_slug);
         navigatedSuccess = true;
         router.replace("/write-review?success=1");
       } catch {
@@ -1238,6 +1245,7 @@ export default function WriteReviewForm({
         }
         clearGoogleReviewStorage();
         resetGoogleReviewMode();
+        markRecentViewReviewPublished(business.slug);
         router.replace("/write-review?success=1");
         return;
       } finally {
@@ -1292,6 +1300,7 @@ export default function WriteReviewForm({
           variant: "success",
         });
         primeHomeFeedHighlightNewest();
+        markRecentViewReviewPublished(business.slug);
         router.push(`/b/${business.slug}`);
         return;
       } catch (err: any) {
@@ -1395,6 +1404,7 @@ export default function WriteReviewForm({
             if (userId) {
               clearGoogleReviewStorage();
             }
+            markRecentViewReviewPublished(business.slug);
             onInviteReviewPublished();
             return;
           }
@@ -1409,6 +1419,7 @@ export default function WriteReviewForm({
             variant: "success",
           });
           primeHomeFeedHighlightReviewId(data.reviewId);
+          markRecentViewReviewPublished(business.slug);
           router.push(`/b/${business.slug}`);
           return;
         }
@@ -1507,6 +1518,7 @@ export default function WriteReviewForm({
           if (business) {
             const slugToUse = business.slug;
             primeHomeFeedHighlightNewest();
+            markRecentViewReviewPublished(slugToUse);
             router.push(`/b/${slugToUse}`);
           }
         }
@@ -1567,6 +1579,7 @@ export default function WriteReviewForm({
           }
 
           if (dataInvitePublish.success === true) {
+            markRecentViewReviewPublished(business.slug);
             onInviteReviewPublished?.();
             return;
           }
@@ -2575,6 +2588,7 @@ export default function WriteReviewForm({
             }
             if (business) {
               const slugToUse = business.slug;
+              markRecentViewReviewPublished(slugToUse);
               if (publishedReviewId) {
                 primeHomeFeedHighlightReviewId(publishedReviewId);
               } else {

@@ -1,6 +1,6 @@
 import Script from "next/script";
 
-/** Default Google Consent Mode v2 — deny until the user chooses in the banner. */
+/** Default Google Consent Mode v2, deny until the user chooses in the banner. */
 export default function ConsentModeBootstrap() {
   return (
     <Script id="tellacity-consent-default" strategy="beforeInteractive">

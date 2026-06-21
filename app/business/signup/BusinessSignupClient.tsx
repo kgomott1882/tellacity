@@ -815,7 +815,7 @@ export default function BusinessSignupClient() {
                       websiteLookup !== "found" &&
                       normalizeBusinessDomain(website).length >= 3 ? (
                         <p className="mt-1 text-sm text-emerald-700">
-                          ✅ Claiming this profile. Use a work email on the same domain — one code
+                          ✅ Claiming this profile. Use a work email on the same domain, one code
                           verifies your account and ownership.
                         </p>
                       ) : null}

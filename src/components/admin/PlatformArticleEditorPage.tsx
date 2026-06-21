@@ -706,7 +706,7 @@ export default function PlatformArticleEditorPage({ articleId }: Props) {
                 disabled={loading}
                 title={
                   showPreviewHint
-                    ? "Preview how your article looks — click here"
+                    ? "Preview how your article looks, click here"
                     : "Preview article"
                 }
                 className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
@@ -985,7 +985,7 @@ export default function PlatformArticleEditorPage({ articleId }: Props) {
               <h2 className="text-lg font-semibold text-gray-900">Ready to submit?</h2>
               <p className="mt-2 text-sm leading-relaxed text-gray-600">
                 Submitting publishes your article on the public Articles hub. You can keep editing
-                after it is live — use Save draft to store changes without publishing.
+                after it is live, use Save draft to store changes without publishing.
               </p>
               <div className="mt-6">
                 <button

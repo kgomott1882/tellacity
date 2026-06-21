@@ -4,7 +4,7 @@ export const ARTICLE_CONTENT_HORIZONTAL_PADDING_PX = 24;
 export const ARTICLE_CONTENT_INNER_WIDTH_PX =
   ARTICLE_CONTENT_MAX_WIDTH_PX - ARTICLE_CONTENT_HORIZONTAL_PADDING_PX * 2;
 
-/** A4 page height at ~96 DPI — used for min page height in the editor. */
+/** A4 page height at ~96 DPI, used for min page height in the editor. */
 export const ARTICLE_PAGE_MIN_HEIGHT_PX = 1123;
 
 export const ARTICLE_PAGE_CLASS =

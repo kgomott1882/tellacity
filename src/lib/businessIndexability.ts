@@ -6,13 +6,13 @@
  * profiles simply because they have zero reviews or no owner.
  *
  * Google may still show "Crawled - currently not indexed" for some URLs while
- * domain authority grows — that is not the same as us blocking indexing.
+ * domain authority grows, that is not the same as us blocking indexing.
  */
 
 /** Utility/review-form routes should never compete with `/b/[slug]` in the index. */
 export const WRITE_REVIEW_ROBOTS = { index: false, follow: true } as const;
 
-/** Junk/placeholder slugs from bulk imports — skip in sitemaps only. */
+/** Junk/placeholder slugs from bulk imports, skip in sitemaps only. */
 const GARBAGE_SLUG_RE = /^(\d+|business\d*|unknown|unitedstates\d*)$/i;
 const MIN_SLUG_LENGTH = 3;
 

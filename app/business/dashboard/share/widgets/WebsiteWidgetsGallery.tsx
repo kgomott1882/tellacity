@@ -98,7 +98,7 @@ export default function WebsiteWidgetsGallery({
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-gray-600">
               Browse live previews for all {stats.total} widgets. Open any card for full-size preview,
-              customization, and embed code. Locked widgets still preview — upgrade only when you are
+              customization, and embed code. Locked widgets still preview, upgrade only when you are
               ready to publish.
             </p>
           </div>

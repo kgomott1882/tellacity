@@ -11,6 +11,7 @@ import {
   type PlanKey,
 } from "@/lib/plans";
 import { getServerEnv } from "@/lib/serverEnv";
+import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import {
   EMAIL_WIDGET_CTA_BORDER,
   EMAIL_WIDGET_CTA_TEXT,
@@ -682,6 +683,9 @@ export async function POST(req: Request) {
     if (validEmails.length === 0) {
       return NextResponse.json({ error: "No valid email addresses provided." }, { status: 400 });
     }
+
+    const access = await requireBusinessAccess(req, businessId);
+    if (!access.ok) return access.response;
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);

@@ -225,6 +225,7 @@ function normalizeInsights(raw: unknown) {
 export type DashboardPerformanceInsights = ReturnType<typeof normalizeInsights>;
 
 type PerformanceApiJson = {
+  analyticsLocked?: boolean;
   insights?: unknown;
   reviews90d?: { created_at: string }[];
   recentReviews?: RecentReview[];
@@ -245,6 +246,7 @@ export function useDashboardPerformanceData(businessId: string | null) {
   const [inviteChart, setInviteChart] = useState<MonthlyInvite[]>([]);
   const [realTotalInvites, setRealTotalInvites] = useState(0);
   const [realInvites30, setRealInvites30] = useState(0);
+  const [analyticsLocked, setAnalyticsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -259,6 +261,7 @@ export function useDashboardPerformanceData(businessId: string | null) {
       setInviteChart([]);
       setRealTotalInvites(0);
       setRealInvites30(0);
+      setAnalyticsLocked(false);
       setError(null);
       setLoading(false);
       return;
@@ -276,13 +279,24 @@ export function useDashboardPerformanceData(businessId: string | null) {
 
       if (gen !== loadGenRef.current) return;
 
+      const locked = json.analyticsLocked === true;
+      setAnalyticsLocked(locked);
+
       const rows = json.reviews90d ?? [];
       const insightsMerged = {
         ...normalizeInsights(json.insights),
-        review_velocity_percent: computeReviewVelocityPercent(rows),
+        review_velocity_percent: locked ? 0 : computeReviewVelocityPercent(rows),
       };
       setData(insightsMerged);
       setReviews(json.recentReviews ?? []);
+
+      if (locked) {
+        setDaily([]);
+        setInviteChart([]);
+        setRealTotalInvites(json.totalInvites ?? 0);
+        setRealInvites30(0);
+        return;
+      }
 
       const dailyMap = new Map<string, number>();
       for (const row of rows) {
@@ -344,5 +358,6 @@ export function useDashboardPerformanceData(businessId: string | null) {
     inviteChart,
     realTotalInvites,
     realInvites30,
+    analyticsLocked,
   };
 }

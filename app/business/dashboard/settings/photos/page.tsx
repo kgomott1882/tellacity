@@ -2323,7 +2323,7 @@ export default function BusinessPhotosSettingsPage() {
                   disabled={uploadDisabled}
                   title={
                     atPhotoLimit
-                      ? "You've reached your plan's photo limit — delete a photo or upgrade to add more"
+                      ? "You've reached your plan's photo limit, delete a photo or upgrade to add more"
                       : !s.is_enabled
                         ? "This section is hidden from your public profile, set it to Public to upload"
                         : "Upload photos to this section"
@@ -2813,7 +2813,7 @@ export default function BusinessPhotosSettingsPage() {
         ) : null}
       </div>
 
-      {/* Free plan: nudge at the 4-photo cap — delete one or upgrade for more. */}
+      {/* Free plan: nudge at the 4-photo cap, delete one or upgrade for more. */}
       {planKey === "free" && atPhotoLimit ? (
         <div
           role="note"

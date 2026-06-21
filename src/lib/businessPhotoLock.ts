@@ -1,6 +1,6 @@
 import type { PlanKey } from "@/lib/plans";
 
-/** @deprecated Publish lock removed — kept for API shape compatibility. */
+/** @deprecated Publish lock removed, kept for API shape compatibility. */
 export const FREE_PLAN_PUBLISH_LOCK_DAYS = 30;
 
 /** @deprecated Publish lock removed. */
@@ -35,7 +35,7 @@ export function computePublishLockStatus(
   };
 }
 
-/** Always false — publish lock removed. */
+/** Always false, publish lock removed. */
 export function isPhotoEditLocked(
   _planKey: PlanKey,
   _status: string | null | undefined,

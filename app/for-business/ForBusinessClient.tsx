@@ -373,7 +373,7 @@ export default function ForBusinessClient() {
                 </div>
               ))}
             </div>
-            <div className="fb-convert-side">
+            <div className="fb-convert-side-visual">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/truststartators.jpg"

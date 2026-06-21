@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Articles | Tellacity",
   description:
-    "Tellacity articles, business guides, and case studies — reviews, trust, consumer safety, platform updates, and stories from verified businesses.",
+    "Tellacity articles, business guides, and case studies, reviews, trust, consumer safety, platform updates, and stories from verified businesses.",
   alternates: { canonical: ARTICLES_HUB_URL },
   openGraph: {
     title: "Articles | Tellacity",

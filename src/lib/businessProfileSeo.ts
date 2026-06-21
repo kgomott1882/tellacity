@@ -49,7 +49,7 @@ export type BusinessProfileIntroInput = {
   reviewCount?: number;
 };
 
-/** Visible intro copy for `/b/[slug]` — unique per business from real directory fields. */
+/** Visible intro copy for `/b/[slug]`, unique per business from real directory fields. */
 export function buildBusinessProfileIntro(input: BusinessProfileIntroInput): string {
   const name = String(input.name ?? "").trim();
   if (!name) return "";
@@ -83,7 +83,7 @@ export function buildBusinessProfileIntro(input: BusinessProfileIntroInput): str
 
   const base = `Discover ${name}`;
   const where = location ? ` in ${location}` : "";
-  const categoryBit = category ? ` — listed under ${category}` : "";
+  const categoryBit = category ? `, listed under ${category}` : "";
   const tagsBit = tagsPhrase ? ` with topics including ${tagsPhrase}` : "";
   return `${base}${where}${categoryBit}${tagsBit}. Explore reviews and compare trusted businesses on Tellacity.`;
 }

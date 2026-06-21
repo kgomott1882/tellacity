@@ -21,7 +21,7 @@ export type AdminManualClaimPasswordSetupEmailParams = {
 
 /**
  * Sends the owner a password-setup email after an admin manually creates/claims
- * their business. Uses the locked `/business/forgot-password` OTP flow — not
+ * their business. Uses the locked `/business/forgot-password` OTP flow, not
  * Supabase link-based reset.
  */
 export async function sendAdminManualClaimPasswordSetupEmail(
@@ -52,7 +52,7 @@ export async function sendAdminManualClaimPasswordSetupEmail(
 
   const lead = params.isNewAccount
     ? `Your Tellacity business account for <strong>${biz}</strong> is ready. Before you can sign in to your dashboard, you need to <strong>create a password</strong>.`
-    : `<strong>${biz}</strong> has been assigned to your Tellacity account. To sign in, use your existing password — or set a new one using the link below if you prefer.`;
+    : `<strong>${biz}</strong> has been assigned to your Tellacity account. To sign in, use your existing password, or set a new one using the link below if you prefer.`;
 
   const ctaLabel = params.isNewAccount ? "Create your password" : "Set your password";
 

@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 import { getServerEnv } from "@/lib/serverEnv";
+import { canAccessAnalytics, getActivePlanKeyForBusiness } from "@/lib/plans";
+
+/** Snapshot-only fields for free-tier Performance dashboard. */
+function snapshotInsights(raw: unknown): Record<string, unknown> | null {
+  const data = Array.isArray(raw) ? raw[0] ?? null : raw;
+  if (!data || typeof data !== "object") return null;
+  const src = data as Record<string, unknown>;
+  return {
+    avg_rating: src.avg_rating,
+    total_reviews: src.total_reviews,
+    reviews_90d: src.reviews_90d,
+    rating_distribution: src.rating_distribution,
+    trust_score: src.trust_score,
+    reputation_status: src.reputation_status,
+  };
+}
 
 /**
  * Performance dashboard payload on the server.
@@ -19,6 +35,9 @@ export async function GET(
     if (!ctx.ok) return ctx.response;
 
     const { db: dataClient } = ctx;
+
+    const plan = await getActivePlanKeyForBusiness(businessId, dataClient);
+    const hasAnalytics = canAccessAnalytics(plan);
 
     let inviteDb: SupabaseClient = dataClient;
     try {
@@ -50,13 +69,15 @@ export async function GET(
       inv3mRes,
     ] = await Promise.all([
       dataClient.rpc("get_business_review_insights", { p_business_id: businessId }),
-      dataClient
-        .from("reviews")
-        .select("created_at")
-        .eq("business_id", businessId)
-        .in("status", ["published", "approved"])
-        .gte("created_at", since90dUTC)
-        .order("created_at", { ascending: true }),
+      hasAnalytics
+        ? dataClient
+            .from("reviews")
+            .select("created_at")
+            .eq("business_id", businessId)
+            .in("status", ["published", "approved"])
+            .gte("created_at", since90dUTC)
+            .order("created_at", { ascending: true })
+        : Promise.resolve({ data: [], error: null }),
       dataClient
         .from("reviews")
         .select("id,rating,title,body,created_at,guest_name")
@@ -68,16 +89,20 @@ export async function GET(
         .from("review_invites")
         .select("*", { count: "exact", head: true })
         .eq("business_id", businessId),
-      inviteDb
-        .from("review_invites")
-        .select("*", { count: "exact", head: true })
-        .eq("business_id", businessId)
-        .gte("created_at", startOf30d),
-      inviteDb
-        .from("review_invites")
-        .select("created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", since3m),
+      hasAnalytics
+        ? inviteDb
+            .from("review_invites")
+            .select("*", { count: "exact", head: true })
+            .eq("business_id", businessId)
+            .gte("created_at", startOf30d)
+        : Promise.resolve({ count: 0, error: null }),
+      hasAnalytics
+        ? inviteDb
+            .from("review_invites")
+            .select("created_at")
+            .eq("business_id", businessId)
+            .gte("created_at", since3m)
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     if (rpcRes.error) {
@@ -90,8 +115,21 @@ export async function GET(
       ? rawInsights[0] ?? null
       : rawInsights;
 
+    if (!hasAnalytics) {
+      return NextResponse.json(
+        {
+          analyticsLocked: true,
+          insights: snapshotInsights(insightsNormalized),
+          recentReviews: revRes.data ?? [],
+          totalInvites: totalInvRes.count ?? 0,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     return NextResponse.json(
       {
+        analyticsLocked: false,
         insights: insightsNormalized,
         reviews90d: rawReviewsRes.data ?? [],
         recentReviews: revRes.data ?? [],
@@ -99,7 +137,7 @@ export async function GET(
         invites30: inv30Res.count ?? 0,
         inviteRows3m: inv3mRes.data ?? [],
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
     console.error("[performance-data]", e);

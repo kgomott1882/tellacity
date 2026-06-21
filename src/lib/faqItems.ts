@@ -423,7 +423,7 @@ export const faqItems: FaqItem[] = [
       {
         type: "text",
         value:
-          "Approved content appears on the public Articles section and on your business profile. It is business-authored content — not Tellacity's editorial Blog. ",
+          "Approved content appears on the public Articles section and on your business profile. It is business-authored content, not Tellacity's editorial Blog. ",
       },
       { type: "text", value: "Full rules are in the " },
       { type: "link", href: "/business-guidelines", label: "Business Guidelines" },

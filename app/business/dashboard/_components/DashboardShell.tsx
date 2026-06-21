@@ -446,6 +446,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
           onCompleted={async () => {
             await ensureSessionFresh();
             bumpNavRefresh();
+            router.replace("/business/dashboard/get-reviews/invitation-methods");
           }}
         />
         <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">
@@ -492,6 +493,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         onCompleted={async () => {
           await ensureSessionFresh();
           bumpNavRefresh();
+          router.replace("/business/dashboard/get-reviews/invitation-methods");
         }}
       />
       {/* Desktop: sidebars */}

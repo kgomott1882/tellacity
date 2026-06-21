@@ -230,7 +230,7 @@ const PLATFORM_FAQ_SUPPLEMENT = [
   {
     question: "What is the Tellacity Reputation Platform?",
     answer:
-      "It is one centralised system for verified customer trust: review invitations, widgets, analytics, reputation management, photo uploads, and blogs or case studies — all connected through the same dashboard and verified review pipeline.",
+      "It is one centralised system for verified customer trust: review invitations, widgets, analytics, reputation management, photo uploads, and blogs or case studies, all connected through the same dashboard and verified review pipeline.",
   },
   {
     question: "Can I use only one part of the platform?",
@@ -245,7 +245,7 @@ const PLATFORM_FAQ_SUPPLEMENT = [
   {
     question: "How does the platform improve SEO and trust signals?",
     answer:
-      "Structured, current proof on your profile, widgets, and review pages — including schema such as Review and AggregateRating where applicable — helps customers and search systems see consistent trust signals instead of stale copies. Results depend on your content and implementation.",
+      "Structured, current proof on your profile, widgets, and review pages, including schema such as Review and AggregateRating where applicable, helps customers and search systems see consistent trust signals instead of stale copies. Results depend on your content and implementation.",
   },
 ];
 

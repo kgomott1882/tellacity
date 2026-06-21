@@ -21,6 +21,7 @@ import {
   WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY,
 } from "@/lib/writeReviewItemGoogleSession";
 import { PRODUCT_REVIEW_RATE_LIMIT_MESSAGE } from "@/lib/productReviewRateLimits";
+import { recordRecentBusinessReviewPublished } from "@/lib/firstPartyCookies";
 type ItemContextResponse = {
   business: { id: string; name: string; slug: string };
   item: {
@@ -293,6 +294,7 @@ export default function WriteReviewItemContent({
         }
         window.localStorage.removeItem(GOOGLE_REVIEW_ITEM_CONTEXT_KEY);
         window.sessionStorage.removeItem(WRITE_REVIEW_ITEM_GOOGLE_MODE_SESSION_KEY);
+        recordRecentBusinessReviewPublished(slug);
         setSubmitted(true);
         const okQs = new URLSearchParams();
         if (slug) okQs.set("businessSlug", slug);
@@ -369,6 +371,7 @@ export default function WriteReviewItemContent({
         return;
       }
       setSubmitted(true);
+      recordRecentBusinessReviewPublished(businessSlug);
       if (variant === "page") {
         const okQs = new URLSearchParams();
         if (slug) okQs.set("businessSlug", slug);
@@ -477,6 +480,7 @@ export default function WriteReviewItemContent({
       if (data.published) {
         setShowEmailModal(false);
         setSubmitted(true);
+        recordRecentBusinessReviewPublished(businessSlug);
       }
     } catch {
       setSubmitError("Network error");
@@ -921,6 +925,7 @@ export default function WriteReviewItemContent({
           onSuccess={() => {
             setShowEmailModal(false);
             setSubmitted(true);
+            recordRecentBusinessReviewPublished(businessSlug);
           }}
         />
       ) : null}

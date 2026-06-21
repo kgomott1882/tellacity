@@ -88,7 +88,7 @@ export default function ReputationPlatformClient() {
               </h1>
               <p className="rp-hero-sub rp-hero-enter rp-hero-enter--3">
                 Review invitations, widgets, analytics, reputation management, and
-                photo uploads — all connected in one verified system.
+                photo uploads, all connected in one verified system.
               </p>
               <div className="rp-hero-ctas rp-hero-enter rp-hero-enter--4">
                 <Link href="/business/signup" className="rp-btn-primary">
@@ -136,7 +136,7 @@ export default function ReputationPlatformClient() {
               <p className="rp-problem-lead">
                 Most businesses collect customer feedback in five or six different places.
                 When verified customer trust is split across tools, teams stop trusting their
-                own numbers — and search engines see the same fragmentation.
+                own numbers, and search engines see the same fragmentation.
               </p>
               {PROBLEM_POINTS.map((point) => (
                 <div key={point.label} className="rp-pain-row">
@@ -314,7 +314,7 @@ export default function ReputationPlatformClient() {
           <h2 className="rp-section-title">Use Cases by Team</h2>
           <p className="rp-intro-note">
             Every team uses the Tellacity Reputation Management Platform differently, but
-            they all work from the same verified customer data — not duplicate exports or
+            they all work from the same verified customer data, not duplicate exports or
             conflicting scores.
           </p>
           <div className="rp-team-grid">

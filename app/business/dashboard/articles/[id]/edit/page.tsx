@@ -707,7 +707,7 @@ export default function ArticleEditorPage() {
   const resolveUploadContext = () => {
     const ctx = uploadContextRef.current;
     if (!articleReady || !ctx?.businessId || !ctx.articleId) {
-      throw new Error("Article is still loading — please try again in a moment.");
+      throw new Error("Article is still loading, please try again in a moment.");
     }
     return ctx;
   };
@@ -869,7 +869,7 @@ export default function ArticleEditorPage() {
       return;
     }
     if (loading || !usage) {
-      setError("Still loading your plan details — please try Submit again in a moment.");
+      setError("Still loading your plan details, please try Submit again in a moment.");
       return;
     }
     if (revisionMode) {
@@ -969,7 +969,7 @@ export default function ArticleEditorPage() {
                 disabled={loading}
                 title={
                   showPreviewHint
-                    ? "Preview how your article looks — click here"
+                    ? "Preview how your article looks, click here"
                     : "Preview article"
                 }
                 className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"

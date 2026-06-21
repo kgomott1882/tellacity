@@ -148,7 +148,7 @@ export async function POST(req: Request) {
 <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.5; color: #111827;">
   <p>Use this code to create your Tellacity business account and verify your company email in one step:</p>
   <p><strong style="letter-spacing:4px;font-size:1.25rem">${code}</strong></p>
-  <p>When your work email matches your website domain, we can link your account to your business profile right away — no second code needed.</p>
+  <p>When your work email matches your website domain, we can link your account to your business profile right away, no second code needed.</p>
   <p>This code expires in 15 minutes.</p>
 </body>
 </html>

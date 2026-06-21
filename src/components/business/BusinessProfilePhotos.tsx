@@ -767,7 +767,7 @@ export default function BusinessProfilePhotos({
     [photos]
   );
 
-  /** Owner-only onboarding helpers — hidden from public visitors. */
+  /** Owner-only onboarding helpers, hidden from public visitors. */
   const showOwnerPhotoActions = canManagePhotos && photos.length === 0;
 
   const resolveUploadHref = useCallback(async (): Promise<void> => {

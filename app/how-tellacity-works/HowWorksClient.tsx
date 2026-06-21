@@ -259,7 +259,7 @@ export default function HowWorksClient() {
       <FadeUp threshold={IO} className="how-intro">
         <div className="how-intro-shimmer" aria-hidden />
         <p className="how-intro-text">
-          Six steps connect customers, reviews, and businesses — from the first search
+          Six steps connect customers, reviews, and businesses, from the first search
           to the verified feedback that updates trust signals.
         </p>
       </FadeUp>
@@ -277,7 +277,7 @@ export default function HowWorksClient() {
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">
             Three surfaces customers and businesses use: public profile, review form,
-            and business dashboard — turning experience into verified reputation.
+            and business dashboard, turning experience into verified reputation.
           </p>
           <div className="how-inside-banner" role="img" aria-label="Inside Tellacity platform" />
           <div className="how-inside-cards">
@@ -368,7 +368,7 @@ export default function HowWorksClient() {
             <div className="how-trust-copy">
               <p>
                 The Trust Score is a single, transparent number summarizing reputation
-                on Tellacity — calculated from six explicit factors, not a hidden
+                on Tellacity, calculated from six explicit factors, not a hidden
                 algorithm.
               </p>
               <p>
@@ -413,7 +413,7 @@ export default function HowWorksClient() {
           </h2>
           <p className="relative z-[1] mt-3 max-w-2xl text-sm text-white/75">
             Customer experiences flow into reviews, business responses, updated trust
-            signals, and community benefit — transparent by design. Explore the{" "}
+            signals, and community benefit, transparent by design. Explore the{" "}
             <Link href="/for-business" className="text-[#1ecfb8] underline underline-offset-2">
               reputation management platform
             </Link>
@@ -451,7 +451,7 @@ export default function HowWorksClient() {
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-gray-600">
             Verified means a real account, passed verification, and (where applicable)
-            proof of purchase on file — weighing more heavily in the Trust Score.
+            proof of purchase on file, weighing more heavily in the Trust Score.
           </p>
           <div className="how-verified-grid">
             <div className="how-verified-photo">
@@ -628,7 +628,7 @@ export default function HowWorksClient() {
             <Link href="/for-business" className="how-inline-link">
               Tellacity Reputation Management Platform
             </Link>{" "}
-            underpins the entire feedback loop — wiring verified reviews into dashboards,
+            underpins the entire feedback loop, wiring verified reviews into dashboards,
             widgets, analytics, and automation. See{" "}
             <Link href="/for-business" className="how-inline-link">
               Tellacity for Business

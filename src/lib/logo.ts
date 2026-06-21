@@ -28,7 +28,7 @@ function usableStoredLogoUrl(raw: string | null | undefined): string | null {
   return normalized;
 }
 
-/** Returns a stored logo URL only — no website favicon fallback. */
+/** Returns a stored logo URL only, no website favicon fallback. */
 export function similarBusinessLogoUrl(row: Input): string | null {
   const fromResolved = usableStoredLogoUrl(row.resolved_logo_url);
   if (fromResolved) return fromResolved;

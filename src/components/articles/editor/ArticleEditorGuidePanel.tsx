@@ -125,7 +125,7 @@ export default function ArticleEditorGuidePanel({
             <>
               <p className="mt-4 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <Lightbulb className="h-3.5 w-3.5 text-amber-500" aria-hidden />
-                Write it like a story — use these prompts as you go
+                Write it like a story, use these prompts as you go
               </p>
               <div className="mt-3 space-y-3">
                 {guide.guidedSteps.map((step, index) => (

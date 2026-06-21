@@ -63,7 +63,7 @@ const FILTER_OPTIONS: ReadonlyArray<{
 ];
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleString("en-US", {
       month: "short",
@@ -285,7 +285,7 @@ export default function BusinessDetailArticles({ initial }: { initial: InitialDa
           </p>
         ) : (
           <p className="text-xs text-amber-700">
-            No claimed owner — rejection emails will be skipped.
+            No claimed owner, rejection emails will be skipped.
           </p>
         )}
         <Link

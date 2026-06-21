@@ -354,7 +354,7 @@ export default function ReviewerGuidelinesClient() {
           <p className="rg-intro-note">
             Tellacity distinguishes between verified and unverified content so readers can
             weigh feedback appropriately. We encourage all users to verify reviews
-            voluntarily — see{" "}
+            voluntarily, see{" "}
             <Link href="/how-tellacity-works" className="rg-inline-link">
               How Tellacity Works
             </Link>{" "}
@@ -406,7 +406,7 @@ export default function ReviewerGuidelinesClient() {
           </h2>
           <p className="rg-intro-note">
             We use automated systems and human moderation. Content is flagged, investigated,
-            and decided on evidence — not on whether a business simply dislikes the outcome.
+            and decided on evidence, not on whether a business simply dislikes the outcome.
             We do not remove reviews simply because they are negative. Read more in{" "}
             <Link href="/safety-trust" className="rg-inline-link">
               Safety &amp; Trust

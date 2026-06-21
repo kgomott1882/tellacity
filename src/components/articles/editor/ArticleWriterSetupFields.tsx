@@ -27,7 +27,7 @@ export default function ArticleWriterSetupFields({
     <>
       <h2 className="text-lg font-semibold text-gray-900">Writer byline</h2>
       <p className="mt-1 text-sm text-gray-500">
-        Optional — add who wrote this piece before you submit. Name, role, and photo appear on the
+        Optional. Add who wrote this piece before you submit. Name, role, and photo appear on the
         published article card.
       </p>
 

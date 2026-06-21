@@ -60,7 +60,7 @@ function contentTypeLabel(contentType: string): string {
 }
 
 function formatDate(iso: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleDateString(undefined, {
       year: "numeric",
@@ -263,7 +263,7 @@ function PublishedArticleThumbnail({
     (rev?.featured_image_url ?? null) !== (article.featured_image_url ?? null);
 
   return (
-    <div className="relative shrink-0" title={pendingImageChange ? "Live thumbnail — update pending admin approval" : undefined}>
+    <div className="relative shrink-0" title={pendingImageChange ? "Live thumbnail, update pending admin approval" : undefined}>
       <ArticleThumbnail src={article.featured_image_url} title={title} />
       {pendingImageChange ? (
         <span

@@ -144,7 +144,7 @@ export default function BusinessSignupOtpModal({
         );
       } else if (data.outcome === "already_claimed") {
         setSuccessMessage(
-          "Account created. This listing is already claimed — opening your dashboard…"
+          "Account created. This listing is already claimed, opening your dashboard…"
         );
       } else {
         setSuccessMessage("Account created. Taking you to your dashboard…");

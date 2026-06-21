@@ -36,7 +36,7 @@ export default function ArticleLinkValidationBanner({ result, compact = false }:
         <p>
           External links: {externalLinkCount} / {maxExternalLinks}
           {atLimit
-            ? " — maximum allowed (your business website and Tellacity links are unlimited)"
+            ? ", maximum allowed (your business website and Tellacity links are unlimited)"
             : " (your business website and Tellacity links are unlimited)"}
         </p>
       </div>

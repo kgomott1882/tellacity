@@ -195,7 +195,7 @@ export default function ReviewInvitationsClient() {
     <main className="ri-cinematic">
       <HomeScrollProgress />
 
-      {/* 1. Hero — command-center layout */}
+      {/* 1. Hero, command-center layout */}
       <section className="ri-hero ri-hero--command" aria-labelledby="ri-hero-title">
         <HeroStarField />
         <div className="ri-hero-mesh" aria-hidden />

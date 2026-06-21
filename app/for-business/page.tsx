@@ -7,12 +7,12 @@ const PAGE_URL = "https://tellacity.com/for-business";
 export const metadata: Metadata = {
   title: "Tellacity for Business | Reputation Platform & Reviews",
   description:
-    "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust — all in one Tellacity dashboard for businesses.",
+    "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust, all in one Tellacity dashboard for businesses.",
   alternates: { canonical: PAGE_URL },
   openGraph: {
     title: "Tellacity for Business | Reputation Platform & Reviews",
     description:
-      "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust — all in one Tellacity dashboard for businesses.",
+      "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust, all in one Tellacity dashboard for businesses.",
     url: PAGE_URL,
     siteName: "Tellacity",
     type: "website",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tellacity for Business | Reputation Platform & Reviews",
     description:
-      "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust — all in one Tellacity dashboard for businesses.",
+      "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust, all in one Tellacity dashboard for businesses.",
   },
   robots: { index: true, follow: true },
 };
@@ -31,7 +31,7 @@ const forBusinessJsonLd = {
   "@type": "WebPage",
   name: "Tellacity for Business | Reputation Platform & Reviews",
   description:
-    "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust — all in one Tellacity dashboard for businesses.",
+    "Collect verified reviews, manage reputation, embed widgets, publish blogs and case studies, and grow trust, all in one Tellacity dashboard for businesses.",
   url: PAGE_URL,
   breadcrumb: {
     "@type": "BreadcrumbList",

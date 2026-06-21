@@ -123,7 +123,7 @@ export const businessGuidelines = [
     icon: "messageCircle" as const,
     accent: "teal" as const,
     body:
-      "Responses should be polite and solution-oriented. Avoid arguments or insulting customers — show you take feedback seriously.",
+      "Responses should be polite and solution-oriented. Avoid arguments or insulting customers, show you take feedback seriously.",
   },
   {
     title: "No Fake Reviews",
@@ -156,7 +156,7 @@ export const enforcementActions = [
     icon: "trash2" as const,
     color: "#f59e0b",
     body:
-      "Reviews or replies breaking rules will be deleted — including spam, threats, fabricated experiences, or privacy violations.",
+      "Reviews or replies breaking rules will be deleted, including spam, threats, fabricated experiences, or privacy violations.",
   },
   {
     title: "Warnings",
@@ -170,7 +170,7 @@ export const enforcementActions = [
     icon: "userX" as const,
     color: "#ef4444",
     body:
-      "Repeat offenders may be banned from posting reviews — patterns of fake reviews, harassment, or score manipulation.",
+      "Repeat offenders may be banned from posting reviews, patterns of fake reviews, harassment, or score manipulation.",
   },
   {
     title: "Business Penalties",

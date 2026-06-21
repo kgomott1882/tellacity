@@ -16,6 +16,8 @@ type Props = {
   plan: PlanId;
   /** When set and state is `available`, primary CTA navigates here (e.g. Shopify / WooCommerce connect flow). */
   connectHref?: string | null;
+  /** When set and state is `connected`, primary CTA navigates here (e.g. WooCommerce manage). */
+  manageHref?: string | null;
 };
 
 function primaryCtaLabel(state: IntegrationState): string {
@@ -41,11 +43,15 @@ export default function IntegrationDetailView({
   state,
   plan,
   connectHref,
+  manageHref,
 }: Props) {
   const ctaLabel = primaryCtaLabel(state);
   const disabled = state === "coming_soon";
   const connectLink =
     Boolean(connectHref) && state === "available" && !disabled ? connectHref! : null;
+  const manageLink =
+    Boolean(manageHref) && state === "connected" && !disabled ? manageHref! : null;
+  const actionLink = manageLink ?? connectLink;
 
   const ctaClassName = `inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition ${
     disabled
@@ -86,8 +92,8 @@ export default function IntegrationDetailView({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {connectLink ? (
-            <Link href={connectLink} className={ctaClassName}>
+          {actionLink ? (
+            <Link href={actionLink} className={ctaClassName}>
               {ctaLabel}
             </Link>
           ) : (
@@ -139,9 +145,37 @@ export default function IntegrationDetailView({
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-gray-700">
             <li>Choose the business you want to connect inside the Tellacity dashboard.</li>
             <li>
-              {integration.slug === "woocommerce"
+              {integration.slug === "shopify"
+                ? "Enter your Shopify store domain and approve OAuth access. Tellacity registers order webhooks and stores the token server-side."
+                : integration.slug === "woocommerce"
                 ? "Add REST API keys from WooCommerce (Advanced → REST API) and connect your store securely over HTTPS."
-                : `Authenticate with your ${integration.name} account using a secure OAuth flow.`}
+                : integration.slug === "magento"
+                  ? "Create an integration in Magento Admin, activate it, and paste the access token so Tellacity can reach your REST API over HTTPS."
+                  : integration.slug === "wordpress"
+                    ? "Paste your WordPress site URL. Tellacity verifies /wp-json, then you copy widget embed code into your theme or page builder."
+                    : integration.slug === "klaviyo"
+                      ? "Create a private API key in Klaviyo (Settings → API keys) and paste it here. Tellacity verifies the key and stores it server-side."
+                      : integration.slug === "twilio"
+                        ? "Copy Account SID and Auth Token from the Twilio Console. Optionally add a sender number or Messaging Service SID for SMS review invites."
+                        : integration.slug === "marketo"
+                          ? "Create a LaunchPoint REST service in Marketo Admin and paste the endpoint, Client ID, and Client Secret here."
+                          : integration.slug === "slack"
+                            ? "Install a Slack app to your workspace, add chat:write scopes, and paste the Bot User OAuth Token (xoxb-). Optionally set a default channel ID."
+                            : integration.slug === "hubspot"
+                              ? "Create a private app in HubSpot (Settings → Integrations → Private Apps) and paste the access token (pat-)."
+                              : integration.slug === "salesforce"
+                                ? "Create a Connected App in Salesforce Setup, authorize it for your integration user, and paste the Consumer Key, Consumer Secret, and refresh token here."
+                                : integration.slug === "netsuite"
+                                  ? "Create a Token-Based Authentication integration in NetSuite, generate an access token, and paste Account ID plus Consumer Key/Secret and Token ID/Secret here."
+                                  : integration.slug === "sap"
+                                    ? "Create a Communication Arrangement in SAP for your OData APIs and paste the API base URL, OAuth token URL, Client ID, and Client Secret here."
+                                    : integration.slug === "zendesk"
+                                ? "Enter your Zendesk subdomain, an admin agent email, and API token from Admin Center → APIs."
+                                : integration.slug === "zapier"
+                                  ? "Create a Zap with Webhooks by Zapier → Catch Hook, turn it on, and paste the hook URL here. Tellacity sends a test payload to verify it."
+                                  : integration.slug === "google-sheets"
+                                    ? "Share a spreadsheet with a Google service account, enable the Sheets API, and paste the spreadsheet link plus JSON key here."
+                                    : `Authenticate with your ${integration.name} account using a secure OAuth flow.`}
             </li>
             <li>Pick which events should trigger review invitations or data sync.</li>
             <li>Test the connection, then turn it on for live traffic.</li>

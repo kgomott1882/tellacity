@@ -1078,7 +1078,7 @@ export default function HomePageClient({
         }
       />
 
-      {/* Find businesses by category — infinite marquee */}
+      {/* Find businesses by category, infinite marquee */}
       <FadeUp>
       <section className="overflow-visible">
         <div className="mx-auto w-full max-w-7xl overflow-visible px-6 py-8 sm:py-10 md:py-12">

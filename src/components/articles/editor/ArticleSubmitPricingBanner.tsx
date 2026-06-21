@@ -82,7 +82,7 @@ export default function ArticleSubmitPricingBanner({
       <>
         Your workspace is on <strong className="capitalize">{currentPlanKey}</strong> (
         {formatPlanArticleLimitModal(currentPlanKey)}). You still have{" "}
-        <strong>{usage?.remaining ?? "—"}</strong> submission
+        <strong>{usage?.remaining ?? "-"}</strong> submission
         {(usage?.remaining ?? 0) === 1 ? "" : "s"} left this month. Return to your draft and click{" "}
         <strong>Submit</strong> to send it for review.
       </>
@@ -101,7 +101,7 @@ export default function ArticleSubmitPricingBanner({
     detail = (
       <>
         To publish blogs and case studies for review, upgrade from <strong>Free</strong> to at
-        least <strong>Grow</strong> ({formatPlanArticleLimitModal("grow")}). Your draft is saved —
+        least <strong>Grow</strong> ({formatPlanArticleLimitModal("grow")}). Your draft is saved , 
         you can submit right after upgrading.
       </>
     );

@@ -518,7 +518,7 @@ export default function ReviewWidgetsClient() {
         <TimelineSection />
       </FadeUp>
 
-      {/* 5. Widget features — split hero + capability grid */}
+      {/* 5. Widget features, split hero + capability grid */}
       <FadeUp threshold={IO} className="rw-features-split">
         <div className="rw-section-inner rw-features-inner">
           <div className="rw-features-hero">

@@ -2,9 +2,14 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
+import {
+  nextTierUpgradeCtaLabel,
+  normalizePlanCodeToKey,
+} from "@/lib/plans";
 import {
   useDashboardPerformanceData,
   type DailyReview,
@@ -12,6 +17,8 @@ import {
   type MonthlyInvite,
 } from "@/hooks/useDashboardPerformanceData";
 import { RecentReviewInvitesCard } from "../_components/RecentReviewInvitesCard";
+
+const ANALYTICS_UPGRADE_HREF = "/business/dashboard/billing?reason=analytics";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,14 +50,19 @@ function trustReputation(score: number): {
  * Contextual helper message for the Reputation Status banner.
  * Exactly one message renders based on priority order.
  */
-function reputationHelper(totalReviews: number, avgRating: number, vel: number): string {
+function reputationHelper(
+  totalReviews: number,
+  avgRating: number,
+  vel: number,
+  hasVelocityData: boolean,
+): string {
   if (totalReviews < 5) {
     return "Limited review data. Send more invitations to build reputation accuracy and improve momentum.";
   }
   if (avgRating < 3.5) {
     return "Customer sentiment needs improvement. Focus on delivering consistent service and encouraging satisfied customers to leave feedback.";
   }
-  if (vel === 0) {
+  if (hasVelocityData && vel === 0) {
     return "No recent review growth. Increase outreach to maintain visibility and strengthen your reputation.";
   }
   return "Reputation is building steadily. Continue consistent review outreach to maintain momentum.";
@@ -100,6 +112,48 @@ function SectionHeading({ title, sub, note }: { title: string; sub: string; note
       {note && (
         <p className="mt-1 text-xs text-neutral-600 italic">{note}</p>
       )}
+    </div>
+  );
+}
+
+function AnalyticsUpgradeBanner({
+  message,
+  ctaLabel,
+}: {
+  message: string;
+  ctaLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-600 bg-neutral-800/90 px-5 py-4">
+      <p className="flex items-center gap-2 text-sm font-medium text-neutral-200">
+        <Lock className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
+        {message}
+      </p>
+      <Link
+        href={ANALYTICS_UPGRADE_HREF}
+        className="shrink-0 rounded-lg bg-[#1e6b9e] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#185a87]"
+      >
+        {ctaLabel}
+      </Link>
+    </div>
+  );
+}
+
+function LockedAnalyticsPanel({
+  message,
+  ctaLabel,
+  minHeight = "min-h-[140px]",
+}: {
+  message: string;
+  ctaLabel: string;
+  minHeight?: string;
+}) {
+  return (
+    <div className={`flex flex-col justify-center gap-4 rounded-xl border border-neutral-700 bg-neutral-800 p-5 ${minHeight}`}>
+      <AnalyticsUpgradeBanner message={message} ctaLabel={ctaLabel} />
+      <p className="text-center text-xs text-neutral-500">
+        Upgrade to Grow for trends, outreach analytics, and review momentum insights.
+      </p>
     </div>
   );
 }
@@ -573,6 +627,10 @@ function PerformanceAnalyticsContent({
   businessId: string;
   showIncludedGuide: boolean;
 }) {
+  const { selectedBusiness } = useBusinessContext();
+  const planKey = normalizePlanCodeToKey(selectedBusiness?.plan);
+  const upgradeCtaLabel = nextTierUpgradeCtaLabel(planKey);
+
   const {
     data,
     error,
@@ -582,7 +640,12 @@ function PerformanceAnalyticsContent({
     inviteChart,
     realTotalInvites,
     realInvites30,
+    analyticsLocked,
   } = useDashboardPerformanceData(businessId);
+
+  const hasAnalytics = !analyticsLocked;
+  const locked = analyticsLocked;
+  const lockMessage = "Get the Grow plan to unlock performance analytics and outreach insights.";
 
   const d = data;
 
@@ -621,7 +684,7 @@ function PerformanceAnalyticsContent({
   const rep = trustReputation(trustScore);
 
   // Contextual helper message (exactly one, priority-ordered)
-  const repHelper = reputationHelper(totalReviews, avg, vel);
+  const repHelper = reputationHelper(totalReviews, avg, vel, hasAnalytics);
 
   // Executive summary insight line
   const execLine = executiveSummaryLine(trustScore);
@@ -686,8 +749,8 @@ function PerformanceAnalyticsContent({
             </div>
           </div>
 
-          {/* 4 KPI Cards: Avg Rating · Total Reviews · Review Velocity · Trust Score */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* KPI Cards: Avg Rating · Total Reviews · Trust Score (+ Review Velocity when unlocked) */}
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${locked ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
             <MetricCard
               label="Average Rating"
               value={avg > 0 ? avg.toFixed(1) : "0.0"}
@@ -708,17 +771,25 @@ function PerformanceAnalyticsContent({
               sub={`${numFrom(d?.reviews_90d)} in last 90 days`}
             />
             <MetricCard
-              label="Review Velocity"
-              value={`${vel.toFixed(0)}%`}
-              sub={velSub}
-              subMuted={vel === 0}
-            />
-            <MetricCard
               label="Trust Score"
               value={trustValue}
               sub={trustSub}
               subMuted={trustScore < 30}
             />
+            {locked ? (
+              <LockedAnalyticsPanel
+                message={lockMessage}
+                ctaLabel={upgradeCtaLabel}
+                minHeight="min-h-0"
+              />
+            ) : (
+              <MetricCard
+                label="Review Velocity"
+                value={`${vel.toFixed(0)}%`}
+                sub={velSub}
+                subMuted={vel === 0}
+              />
+            )}
           </div>
 
           {/* Executive summary insight line */}
@@ -781,19 +852,26 @@ function PerformanceAnalyticsContent({
               </div>
             </div>
 
-            {/* Review Sentiment , percentages from rating distribution (hook) */}
-            <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-5">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">Review Sentiment</h3>
-              {totalReviews === 0 ? (
-                <p className="py-6 text-center text-xs text-neutral-500">No review data yet</p>
-              ) : (
-                <div className="space-y-2 text-sm text-neutral-200">
-                  <p>😊 Positive: {sentimentPct.positive}%</p>
-                  <p>😐 Neutral: {sentimentPct.neutral}%</p>
-                  <p>😡 Negative: {sentimentPct.negative}%</p>
-                </div>
-              )}
-            </div>
+            {/* Review Sentiment — Grow+ depth */}
+            {locked ? (
+              <LockedAnalyticsPanel
+                message="Get the Grow plan to unlock review sentiment breakdown."
+                ctaLabel={upgradeCtaLabel}
+              />
+            ) : (
+              <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-5">
+                <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">Review Sentiment</h3>
+                {totalReviews === 0 ? (
+                  <p className="py-6 text-center text-xs text-neutral-500">No review data yet</p>
+                ) : (
+                  <div className="space-y-2 text-sm text-neutral-200">
+                    <p>😊 Positive: {sentimentPct.positive}%</p>
+                    <p>😐 Neutral: {sentimentPct.neutral}%</p>
+                    <p>😡 Negative: {sentimentPct.negative}%</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ════════════════════════════════════════════
@@ -804,40 +882,71 @@ function PerformanceAnalyticsContent({
             sub="Invite activity, conversion rates, and outreach momentum."
           />
 
-          {/* 3 invite KPI cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <MetricCard
-              label="Total Invites"
-              value={String(totalInvites)}
-              sub="All time"
-            />
-            <MetricCard
-              label="Invites Last 30 Days"
-              value={String(invites30)}
-              sub="Recent outreach"
-            />
-            <MetricCard
-              label="Invite Conversion"
-              value={convValue}
-              sub={convSub}
-              subMuted={convSubMuted}
-            />
-          </div>
+          {/* Total Invites (free) + paid invite KPIs when unlocked */}
+          {locked ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <MetricCard
+                label="Total Invites"
+                value={String(totalInvites)}
+                sub="All time"
+              />
+              <div className="sm:col-span-2">
+                <LockedAnalyticsPanel
+                  message="Get the Grow plan to unlock invite trends and conversion metrics."
+                  ctaLabel={upgradeCtaLabel}
+                  minHeight="min-h-0"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <MetricCard
+                label="Total Invites"
+                value={String(totalInvites)}
+                sub="All time"
+              />
+              <MetricCard
+                label="Invites Last 30 Days"
+                value={String(invites30)}
+                sub="Recent outreach"
+              />
+              <MetricCard
+                label="Invite Conversion"
+                value={convValue}
+                sub={convSub}
+                subMuted={convSubMuted}
+              />
+            </div>
+          )}
 
-          {/* Invite Activity chart or empty state CTA */}
+          {/* Invite Activity chart or empty state CTA — empty state never gated */}
           <div className="rounded-xl border border-neutral-700 bg-neutral-800 px-5 py-6">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               Invite Activity <span className="font-normal normal-case text-neutral-600">(Last 3 Months)</span>
             </h3>
             {totalInvites === 0 ? (
               <InviteEmptyState />
+            ) : locked ? (
+              <LockedAnalyticsPanel
+                message="Get the Grow plan to unlock invite activity over time."
+                ctaLabel={upgradeCtaLabel}
+                minHeight="min-h-[200px]"
+              />
             ) : (
               <InviteBarChart data={inviteChart} />
             )}
           </div>
 
-          {/* Recent invite rows */}
-          <RecentReviewInvitesCard businessId={businessId} />
+          {/* Recent invite rows — Grow+ depth */}
+          {locked ? (
+            <LockedAnalyticsPanel
+              message="Get the Grow plan to see recent review invites and outreach status."
+              ctaLabel={upgradeCtaLabel}
+              minHeight="min-h-[180px]"
+            />
+          ) : (
+            <RecentReviewInvitesCard businessId={businessId} />
+          )}
 
           {/* ════════════════════════════════════════════
               4) REVIEW MOMENTUM
@@ -847,18 +956,26 @@ function PerformanceAnalyticsContent({
             sub="Monthly review volume over the last 6 months."
           />
 
-          <div className="rounded-xl border border-neutral-700 bg-neutral-800 px-5 py-6">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-              Review Activity <span className="font-normal normal-case text-neutral-600">(Last 90 Days)</span>
-            </h3>
-            <TrendSummary trend={d?.trend ?? null} />
-            <ReviewActivityLineChart daily={daily} totalReviews={totalReviews} />
-            {momentumNote && (
-              <p className="mt-4 text-xs text-neutral-600 italic">
-                Consistent monthly review flow improves visibility and trust score.
-              </p>
-            )}
-          </div>
+          {locked ? (
+            <LockedAnalyticsPanel
+              message="Get the Grow plan to unlock review momentum trends and activity charts."
+              ctaLabel={upgradeCtaLabel}
+              minHeight="min-h-[280px]"
+            />
+          ) : (
+            <div className="rounded-xl border border-neutral-700 bg-neutral-800 px-5 py-6">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                Review Activity <span className="font-normal normal-case text-neutral-600">(Last 90 Days)</span>
+              </h3>
+              <TrendSummary trend={d?.trend ?? null} />
+              <ReviewActivityLineChart daily={daily} totalReviews={totalReviews} />
+              {momentumNote && (
+                <p className="mt-4 text-xs text-neutral-600 italic">
+                  Consistent monthly review flow improves visibility and trust score.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* ════════════════════════════════════════════
               5) RECENT REVIEWS

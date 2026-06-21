@@ -57,7 +57,7 @@ export default function PayPalCheckoutPlaceholder({
         <p className="mt-3 text-xs text-gray-500">
           Add <code className="rounded bg-white px-1">PAYPAL_CLIENT_ID</code> and{" "}
           <code className="rounded bg-white px-1">PAYPAL_CLIENT_SECRET</code> to{" "}
-          <code className="rounded bg-white px-1">.env.local</code> — do not paste secrets in chat.
+          <code className="rounded bg-white px-1">.env.local</code>. Do not paste secrets in chat.
         </p>
       </div>
 

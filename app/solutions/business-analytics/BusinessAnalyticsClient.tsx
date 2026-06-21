@@ -291,7 +291,7 @@ export default function BusinessAnalyticsClient() {
     <main className="ba-cinematic">
       <HomeScrollProgress />
 
-      {/* 1. Hero — analytics command-center aesthetic */}
+      {/* 1. Hero, analytics command-center aesthetic */}
       <section className="ba-hero ba-hero--command" aria-labelledby="ba-hero-title">
         <div className="ba-hero-mesh" aria-hidden />
         <div className="ba-hero-grid-lines" aria-hidden />

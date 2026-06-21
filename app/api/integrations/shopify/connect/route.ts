@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getShopifyEnvForOAuthStart } from "@/lib/shopifyEnv";
+import { normalizeShopifyShopDomain } from "@/lib/shopifyConnect";
 
-const SHOP_NAME_REGEX = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
-
-function normalizeShop(shop: string): string {
-  const trimmed = shop.trim().toLowerCase();
-  if (trimmed.endsWith(".myshopify.com")) return trimmed;
-  return `${trimmed}.myshopify.com`;
-}
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Encode business_id in state so redirect_uri stays fixed for Shopify whitelist. */
 function encodeState(businessId: string | null): string {
@@ -21,30 +16,40 @@ function encodeState(businessId: string | null): string {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const businessId = searchParams.get("business_id");
+  const businessId = searchParams.get("business_id")?.trim() ?? "";
   const shop = searchParams.get("shop");
 
   const env = getShopifyEnvForOAuthStart();
   if (!env) {
     return NextResponse.json(
-      { error: "Shopify not configured. Set SHOPIFY_CLIENT_ID (and NEXT_PUBLIC_APP_URL). Use credentials from Shopify Partner Dashboard → Apps → your app → Client credentials." },
-      { status: 500 }
+      {
+        error:
+          "Shopify not configured. Set SHOPIFY_CLIENT_ID (and NEXT_PUBLIC_APP_URL). Use credentials from Shopify Partner Dashboard → Apps → your app → Client credentials.",
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!businessId || !UUID_REGEX.test(businessId)) {
+    return NextResponse.json(
+      { error: "Missing or invalid business_id. Open Connect Shopify from the integrations dashboard." },
+      { status: 400 },
     );
   }
 
   if (!shop || typeof shop !== "string") {
     return NextResponse.json(
-      { error: "Missing shop parameter. Provide your Shopify store domain (e.g. mystore or mystore.myshopify.com)." },
-      { status: 400 }
+      {
+        error:
+          "Missing shop parameter. Provide your Shopify store domain (e.g. mystore or mystore.myshopify.com).",
+      },
+      { status: 400 },
     );
   }
 
-  const shopDomain = normalizeShop(shop);
-  if (!SHOP_NAME_REGEX.test(shopDomain)) {
-    return NextResponse.json(
-      { error: "Invalid Shopify shop domain." },
-      { status: 400 }
-    );
+  const shopDomain = normalizeShopifyShopDomain(shop);
+  if (!shopDomain) {
+    return NextResponse.json({ error: "Invalid Shopify shop domain." }, { status: 400 });
   }
 
   const scope = "read_orders,read_customers";
@@ -62,3 +67,4 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(authUrl);
 }
+

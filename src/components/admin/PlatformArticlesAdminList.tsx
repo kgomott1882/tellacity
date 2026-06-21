@@ -7,7 +7,7 @@ import type { PlatformArticleRow } from "@/lib/platformArticles/types";
 import { createPlatformArticleDraft } from "@/lib/admin/createPlatformArticleDraft";
 
 function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleString(undefined, {
       month: "short",

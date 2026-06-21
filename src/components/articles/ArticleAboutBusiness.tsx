@@ -117,7 +117,7 @@ export default function ArticleAboutBusiness({
           <a
             href={websiteUrl}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer nofollow"
             className="inline-flex items-center justify-center rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-[#0E0E0E] hover:bg-gray-50"
           >
             Visit website

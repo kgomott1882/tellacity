@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import IntegrationStateBadge from "./IntegrationStateBadge";
 import type { IntegrationWithState } from "@/lib/integrationsCatalog";
+import {
+  integrationConnectPath,
+  integrationConnectorPath,
+  integrationManagePath,
+} from "@/lib/integrationConnectPaths";
 
 function primaryCtaLabel(state: IntegrationWithState["state"]): string {
   switch (state) {
@@ -23,74 +28,59 @@ function primaryCtaLabel(state: IntegrationWithState["state"]): string {
 }
 
 type Props = {
-  integration: {
-    slug: string;
-    name: string;
-    description?: string;
-    logo?: string;
-    logoFile?: string;
-    state:
-      | "available"
-      | "connected"
-      | "coming_soon"
-      | "enterprise"
-      | "upgrade_required";
-  };
+  integration: IntegrationWithState;
   businessId?: string;
 };
 
 export default function IntegrationCard({ integration, businessId }: Props) {
   const router = useRouter();
   const ctaLabel = primaryCtaLabel(integration.state);
-  const disabled = (integration.state as string) === "coming_soon";
+  const disabled = integration.state === "coming_soon";
+  const description = integration.shortDescription;
 
-  const handleClick = () => {
-    if (disabled) return;
-    router.push(`/business/dashboard/integrations/connectors/${integration.slug}`);
-  };
+  const connectHref =
+    businessId && integration.state === "available"
+      ? integrationConnectPath(integration.slug, businessId)
+      : null;
 
-  const isShopifyAvailable =
-    integration.slug === "shopify" &&
-    (integration.state as string) === "available" &&
-    businessId;
-
-  const isWooAvailable =
-    integration.slug === "woocommerce" &&
-    (integration.state as string) === "available" &&
-    businessId;
+  const manageHref =
+    businessId && integration.state === "connected"
+      ? integrationManagePath(integration.slug, businessId)
+      : null;
 
   const primaryCta =
-    (integration.state as string) === "connected" ? (
-      <span className="text-green-600 font-medium">Connected ✓</span>
-    ) : isShopifyAvailable ? (
+    manageHref ? (
       <Link
-        href={`/business/dashboard/integrations/connect-shopify?business_id=${encodeURIComponent(businessId)}`}
-        className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
+        href={manageHref}
+        className="inline-flex items-center justify-center rounded-md bg-[#1FAF9E] px-4 py-2 text-xs font-semibold text-white hover:bg-[#169786] transition"
+      >
+        Manage connection
+      </Link>
+    ) : connectHref ? (
+      <Link
+        href={connectHref}
+        className="inline-flex items-center justify-center rounded-md bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700 transition"
       >
         Connect
       </Link>
-    ) : isWooAvailable ? (
-      <Link
-        href={`/business/dashboard/integrations/connect-woocommerce?business_id=${encodeURIComponent(businessId)}`}
-        className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition"
-      >
-        Connect
-      </Link>
+    ) : integration.state === "connected" ? (
+      <span className="text-sm font-medium text-green-600">Connected ✓</span>
     ) : (
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => {
+          if (disabled) return;
+          router.push(integrationConnectorPath(integration.slug));
+        }}
         disabled={disabled}
         className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
           disabled
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : (integration.state as string) === "upgrade_required"
-            ? "bg-[#0E0E0E] text-white hover:bg-black"
-            : (integration.state as string) === "enterprise"
-            ? "bg-[#1F2937] text-white hover:bg-black"
-            : (integration.state as string) === "connected"
-            ? "bg-[#1FAF9E] text-white hover:bg-[#169786]"
-            : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
+            : integration.state === "upgrade_required"
+              ? "bg-[#0E0E0E] text-white hover:bg-black"
+              : integration.state === "enterprise"
+                ? "bg-[#1F2937] text-white hover:bg-black"
+                : "bg-white text-[#1FAF9E] border border-[#1FAF9E] hover:bg-[#F4FFFD]"
         }`}
       >
         {ctaLabel}
@@ -100,24 +90,22 @@ export default function IntegrationCard({ integration, businessId }: Props) {
   return (
     <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#1FAF9E]/70 hover:shadow-md transition">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-gray-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={integration.logo ?? (integration.logoFile ? `/brand/${integration.logoFile}` : `/brand/${integration.slug}.png`)}
+            src={`/brand/${integration.logoFile}`}
             alt={`${integration.name} logo`}
             className="h-8 w-auto object-contain"
           />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <h3 className="truncate text-sm font-semibold text-[#0E0E0E]">
               {integration.name}
             </h3>
             <IntegrationStateBadge state={integration.state} />
           </div>
-          <p className="mt-1 text-xs text-gray-600 line-clamp-2">
-            {integration.description}
-          </p>
+          <p className="mt-1 line-clamp-2 text-xs text-gray-600">{description}</p>
         </div>
       </div>
 
@@ -125,9 +113,7 @@ export default function IntegrationCard({ integration, businessId }: Props) {
         {primaryCta}
         <button
           type="button"
-          onClick={() =>
-            router.push(`/business/dashboard/integrations/connectors/${integration.slug}`)
-          }
+          onClick={() => router.push(integrationConnectorPath(integration.slug))}
           className="text-xs font-medium text-gray-500 hover:text-[#1FAF9E]"
         >
           View details
@@ -136,4 +122,3 @@ export default function IntegrationCard({ integration, businessId }: Props) {
     </div>
   );
 }
-

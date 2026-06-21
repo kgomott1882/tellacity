@@ -622,6 +622,22 @@
   background: var(--fb-beige);
 }
 
+.fb-convert-side-visual {
+  position: relative;
+  align-self: center;
+}
+
+.fb-convert-side-visual img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  mix-blend-mode: multiply;
+}
+
 .fb-convert-parallax {
   position: relative;
   margin-top: 2rem;
@@ -690,13 +706,6 @@
   margin-top: 0.25rem;
   font-size: 0.875rem;
   color: var(--fb-muted);
-}
-
-.fb-convert-side img {
-  display: block;
-  width: 100%;
-  border-radius: 1rem;
-  box-shadow: 0 16px 40px rgba(18, 69, 65, 0.12);
 }
 
 /* Review flow */

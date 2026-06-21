@@ -78,7 +78,7 @@ function clearConsentHttpCookie(): void {
   document.cookie = `${COOKIE_CONSENT_HTTP_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
-/** Google Consent Mode v2 — keeps ads/analytics aligned with banner choices. */
+/** Google Consent Mode v2, keeps ads/analytics aligned with banner choices. */
 export function applyGoogleConsentMode(preferences: CookieConsentPreferences | null): void {
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   const granted = preferences != null;

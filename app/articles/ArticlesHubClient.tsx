@@ -68,7 +68,7 @@ export default function ArticlesHubClient({
         <p className="mt-3 max-w-3xl text-base text-[#505050]">
           {isBusinessCategoryScope && categoryScopeLabel
             ? `Explore articles, guides, and case studies published by businesses in ${categoryScopeLabel} on Tellacity.`
-            : "Tellacity articles, business guides, and case studies in one place — editorial content from Tellacity plus stories published by verified businesses."}
+            : "Tellacity articles, business guides, and case studies in one place, editorial content from Tellacity plus stories published by verified businesses."}
         </p>
 
         <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

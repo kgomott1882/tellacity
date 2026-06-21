@@ -6,12 +6,12 @@ const PAGE_URL = "https://tellacity.com/resources";
 export const metadata: Metadata = {
   title: "Resources Hub | Tellacity",
   description:
-    "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business — everything you need to build verified trust.",
+    "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business, everything you need to build verified trust.",
   alternates: { canonical: PAGE_URL },
   openGraph: {
     title: "Resources Hub | Tellacity",
     description:
-      "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business — everything you need to build verified trust.",
+      "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business, everything you need to build verified trust.",
     url: PAGE_URL,
     siteName: "Tellacity",
     type: "website",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Resources Hub | Tellacity",
     description:
-      "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business — everything you need to build verified trust.",
+      "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business, everything you need to build verified trust.",
   },
   robots: { index: true, follow: true },
 };
@@ -30,7 +30,7 @@ const resourcesJsonLd = {
   "@type": "CollectionPage",
   name: "Resources Hub | Tellacity",
   description:
-    "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business — everything you need to build verified trust.",
+    "Guides, Help Center, blog, articles, integrations, customer stories, and Tellacity for Business, everything you need to build verified trust.",
   url: PAGE_URL,
   breadcrumb: {
     "@type": "BreadcrumbList",

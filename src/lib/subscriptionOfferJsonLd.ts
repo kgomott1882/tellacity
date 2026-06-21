@@ -22,7 +22,7 @@ export function buildSaasMerchantReturnPolicy(): Record<string, unknown> {
   };
 }
 
-/** Digital SaaS delivery — instant access, no physical shipping. */
+/** Digital SaaS delivery, instant access, no physical shipping. */
 export function buildDigitalShippingDetails(): Record<string, unknown> {
   return {
     "@type": "OfferShippingDetails",
@@ -93,7 +93,7 @@ export function buildPricingWebPageJsonLd(): Record<string, unknown> {
     "@type": "WebPage",
     name: "Pricing | Tellacity",
     description:
-      "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+      "Compare Tellacity pricing plans for businesses, Free, Grow, Premium, and Elite, with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
     url: PRICING_PAGE_URL,
     breadcrumb: {
       "@type": "BreadcrumbList",
@@ -116,7 +116,7 @@ export function buildPricingWebPageJsonLd(): Record<string, unknown> {
 }
 
 /**
- * SaaS subscription plans — use SoftwareApplication (not Product) so Google does not
+ * SaaS subscription plans, use SoftwareApplication (not Product) so Google does not
  * expect physical-product merchant listings on the pricing page.
  */
 export function buildPricingSoftwareApplicationJsonLd(

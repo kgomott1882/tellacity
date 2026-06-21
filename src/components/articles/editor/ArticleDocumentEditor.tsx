@@ -799,7 +799,7 @@ const ArticleDocumentEditor = forwardRef<ArticleDocumentEditorHandle, Props>(
             ) : null}
           </div>
           <p className="mx-auto mt-4 max-w-3xl text-center text-xs text-gray-600">
-            Page width matches the published article layout — what you see here is what readers see.
+            Page width matches the published article layout, what you see here is what readers see.
           </p>
         </div>
 

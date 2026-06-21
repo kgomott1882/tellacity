@@ -407,7 +407,7 @@ function BillingPeriodToggle({
             onClick={() => onChange("annual")}
             className={cn("pricing-toggle-btn", billing === "annual" && "is-active")}
           >
-            Annual<span className="pricing-toggle-save"> — Save 20%</span>
+            Annual<span className="pricing-toggle-save"> (Save 20%)</span>
           </button>
         </div>
       </div>

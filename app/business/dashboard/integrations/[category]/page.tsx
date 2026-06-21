@@ -52,6 +52,7 @@ export default function IntegrationsCategoryPage() {
       <IntegrationSection
         title="Integrations in this category"
         integrations={integrations}
+        businessId={selectedBusiness.id}
         emptyLabel="No integrations are available in this category yet."
       />
     </div>

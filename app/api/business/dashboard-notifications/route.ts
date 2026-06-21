@@ -397,7 +397,7 @@ export async function GET(req: Request) {
         key: "articles_none_yet",
         title: "Share your expertise with a blog or case study",
         description:
-          "You haven't created any blogs or case studies yet. Start a draft to tell your story — articles strengthen your profile, improve SEO, and help customers understand what makes your business different.",
+          "You haven't created any blogs or case studies yet. Start a draft to tell your story, articles strengthen your profile, improve SEO, and help customers understand what makes your business different.",
         href: "/business/dashboard/articles",
         priority: 76,
         created_at: createdAt,

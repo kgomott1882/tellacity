@@ -130,7 +130,7 @@ export function formatPlanArticleLimitModal(plan: PlanKey): string {
 export function formatPlanArticleLimitForDisplay(plan: PlanKey): string {
   const n = PLAN_ARTICLE_LIMITS[plan];
   if (n <= 0) {
-    return "Blogs & case studies — save drafts (publish on Grow+)";
+    return "Blogs & case studies, save drafts (publish on Grow+)";
   }
   const label = n === 1 ? "blog or case study" : "blogs or case studies";
   return `Up to ${n.toLocaleString("en-US")} ${label} per month`;

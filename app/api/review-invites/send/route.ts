@@ -13,10 +13,7 @@ import {
   getMonthlyInviteLimitForBusiness,
 } from "@/lib/plans";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
-import {
-  canAccessBusiness,
-  resolveDashboardDb,
-} from "@/lib/supabase/businessDashboardServer";
+import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 export async function POST(req: Request) {
   try {
@@ -37,12 +34,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const authCtx = await resolveDashboardDb(req);
-    let activityUserId: string | null = null;
-    if (authCtx.ok) {
-      const allowed = await canAccessBusiness(authCtx.db, authCtx.userId, businessId);
-      if (allowed) activityUserId = authCtx.userId;
-    }
+    const access = await requireBusinessAccess(req, businessId);
+    if (!access.ok) return access.response;
+    const activityUserId = access.userId;
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);

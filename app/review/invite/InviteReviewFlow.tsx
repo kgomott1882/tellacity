@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { InviteFinalReviewForm } from "@/components/reviews/InviteFinalReviewForm";
 import { primeHomeFeedHighlightReviewId } from "@/lib/homeFeedHighlight";
+import { recordRecentBusinessReviewPublished } from "@/lib/firstPartyCookies";
 
 type InviteReviewFlowProps = {
   inviteId: string;
@@ -58,6 +59,9 @@ export default function InviteReviewFlow({
   };
 
   const handleInviteSubmitSuccess = (reviewId: string | null) => {
+    if (businessSlug.trim()) {
+      recordRecentBusinessReviewPublished(businessSlug);
+    }
     publishedReviewIdRef.current = reviewId;
     setShowPublishedToast(true);
   };

@@ -3,6 +3,7 @@ import axios from "axios";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getShopifyEnv } from "@/lib/shopifyEnv";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
+import { registerShopifyWebhooksForDomain } from "@/lib/shopifyIntegrationServer";
 
 export const runtime = "nodejs";
 
@@ -47,40 +48,39 @@ export async function GET(request: Request) {
   const shop = searchParams.get("shop");
   const state = searchParams.get("state");
 
+  const env = getShopifyEnv();
+  const baseUrl = env?.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://tellacity.com";
+
   if (!code || !shop) {
-    return NextResponse.json(
-      {
-        error: "Missing Shopify OAuth parameters",
-        code: null,
-        shop: null,
-      },
-      { status: 400 }
-    );
+    return redirectError(baseUrl, "Missing Shopify OAuth parameters.");
   }
 
   const shopDomain = normalizeShopDomain(shop);
   if (!shopDomain || !shopDomain.endsWith(".myshopify.com")) {
-    return NextResponse.json(
-      {
-        error: "Missing Shopify OAuth parameters",
-        code: null,
-        shop: null,
-      },
-      { status: 400 }
+    return redirectError(baseUrl, "Invalid Shopify store domain.");
+  }
+
+  const businessId = decodeState(state);
+  if (!businessId) {
+    return redirectError(
+      baseUrl,
+      "Missing business context. Open Connect Shopify from your Tellacity integrations dashboard.",
     );
   }
 
-  const env = getShopifyEnv();
   if (!env) {
-    console.error("[Shopify callback] Missing env: SHOPIFY_CLIENT_ID, SHOPIFY_CLIENT_SECRET (use Shopify Partner Dashboard → Apps → your app → Client credentials)");
-    return redirectError(process.env.NEXT_PUBLIC_APP_URL ?? "https://tellacity.com", "Server configuration error");
+    console.error(
+      "[Shopify callback] Missing env: SHOPIFY_CLIENT_ID, SHOPIFY_CLIENT_SECRET",
+    );
+    return redirectError(baseUrl, "Shopify is not configured on the server.");
   }
 
   try {
     const tokenUrl = `https://${shopDomain}/admin/oauth/access_token`;
-    const { data: tokenData } = await axios.post<{
-      access_token: string;
+    const { data: tokenData, status: tokenStatus } = await axios.post<{
+      access_token?: string;
       scope?: string;
+      error?: string;
     }>(
       tokenUrl,
       {
@@ -91,74 +91,54 @@ export async function GET(request: Request) {
       {
         headers: { "Content-Type": "application/json" },
         validateStatus: () => true,
-      }
+      },
     );
 
     const accessToken = tokenData?.access_token;
     const scope = tokenData?.scope ?? "";
 
     if (!accessToken) {
-      console.error("[Shopify callback] Token exchange failed for shop:", shopDomain, tokenData);
-      return NextResponse.json(
-        { error: "Shopify token exchange failed" },
-        { status: 500 }
-      );
+      console.error("[Shopify callback] Token exchange failed:", shopDomain, tokenStatus, tokenData);
+      return redirectError(baseUrl, "Shopify authorization failed. Try connecting again.");
     }
 
-    const baseUrl = env.baseUrl;
-    const businessId = decodeState(state);
     const now = new Date().toISOString();
-    const { error: upsertError } = await supabaseServer
-      .from("shopify_integrations")
-      .upsert(
-        {
-          shop_domain: shopDomain,
-          access_token: accessToken,
-          scope: scope || null,
-          connected_at: now,
-          ...(businessId ? { business_id: businessId } : {}),
-        },
-        {
-          onConflict: "shop_domain",
-        }
-      );
+    const { error: upsertError } = await supabaseServer.from("shopify_integrations").upsert(
+      {
+        business_id: businessId,
+        shop_domain: shopDomain,
+        access_token: accessToken,
+        scope: scope || null,
+        webhook_registered: false,
+        connected_at: now,
+        updated_at: now,
+      },
+      { onConflict: "shop_domain" },
+    );
 
     if (upsertError) {
       console.error("[Shopify callback] Supabase upsert error:", upsertError);
-      return redirectError(baseUrl, "Failed to save connection");
+      return redirectError(baseUrl, "Failed to save connection. Run the latest database migration.");
     }
 
-    if (businessId) {
-      void logBusinessActivity({
-        businessId,
-        userId: null,
-        action: "integration_connected",
-        metadata: { provider: "shopify", shop: shopDomain },
-      });
-    }
+    void logBusinessActivity({
+      businessId,
+      userId: null,
+      action: "integration_connected",
+      metadata: { provider: "shopify", shop: shopDomain },
+    });
 
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tellacity.com";
-      const registerUrl = `${appUrl.replace(/\/$/, "")}/api/integrations/shopify/register-webhooks`;
-      await fetch(registerUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          shop: shopDomain,
-        }),
-      });
-    } catch (err) {
-      console.error("Shopify webhook registration failed:", err);
+    const webhookResult = await registerShopifyWebhooksForDomain(shopDomain);
+    if (!webhookResult.ok) {
+      console.warn("[Shopify callback] Webhook registration failed:", webhookResult.error);
+      return NextResponse.redirect(
+        `${baseUrl}/business/dashboard/integrations?connected=shopify&webhooks=pending`,
+      );
     }
 
     return redirectSuccess(baseUrl);
   } catch (err) {
     console.error("[Shopify callback] Error:", err);
-    return NextResponse.json(
-      { error: "Shopify token exchange failed" },
-      { status: 500 }
-    );
+    return redirectError(baseUrl, "Shopify connection failed unexpectedly.");
   }
 }

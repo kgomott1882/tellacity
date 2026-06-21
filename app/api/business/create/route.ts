@@ -11,6 +11,7 @@ import { allocateUniqueBusinessSlug } from "@/lib/businessSlug";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
+import { provisionReverseTrialIfEligible } from "@/lib/provisionReverseTrial";
 
 function normalizeWebsiteInput(website: string): string {
   let domain = website.trim().toLowerCase();
@@ -175,6 +176,8 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    await provisionReverseTrialIfEligible(inserted.id, admin);
 
     return NextResponse.json({
       ok: true,

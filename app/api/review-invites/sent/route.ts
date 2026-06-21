@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { canAccessAnalytics, getActivePlanKeyForBusiness } from "@/lib/plans";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -10,6 +11,7 @@ export async function GET(req: Request) {
     const businessId = searchParams.get("businessId");
     const limitParam = searchParams.get("limit");
     const offsetParam = searchParams.get("offset");
+    const contextParam = searchParams.get("context")?.trim().toLowerCase() ?? "";
 
     if (!businessId || !businessId.trim()) {
       return NextResponse.json(
@@ -82,6 +84,20 @@ export async function GET(req: Request) {
 
     let offset = offsetParam != null ? parseInt(offsetParam, 10) : 0;
     if (Number.isNaN(offset) || offset < 0) offset = 0;
+
+    // Performance analytics depth only (`context=analytics`). All other callers
+    // (redirect limit=1, get-reviews overview, etc.) stay ungated.
+    if (contextParam === "analytics") {
+      const plan = await getActivePlanKeyForBusiness(businessId.trim(), supabase);
+      if (!canAccessAnalytics(plan)) {
+        return NextResponse.json({
+          items: [],
+          limit,
+          offset,
+          analyticsLocked: true,
+        });
+      }
+    }
 
     // Direct query (service role): RLS often blocks `review_invites` for the browser JWT;
     // RPC `get_sent_invites_for_business` is not guaranteed to exist in every project.

@@ -11,12 +11,12 @@ import { createSupabaseServerClient as createClient } from "@/lib/supabase/serve
 export const metadata: Metadata = {
   title: "Pricing | Tellacity",
   description:
-    "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+    "Compare Tellacity pricing plans for businesses, Free, Grow, Premium, and Elite, with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
   alternates: { canonical: PRICING_PAGE_URL },
   openGraph: {
     title: "Pricing | Tellacity",
     description:
-      "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+      "Compare Tellacity pricing plans for businesses, Free, Grow, Premium, and Elite, with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
     url: PRICING_PAGE_URL,
     siteName: "Tellacity",
     type: "website",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Pricing | Tellacity",
     description:
-      "Compare Tellacity pricing plans for businesses — Free, Grow, Premium, and Elite — with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
+      "Compare Tellacity pricing plans for businesses, Free, Grow, Premium, and Elite, with transparent limits for review invites, blogs & case studies, photos, widgets, and team tools.",
   },
   robots: { index: true, follow: true },
 };

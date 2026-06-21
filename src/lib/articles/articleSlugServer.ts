@@ -8,7 +8,7 @@ export function createDraftArticleSlug(): string {
   return `draft-${Date.now()}-${randomBytes(4).toString("hex")}`;
 }
 
-/** All article slugs (global unique constraint) via service role — RLS cannot see other businesses' drafts. */
+/** All article slugs (global unique constraint) via service role, RLS cannot see other businesses' drafts. */
 export async function loadTakenArticleSlugs(excludeArticleId?: string): Promise<Set<string>> {
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const admin = createClient(supabaseUrl, serviceRoleKey, {

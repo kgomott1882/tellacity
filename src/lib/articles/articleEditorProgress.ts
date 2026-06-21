@@ -85,7 +85,7 @@ export function editorStepLabel(step: number): string {
   return EDITOR_STEP_LABELS[clampStep(step)] ?? "Content";
 }
 
-/** Fallback when no browser progress exists — infer from saved article fields. */
+/** Fallback when no browser progress exists, infer from saved article fields. */
 export function inferEditorResumeStep(input: {
   title?: string;
   featuredImageUrl?: string | null;

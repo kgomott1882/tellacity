@@ -35,7 +35,7 @@ export type ArticleLinkValidationInput = {
   businessWebsite?: string | null;
   /** Defaults to Grow-tier limit when omitted. */
   maxExternalLinks?: number;
-  /** Tellacity admin platform articles only — skip all link blockers. */
+  /** Tellacity admin platform articles only, skip all link blockers. */
   bypassLinkRestrictions?: boolean;
 };
 

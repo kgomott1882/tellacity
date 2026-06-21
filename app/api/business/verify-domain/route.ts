@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sendBusinessDomainVerificationOtp } from "@/lib/sendBusinessDomainVerificationOtp";
@@ -10,6 +10,7 @@ import {
   isVerifyDomainRpcMissing,
   verifyDomainFinishWithServiceRole,
 } from "@/lib/verifyDomainFinishServer";
+import { provisionReverseTrialIfEligible } from "@/lib/provisionReverseTrial";
 
 type RpcResult = {
   ok?: boolean;
@@ -81,6 +82,20 @@ function nextResponseForRpcResult(result: RpcResult | null): NextResponse {
   return NextResponse.json({ ok: true });
 }
 
+async function finishVerifyDomainRpcSuccess(
+  admin: SupabaseClient,
+  businessId: string,
+  result: RpcResult,
+): Promise<NextResponse> {
+  if (!result?.ok) {
+    return nextResponseForRpcResult(result);
+  }
+  if (!result.already_owner) {
+    await provisionReverseTrialIfEligible(businessId, admin);
+  }
+  return nextResponseForRpcResult(result);
+}
+
 /**
  * Domain OTP for post-login onboarding.
  * - Without `code`: insert pending verification row and email a 6-digit code to the session email.
@@ -146,7 +161,7 @@ export async function POST(req: Request) {
 
     if (!serviceRpc.error && serviceRpc.data != null) {
       const data = serviceRpc.data as RpcResult;
-      return nextResponseForRpcResult(data);
+      return finishVerifyDomainRpcSuccess(admin, businessId, data);
     }
 
     if (serviceRpc.error && !isVerifyDomainRpcMissing(serviceRpc.error)) {
@@ -183,7 +198,7 @@ export async function POST(req: Request) {
 
       if (!jwtRpc.error && jwtRpc.data != null) {
         const data = jwtRpc.data as RpcResult;
-        return nextResponseForRpcResult(data);
+        return finishVerifyDomainRpcSuccess(admin, businessId, data);
       }
 
       if (jwtRpc.error && !isVerifyDomainRpcMissing(jwtRpc.error)) {

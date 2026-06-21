@@ -156,14 +156,14 @@ export const PLATFORM_FEATURES = [
   {
     title: "Audit trails and moderation aligned",
     detail:
-      "Moderation and audit trails align to our Safety & Trust framework — one policy layer across the platform.",
+      "Moderation and audit trails align to our Safety & Trust framework, one policy layer across the platform.",
   },
 ];
 
 export const PROBLEM_POINTS = [
   {
     label: "Reviews scattered across disconnected tools",
-    detail: "Feedback lives in third-party sites, inboxes, and spreadsheets — never one source of truth.",
+    detail: "Feedback lives in third-party sites, inboxes, and spreadsheets, never one source of truth.",
   },
   {
     label: "Teams see conflicting trust scores",

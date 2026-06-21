@@ -130,7 +130,7 @@ export default function CareersClient({ jobs }: CareersClientProps) {
               Our <span className="careers-section-accent">Values</span>
             </h2>
             <p className="careers-section-sub">
-              Not wall art — expectations for decisions, communication, and how we treat
+              Not wall art. These are expectations for decisions, communication, and how we treat
               each other.
             </p>
             <p className="careers-section-copy">
@@ -298,7 +298,7 @@ export default function CareersClient({ jobs }: CareersClientProps) {
               Why Join <span className="careers-section-accent">Tellacity?</span>
             </h2>
             <p className="careers-section-sub">
-              Real problems in trust, reviews, and transparency — not recruitment slogans.
+              Real problems in trust, reviews, and transparency, not recruitment slogans.
             </p>
             <p className="careers-section-copy">
               You can expect a practical, mission-driven environment, not generic recruitment
@@ -421,7 +421,7 @@ export default function CareersClient({ jobs }: CareersClientProps) {
             <FadeUp threshold={IO} className="careers-split-copy careers-contact-copy">
               <p className="careers-lead">
                 Don&apos;t see the right role? Send us your profile and tell us how you&apos;d
-                like to contribute — we review general applications and keep strong candidates
+                like to contribute. We review general applications and keep strong candidates
                 in mind for future openings.
               </p>
               <div className="careers-contact-rows">

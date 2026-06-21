@@ -440,7 +440,7 @@ export const HELP_ENTRIES: HelpEntry[] = [
       {
         type: "text",
         value:
-          "When ready, submit for review — Tellacity moderates every submission before it goes live. Manage drafts in the ",
+          "When ready, submit for review, Tellacity moderates every submission before it goes live. Manage drafts in the ",
       },
       { type: "link", href: "/business/dashboard/articles", label: "article dashboard" },
       { type: "text", value: ". Read " },

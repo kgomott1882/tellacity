@@ -147,7 +147,7 @@ export default function ArticlesModerationQueue() {
                   {a.content_type === "case_study" ? "Case study" : "Article"}
                 </p>
                 <p className="mt-2 text-xs text-neutral-500">
-                  Submitted {a.submitted_at ? new Date(a.submitted_at).toLocaleString() : "—"}
+                  Submitted {a.submitted_at ? new Date(a.submitted_at).toLocaleString() : "-"}
                 </p>
                 {a.businessSlug ? (
                   <Link

@@ -45,7 +45,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
         title: "Structure and clarity",
         items: [
           "Start with a strong title that clearly matches what the article is about.",
-          "Use one H1 only — that's your title. Break the rest into logical H2 and H3 headings.",
+          "Use one H1 only, that's your title. Break the rest into logical H2 and H3 headings.",
           "For longer posts, add a short table of contents so readers can jump to what they need.",
           "End with a clear summary and one call-to-action so people know what to do next.",
         ],
@@ -55,7 +55,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
         items: [
           "Link to related content on your site so readers can go deeper.",
           "Add external links or references to credible sources when they support your points.",
-          "Use images, screenshots, charts, or videos when they help explain — not just decorate.",
+          "Use images, screenshots, charts, or videos when they help explain, not just decorate.",
         ],
       },
     ],
@@ -71,7 +71,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
   case_study: {
     heading: "How to write a strong case study",
     intro:
-      "A good case study reads like a before-and-after story — who you helped, what was going wrong, what you did, and what changed. Write it the way you'd explain it to a colleague, with real results wherever you can.",
+      "A good case study reads like a before-and-after story, who you helped, what was going wrong, what you did, and what changed. Write it the way you'd explain it to a colleague, with real results wherever you can.",
     guidedSteps: [
       {
         title: "Client context",
@@ -95,7 +95,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
       },
       {
         title: "What we did",
-        prompt: "Walk through your approach — the key steps, tools, or changes you made.",
+        prompt: "Walk through your approach, the key steps, tools, or changes you made.",
         starters: [
           "We started by…",
           "We implemented…",
@@ -115,7 +115,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
       },
       {
         title: "Quote or testimonial",
-        prompt: "Let the client speak in their own words — even one sentence builds trust.",
+        prompt: "Let the client speak in their own words, even one sentence builds trust.",
         starters: [
           "\"Working with [company] helped us…\"",
           "\"We finally felt confident that…\"",
@@ -135,7 +135,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
       },
     ],
     visualsNote:
-      "Screenshots, charts, or photos can strengthen your story when you have something real to show — a before/after, dashboard, or team in action.",
+      "Screenshots, charts, or photos can strengthen your story when you have something real to show, a before/after, dashboard, or team in action.",
     example: {
       title: "Example case study (short)",
       paragraphs: [
@@ -150,7 +150,7 @@ export const ARTICLE_EDITOR_GUIDES: Record<ArticleContentType, ArticleEditorGuid
   },
 };
 
-/** Placeholders for case study sidebar fields — aligned with guided steps. */
+/** Placeholders for case study sidebar fields, aligned with guided steps. */
 export const CASE_STUDY_FIELD_PLACEHOLDERS = {
   clientIndustry:
     "e.g. Our client is a mid-sized retail chain serving…",

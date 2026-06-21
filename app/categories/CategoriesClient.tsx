@@ -152,7 +152,7 @@ const MAX_SUBCATEGORIES_SHOWN = 8;
 const IO_THRESHOLD = 0.12;
 const DEFAULT_GROUP_ACCENT = "#00B4A6";
 
-/** Exact accent palette — most specific slug matches first. */
+/** Exact accent palette, most specific slug matches first. */
 const GROUP_ACCENT_COLORS: { match: string; color: string }[] = [
   { match: "animal", color: "#F59E0B" },
   { match: "pet", color: "#F59E0B" },

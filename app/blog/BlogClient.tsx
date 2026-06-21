@@ -324,7 +324,7 @@ export default function BlogClient({ posts }: { posts: BlogPost[] }) {
               <span className="blog-final-title-accent">Trust &amp; Reviews</span>
             </h2>
             <p className="blog-final-sub">
-              Practical guides, platform updates, and trust insights — no account required.
+              Practical guides, platform updates, and trust insights, no account required.
             </p>
             <div className="blog-final-btns">
               <a href="#featured" className="blog-btn-primary">

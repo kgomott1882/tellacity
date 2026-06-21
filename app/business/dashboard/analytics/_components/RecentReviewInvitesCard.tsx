@@ -81,7 +81,7 @@ export function RecentReviewInvitesCard({ businessId }: { businessId: string | n
     try {
       const path = `/api/review-invites/sent?businessId=${encodeURIComponent(
         businessId
-      )}&limit=5`;
+      )}&limit=5&context=analytics`;
       const json = await dashboardApiGet<{
         items?: InviteRow[];
         error?: string;

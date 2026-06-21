@@ -54,7 +54,7 @@ export default function ForBusinessPlatformSections({ part }: { part: "problem" 
               <p className="rp-problem-lead">
                 Most businesses collect customer feedback in five or six different places.
                 When verified customer trust is split across tools, teams stop trusting their
-                own numbers — and search engines see the same fragmentation.
+                own numbers, and search engines see the same fragmentation.
               </p>
               {PROBLEM_POINTS.map((point) => (
                 <div key={point.label} className="rp-pain-row">
@@ -103,7 +103,7 @@ export default function ForBusinessPlatformSections({ part }: { part: "problem" 
             Reputation Platform <span className="rp-section-accent">Modules</span>
           </h2>
           <p className="rp-modules-sub">
-            Six modules, one verified review pipeline, one dashboard — plus blogs and case
+            Six modules, one verified review pipeline, one dashboard, plus blogs and case
             studies when you are ready to publish thought leadership. Explore each module on
             its solution page.
           </p>
@@ -204,7 +204,7 @@ export default function ForBusinessPlatformSections({ part }: { part: "problem" 
           <h2 className="rp-section-title">Use Cases by Team</h2>
           <p className="rp-intro-note">
             Marketing, support, operations, leadership, and product teams work from the same
-            verified customer data — not duplicate exports or conflicting scores.
+            verified customer data, not duplicate exports or conflicting scores.
           </p>
           <div className="rp-team-grid">
             {TEAM_USE_CASES.map((team, index) => (

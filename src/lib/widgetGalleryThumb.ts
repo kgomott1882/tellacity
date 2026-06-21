@@ -1,4 +1,4 @@
-/** Dashboard widget gallery card — iframe viewport (matches Review List thumb). */
+/** Dashboard widget gallery card, iframe viewport (matches Review List thumb). */
 export const WIDGET_GALLERY_CANVAS_WIDTH = 420;
 export const WIDGET_GALLERY_CANVAS_HEIGHT = 440;
 

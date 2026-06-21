@@ -8,7 +8,10 @@ import {
   COOKIE_CONSENT_UPDATED_EVENT,
   hasFunctionalConsent,
 } from "@/lib/cookieConsent";
-import { getRecentBusinessViews } from "@/lib/firstPartyCookies";
+import {
+  getRecentBusinessViewsForDisplay,
+  RECENT_VIEWS_UPDATED_EVENT,
+} from "@/lib/firstPartyCookies";
 import { FadeUp } from "@/components/ui/MotionWrapper";
 
 const MAX_RECENT = 4;
@@ -118,7 +121,7 @@ export default function RecentlyViewedBusinesses() {
         return;
       }
 
-      const views = getRecentBusinessViews().slice(0, MAX_RECENT);
+      const views = getRecentBusinessViewsForDisplay().slice(0, MAX_RECENT);
       if (views.length === 0) {
         if (!cancelled) {
           setBusinesses([]);
@@ -153,9 +156,11 @@ export default function RecentlyViewedBusinesses() {
 
     void load();
     window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, load);
+    window.addEventListener(RECENT_VIEWS_UPDATED_EVENT, load);
     return () => {
       cancelled = true;
       window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, load);
+      window.removeEventListener(RECENT_VIEWS_UPDATED_EVENT, load);
     };
   }, []);
 
