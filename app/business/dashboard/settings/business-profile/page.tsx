@@ -10,10 +10,11 @@ import Link from "next/link";
 import { ExternalLink, Upload } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { dashboardApiGet } from "@/lib/dashboardApiFetch";
+import { dashboardApiGet, getOptionalAccessToken } from "@/lib/dashboardApiFetch";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { normalizeLogoUrl } from "@/lib/logo";
+import { userFacingErrorMessage } from "@/lib/userFacingError";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -149,40 +150,69 @@ export default function BusinessProfilePage() {
   const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !businessId) return;
-    if (file.size > 2 * 1024 * 1024) { setMessage({ type: "error", text: "Logo must be under 2 MB." }); return; }
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Logo must be under 2 MB." });
+      return;
+    }
 
     const preview = URL.createObjectURL(file);
     setLogoPreview(preview);
     setLogoUploading(true);
+    setMessage(null);
 
-    const ext  = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${businessId}/logo.${ext}`;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const supabase = supabaseBrowser();
-    let uploadError: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { error } = await supabase.storage.from("business_logos").upload(path, file, { upsert: true, contentType: file.type });
-      if (!error) { uploadError = null; break; }
-      uploadError = error;
-      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-    }
+      const token = await getOptionalAccessToken();
+      const res = await fetch(
+        `/api/business/${encodeURIComponent(businessId)}/logo`,
+        {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+          cache: "no-store",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
 
-    if (uploadError) {
+      let payload: { logoUrl?: string; error?: string } = {};
+      try {
+        payload = (await res.json()) as typeof payload;
+      } catch {
+        payload = {};
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          payload.error ||
+            "We couldn't upload your logo right now. Please try again in a moment.",
+        );
+      }
+
+      const publicUrl = payload.logoUrl?.trim();
+      if (!publicUrl) {
+        throw new Error(
+          "We couldn't upload your logo right now. Please try again in a moment.",
+        );
+      }
+
+      setLogoUrl(normalizeLogoUrl(publicUrl) ?? publicUrl);
+      setLogoPreview(null);
+      setMessage({ type: "success", text: "Logo uploaded." });
+    } catch (err) {
+      console.error("[BusinessProfile] logo upload", err);
+      setLogoPreview(null);
+      setMessage({
+        type: "error",
+        text: userFacingErrorMessage(
+          err,
+          "We couldn't upload your logo right now. Please try again in a moment.",
+        ),
+      });
+    } finally {
       setLogoUploading(false);
-      setMessage({ type: "error", text: `Logo upload failed: ${uploadError.message}` });
-      return;
     }
-
-    const { data: urlData } = supabase.storage.from("business_logos").getPublicUrl(path);
-    const publicUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
-
-    if (publicUrl) {
-      const supabase = supabaseBrowser();
-      await supabase.from("businesses").update({ logo_url: publicUrl }).eq("id", businessId);
-      setLogoUrl(publicUrl);
-    }
-    setLogoUploading(false);
-    setMessage({ type: "success", text: "Logo uploaded." });
   };
 
   // ── Save profile ───────────────────────────────────────────────────────────
@@ -229,7 +259,16 @@ export default function BusinessProfilePage() {
     }
 
     setSaving(false);
-    if (error) { setMessage({ type: "error", text: error.message }); return; }
+    if (error) {
+      setMessage({
+        type: "error",
+        text: userFacingErrorMessage(
+          error,
+          "We couldn't save your changes. Please try again.",
+        ),
+      });
+      return;
+    }
     const savedCc = String(payload.country_code ?? "").trim().toUpperCase();
     if (/^[A-Z]{2}$/.test(savedCc)) {
       loadedCountryCodeRef.current = savedCc === "UK" ? "GB" : savedCc;

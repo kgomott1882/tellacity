@@ -29,6 +29,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin/photo-uploads", label: "Photo Uploads", badgeKey: "photoUploads" },
   { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/system-status", label: "System status" },
+  { href: "/admin/trials", label: "Trials" },
 ] as const;
 
 const NAV = [...NAV_ITEMS].sort((a, b) =>

@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getAuthUserIdByEmail } from "@/lib/authAdminUsers";
 import { getServerEnv } from "@/lib/serverEnv";
 
 const SYSTEM_TEST_REVIEW_TITLE = "System Health Check";
@@ -211,6 +212,48 @@ async function syncSystemIncidentAfterCheck(
   }
 }
 
+async function resolveSystemCheckBusinessId(
+  supabase: SupabaseClient,
+): Promise<string | null> {
+  const direct = process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "";
+  if (isUuid(direct)) return direct;
+
+  const slug = (
+    process.env.SYSTEM_CHECK_BUSINESS_SLUG?.trim() ||
+    process.env.SYSTEM_CHECK_WIDGET_BUSINESS_SLUG?.trim() ||
+    ""
+  );
+  if (!slug) return null;
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+  return String(data.id);
+}
+
+async function resolveSystemCheckUserId(
+  supabase: SupabaseClient,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<string | null> {
+  const direct = process.env.SYSTEM_CHECK_USER_ID?.trim() ?? "";
+  if (isUuid(direct)) return direct;
+
+  const email = process.env.SYSTEM_CHECK_USER_EMAIL?.trim().toLowerCase() ?? "";
+  if (!email.includes("@")) return null;
+
+  const fromAuth = await getAuthUserIdByEmail(supabaseUrl, serviceRoleKey, email);
+  if (fromAuth) return fromAuth;
+
+  const { data } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
+  return data?.id ? String(data.id) : null;
+}
+
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
   const email = (user.email ?? "").trim();
@@ -228,21 +271,25 @@ function reviewerDisplayNameFromAuthUser(user: User): string {
 
 async function executeWriteReviewLoggedInCheck(
   supabase: SupabaseClient,
-): Promise<{ response_time_ms: number }> {
-  const businessId = process.env.SYSTEM_CHECK_BUSINESS_ID?.trim() ?? "";
-  const userId = process.env.SYSTEM_CHECK_USER_ID?.trim() ?? "";
+): Promise<{ response_time_ms: number; message: string }> {
+  const { supabaseUrl, serviceRoleKey } = getServerEnv();
+  const businessId = await resolveSystemCheckBusinessId(supabase);
+  const userId = await resolveSystemCheckUserId(supabase, supabaseUrl, serviceRoleKey);
 
-  const configErrors: string[] = [];
-  if (!isUuid(businessId)) {
-    configErrors.push("SYSTEM_CHECK_BUSINESS_ID must be set to a valid UUID (a row in public.businesses)");
-  }
-  if (!isUuid(userId)) {
-    configErrors.push("SYSTEM_CHECK_USER_ID must be set to a valid UUID (auth.users id for the test reviewer)");
-  }
-  if (configErrors.length > 0) {
-    const err = new Error(configErrors.join(" "));
-    Object.assign(err, { response_time_ms: 0 });
-    throw err;
+  if (!businessId || !userId) {
+    const missing: string[] = [];
+    if (!businessId) {
+      missing.push(
+        "SYSTEM_CHECK_BUSINESS_ID or SYSTEM_CHECK_BUSINESS_SLUG (active business row)",
+      );
+    }
+    if (!userId) {
+      missing.push("SYSTEM_CHECK_USER_ID or SYSTEM_CHECK_USER_EMAIL (auth user for test reviewer)");
+    }
+    return {
+      response_time_ms: 0,
+      message: `Skipped, set ${missing.join(" and ")} to run logged-in review insert test`,
+    };
   }
 
   const t0 = performance.now();
@@ -301,18 +348,25 @@ async function executeWriteReviewLoggedInCheck(
     throw err;
   }
 
-  return { response_time_ms };
+  return { response_time_ms, message: "Published test review row inserted" };
 }
 
-async function executeUserLoginCheck(): Promise<{ response_time_ms: number }> {
+async function executeUserLoginCheck(): Promise<{ response_time_ms: number; message: string }> {
   const email = process.env.SYSTEM_CHECK_USER_EMAIL?.trim() ?? "";
   const password = process.env.SYSTEM_CHECK_USER_PASSWORD?.trim() ?? "";
   const { supabaseUrl } = getServerEnv();
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
 
-  if (!email || !password || !anonKey) {
+  if (!email || !password) {
+    return {
+      response_time_ms: 0,
+      message:
+        "Skipped, set SYSTEM_CHECK_USER_EMAIL and SYSTEM_CHECK_USER_PASSWORD to run consumer login smoke test",
+    };
+  }
+  if (!anonKey) {
     const err = new Error(
-      "SYSTEM_CHECK_USER_EMAIL, SYSTEM_CHECK_USER_PASSWORD, and NEXT_PUBLIC_SUPABASE_ANON_KEY are required for user_login check",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY is required for user_login check",
     );
     Object.assign(err, { response_time_ms: 0 });
     throw err;
@@ -332,7 +386,7 @@ async function executeUserLoginCheck(): Promise<{ response_time_ms: number }> {
     throw err;
   }
 
-  return { response_time_ms };
+  return { response_time_ms, message: "signInWithPassword succeeded" };
 }
 
 async function expectHttpStatus(
@@ -406,7 +460,7 @@ function buildCheckDefinitions(): CheckDef[] {
       group: "reviews",
       run: async ({ supabase }) => {
         const r = await executeWriteReviewLoggedInCheck(supabase);
-        return { response_time_ms: r.response_time_ms, message: "Published test review row inserted" };
+        return { response_time_ms: r.response_time_ms, message: r.message };
       },
     },
     {
@@ -414,7 +468,7 @@ function buildCheckDefinitions(): CheckDef[] {
       group: "authentication",
       run: async () => {
         const r = await executeUserLoginCheck();
-        return { response_time_ms: r.response_time_ms, message: "signInWithPassword succeeded" };
+        return { response_time_ms: r.response_time_ms, message: r.message };
       },
     },
     {
