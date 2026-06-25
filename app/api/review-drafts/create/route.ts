@@ -8,6 +8,10 @@ import {
   logReviewReceivedActivity,
 } from "@/lib/logBusinessActivity";
 import { assertBusinessAcceptsPublicReviews } from "@/lib/businessPublicAccess";
+import {
+  reviewInviteRowIsExpired,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -181,7 +185,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (inv.expires_at && new Date(String(inv.expires_at)) < new Date()) {
+    if (reviewInviteRowIsExpired(inv as InviteRowRecord)) {
       return NextResponse.json({ error: "Invite expired" }, { status: 400 });
     }
 

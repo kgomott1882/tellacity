@@ -1,6 +1,6 @@
 import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
 
-export const GROW_UNLOCK_TRIAL_LABEL = "Start your free trial";
+export const GROW_UNLOCK_TRIAL_LABEL = "Start 14-day trial";
 
 export type GrowUnlockMode = "trial" | "paid";
 

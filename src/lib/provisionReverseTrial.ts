@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getActivePlanKeyForBusiness } from "@/lib/plans";
+import { getActivePlanKeyForBusiness, normalizePlanCodeToKey } from "@/lib/plans";
 import { syncBusinessPlanColumn } from "@/lib/subscriptionWrite";
 
 const TRIAL_DAYS = 14;
@@ -43,18 +43,21 @@ function trialPeriodEndIso(from: Date = new Date()): string {
 
 /**
  * Shape-based placeholder: no real paid/trial subscription yet.
- * provider_sub_id format is ignored (tellacity:, manual_, admin:, etc.).
+ * Includes default Tellacity rows (`tellacity:{businessId}`).
  */
 function isShapePlaceholderRow(row: SubscriptionRowSnapshot): boolean {
-  const planCode = String(row.plan_code ?? "").trim().toLowerCase();
-  const status = String(row.status ?? "").trim().toLowerCase();
-  const periodEnd = row.current_period_end;
+  if (hasReverseTrialHistoryOnRow(row)) return false;
 
-  return (
-    planCode === "free" &&
-    status === "active" &&
-    (periodEnd == null || String(periodEnd).trim() === "")
-  );
+  const planKey = normalizePlanCodeToKey(row.plan_code);
+  const status = String(row.status ?? "").trim().toLowerCase();
+  if (planKey !== "free" || status !== "active") return false;
+
+  const providerSubId = String(row.provider_sub_id ?? "").trim();
+  if (providerSubId.startsWith("trial:")) return false;
+  if (providerSubId.startsWith("tellacity:")) return true;
+
+  const periodEnd = row.current_period_end;
+  return periodEnd == null || String(periodEnd).trim() === "";
 }
 
 function hasTrialMarkerRow(rows: SubscriptionRowSnapshot[]): boolean {

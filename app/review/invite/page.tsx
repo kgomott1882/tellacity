@@ -5,6 +5,8 @@ import { getServerEnv } from "@/lib/serverEnv";
 import {
   reviewInviteRowIsExpired,
   reviewInviteRowIsUsed,
+  reviewInviteNeedsExpiresAtHeal,
+  getReviewInviteEffectiveExpiresAtIso,
   type InviteRowRecord,
 } from "@/lib/reviewInviteValidation";
 
@@ -82,12 +84,29 @@ export default async function InvitePage(props: {
   }
 
   const invite = data as InviteRow;
+  const inviteRecord = invite as InviteRowRecord;
 
-  if (reviewInviteRowIsUsed(invite as InviteRowRecord)) {
+  if (reviewInviteRowIsUsed(inviteRecord)) {
     return <ErrorState message="This invite has already been used." />;
   }
 
-  if (reviewInviteRowIsExpired(invite as InviteRowRecord)) {
+  const inviteId = invite.id;
+  if (typeof inviteId === "string" && inviteId && reviewInviteNeedsExpiresAtHeal(inviteRecord)) {
+    const healedExpiresAt = getReviewInviteEffectiveExpiresAtIso(inviteRecord);
+    if (healedExpiresAt) {
+      try {
+        const sb = supabase as any;
+        await sb
+          .from("review_invites")
+          .update({ expires_at: healedExpiresAt })
+          .eq("id", inviteId);
+      } catch {
+        // Continue — validation uses effective expiry even if heal write fails.
+      }
+    }
+  }
+
+  if (reviewInviteRowIsExpired(inviteRecord)) {
     return <ErrorState message="Invite expired" />;
   }
 
@@ -111,7 +130,6 @@ export default async function InvitePage(props: {
       ? (biz as { slug: string | null }).slug
       : null;
 
-  const inviteId = invite.id;
   if (typeof inviteId !== "string" || !inviteId) {
     return <ErrorState message="Invalid invite link" />;
   }

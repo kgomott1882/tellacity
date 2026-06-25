@@ -21,6 +21,10 @@ import {
   SAME_DOMAIN_REVIEW_ERROR_CODE,
   SAME_DOMAIN_REVIEW_MESSAGE,
 } from "@/lib/reviewBusinessSelfReview";
+import {
+  reviewInviteRowIsExpired,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -171,11 +175,8 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     );
   }
 
-  if (invite.expires_at) {
-    const exp = new Date(String(invite.expires_at));
-    if (!Number.isNaN(exp.getTime()) && exp.getTime() < Date.now()) {
-      return NextResponse.json({ error: "Invite expired" }, { status: 400 });
-    }
+  if (reviewInviteRowIsExpired(invite as InviteRowRecord)) {
+    return NextResponse.json({ error: "Invite expired" }, { status: 400 });
   }
 
   const domainCtxInvite = await fetchBusinessDomainContext(supabase, business_id);

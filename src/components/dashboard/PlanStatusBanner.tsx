@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
+import { GROW_UNLOCK_TRIAL_LABEL } from "@/lib/growUnlockCta";
 import { nextTierUpgradeCtaLabel, type PlanKey } from "@/lib/plans";
 import { startGrowTrial } from "@/lib/startGrowTrialClient";
 import { trialDaysRemaining } from "@/lib/trialDaysRemaining";
@@ -110,7 +111,7 @@ export default function PlanStatusBanner({
                 disabled={starting}
                 className="inline-flex items-center justify-center rounded-md bg-[#278D82] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#217a70] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {starting ? "Starting…" : "Start your 14-day free Grow trial"}
+                {starting ? "Starting…" : GROW_UNLOCK_TRIAL_LABEL}
               </button>
               <span className="text-[10px] text-gray-500 sm:text-right">
                 Cancel anytime

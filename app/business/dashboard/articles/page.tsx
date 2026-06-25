@@ -8,6 +8,8 @@ import { FileText, MoreVertical, Plus, Trash2 } from "lucide-react";
 import { dashboardApiGet, dashboardApiPost, dashboardApiDelete } from "@/lib/dashboardApiFetch";
 import { useBusinessContext } from "../_context/BusinessContext";
 import PageLoadingOverlay from "../_components/PageLoadingOverlay";
+import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
+import { normalizePlanCodeToKey } from "@/lib/plans";
 import type { ArticleContentType, ArticleStatus } from "@/lib/articles/types";
 import { articleDisplayTitle } from "@/lib/articles/articleDisplay";
 import { enrichStoredArticleRejectionReason } from "@/lib/articles/articleRejectionReasons";
@@ -648,8 +650,9 @@ export default function ArticlesDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const contentTypeFilter = contentTypeFromParam(searchParams.get("type"));
-  const { selectedBusiness } = useBusinessContext();
+  const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
   const businessId = selectedBusiness?.id ?? "";
+  const normalizedPlan = normalizePlanCodeToKey(selectedBusiness?.plan);
 
   const [tab, setTab] = useState<ArticleStatus | "all">("all");
   const [articles, setArticles] = useState<ArticleListItem[]>([]);
@@ -772,6 +775,15 @@ export default function ArticlesDashboardPage() {
           Create blog and case study
         </button>
       </div>
+
+      <PlanStatusBanner
+        plan={normalizedPlan}
+        businessId={businessId}
+        trialEligible={selectedBusiness?.trialEligible === true}
+        subscriptionStatus={selectedBusiness?.subscriptionStatus}
+        trialEndsAt={selectedBusiness?.trialEndsAt}
+        onTrialStarted={bumpNavRefresh}
+      />
 
       {usage ? (
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
