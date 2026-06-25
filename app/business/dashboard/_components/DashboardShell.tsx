@@ -64,8 +64,7 @@ const NAV_SECTIONS: Record<string, { title: string; items?: any[]; groups?: any[
   "get-reviews": {
     title: "INVITATIONS",
     items: [
-      { label: "Overview", path: "/business/dashboard/get-reviews/overview" },
-      { label: "Send invitation", path: "/business/dashboard/get-reviews/invitation-methods" },
+      { label: "Send Review Invites", path: "/business/dashboard/get-reviews/overview" },
       { label: "Email templates", path: "/business/dashboard/get-reviews/email-templates" },
     ],
   },
@@ -446,7 +445,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
           onCompleted={async () => {
             await ensureSessionFresh();
             bumpNavRefresh();
-            router.replace("/business/dashboard/get-reviews/invitation-methods");
+            router.replace("/business/dashboard/get-reviews/overview#send-invite");
           }}
         />
         <main className="flex flex-1 flex-col items-center justify-center px-4 py-10">
@@ -493,7 +492,7 @@ function InnerShell({ children }: { children: React.ReactNode }) {
         onCompleted={async () => {
           await ensureSessionFresh();
           bumpNavRefresh();
-          router.replace("/business/dashboard/get-reviews/invitation-methods");
+          router.replace("/business/dashboard/get-reviews/overview#send-invite");
         }}
       />
       {/* Desktop: sidebars */}

@@ -23,8 +23,7 @@ import RatingStars from "@/components/RatingStars";
 import QRCode from "react-qr-code";
 import { Download } from "lucide-react";
 import { getPublicWriteReviewUrl } from "@/lib/emailBranding";
-
-const INVITATION_METHODS_PATH = "/business/dashboard/get-reviews/invitation-methods";
+import SendEmailInviteSection from "../_components/SendEmailInviteSection";
 const SENT_PAGE_SIZE = 25;
 const QR_UPGRADE_FEATURE_KEY = "qr_code_reviews_overview" as const;
 
@@ -224,28 +223,8 @@ export default function GetReviewsOverviewPage() {
     monthlyUsage / monthlyLimit > 0.5 &&
     !nearMonthlyInviteLimit &&
     !isLimitReached;
-  const openInviteLimitModal = () => {
-    if (businessId) {
-      logDashboardActivityClient({
-        businessId,
-        action: "invite_limit_hit",
-        metadata: { destination: "pricing_plans" },
-      });
-    }
-    growUnlockUsage.onClick();
-  };
-
   const openQrUpgradeModal = () => {
     growUnlockQr.onClick();
-  };
-
-  const handleSetUpInvitations = () => {
-    if (!businessId) return;
-    if (isLimitReached) {
-      openInviteLimitModal();
-      return;
-    }
-    router.push(INVITATION_METHODS_PATH);
   };
 
   const fetchMetrics = async () => {
@@ -361,6 +340,11 @@ export default function GetReviewsOverviewPage() {
     [businessId]
   );
 
+  const refreshAfterInviteSent = useCallback(() => {
+    void fetchUsage();
+    void fetchSentInvites(0, false);
+  }, [fetchUsage, fetchSentInvites]);
+
   const handleLoadMoreSent = () => {
     if (!businessId || loading || !hasMoreSent) return;
     fetchSentInvites(sentOffset, true);
@@ -451,9 +435,9 @@ export default function GetReviewsOverviewPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Get reviews – Overview</h1>
+      <h1 className="text-2xl font-semibold">Invitations</h1>
       <p className="mt-2 text-sm text-gray-500">
-        Collect verified customer feedback through automated invites.
+        Send invites, track performance, and collect verified customer feedback.
       </p>
 
       <PlanStatusBanner
@@ -629,6 +613,15 @@ export default function GetReviewsOverviewPage() {
           </p>
         ) : null}
       </div>
+
+      <SendEmailInviteSection
+        businessId={businessId}
+        plan={selectedBusiness.plan}
+        trialEligible={selectedBusiness.trialEligible === true}
+        subscriptionStatus={selectedBusiness.subscriptionStatus}
+        onTrialStarted={bumpNavRefresh}
+        onInviteSent={refreshAfterInviteSent}
+      />
 
       {/* Section B - Invites sent */}
       <div
@@ -853,31 +846,6 @@ export default function GetReviewsOverviewPage() {
           </div>
         </div>
       )}
-
-      {/* Section D - Smart action block */}
-      <div className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-8">
-        <div className="flex flex-col items-center text-center">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Start collecting verified reviews
-          </h2>
-          <p className="mt-2 max-w-md text-sm text-gray-600">
-            Automate invitations and turn completed transactions into trusted
-            public feedback.
-          </p>
-          <button
-            type="button"
-            disabled={!businessId}
-            onClick={handleSetUpInvitations}
-            className={`mt-6 rounded-lg px-8 py-3 font-medium text-white transition ${
-              !businessId
-                ? "cursor-not-allowed bg-gray-400"
-                : "bg-[#124541] hover:bg-[#0f3a35]"
-            }`}
-          >
-            Set up automated invitations
-          </button>
-        </div>
-      </div>
 
     </div>
   );

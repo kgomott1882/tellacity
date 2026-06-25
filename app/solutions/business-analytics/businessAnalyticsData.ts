@@ -722,7 +722,7 @@ export const FINAL_CTA = {
   primaryCta: { label: "Start free", href: "/business/signup" },
   secondaryCta: { label: "Claim Your Business", href: "/suggest-business" },
   dashboardCta: { label: "Open dashboard", href: "/business/dashboard" },
-  footnote: "Free to start · No credit card · Live from day one",
+  footnote: "Free to start · Live from day one",
 } as const;
 
 /** 3+2+2 row groupings for 7-item sections */

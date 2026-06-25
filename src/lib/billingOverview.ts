@@ -10,6 +10,7 @@ export type BillingOverviewHistoryRow = {
 };
 
 export type BillingOverviewResponse = {
+  can_manage_subscription: boolean;
   current: {
     plan_code: string | null;
     status: string | null;
@@ -18,6 +19,10 @@ export type BillingOverviewResponse = {
     current_period_end: string | null;
     pending_plan_code: string | null;
     pending_change_at: string | null;
+    cancelled_at: string | null;
+    recurring_billing_enabled: boolean | null;
+    has_stored_paystack_authorization: boolean;
+    trial_card_captured_at: string | null;
   } | null;
   lastPayment: {
     amount: number | null;

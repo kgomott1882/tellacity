@@ -462,7 +462,7 @@ export default function SolutionPage() {
             </Link>
           </div>
           <p className="mt-3 text-[11px] text-gray-100/80">
-            No credit card required to start.
+            Start free — no card required.
           </p>
         </div>
       </section>

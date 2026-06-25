@@ -43,6 +43,8 @@ import PaymentHistory from "./_components/PaymentHistory";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
 import { startGrowTrial } from "@/lib/startGrowTrialClient";
 import { trialDaysRemaining } from "@/lib/trialDaysRemaining";
+import { isPaystackCardOnTrialEnabledPublic } from "@/lib/paystackCardOnTrial";
+import { hasExplicitPendingCancelToFree } from "@/lib/paystackSubscriptionCancelGuards";
 import { ChevronDown } from "lucide-react";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
@@ -111,6 +113,7 @@ export default function BillingPage() {
   const [billingOverviewLoading, setBillingOverviewLoading] = useState(false);
   const [billingOverviewError, setBillingOverviewError] = useState<string | null>(null);
   const [cancelDowngradeBusy, setCancelDowngradeBusy] = useState(false);
+  const [cancelSubscriptionBusy, setCancelSubscriptionBusy] = useState(false);
   const [billingUpgradeContext, setBillingUpgradeContext] = useState<UpgradeFlowContext | null>(null);
   /**
    * Inline pricing disclosure. We intentionally avoid navigating to the
@@ -158,6 +161,49 @@ export default function BillingPage() {
   const currentPlanLabel = PLAN_LABELS[planKey] ?? planKey;
   const pendingPlanCode = billingOverview?.current?.pending_plan_code?.trim() || null;
   const pendingChangeAtRaw = billingOverview?.current?.pending_change_at?.trim() || null;
+  const cancelledAtRaw = billingOverview?.current?.cancelled_at?.trim() || null;
+  const canManageSubscription = billingOverview?.can_manage_subscription === true;
+  const cardOnTrialEnabled = isPaystackCardOnTrialEnabledPublic();
+  const hasStoredPaystackAuth =
+    billingOverview?.current?.has_stored_paystack_authorization === true;
+  const trialCardCaptured = Boolean(
+    billingOverview?.current?.trial_card_captured_at?.trim()
+  );
+  const isScheduledCancellation =
+    Boolean(cancelledAtRaw) && hasExplicitPendingCancelToFree(pendingPlanCode);
+  const isScheduledTierDowngrade =
+    Boolean(pendingPlanCode) &&
+    !isScheduledCancellation &&
+    normalizePlanCodeToKey(pendingPlanCode) !== planKey;
+  const billingPeriodEndRaw =
+    billingOverview?.current?.current_period_end?.trim() || null;
+  const billingPeriodEndLabel = (() => {
+    const raw = isTrialing ? trialEndsAt : billingPeriodEndRaw;
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  })();
+  const showCancelTrialButton =
+    cardOnTrialEnabled &&
+    canManageSubscription &&
+    isTrialing &&
+    hasStoredPaystackAuth &&
+    !cancelledAtRaw &&
+    Boolean(billingPeriodEndLabel);
+  const showCancelSubscriptionButton =
+    cardOnTrialEnabled &&
+    canManageSubscription &&
+    !isTrialing &&
+    subscriptionStatusRaw === "active" &&
+    planKey !== "free" &&
+    hasStoredPaystackAuth &&
+    trialCardCaptured &&
+    !cancelledAtRaw &&
+    Boolean(billingPeriodEndLabel);
   const pendingChangeLabel = (() => {
     if (!pendingChangeAtRaw) return null;
     const d = new Date(pendingChangeAtRaw);
@@ -395,15 +441,61 @@ export default function BillingPage() {
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setBillingOverviewError(
-          typeof data.error === "string" ? data.error : "Could not cancel downgrade."
+          typeof data.error === "string"
+            ? data.error
+            : isScheduledCancellation
+              ? "Could not keep your subscription."
+              : "Could not cancel downgrade."
         );
         return;
       }
       bumpNavRefresh();
     } catch {
-      setBillingOverviewError("Could not cancel downgrade.");
+      setBillingOverviewError(
+        isScheduledCancellation
+          ? "Could not keep your subscription."
+          : "Could not cancel downgrade."
+      );
     } finally {
       setCancelDowngradeBusy(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!businessId) return;
+    const confirmMessage = isTrialing
+      ? "Cancel your Grow trial? You will not be charged. You keep Grow access until the trial ends, then move to Free."
+      : "Cancel your subscription? You keep Grow access until the end of your billing period. No further charges after that.";
+    if (!window.confirm(confirmMessage)) return;
+
+    setCancelSubscriptionBusy(true);
+    setBillingOverviewError(null);
+    try {
+      const res = await fetch("/api/billing/cancel-subscription", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setBillingOverviewError(
+          typeof data.message === "string"
+            ? data.message
+            : typeof data.error === "string"
+              ? data.error
+              : "Could not cancel subscription."
+        );
+        return;
+      }
+      bumpNavRefresh();
+    } catch {
+      setBillingOverviewError("Could not cancel subscription.");
+    } finally {
+      setCancelSubscriptionBusy(false);
     }
   };
 
@@ -658,7 +750,9 @@ export default function BillingPage() {
                               >
                                 {growTrialStarting ? "Starting…" : "Start free trial"}
                               </button>
-                              <span className="text-[10px] text-gray-500">No card required</span>
+                              <span className="text-[10px] text-gray-500">
+                                Cancel anytime
+                              </span>
                             </div>
                           ) : (
                             <Link
@@ -738,7 +832,29 @@ export default function BillingPage() {
               </div>
             ) : null}
 
-            {pendingPlanCode && pendingChangeLabel ? (
+            {isScheduledCancellation && pendingChangeLabel ? (
+              <div
+                className="rounded-lg border border-[#124541]/30 bg-[#124541]/5 px-4 py-3 text-sm text-[#0E0E0E]"
+                role="status"
+              >
+                <p>
+                  Your subscription cancels on{" "}
+                  <span className="font-semibold">{pendingChangeLabel}</span>. You keep{" "}
+                  {currentPlanLabel} access until then, then move to Free. No further
+                  charges after that date.
+                </p>
+                {canManageSubscription ? (
+                  <button
+                    type="button"
+                    disabled={cancelDowngradeBusy}
+                    onClick={() => void handleCancelDowngrade()}
+                    className="mt-3 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {cancelDowngradeBusy ? "Restoring…" : "Keep my subscription"}
+                  </button>
+                ) : null}
+              </div>
+            ) : isScheduledTierDowngrade && pendingChangeLabel ? (
               <div
                 className="rounded-lg border border-[#124541]/30 bg-[#124541]/5 px-4 py-3 text-sm text-[#0E0E0E]"
                 role="status"
@@ -757,6 +873,44 @@ export default function BillingPage() {
                   className="mt-3 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
                 >
                   {cancelDowngradeBusy ? "Cancelling…" : "Cancel downgrade"}
+                </button>
+              </div>
+            ) : null}
+
+            {showCancelTrialButton ? (
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                <p>
+                  You won&apos;t be charged. You&apos;ll keep Grow access until{" "}
+                  <span className="font-semibold text-[#0E0E0E]">{billingPeriodEndLabel}</span>
+                  , then move to Free. If you don&apos;t cancel, your card is charged on{" "}
+                  <span className="font-semibold text-[#0E0E0E]">{billingPeriodEndLabel}</span> to
+                  continue Grow.
+                </p>
+                <button
+                  type="button"
+                  disabled={cancelSubscriptionBusy}
+                  onClick={() => void handleCancelSubscription()}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {cancelSubscriptionBusy ? "Cancelling…" : "Cancel trial"}
+                </button>
+              </div>
+            ) : null}
+
+            {showCancelSubscriptionButton ? (
+              <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                <p>
+                  You&apos;ll keep {currentPlanLabel} access until{" "}
+                  <span className="font-semibold text-[#0E0E0E]">{billingPeriodEndLabel}</span>.
+                  No further charges after that.
+                </p>
+                <button
+                  type="button"
+                  disabled={cancelSubscriptionBusy}
+                  onClick={() => void handleCancelSubscription()}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {cancelSubscriptionBusy ? "Cancelling…" : "Cancel subscription"}
                 </button>
               </div>
             ) : null}

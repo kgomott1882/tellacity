@@ -519,5 +519,5 @@ export const FINAL_CTA = {
   primaryCta: { label: "Start free", href: "/business/signup" },
   secondaryCta: { label: "Claim Your Business", href: "/suggest-business" },
   dashboardCta: { label: "Open dashboard", href: "/business/dashboard" },
-  footnote: "Free to start · No credit card · Cancel anytime",
+  footnote: "Free to start · Cancel anytime",
 } as const;

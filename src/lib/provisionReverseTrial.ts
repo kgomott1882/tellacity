@@ -30,6 +30,7 @@ type SubscriptionRowSnapshot = {
   status?: string | null;
   provider_sub_id?: string | null;
   current_period_end?: string | null;
+  reverse_trial_used_at?: string | null;
 };
 
 function trialProviderSubId(businessId: string): string {
@@ -57,10 +58,15 @@ function isShapePlaceholderRow(row: SubscriptionRowSnapshot): boolean {
 }
 
 function hasTrialMarkerRow(rows: SubscriptionRowSnapshot[]): boolean {
-  return rows.some((row) => {
-    const providerSubId = String(row.provider_sub_id ?? "").trim();
-    return providerSubId.startsWith("trial:");
-  });
+  return rows.some((row) => hasReverseTrialHistoryOnRow(row));
+}
+
+/** One-time trial: trial: marker OR reverse_trial_used_at (survives paid conversion). */
+export function hasReverseTrialHistoryOnRow(row: SubscriptionRowSnapshot): boolean {
+  const providerSubId = String(row.provider_sub_id ?? "").trim();
+  if (providerSubId.startsWith("trial:")) return true;
+  const usedAt = row.reverse_trial_used_at;
+  return usedAt != null && String(usedAt).trim() !== "";
 }
 
 function summarizeSubscriptionRows(rows: SubscriptionRowSnapshot[]) {
@@ -123,7 +129,9 @@ export async function getReverseTrialEligibility(
 
   const { data: existingRows, error: existingErr } = await db
     .from("subscriptions")
-    .select("id, plan_code, status, provider_sub_id, current_period_end")
+    .select(
+      "id, plan_code, status, provider_sub_id, current_period_end, reverse_trial_used_at",
+    )
     .eq("business_id", trimmedId);
 
   if (existingErr) {
@@ -208,6 +216,7 @@ export async function provisionReverseTrialIfEligible(
         provider: "tellacity",
         provider_sub_id: trialProviderSubId(trimmedId),
         current_period_end: periodEnd,
+        reverse_trial_used_at: now,
         updated_at: now,
       };
 
@@ -254,6 +263,7 @@ export async function provisionReverseTrialIfEligible(
         provider: "tellacity",
         provider_sub_id: trialProviderSubId(trimmedId),
         current_period_end: periodEnd,
+        reverse_trial_used_at: now,
         updated_at: now,
       };
 

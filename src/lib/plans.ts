@@ -253,7 +253,7 @@ export async function getDashboardPlanContextByBusinessIds(
   const { data: subRows, error: subErr } = await db
     .from("subscriptions")
     .select(
-      "business_id, plan_code, status, updated_at, current_period_end, pending_plan_code, pending_change_at",
+      "business_id, plan_code, status, updated_at, current_period_end, pending_plan_code, pending_change_at, renewal_grace_ends_at",
     )
     .in("business_id", businessIds);
 
@@ -287,7 +287,7 @@ export async function getDashboardPlanContextByBusinessIds(
       continue;
     }
 
-    const picked = pickPlanResolutionSubscriptionRow(byBiz.get(bid));
+    const picked = pickPlanResolutionSubscriptionRow(byBiz.get(bid), { now: new Date() });
     if (!picked) {
       out.set(bid, { plan, subscriptionStatus: null, trialEndsAt: null });
       continue;

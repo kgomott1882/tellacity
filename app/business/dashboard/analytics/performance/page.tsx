@@ -575,7 +575,7 @@ function InviteEmptyState() {
         Start sending review invitations to generate customer feedback and increase momentum.
       </p>
       <Link
-        href="/business/dashboard/get-reviews/invitation-methods"
+        href="/business/dashboard/get-reviews/overview#send-invite"
         className="mt-5 inline-flex items-center gap-2 rounded-lg bg-neutral-700 px-4 py-2 text-xs font-semibold text-neutral-100 transition-colors hover:bg-neutral-600"
       >
         Send Invites

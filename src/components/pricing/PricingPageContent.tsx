@@ -1019,7 +1019,9 @@ export function PricingPageContent({
                     >
                       {growTrialStarting ? "Starting…" : "Start free trial"}
                     </button>
-                    <p className="text-center text-xs text-gray-500">No card required</p>
+                    <p className="text-center text-xs text-gray-500">
+                      Cancel anytime
+                    </p>
                     {growTrialError ? (
                       <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-center text-xs text-amber-900">
                         {growTrialError}
@@ -1799,7 +1801,7 @@ export function PricingPageContent({
               <div className="pricing-trust-col">
                 <CreditCard className="pricing-trust-icon mx-auto h-8 w-8" aria-hidden />
                 <p className="pricing-trust-title">Start free</p>
-                <p className="pricing-trust-desc">No credit card required to begin.</p>
+                <p className="pricing-trust-desc">Start free — no card required.</p>
               </div>
             </div>
           </div>

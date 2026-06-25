@@ -267,7 +267,7 @@ export default function CinematicPricingCards({
                     >
                       Start 14-day free trial
                     </button>
-                    <p className="pc-grow-cta-sub">No card required</p>
+                    <p className="pc-grow-cta-sub">Cancel anytime</p>
                   </div>
                 ) : (
                   <button

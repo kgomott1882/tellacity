@@ -38,7 +38,7 @@ export async function sendActivationReminderEmail(
   if (!email) return { status: "skipped" };
 
   const origin = getPublicAppOrigin();
-  const inviteUrl = `${origin}/business/dashboard/get-reviews/invitation-methods`;
+  const inviteUrl = `${origin}/business/dashboard/get-reviews/overview#send-invite`;
   const preferencesUrl = `${origin}/business/dashboard/settings/notifications`;
 
   const ownerName = (input.ownerName ?? "").trim() || "there";

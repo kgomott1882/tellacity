@@ -103,6 +103,16 @@ export async function GET(request: Request) {
     const candidateIds = trialingIds.filter((id) => !remindedIds.has(id));
     const batchIds = candidateIds.slice(0, BATCH_LIMIT);
 
+    const trialEndByBusinessId = new Map<string, string>();
+    for (const row of subscriptionRows ?? []) {
+      const sub = row as SubscriptionRow;
+      const businessId = String(sub.business_id ?? "").trim();
+      const trialEnd = String(sub.current_period_end ?? "").trim();
+      if (businessId && trialEnd) {
+        trialEndByBusinessId.set(businessId, trialEnd);
+      }
+    }
+
     let sent = 0;
     let skippedNoEmail = 0;
     let failed = 0;
@@ -134,6 +144,7 @@ export async function GET(request: Request) {
         toEmail: owner.email,
         ownerName,
         businessName: owner.businessName,
+        trialEndIso: trialEndByBusinessId.get(businessId) ?? null,
       });
 
       if (result.status === "skipped") {

@@ -112,7 +112,9 @@ export default function PlanStatusBanner({
               >
                 {starting ? "Starting…" : "Start your 14-day free Grow trial"}
               </button>
-              <span className="text-[10px] text-gray-500 sm:text-right">No card required</span>
+              <span className="text-[10px] text-gray-500 sm:text-right">
+                Cancel anytime
+              </span>
             </div>
           ) : showTrialCountdown ? (
             <Link

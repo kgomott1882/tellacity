@@ -102,7 +102,7 @@ export default function ReputationPlatformClient() {
                 </Link>
               </div>
               <div className="rp-hero-trust rp-hero-enter rp-hero-enter--4">
-                <span>✓ No credit card required</span>
+                <span>✓ Start free — no card required</span>
                 <span>·</span>
                 <span>✓ Setup in minutes</span>
                 <span>·</span>

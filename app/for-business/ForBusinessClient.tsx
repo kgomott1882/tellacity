@@ -152,7 +152,7 @@ export default function ForBusinessClient() {
                 </Link>
               </div>
               <div className="fb-hero-trust">
-                <span>✓ No credit card required</span>
+                <span>✓ Start free — no card required</span>
                 <span>·</span>
                 <span>✓ Free to start</span>
                 <span>·</span>

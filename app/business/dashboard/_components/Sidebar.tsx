@@ -31,7 +31,7 @@ export const NAV_ITEMS = [
     ],
   },
   {
-    label: "Reviews",
+    label: "Inbox",
     icon: MessageSquare,
     key: "manage-reviews",
     path: null,
@@ -40,13 +40,12 @@ export const NAV_ITEMS = [
     ],
   },
   {
-    label: "Invitations",
+    label: "Review Invitations",
     icon: Send,
     key: "get-reviews",
     path: null,
     items: [
-      { label: "Overview", path: "/business/dashboard/get-reviews/overview" },
-      { label: "Send Invitations", path: "/business/dashboard/get-reviews/invitation-methods" },
+      { label: "Send Review Invites", path: "/business/dashboard/get-reviews/overview" },
       { label: "Email templates", path: "/business/dashboard/get-reviews/email-templates" },
     ],
   },

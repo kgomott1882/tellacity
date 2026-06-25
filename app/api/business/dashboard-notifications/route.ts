@@ -323,7 +323,7 @@ export async function GET(req: Request) {
         key: "review_invites_nudge",
         title: "Use your review invitations",
         description,
-        href: "/business/dashboard/get-reviews/invitation-methods",
+        href: "/business/dashboard/get-reviews/overview#send-invite",
         priority: 82,
         created_at: new Date().toISOString(),
       });

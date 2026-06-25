@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
+import { formatPaidPlanMonthlyUsd } from "@/lib/billingPlanConfirm";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
 import { resendFromHeader } from "@/lib/businessDomainVerification";
 
@@ -14,10 +15,26 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function formatTrialEndDate(iso: string | null | undefined): string | null {
+  const trimmed = (iso ?? "").trim();
+  if (!trimmed) return null;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export type TrialEndingEmailInput = {
   toEmail: string;
   ownerName?: string | null;
   businessName?: string | null;
+  /** ISO timestamp for trial end (`subscriptions.current_period_end`). */
+  trialEndIso?: string | null;
 };
 
 export type TrialEndingEmailResult =
@@ -42,11 +59,23 @@ export async function sendTrialEndingEmail(
   const origin = getPublicAppOrigin();
   const checkoutPath = billingCheckoutPickerPath("grow", "monthly", BILLING_RETURN_TO);
   const checkoutUrl = `${origin}${checkoutPath}`;
+  const billingUrl = `${origin}${BILLING_RETURN_TO}`;
   const preferencesUrl = `${origin}/business/dashboard/settings/notifications`;
 
   const ownerName = (input.ownerName ?? "").trim() || "there";
   const businessName =
     (input.businessName ?? "").trim() || "your business";
+  const trialEndLabel = formatTrialEndDate(input.trialEndIso);
+  const growMonthlyPrice = formatPaidPlanMonthlyUsd("grow");
+  const trialEndPhrase = trialEndLabel
+    ? `on <strong>${escapeHtml(trialEndLabel)}</strong>`
+    : "in about 3 days";
+  const trialEndPhraseText = trialEndLabel
+    ? `on ${trialEndLabel}`
+    : "in about 3 days";
+  const cancelBeforePhrase = trialEndLabel
+    ? `before ${trialEndLabel}`
+    : "before your trial ends";
 
   const resend = new Resend(apiKey);
   const from = resendFromHeader();
@@ -65,16 +94,16 @@ export async function sendTrialEndingEmail(
             Hi ${escapeHtml(ownerName)},
           </td></tr>
           <tr><td style="padding-top:12px;font-size:15px;line-height:1.6;color:#404040;">
-            Your 14-day Grow trial for <strong>${escapeHtml(businessName)}</strong> is ending soon. After that, you&apos;ll move back to the Free plan and lose Grow features like expanded review invites, analytics, and on-site widgets.
+            Your 14-day Grow trial for <strong>${escapeHtml(businessName)}</strong> ends ${trialEndPhrase}. On that date, your card on file will be charged <strong>${escapeHtml(growMonthlyPrice)}/month</strong> for Grow and your subscription continues automatically.
           </td></tr>
           <tr><td style="padding-top:12px;font-size:15px;line-height:1.6;color:#404040;">
-            Keep everything you&apos;ve set up — subscribe to Grow to stay on the plan without interruption.
+            No action is needed to keep Grow. To avoid the charge, cancel ${escapeHtml(cancelBeforePhrase)} from billing.
           </td></tr>
           <tr><td style="padding-top:24px;">
             <a href="${checkoutUrl}" style="display:inline-block;background:#1FAF9E;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:9999px;">Keep Grow</a>
           </td></tr>
           <tr><td style="padding-top:18px;font-size:14px;line-height:1.6;color:#606060;">
-            Or open billing: <a href="${checkoutUrl}" style="color:#1FAF9E;">${escapeHtml(checkoutUrl)}</a>
+            Manage billing or cancel: <a href="${billingUrl}" style="color:#1FAF9E;">${escapeHtml(billingUrl)}</a>
           </td></tr>
           <tr><td style="padding-top:24px;font-size:13px;line-height:1.5;color:#888;">
             Questions? Reply to this email or reach us at
@@ -94,11 +123,12 @@ export async function sendTrialEndingEmail(
   const text = [
     `Hi ${ownerName},`,
     "",
-    `Your 14-day Grow trial for ${businessName} ends in about 3 days.`,
+    `Your 14-day Grow trial for ${businessName} ends ${trialEndPhraseText}.`,
     "",
-    "After that you'll move back to the Free plan and lose Grow features like expanded review invites, analytics, and on-site widgets.",
+    `On that date, your card on file will be charged ${growMonthlyPrice}/month for Grow and your subscription continues automatically.`,
     "",
-    "Keep everything you've set up — subscribe to Grow to stay on the plan without interruption.",
+    `No action is needed to keep Grow. To avoid the charge, cancel ${cancelBeforePhrase} from billing:`,
+    billingUrl,
     "",
     `Keep Grow: ${checkoutUrl}`,
     "",
@@ -111,7 +141,7 @@ export async function sendTrialEndingEmail(
     const send = await resend.emails.send({
       from,
       to: email,
-      subject: "Your Grow trial ends in 3 days",
+      subject: "Your Grow trial ends in 3 days — card charge coming",
       html,
       text,
       headers: {

@@ -6,7 +6,7 @@ import { dashboardApiGet } from "@/lib/dashboardApiFetch";
 import { useBusinessContext } from "../_context/BusinessContext";
 
 const ANALYTICS_PATH = "/business/dashboard/analytics/performance";
-const INVITE_PATH = "/business/dashboard/get-reviews/invitation-methods";
+const INVITE_PATH = "/business/dashboard/get-reviews/overview#send-invite";
 
 /**
  * Client navigation to the default workspace route. Used instead of server

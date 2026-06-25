@@ -10,6 +10,7 @@ import {
   provisionReverseTrialIfEligible,
   type ReverseTrialIneligibilityReason,
 } from "@/lib/provisionReverseTrial";
+import { isPaystackCardOnTrialEnabled } from "@/lib/paystackCardOnTrial";
 
 function mapProvisionReasonToIneligibility(
   reason: "not_free" | "subscription_exists",
@@ -67,6 +68,16 @@ export async function POST(req: Request) {
     if (!eligibility.eligible) {
       return NextResponse.json(
         { error: "not_eligible", reason: eligibility.reason },
+        { status: 409 },
+      );
+    }
+
+    if (isPaystackCardOnTrialEnabled()) {
+      return NextResponse.json(
+        {
+          error: "card_capture_required",
+          message: "Start trial via Paystack card verification when card-on-trial is enabled.",
+        },
         { status: 409 },
       );
     }

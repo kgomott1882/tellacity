@@ -6,6 +6,7 @@ import type { BillingOverviewHistoryRow, BillingOverviewResponse } from "@/lib/b
 import { pickPlanResolutionSubscriptionRow } from "@/lib/plans";
 import { reconcileSubscriptionPeriodEnd } from "@/lib/subscriptionExpiry";
 import { getServerEnv } from "@/lib/serverEnv";
+import { isBusinessOwner } from "@/lib/businessOwnership";
 import { requireBusinessAccess } from "@/lib/supabase/businessDashboardServer";
 
 type SubscriptionSelectRow = {
@@ -16,6 +17,10 @@ type SubscriptionSelectRow = {
   current_period_end?: string | null;
   pending_plan_code?: string | null;
   pending_change_at?: string | null;
+  cancelled_at?: string | null;
+  recurring_billing_enabled?: boolean | null;
+  paystack_authorization_code?: string | null;
+  trial_card_captured_at?: string | null;
 };
 
 type BillingTransactionRow = {
@@ -79,10 +84,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: reconciled.error }, { status: 500 });
     }
 
+    const canManageSubscription = await isBusinessOwner(supabase, access.userId, businessId);
+
     const { data: subRows, error: subErr } = await supabase
       .from("subscriptions")
       .select(
-        "plan_code, status, updated_at, provider_sub_id, current_period_end, pending_plan_code, pending_change_at"
+        "plan_code, status, updated_at, provider_sub_id, current_period_end, pending_plan_code, pending_change_at, cancelled_at, recurring_billing_enabled, paystack_authorization_code, trial_card_captured_at"
       )
       .eq("business_id", businessId);
 
@@ -116,6 +123,21 @@ export async function GET(req: Request) {
           pending_change_at:
             pickedRow.pending_change_at != null && String(pickedRow.pending_change_at).trim()
               ? String(pickedRow.pending_change_at)
+              : null,
+          cancelled_at:
+            pickedRow.cancelled_at != null && String(pickedRow.cancelled_at).trim()
+              ? String(pickedRow.cancelled_at)
+              : null,
+          recurring_billing_enabled:
+            typeof pickedRow.recurring_billing_enabled === "boolean"
+              ? pickedRow.recurring_billing_enabled
+              : null,
+          has_stored_paystack_authorization:
+            (pickedRow.paystack_authorization_code?.trim() ?? "").length > 0,
+          trial_card_captured_at:
+            pickedRow.trial_card_captured_at != null &&
+            String(pickedRow.trial_card_captured_at).trim()
+              ? String(pickedRow.trial_card_captured_at)
               : null,
         }
       : null;
@@ -166,6 +188,7 @@ export async function GET(req: Request) {
 
     const latest = transactions[0];
     const payload: BillingOverviewResponse = {
+      can_manage_subscription: canManageSubscription,
       current,
       lastPayment: latest
         ? {
