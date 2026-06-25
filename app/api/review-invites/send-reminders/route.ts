@@ -4,7 +4,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
-import { getPublicAppOrigin } from "@/lib/emailBranding";
+import { getPublicAppOrigin, getInviteFinalizeUrl } from "@/lib/emailBranding";
+import {
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+} from "@/lib/reviewInviteValidation";
+import { computeReviewInviteExpiresAtIso } from "@/lib/reviewInviteExpiry";
 
 type ReminderInvite = {
   id: string;
@@ -13,6 +18,7 @@ type ReminderInvite = {
   opened_at: string | null;
   reminder_count: number | null;
   review_submitted_at: string | null;
+  expires_at: string | null;
 };
 
 async function sendEmail({
@@ -73,21 +79,40 @@ export async function GET(request: Request) {
     const rows = (invites ?? []) as ReminderInvite[];
     const baseUrl = getPublicAppOrigin();
     let processed = 0;
+    let skipped = 0;
 
     console.log(`[send-reminders] fetched invites: ${rows.length}`);
 
+    const seenIds = new Set<string>();
+
     for (const invite of rows) {
       try {
-        if (invite.review_submitted_at) {
+        if (seenIds.has(invite.id)) {
+          skipped += 1;
+          continue;
+        }
+        seenIds.add(invite.id);
+
+        if (invite.review_submitted_at || reviewInviteRowIsUsed(invite)) {
           console.log(
             `[send-reminders] skipping invite ${invite.id}: review already submitted`
           );
+          skipped += 1;
+          continue;
+        }
+
+        if (reviewInviteRowIsExpired(invite)) {
+          console.log(
+            `[send-reminders] skipping invite ${invite.id}: expired`
+          );
+          skipped += 1;
           continue;
         }
 
         const email = invite.recipient_email;
-        const inviteUrl = `${baseUrl}/review/invite?token=${invite.token}`;
+        const inviteUrl = getInviteFinalizeUrl(baseUrl, invite.token);
         const isOpened = !!invite.opened_at;
+        const reminderExpiresAt = computeReviewInviteExpiresAtIso();
 
         const subject = isOpened
           ? "Reminder: Finish your review"
@@ -100,7 +125,7 @@ export async function GET(request: Request) {
         await sendEmail({
           to: email,
           subject,
-          html: `<p>${body}</p><a href="${inviteUrl}">Leave review</a>`,
+          html: `<p>${body}</p><p><a href="${inviteUrl}">Leave review</a></p>`,
         });
 
         const { error: updateError } = await supabase
@@ -108,6 +133,7 @@ export async function GET(request: Request) {
           .update({
             reminder_count: (invite.reminder_count ?? 0) + 1,
             last_reminder_sent_at: new Date().toISOString(),
+            expires_at: reminderExpiresAt,
           })
           .eq("id", invite.id);
 
@@ -133,6 +159,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       processed,
+      skipped,
     });
   } catch (error) {
     console.error("[send-reminders] unhandled error:", error);

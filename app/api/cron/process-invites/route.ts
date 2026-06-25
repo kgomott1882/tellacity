@@ -21,6 +21,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
+import { computeReviewInviteExpiresAtIso } from "@/lib/reviewInviteExpiry";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import { getActivePlanKeyForBusiness } from "@/lib/plans";
 import { logBusinessActivity } from "@/lib/logBusinessActivity";
@@ -277,6 +278,7 @@ export async function GET(request: Request) {
           status: "pending",
           sent_at: new Date().toISOString(),
           last_send_error: null,
+          expires_at: computeReviewInviteExpiresAtIso(),
         })
         .eq("id", invite.id);
 
@@ -400,7 +402,10 @@ export async function GET(request: Request) {
 
       await supabase
         .from("review_invites")
-        .update({ reminder_sent_at: new Date().toISOString() })
+        .update({
+          reminder_sent_at: new Date().toISOString(),
+          expires_at: computeReviewInviteExpiresAtIso(),
+        })
         .eq("id", invite.id);
 
       sentReminders++;

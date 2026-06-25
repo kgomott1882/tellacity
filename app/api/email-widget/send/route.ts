@@ -20,6 +20,7 @@ import {
   getTellacityTrustBadgeLogoUrl,
 } from "@/lib/emailBranding";
 import { REVIEW_INVITE_SOURCE_EMAIL_WIDGET } from "@/lib/reviewInviteSource";
+import { computeReviewInviteExpiresAtIso } from "@/lib/reviewInviteExpiry";
 import {
   TELLACITY_STAR_EMPTY_BORDER,
   TELLACITY_STAR_TIER_COLORS,
@@ -58,17 +59,20 @@ async function insertEmailWidgetInvite(
   recipientEmail: string,
 ): Promise<{ ok: true; token: string } | { ok: false; message: string }> {
   const token = crypto.randomBytes(32).toString("hex");
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const expiresAt = computeReviewInviteExpiresAtIso(now);
   const { error } = await supabase.from("review_invites").insert({
     token,
     business_id: businessId,
     recipient_email: recipientEmail.trim(),
     status: "pending",
-    created_at: now,
+    created_at: nowIso,
     channel: "email",
-    send_at: now,
-    sent_at: now,
+    send_at: nowIso,
+    sent_at: nowIso,
     reminder_at: null,
+    expires_at: expiresAt,
     source: REVIEW_INVITE_SOURCE_EMAIL_WIDGET,
   } as Record<string, unknown>);
   if (error) {

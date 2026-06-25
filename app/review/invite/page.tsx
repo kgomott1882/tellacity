@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import InviteReviewFlow from "./InviteReviewFlow";
 import { getServerEnv } from "@/lib/serverEnv";
+import {
+  reviewInviteRowIsExpired,
+  reviewInviteRowIsUsed,
+  type InviteRowRecord,
+} from "@/lib/reviewInviteValidation";
 
 export const metadata: Metadata = {
   robots: {
@@ -78,11 +83,11 @@ export default async function InvitePage(props: {
 
   const invite = data as InviteRow;
 
-  if (invite.review_submitted_at) {
+  if (reviewInviteRowIsUsed(invite as InviteRowRecord)) {
     return <ErrorState message="This invite has already been used." />;
   }
 
-  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+  if (reviewInviteRowIsExpired(invite as InviteRowRecord)) {
     return <ErrorState message="Invite expired" />;
   }
 

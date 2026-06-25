@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import crypto from "crypto";
 import { getServerEnv } from "@/lib/serverEnv";
 import { getPublicAppOrigin } from "@/lib/emailBranding";
+import { computeReviewInviteExpiresAtIso } from "@/lib/reviewInviteExpiry";
 import { renderInviteEmail } from "@/lib/inviteEmail";
 import { buildInviteBodyInlineStyle, parseGrowMessageStyle } from "@/lib/reviewInviteGrowStyle";
 import {
@@ -92,12 +93,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Send time: now (no delayed scheduling or reminders; Invite Settings UI removed).
     const sendAt = new Date();
+    const expiresAt = computeReviewInviteExpiresAtIso(sendAt);
 
     // ── Insert invite row (single raw token; no hashing or mutation) ─────────
     const token = crypto.randomBytes(32).toString("hex");
-    const createdAt = new Date().toISOString();
+    const createdAt = sendAt.toISOString();
 
     const { data: insertedRow, error: insertError } = await supabase
       .from("review_invites")
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
         channel: "email",
         send_at: sendAt.toISOString(),
         reminder_at: null,
+        expires_at: expiresAt,
       })
       .select("id")
       .maybeSingle();
@@ -321,6 +323,7 @@ export async function POST(req: Request) {
       .update({
         sent_at: new Date().toISOString(),
         last_send_error: null,
+        expires_at: expiresAt,
       })
       .eq("id", inviteId);
 
