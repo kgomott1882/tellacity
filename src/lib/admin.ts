@@ -69,6 +69,11 @@ export type AdminBusinessRow = {
    * Returned by `admin_list_businesses_v2`.
    */
   is_review_restricted?: boolean | null;
+  /**
+   * Admin landing-feed filter. When true, reviews still publish on the business
+   * profile but are omitted from the homepage feed (`home_feed_v2`).
+   */
+  exclude_reviews_from_home_feed?: boolean | null;
   created_at?: string | null;
 } & Record<string, unknown>;
 

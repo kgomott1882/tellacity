@@ -127,6 +127,7 @@ export default function AdminBusinessesTable() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [restrictingId, setRestrictingId] = useState<string | null>(null);
+  const [landingFilterId, setLandingFilterId] = useState<string | null>(null);
   const headerSelectRef = useRef<HTMLInputElement>(null);
 
   type SuspendModalState =
@@ -406,6 +407,49 @@ export default function AdminBusinessesTable() {
         window.alert("Unexpected failure while updating restriction.");
       } finally {
         setRestrictingId(null);
+      }
+    },
+    [router]
+  );
+
+  const handleToggleLandingFeedFilter = useCallback(
+    async (id: string, name: string, currentlyExcluded: boolean) => {
+      if (!id) {
+        window.alert("Missing business ID");
+        return;
+      }
+      const nextExcluded = !currentlyExcluded;
+      const confirmed = window.confirm(
+        nextExcluded
+          ? `Hide “${name}” reviews from the Tellacity landing page?\n\nNew and existing reviews will still appear on that business’s profile page. Users can still write reviews unless you also use Restrict.`
+          : `Show “${name}” reviews on the landing page again?\n\nTheir latest review may appear in “What people are saying”.`
+      );
+      if (!confirmed) return;
+
+      setLandingFilterId(id);
+      try {
+        const supabase = supabaseBrowser();
+        const { error } = await supabase.rpc(
+          "admin_set_business_home_feed_exclusion",
+          {
+            target_business_id: id,
+            excluded: nextExcluded,
+          }
+        );
+        if (error) {
+          console.error("admin_set_business_home_feed_exclusion:", error);
+          window.alert(
+            error.message ?? "Failed to update landing feed filter"
+          );
+          return;
+        }
+        setListRefreshToken((t) => t + 1);
+        router.refresh();
+      } catch (err) {
+        console.error(err);
+        window.alert("Unexpected failure while updating landing feed filter.");
+      } finally {
+        setLandingFilterId(null);
       }
     },
     [router]
@@ -966,6 +1010,8 @@ export default function AdminBusinessesTable() {
                       row.status?.trim().toLowerCase() ?? "";
                     const isSuspended = normalizedRowStatus === "suspended";
                     const isReviewRestricted = row.is_review_restricted === true;
+                    const isLandingFeedExcluded =
+                      row.exclude_reviews_from_home_feed === true;
 
                     return (
                       <tr
@@ -1123,6 +1169,38 @@ export default function AdminBusinessesTable() {
                                 : isReviewRestricted
                                   ? "Unrestrict"
                                   : "Restrict"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={
+                                landingFilterId === id ||
+                                restrictingId === id ||
+                                updatingId === id ||
+                                deletingId === id
+                              }
+                              onClick={() =>
+                                handleToggleLandingFeedFilter(
+                                  id,
+                                  row.name?.trim() || id,
+                                  isLandingFeedExcluded
+                                )
+                              }
+                              title={
+                                isLandingFeedExcluded
+                                  ? "Reviews are hidden from the landing page. Click to show them again."
+                                  : "Keep reviews on the business page but hide them from the Tellacity landing feed."
+                              }
+                              className={
+                                isLandingFeedExcluded
+                                  ? "rounded-md border border-violet-300 bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-900 hover:bg-violet-200 disabled:opacity-50"
+                                  : "rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:opacity-50"
+                              }
+                            >
+                              {landingFilterId === id
+                                ? "Updating..."
+                                : isLandingFeedExcluded
+                                  ? "Show landing"
+                                  : "Hide landing"}
                             </button>
                             <button
                               type="button"
