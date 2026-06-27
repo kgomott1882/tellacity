@@ -104,7 +104,7 @@ export const GROW_RESOURCES: ResourceCard[] = [
     title: "Solutions",
     copy: "Deep dives on invitations, widgets, analytics, reputation management, and photo uploads.",
     href: "/solutions",
-    image: "/brand/Platforms.png",
+    image: "/brand/Creative_professional.jpeg",
     imageAlt: "Tellacity business solutions",
   },
   {

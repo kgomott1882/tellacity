@@ -118,7 +118,7 @@ export default function ConnectSapPage() {
             <span className="font-medium">Token URL</span> from the arrangement.
           </li>
           <li>
-            Paste your <span className="font-medium">API base URL</span> — your system root or OData
+            Paste your <span className="font-medium">API base URL</span>, your system root or OData
             service URL (for example{" "}
             <span className="font-mono text-xs">https://mycompany.s4hana.cloud.sap</span>).
           </li>

@@ -1801,7 +1801,7 @@ export function PricingPageContent({
               <div className="pricing-trust-col">
                 <CreditCard className="pricing-trust-icon mx-auto h-8 w-8" aria-hidden />
                 <p className="pricing-trust-title">Start free</p>
-                <p className="pricing-trust-desc">Start free — no card required.</p>
+                <p className="pricing-trust-desc">Start free. No card required.</p>
               </div>
             </div>
           </div>

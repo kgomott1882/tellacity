@@ -75,7 +75,7 @@ export default function PlanStatusBanner({
     setErrorMessage(null);
     const result = await startGrowTrial(businessId);
     if (result.ok) {
-      setSuccessMessage("Your Grow trial is active — 14 days");
+      setSuccessMessage("Your Grow trial is active. 14 days left.");
       onTrialStarted?.();
     } else {
       setErrorMessage(result.message);

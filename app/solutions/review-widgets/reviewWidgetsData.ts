@@ -7,7 +7,7 @@ export const RW_IMAGES = {
   challengeBg:
     "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80",
   challengeBanner: brandImage("Trust signals.png"),
-  solution: brandImage("Theme controls .png"),
+  solution: brandImage("Female_designer_taps_5-star_rating.jpeg"),
   timelineDevices: brandImage("PinPoint.png"),
   featuresSticky: brandImage("Widgets.png"),
   verifiedBg:

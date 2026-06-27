@@ -10,7 +10,7 @@ export type PlatformCard = {
   imageTop?: string;
   /** Controls thumbnail crop in module grid on for-business page. */
   imageFit?: "cover" | "contain" | "contain-2x";
-  icon: "mail" | "star" | "barChart2" | "shield" | "camera" | "award";
+  icon: "mail" | "star" | "barChart2" | "shield" | "camera" | "award" | "fileText";
   iconAccent: "teal" | "forest";
 };
 
@@ -24,7 +24,7 @@ export const PLATFORM_CARDS: PlatformCard[] = [
     detail:
       "Branded, automated invites after purchase or service completion help you collect feedback consistently, not only when customers remember to leave a review on their own.",
     href: "/solutions/review-invitations",
-    imageTop: "/brand/Branded_review_requests.jpeg",
+    imageTop: "/brand/Woman_sketching_on_tablet.jpeg",
     icon: "mail",
     iconAccent: "teal",
   },
@@ -63,7 +63,7 @@ export const PLATFORM_CARDS: PlatformCard[] = [
     detail:
       "Reply publicly, moderate content, dispute inaccurate feedback, and protect your verified profile from one operational dashboard, not scattered inboxes.",
     href: "/solutions/reputation-management",
-    imageTop: "/brand/Invite_links_QR_codes_collect.jpeg",
+    imageTop: "/brand/Professional_interacting.jpeg",
     imageFit: "contain",
     icon: "shield",
     iconAccent: "forest",
@@ -82,20 +82,20 @@ export const PLATFORM_CARDS: PlatformCard[] = [
     iconAccent: "teal",
   },
   {
-    badge: "🏆",
-    title: "Your Reputation",
-    tagline: "One verified profile customers can trust.",
+    badge: "📝",
+    title: "Blogs & Case Studies",
+    tagline: "Publish thought leadership on your verified profile.",
     description:
-      "Your Tellacity profile brings verified reviews, responses, photos, and trust signals into one public home customers can find, share, and cite.",
+      "Write industry blogs and document client outcomes with case studies from your dashboard, reviewed for quality, attributed to your business, and live on your public Tellacity profile.",
     detail:
-      "Instead of scattered proof across sites and screenshots, your reputation lives in one place that stays current as new feedback comes in.",
-    href: "/for-business",
-    image: "/brand/Your%20Reputation.png",
-    imageAlt: "Your Tellacity reputation profile with verified reviews and trust signals",
-    imageTop: "/brand/Your%20Reputation.png",
-    imageFit: "contain-2x",
-    icon: "award",
-    iconAccent: "forest",
+      "Turn expertise into searchable, shareable proof. Blogs and case studies live alongside your reviews on one profile, with editorial review, business attribution, and monthly credits on Grow and above.",
+    href: "/for-business/features/blogs-case-studies-publishing",
+    image: "/brand/Older_man_writing_in_book.jpeg",
+    imageAlt: "Business owner writing blogs and case studies on Tellacity",
+    imageTop: "/brand/Older_man_writing_in_book.jpeg",
+    imageFit: "cover",
+    icon: "fileText",
+    iconAccent: "teal",
   },
 ];
 

@@ -4,24 +4,21 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   BadgeCheck,
-  BarChart2,
   Bell,
   Building2,
   Check,
   ChevronDown,
   Database,
   Eye,
-  Globe,
   MapPin,
   MessageSquare,
   Scale,
-  Send,
-  Shield,
   ShoppingBag,
   Target,
   TrendingUp,
   UserCheck,
 } from "lucide-react";
+import ForBusinessFeatureIcon from "@/components/for-business/ForBusinessFeatureIcon";
 import HeroStarField from "@/components/home/HeroStarField";
 import HomeScrollProgress from "@/components/home/HomeScrollProgress";
 import { FadeUp, StaggerFadeUp } from "@/components/ui/MotionWrapper";
@@ -31,6 +28,7 @@ import {
   CONVERSION_POINTS,
   FAQ_ITEMS,
   FEATURES,
+  featureDetailHref,
   GOAL_ITEMS,
   GOAL_TAGS,
   INTEGRATION_POINTS,
@@ -45,34 +43,6 @@ import {
 } from "./forBusinessData";
 
 const IO = 0.12;
-
-type FeatureIcon = (typeof FEATURES)[number]["icon"];
-
-function FeatureIconEl({ type, accent }: { type: FeatureIcon; accent: "teal" | "forest" }) {
-  const cls = "h-4 w-4";
-  const icon =
-    type === "send" ? (
-      <Send className={cls} aria-hidden />
-    ) : type === "badgeCheck" ? (
-      <BadgeCheck className={cls} aria-hidden />
-    ) : type === "shield" ? (
-      <Shield className={cls} aria-hidden />
-    ) : type === "globe" ? (
-      <Globe className={cls} aria-hidden />
-    ) : type === "barChart2" ? (
-      <BarChart2 className={cls} aria-hidden />
-    ) : (
-      <Building2 className={cls} aria-hidden />
-    );
-
-  return (
-    <span
-      className={`fb-feature-icon ${accent === "teal" ? "fb-feature-icon--teal" : "fb-feature-icon--forest"}`}
-    >
-      {icon}
-    </span>
-  );
-}
 
 function FlowStepIcon({ type }: { type: (typeof REVIEW_FLOW_STEPS)[number]["icon"] }) {
   const cls = "h-5 w-5";
@@ -152,7 +122,7 @@ export default function ForBusinessClient() {
                 </Link>
               </div>
               <div className="fb-hero-trust">
-                <span>✓ Start free — no card required</span>
+                <span>✓ Start free. No card required</span>
                 <span>·</span>
                 <span>✓ Free to start</span>
                 <span>·</span>
@@ -243,8 +213,9 @@ export default function ForBusinessClient() {
             <span className="fb-section-accent">to Scale Trust</span>
           </h2>
           <p className="fb-features-sub">
-            Everything you need to collect, manage, and showcase customer feedback, designed
-            to build trust at every customer touchpoint. From automated collection to analytics
+            Everything you need to collect, manage, and showcase customer feedback, including
+            blogs and case study publishing on your profile, designed to build trust at every
+            customer touchpoint. From automated collection to analytics, long-form content,
             and public profiles, Tellacity gives you practical tools to turn verified feedback
             into a growth engine, not a side project.
           </p>
@@ -262,20 +233,28 @@ export default function ForBusinessClient() {
           </div>
           <div className="fb-features-grid">
             {FEATURES.map((item, index) => (
-              <StaggerFadeUp key={item.title} index={index} staggerMs={70} threshold={IO}>
-                <article className="fb-feature-card">
+              <StaggerFadeUp key={item.slug} index={index} staggerMs={70} threshold={IO}>
+                <Link
+                  href={featureDetailHref(item.slug)}
+                  className="fb-feature-card fb-feature-card--link"
+                >
                   <div className="fb-feature-card-img">
+                    <div className="fb-feature-card-img-overlay" aria-hidden />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={item.image} alt="" loading="lazy" decoding="async" />
                   </div>
                   <div className="fb-feature-card-body">
-                    <FeatureIconEl type={item.icon} accent={item.accent} />
+                    <div className="fb-feature-card-top">
+                      <ForBusinessFeatureIcon type={item.icon} accent={item.accent} />
+                      <span className="fb-feature-card-arrow" aria-hidden>
+                        →
+                      </span>
+                    </div>
                     <h3 className="fb-feature-title">{item.title}</h3>
                     <p className="fb-feature-copy">{item.copy}</p>
-                    <p className="fb-sr-detail">{item.detail}</p>
-                    <span className="fb-feature-footer">Learn more →</span>
+                    <span className="fb-feature-footer">Explore feature</span>
                   </div>
-                </article>
+                </Link>
               </StaggerFadeUp>
             ))}
           </div>

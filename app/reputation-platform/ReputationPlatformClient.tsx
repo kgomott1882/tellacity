@@ -7,6 +7,7 @@ import {
   BarChart2,
   Camera,
   Database,
+  FileText,
   GitBranch,
   Mail,
   Search,
@@ -60,6 +61,8 @@ function ModuleIcon({ type }: { type: (typeof PLATFORM_CARDS)[number]["icon"] })
       return <Camera className={cls} aria-hidden />;
     case "award":
       return <Award className={cls} aria-hidden />;
+    case "fileText":
+      return <FileText className={cls} aria-hidden />;
     default:
       return <Mail className={cls} aria-hidden />;
   }
@@ -102,7 +105,7 @@ export default function ReputationPlatformClient() {
                 </Link>
               </div>
               <div className="rp-hero-trust rp-hero-enter rp-hero-enter--4">
-                <span>✓ Start free — no card required</span>
+                <span>✓ Start free. No card required</span>
                 <span>·</span>
                 <span>✓ Setup in minutes</span>
                 <span>·</span>

@@ -12,8 +12,8 @@ export const RI_IMAGES = {
   workflowBg:
     "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80",
   features: brandImage("Dashboard.png"),
-  trustTop: brandImage("Marketing.png"),
-  trustBottom: brandImage("TWO PPL.png"),
+  trustTop: brandImage("Digital_receipt_extruding.jpeg"),
+  trustBottom: brandImage("Student_leaving_review_on_laptop.jpeg"),
   teams:
     "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1600&q=80",
   relatedWidgets: brandImage("Widgets.png"),

@@ -29,63 +29,13 @@ export const PRINCIPLES = [
   },
 ];
 
-export const FEATURES = [
-  {
-    title: "Automated Review Collection",
-    copy: "Collect verified customer feedback through email, QR codes, and automated workflows.",
-    detail:
-      "Send review requests after purchases or appointments via email and SMS, share QR codes in-store, and trigger requests from your existing workflows so collection happens consistently without manual follow-up.",
-    image: "/brand/Branded_review_requests.jpeg",
-    icon: "send" as const,
-    accent: "teal" as const,
-  },
-  {
-    title: "Verified & Credible Feedback",
-    copy: "Ensure feedback is attributable, accountable, and aligned with transparent moderation standards.",
-    detail:
-      "Verification and moderation standards help ensure reviews come from real customers and meet our fairness guidelines, making feedback more dependable for you and future buyers.",
-    image: "/brand/Man_inspired_by_picture.jpeg",
-    icon: "badgeCheck" as const,
-    accent: "forest" as const,
-  },
-  {
-    title: "Reputation Management",
-    copy: "Monitor, respond to, and manage customer reviews across your business.",
-    detail:
-      "Centralize review monitoring and response in one dashboard so your team can address feedback quickly, track sentiment, and maintain a consistent voice across every review.",
-    image: "/brand/woman%20on%20laptop.png",
-    icon: "shield" as const,
-    accent: "teal" as const,
-  },
-  {
-    title: "Trust Distribution Widgets",
-    copy: "Showcase verified feedback across your website and marketing channels.",
-    detail:
-      "Embed verified ratings and reviews on your website, landing pages, and emails so prospects see credible social proof wherever they evaluate your business.",
-    image: "/brand/Widgets.png",
-    icon: "globe" as const,
-    accent: "forest" as const,
-  },
-  {
-    title: "Performance & Insight Analytics",
-    copy: "Understand trends, performance, and feedback patterns in one central dashboard.",
-    detail:
-      "Track rating trends, review volume, response times, and recurring themes so you can spot issues early and measure how reputation performance improves over time.",
-    image: "/brand/Analytics%20PC.jpeg",
-    icon: "barChart2" as const,
-    accent: "teal" as const,
-  },
-  {
-    title: "Business Profile Infrastructure",
-    copy:
-      "Maintain a structured public business profile that supports long-term trust. Upload and organize business photos from your dashboard, then showcase them on your public profile so customers see the real you.",
-    detail:
-      "Your public profile brings together verified reviews, business details, photos, and trust signals in one structured page that strengthens credibility across search and direct visits.",
-    image: "/brand/Reputation%20Management.png",
-    icon: "building2" as const,
-    accent: "forest" as const,
-  },
-];
+export {
+  FEATURES,
+  FEATURE_SLUGS,
+  FOR_BUSINESS_FEATURES,
+  featureDetailHref,
+  getFeatureBySlug,
+} from "./forBusinessFeaturesData";
 
 export const TRANSPARENCY_POINTS = [
   {
@@ -218,7 +168,7 @@ export const ARTICLES_PLATFORM = {
     "Public articles on your profile with business attribution and optional author byline",
     "Related articles and social sharing on every published piece",
   ],
-  image: "/brand/FEATURE%20HERO.png",
+  image: "/brand/Man_typing_vintage_typewriter.jpeg",
   links: [
     { href: "/articles", label: "Browse published articles" },
     { href: "/business-guidelines", label: "Blogs & case study guidelines" },

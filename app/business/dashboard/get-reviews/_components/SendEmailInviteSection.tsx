@@ -253,7 +253,7 @@ export default function SendEmailInviteSection({
           </div>
           {templateChoice === "widget" && canChooseWidget && (
             <p className="mt-2 text-xs text-gray-500">
-              Sends a direct review link — no invite token generated, no credits consumed.
+              Sends a direct review link, with no invite token generated and no credits consumed.
             </p>
           )}
         </div>

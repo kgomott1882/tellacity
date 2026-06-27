@@ -36,6 +36,8 @@ function ModuleIcon({ type }: { type: ModuleIconType }) {
       return <Camera className={cls} aria-hidden />;
     case "award":
       return <Award className={cls} aria-hidden />;
+    case "fileText":
+      return <FileText className={cls} aria-hidden />;
     default:
       return <Mail className={cls} aria-hidden />;
   }
@@ -103,9 +105,8 @@ export default function ForBusinessPlatformSections({ part }: { part: "problem" 
             Reputation Platform <span className="rp-section-accent">Modules</span>
           </h2>
           <p className="rp-modules-sub">
-            Six modules, one verified review pipeline, one dashboard, plus blogs and case
-            studies when you are ready to publish thought leadership. Explore each module on
-            its solution page.
+            Six modules, one verified review pipeline, one dashboard, including blogs and case
+            study publishing on your public profile. Explore each module on its solution page.
           </p>
           <div className="rp-module-grid">
             {PLATFORM_CARDS.map((card, index) => (
