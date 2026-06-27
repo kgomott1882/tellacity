@@ -9,10 +9,17 @@ type AdminActionPreset =
   | "activate"
   | "suspended"
   | "under_review"
-  | "approved";
+  | "approved"
+  | "restrict"
+  | "hide_landing";
+
+type AdminStatusActionPreset = Exclude<
+  AdminActionPreset,
+  "" | "restrict" | "hide_landing"
+>;
 
 const ADMIN_ACTION_PRESET_VALUES: Record<
-  Exclude<AdminActionPreset, "">,
+  AdminStatusActionPreset,
   { status: string; submission: string }
 > = {
   activate: { status: "active", submission: "approved" },
@@ -21,13 +28,60 @@ const ADMIN_ACTION_PRESET_VALUES: Record<
   approved: { status: "active", submission: "approved" },
 };
 
-const BULK_ACTION_LABEL: Record<keyof typeof ADMIN_ACTION_PRESET_VALUES, string> =
+const BULK_ACTION_LABEL: Record<AdminStatusActionPreset, string> =
   {
     activate: "Activate",
     suspended: "Suspended",
     under_review: "Under review",
     approved: "Approved",
   };
+
+const ADMIN_ACTION_FILTER_LABEL: Record<
+  Exclude<AdminActionPreset, "">,
+  string
+> = {
+  activate: "Activate",
+  suspended: "Suspended",
+  under_review: "Under review",
+  approved: "Approved",
+  restrict: "Restrict reviews",
+  hide_landing: "Hide review on landing",
+};
+
+function adminActionButtonClass(active: boolean): string {
+  const base =
+    "rounded-md border px-2 py-1 text-xs font-semibold disabled:opacity-50 ";
+  if (active) {
+    return (
+      base +
+      "border-[#124541] bg-[#124541] text-white hover:bg-[#0f3834]"
+    );
+  }
+  return (
+    base +
+    "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
+  );
+}
+
+function AdminModeBadge({
+  label,
+  active,
+}: {
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <span
+      className={
+        active
+          ? "inline-flex w-fit rounded-full border border-[#124541] bg-[#124541]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#124541]"
+          : "inline-flex w-fit rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-600"
+      }
+    >
+      {label}
+    </span>
+  );
+}
 
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
@@ -305,7 +359,7 @@ export default function AdminBusinessesTable() {
   );
 
   const runBulkPreset = useCallback(
-    async (preset: keyof typeof ADMIN_ACTION_PRESET_VALUES) => {
+    async (preset: AdminStatusActionPreset) => {
       const ids = [...selectedIds];
       if (ids.length === 0) return;
       const { status, submission } = ADMIN_ACTION_PRESET_VALUES[preset];
@@ -534,6 +588,7 @@ export default function AdminBusinessesTable() {
     submissionFilter,
     countryFilter,
     categoryFilter,
+    adminActionPreset,
   ]);
 
   const visibleIds = useMemo(
@@ -584,6 +639,8 @@ export default function AdminBusinessesTable() {
       const submission_filter = submissionFilter.length > 0 ? submissionFilter : null;
       const country_filter = countryFilter.length > 0 ? countryFilter : null;
       const category_filter = categoryFilter.length > 0 ? categoryFilter : null;
+      const admin_action_filter =
+        adminActionPreset.length > 0 ? adminActionPreset : null;
       const offset_count = (page - 1) * limit;
 
       try {
@@ -594,6 +651,7 @@ export default function AdminBusinessesTable() {
             submission_filter,
             country_filter,
             category_filter,
+            admin_action_filter,
             limit_count: limit,
             offset_count,
           }),
@@ -603,6 +661,7 @@ export default function AdminBusinessesTable() {
             submission_filter,
             country_filter,
             category_filter,
+            admin_action_filter,
           }),
         ]);
 
@@ -637,6 +696,7 @@ export default function AdminBusinessesTable() {
     submissionFilter,
     countryFilter,
     categoryFilter,
+    adminActionPreset,
     limit,
     page,
     listRefreshToken,
@@ -667,10 +727,15 @@ export default function AdminBusinessesTable() {
       setPage(1);
       return;
     }
-    const preset = v as keyof typeof ADMIN_ACTION_PRESET_VALUES;
-    setAdminActionPreset(v as AdminActionPreset);
+    const preset = v as AdminActionPreset;
+    setAdminActionPreset(preset);
     setPage(1);
-    const pair = ADMIN_ACTION_PRESET_VALUES[preset];
+    if (preset === "restrict" || preset === "hide_landing") {
+      setStatusFilter("");
+      setSubmissionFilter("");
+      return;
+    }
+    const pair = ADMIN_ACTION_PRESET_VALUES[preset as AdminStatusActionPreset];
     setStatusFilter(pair.status);
     setSubmissionFilter(pair.submission);
   };
@@ -815,10 +880,14 @@ export default function AdminBusinessesTable() {
                 className="min-w-[200px] rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
               >
                 <option value="">All actions</option>
-                <option value="activate">Activate</option>
-                <option value="suspended">Suspended</option>
-                <option value="under_review">Under review</option>
-                <option value="approved">Approved</option>
+                {(Object.keys(ADMIN_ACTION_FILTER_LABEL) as Exclude<
+                  AdminActionPreset,
+                  ""
+                >[]).map((key) => (
+                  <option key={key} value={key}>
+                    {ADMIN_ACTION_FILTER_LABEL[key]}
+                  </option>
+                ))}
               </select>
             </div>
             <select
@@ -1009,9 +1078,23 @@ export default function AdminBusinessesTable() {
                     const normalizedRowStatus =
                       row.status?.trim().toLowerCase() ?? "";
                     const isSuspended = normalizedRowStatus === "suspended";
+                    const submissionLabel = row.submission_status?.trim() || "";
+                    const normalizedSubmission =
+                      submissionLabel.toLowerCase();
+                    const isUnderReview = normalizedRowStatus === "under_review";
+                    const isActiveApproved =
+                      normalizedRowStatus === "active" &&
+                      normalizedSubmission === "approved";
+                    const isApprovedSubmission =
+                      normalizedSubmission === "approved";
                     const isReviewRestricted = row.is_review_restricted === true;
                     const isLandingFeedExcluded =
                       row.exclude_reviews_from_home_feed === true;
+                    const rowBusy =
+                      updatingId === id ||
+                      deletingId === id ||
+                      restrictingId === id ||
+                      landingFilterId === id;
 
                     return (
                       <tr
@@ -1070,14 +1153,25 @@ export default function AdminBusinessesTable() {
                             ) : (
                               <StatusPill status={statusLabel} />
                             )}
-                            {isReviewRestricted ? (
-                              <span
-                                title="Reviews are blocked for this business."
-                                className="inline-flex w-fit rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fuchsia-800"
-                              >
-                                Restricted
+                            {submissionLabel ? (
+                              <span className="text-[10px] text-neutral-500">
+                                Submission: {submissionLabel}
                               </span>
                             ) : null}
+                            <div className="flex flex-wrap gap-1">
+                              {isReviewRestricted ? (
+                                <AdminModeBadge
+                                  label="Reviews restricted"
+                                  active
+                                />
+                              ) : null}
+                              {isLandingFeedExcluded ? (
+                                <AdminModeBadge
+                                  label="Hidden on landing"
+                                  active
+                                />
+                              ) : null}
+                            </div>
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
@@ -1098,12 +1192,14 @@ export default function AdminBusinessesTable() {
                           {formatDate(row.created_at)}
                         </td>
                         <td className="px-3 py-2">
-                          <div className="flex max-w-[320px] flex-wrap gap-1">
+                          <div className="flex max-w-[360px] flex-wrap gap-1">
                             <button
                               type="button"
-                              disabled={updatingId === id || deletingId === id}
+                              disabled={rowBusy}
                               onClick={() => handleApproveWithNotice(id)}
-                              className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                              className={adminActionButtonClass(
+                                isActiveApproved && !isSuspended,
+                              )}
                             >
                               {updatingId === id
                                 ? "Updating..."
@@ -1113,44 +1209,42 @@ export default function AdminBusinessesTable() {
                             </button>
                             <button
                               type="button"
-                              disabled={updatingId === id || deletingId === id}
+                              disabled={rowBusy}
                               onClick={() =>
                                 openSuspendModalSingle(id, row.name?.trim() || id)
                               }
-                              className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                              className={adminActionButtonClass(isSuspended)}
                             >
                               {updatingId === id ? "Updating..." : "Suspended"}
                             </button>
                             <button
                               type="button"
-                              disabled={updatingId === id || deletingId === id}
+                              disabled={rowBusy}
                               onClick={() =>
                                 handleStatusUpdate(id, "under_review", "under_review")
                               }
-                              className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+                              className={adminActionButtonClass(isUnderReview)}
                             >
                               {updatingId === id ? "Updating..." : "Under review"}
                             </button>
                             <button
                               type="button"
-                              disabled={updatingId === id || deletingId === id}
+                              disabled={rowBusy}
                               onClick={() => handleApproveWithNotice(id)}
-                              className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 hover:bg-teal-100 disabled:opacity-50"
+                              className={adminActionButtonClass(
+                                isApprovedSubmission && !isSuspended,
+                              )}
                             >
                               {updatingId === id ? "Updating..." : "Approved"}
                             </button>
                             <button
                               type="button"
-                              disabled={
-                                restrictingId === id ||
-                                updatingId === id ||
-                                deletingId === id
-                              }
+                              disabled={rowBusy}
                               onClick={() =>
                                 handleToggleRestriction(
                                   id,
                                   row.name?.trim() || id,
-                                  isReviewRestricted
+                                  isReviewRestricted,
                                 )
                               }
                               title={
@@ -1158,11 +1252,7 @@ export default function AdminBusinessesTable() {
                                   ? "Click to allow new reviews again."
                                   : "Block new reviews for this business while keeping it publicly visible."
                               }
-                              className={
-                                isReviewRestricted
-                                  ? "rounded-md border border-fuchsia-300 bg-fuchsia-100 px-2 py-1 text-xs font-semibold text-fuchsia-900 hover:bg-fuchsia-200 disabled:opacity-50"
-                                  : "rounded-md border border-fuchsia-200 bg-fuchsia-50 px-2 py-1 text-xs font-semibold text-fuchsia-800 hover:bg-fuchsia-100 disabled:opacity-50"
-                              }
+                              className={adminActionButtonClass(isReviewRestricted)}
                             >
                               {restrictingId === id
                                 ? "Updating..."
@@ -1172,17 +1262,12 @@ export default function AdminBusinessesTable() {
                             </button>
                             <button
                               type="button"
-                              disabled={
-                                landingFilterId === id ||
-                                restrictingId === id ||
-                                updatingId === id ||
-                                deletingId === id
-                              }
+                              disabled={rowBusy}
                               onClick={() =>
                                 handleToggleLandingFeedFilter(
                                   id,
                                   row.name?.trim() || id,
-                                  isLandingFeedExcluded
+                                  isLandingFeedExcluded,
                                 )
                               }
                               title={
@@ -1190,23 +1275,21 @@ export default function AdminBusinessesTable() {
                                   ? "Reviews are hidden from the landing page. Click to show them again."
                                   : "Keep reviews on the business page but hide them from the Tellacity landing feed."
                               }
-                              className={
-                                isLandingFeedExcluded
-                                  ? "rounded-md border border-violet-300 bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-900 hover:bg-violet-200 disabled:opacity-50"
-                                  : "rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:opacity-50"
-                              }
+                              className={adminActionButtonClass(
+                                isLandingFeedExcluded,
+                              )}
                             >
                               {landingFilterId === id
                                 ? "Updating..."
                                 : isLandingFeedExcluded
-                                  ? "Show landing"
-                                  : "Hide landing"}
+                                  ? "Show review on landing"
+                                  : "Hide review on landing"}
                             </button>
                             <button
                               type="button"
-                              disabled={deletingId === id || updatingId === id}
+                              disabled={rowBusy}
                               onClick={() => handleDelete(id)}
-                              className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                              className={adminActionButtonClass(false)}
                             >
                               {deletingId === id ? "Deleting..." : "Delete"}
                             </button>

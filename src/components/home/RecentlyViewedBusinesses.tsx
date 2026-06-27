@@ -15,6 +15,21 @@ import {
 import { FadeUp } from "@/components/ui/MotionWrapper";
 
 const MAX_RECENT = 4;
+/** Extra cookie slugs so we can still fill 4 cards after alias / duplicate dedupe. */
+const SLUG_FETCH_BUFFER = 12;
+
+function dedupeBusinessesById(businesses: RecentBusiness[]): RecentBusiness[] {
+  const seen = new Set<string>();
+  const out: RecentBusiness[] = [];
+  for (const business of businesses) {
+    const id = business.id?.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(business);
+    if (out.length >= MAX_RECENT) break;
+  }
+  return out;
+}
 
 type RecentBusiness = {
   id: string;
@@ -121,7 +136,7 @@ export default function RecentlyViewedBusinesses() {
         return;
       }
 
-      const views = getRecentBusinessViewsForDisplay().slice(0, MAX_RECENT);
+      const views = getRecentBusinessViewsForDisplay().slice(0, SLUG_FETCH_BUFFER);
       if (views.length === 0) {
         if (!cancelled) {
           setBusinesses([]);
@@ -132,7 +147,15 @@ export default function RecentlyViewedBusinesses() {
 
       setLoading(true);
       try {
-        const slugs = views.map((v) => v.slug).join(",");
+        const slugOrder: string[] = [];
+        const seenSlug = new Set<string>();
+        for (const view of views) {
+          const slug = view.slug.trim().toLowerCase();
+          if (!slug || seenSlug.has(slug)) continue;
+          seenSlug.add(slug);
+          slugOrder.push(slug);
+        }
+        const slugs = slugOrder.join(",");
         const res = await fetch(
           `/api/visitor/recent-businesses?slugs=${encodeURIComponent(slugs)}`,
           { credentials: "same-origin" },
@@ -144,7 +167,9 @@ export default function RecentlyViewedBusinesses() {
         const json = (await res.json()) as { businesses?: RecentBusiness[] };
         if (!cancelled) {
           setBusinesses(
-            (Array.isArray(json.businesses) ? json.businesses : []).slice(0, MAX_RECENT),
+            dedupeBusinessesById(
+              Array.isArray(json.businesses) ? json.businesses : [],
+            ),
           );
         }
       } catch {

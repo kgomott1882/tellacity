@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 
-const MAX_SLUGS = 4;
+/** Accept a buffer of slugs so we can still return 4 unique businesses after alias dedupe. */
+const MAX_SLUG_INPUT = 12;
+const MAX_BUSINESSES = 4;
 
 type BusinessRow = {
   id: string;
@@ -107,11 +109,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ businesses: [] });
   }
 
-  const slugs = raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, MAX_SLUGS);
+  const slugs: string[] = [];
+  const seenSlug = new Set<string>();
+  for (const part of raw.split(",")) {
+    const s = part.trim().toLowerCase();
+    if (!s || seenSlug.has(s)) continue;
+    seenSlug.add(s);
+    slugs.push(s);
+    if (slugs.length >= MAX_SLUG_INPUT) break;
+  }
 
   if (slugs.length === 0) {
     return NextResponse.json({ businesses: [] });
@@ -150,10 +156,17 @@ export async function GET(req: Request) {
       if (canonical) bySlug.set(canonical, row as Record<string, unknown>);
     }
 
-    const businesses = slugs
-      .map((slug) => bySlug.get(slug))
-      .filter((row): row is Record<string, unknown> => Boolean(row))
-      .map((row) => mapBusinessRow(row));
+    const seenBusinessIds = new Set<string>();
+    const businesses: BusinessRow[] = [];
+    for (const slug of slugs) {
+      if (businesses.length >= MAX_BUSINESSES) break;
+      const row = bySlug.get(slug);
+      if (!row) continue;
+      const mapped = mapBusinessRow(row);
+      if (!mapped.id || seenBusinessIds.has(mapped.id)) continue;
+      seenBusinessIds.add(mapped.id);
+      businesses.push(mapped);
+    }
 
     const withLiveMetrics = await applyLiveReviewMetrics(db, businesses);
 

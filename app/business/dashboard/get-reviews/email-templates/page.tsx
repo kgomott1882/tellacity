@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import SimplePage from "../../_components/SimplePage";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
@@ -12,9 +13,10 @@ import {
   nextTierUpgradeCtaLabel,
   type PlanKey,
 } from "@/lib/plans";
+import { billingCheckoutPickerPath } from "@/lib/billingCheckoutPaths";
+import { useGrowUnlockCta } from "@/hooks/useGrowUnlockCta";
 import { ChevronDown, ChevronRight, Lock } from "lucide-react";
 import SignatureSection, { SignatureState } from "@/components/reviews/email-templates/SignatureSection";
-import PlanStatusBanner from "@/components/dashboard/PlanStatusBanner";
 import AvailableToUseLabel from "@/components/dashboard/AvailableToUseLabel";
 import {
   DEFAULT_GROW_MESSAGE_STYLE,
@@ -30,6 +32,9 @@ import {
 const DEFAULT_STANDARD_SUBJECT = "You're invited to leave a review";
 const DEFAULT_STANDARD_BODY =
   "You've been invited to leave a review.\n\nClick the link in this email to leave your review. If the button doesn't work, copy and paste the link into your browser.";
+
+const PLAN_UPGRADE_BTN =
+  "inline-flex shrink-0 items-center justify-center rounded-md bg-[#278D82] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#217a70] disabled:cursor-not-allowed disabled:opacity-60";
 
 type TemplateType = "standard" | "custom" | "widget";
 type TemplateRow = {
@@ -54,9 +59,9 @@ type TemplateRow = {
 
 export default function EmailTemplatesPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { selectedBusiness, bumpNavRefresh } = useBusinessContext();
-  if (!selectedBusiness?.id) return null;
-  const businessId = selectedBusiness.id;
+  const businessId = selectedBusiness?.id ?? "";
 
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +85,7 @@ export default function EmailTemplatesPage() {
     remove_tellacity_branding: false,
     reply_to_email: "",
   });
+  const [premiumFeaturesOpen, setPremiumFeaturesOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!businessId) {
@@ -160,14 +166,35 @@ export default function EmailTemplatesPage() {
   const customRow = templates.find((t) => t.template_key === "custom");
   const standardSubject = standardRow?.subject ?? DEFAULT_STANDARD_SUBJECT;
   const standardBody = standardRow?.body ?? DEFAULT_STANDARD_BODY;
-  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness.plan);
+  const normalizedPlan: PlanKey = normalizePlanCodeToKey(selectedBusiness?.plan);
   const canEditCustom = canUseCustomEmail(normalizedPlan);
   const isPremiumOrElite = normalizedPlan === "premium" || normalizedPlan === "elite";
-  const [premiumFeaturesOpen, setPremiumFeaturesOpen] = useState(isPremiumOrElite);
+  const returnTo =
+    pathname && pathname.startsWith("/business/dashboard/")
+      ? pathname
+      : "/business/dashboard/get-reviews/email-templates";
+  const growUnlock = useGrowUnlockCta({
+    businessId,
+    currentPlan: normalizedPlan,
+    trialEligible: selectedBusiness?.trialEligible === true,
+    subscriptionStatus: selectedBusiness?.subscriptionStatus,
+    onTrialStarted: bumpNavRefresh,
+    paidDestination: {
+      type: "href",
+      href: billingCheckoutPickerPath("grow", "monthly", returnTo),
+    },
+  });
+  const premiumUpgradeHref = billingCheckoutPickerPath(
+    "premium",
+    "monthly",
+    returnTo,
+  );
 
   useEffect(() => {
     setPremiumFeaturesOpen(isPremiumOrElite);
   }, [isPremiumOrElite]);
+
+  if (!businessId) return null;
 
   const saveCustomTemplate = async () => {
     if (!businessId || !canEditCustom) return;
@@ -265,15 +292,6 @@ export default function EmailTemplatesPage() {
         subtitle="Manage templates for review invitation emails."
       />
 
-      <PlanStatusBanner
-        plan={normalizedPlan}
-        businessId={businessId}
-        trialEligible={selectedBusiness.trialEligible === true}
-        subscriptionStatus={selectedBusiness.subscriptionStatus}
-        trialEndsAt={selectedBusiness.trialEndsAt}
-        onTrialStarted={bumpNavRefresh}
-      />
-
       {error && (
         <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3" role="alert">
           <p className="text-sm font-medium text-red-800">Failed to load email templates.</p>
@@ -318,24 +336,50 @@ export default function EmailTemplatesPage() {
 
       {/* Custom template */}
       <div className="mt-8 rounded-xl border-2 border-[#2fb2a8] bg-white p-6 shadow-sm">
-        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
-          <span className="inline-flex items-center gap-2.5">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">
-              2
-            </span>
-            Custom template
-          </span>
-          {canEditCustom ? <AvailableToUseLabel /> : (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-              Preview
-            </span>
-          )}
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          <span className="font-medium text-gray-800">Grow</span> is your custom wording (subject and body).{" "}
-          <span className="font-medium text-gray-800">Premium</span> adds logo and company signature on sends.{" "}
-          <span className="font-medium text-gray-800">Elite</span> adds reply-to, CTAs, and footer branding.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-gray-900">
+              <span className="inline-flex items-center gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#124541] text-xs font-bold text-white">
+                  2
+                </span>
+                Custom template
+              </span>
+              {canEditCustom ? <AvailableToUseLabel /> : (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                  Preview
+                </span>
+              )}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              <span className="font-medium text-gray-800">Grow</span> is your custom wording (subject and body).{" "}
+              <span className="font-medium text-gray-800">Premium</span> adds logo and company signature on sends.{" "}
+              <span className="font-medium text-gray-800">Elite</span> adds reply-to, CTAs, and footer branding.
+            </p>
+          </div>
+          {!canEditCustom ? (
+            <div className="flex flex-col items-stretch gap-1 sm:items-end">
+              <button
+                type="button"
+                onClick={growUnlock.onClick}
+                disabled={growUnlock.loading}
+                className={PLAN_UPGRADE_BTN}
+              >
+                {growUnlock.loading ? "Starting…" : growUnlock.label}
+              </button>
+              {growUnlock.mode === "trial" ? (
+                <span className="text-[10px] text-gray-500 sm:text-right">
+                  Cancel anytime
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {growUnlock.errorMessage ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            {growUnlock.errorMessage}
+          </p>
+        ) : null}
         {!canEditCustom ? (
           <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-amber-950">
             You can draft your Grow message here on any plan. Saving it to your live template needs{" "}
@@ -502,30 +546,39 @@ export default function EmailTemplatesPage() {
 
           {/* Premium+: collapsible so Grow users are not overwhelmed */}
           <div className="mt-5 overflow-hidden rounded-xl border border-indigo-200/80 bg-gradient-to-b from-indigo-50/90 to-white">
-            <button
-              type="button"
-              id="premium-email-features-toggle"
-              aria-expanded={premiumFeaturesOpen}
-              aria-controls="premium-email-features-panel"
-              onClick={() => setPremiumFeaturesOpen((o) => !o)}
-              className="flex w-full items-start gap-3 px-4 py-4 text-left transition hover:bg-indigo-50/80 sm:items-center sm:px-5"
-            >
-              <span className="mt-0.5 shrink-0 rounded-md bg-indigo-700 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                Premium
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-gray-900">Branded signature and logo</span>
-                <span className="mt-0.5 block text-xs text-gray-600">
-                  Full control of how your business appears on every invite. Elite-only controls stay inside
-                  under “Elite email options”.
+            <div className="flex flex-wrap items-start gap-3 px-4 py-4 sm:items-center sm:px-5">
+              <button
+                type="button"
+                id="premium-email-features-toggle"
+                aria-expanded={premiumFeaturesOpen}
+                aria-controls="premium-email-features-panel"
+                onClick={() => setPremiumFeaturesOpen((o) => !o)}
+                className="flex min-w-0 flex-1 items-start gap-3 text-left transition hover:opacity-90 sm:items-center"
+              >
+                <span className="mt-0.5 shrink-0 rounded-md bg-indigo-700 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+                  Premium
                 </span>
-              </span>
-              {premiumFeaturesOpen ? (
-                <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-indigo-800" aria-hidden />
-              ) : (
-                <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-indigo-800" aria-hidden />
-              )}
-            </button>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-gray-900">
+                    Branded signature and logo
+                  </span>
+                  <span className="mt-0.5 block text-xs text-gray-600">
+                    Full control of how your business appears on every invite. Elite-only controls stay
+                    inside under “Elite email options”.
+                  </span>
+                </span>
+                {premiumFeaturesOpen ? (
+                  <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-indigo-800" aria-hidden />
+                ) : (
+                  <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-indigo-800" aria-hidden />
+                )}
+              </button>
+              {!isPremiumOrElite ? (
+                <Link href={premiumUpgradeHref} className={PLAN_UPGRADE_BTN}>
+                  Upgrade to Premium
+                </Link>
+              ) : null}
+            </div>
 
             {premiumFeaturesOpen ? (
               <div
