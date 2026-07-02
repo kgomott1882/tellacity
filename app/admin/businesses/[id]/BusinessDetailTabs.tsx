@@ -3,24 +3,28 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-type TabKey = "details" | "controls" | "photos" | "articles";
+type TabKey = "details" | "controls" | "reviews" | "photos" | "articles";
 
 type BusinessDetailTabsProps = {
   details: ReactNode;
   controls: ReactNode;
+  reviews: ReactNode;
   photos: ReactNode;
   articles: ReactNode;
   pendingPhotoCount?: number;
   pendingArticleCount?: number;
+  flaggedReviewCount?: number;
 };
 
 export default function BusinessDetailTabs({
   details,
   controls,
+  reviews,
   photos,
   articles,
   pendingPhotoCount = 0,
   pendingArticleCount = 0,
+  flaggedReviewCount = 0,
 }: BusinessDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("details");
 
@@ -46,6 +50,7 @@ export default function BusinessDetailTabs({
         <div className="flex flex-col gap-2">
           {tabBtn("details", "Details")}
           {tabBtn("controls", "Controls")}
+          {tabBtn("reviews", "Reviews", flaggedReviewCount)}
           {tabBtn("photos", "Photos", pendingPhotoCount)}
           {tabBtn("articles", "Articles", pendingArticleCount)}
         </div>
@@ -54,6 +59,7 @@ export default function BusinessDetailTabs({
       <div className="min-w-0 flex-1 pl-6">
         {activeTab === "details" && <>{details}</>}
         {activeTab === "controls" && <>{controls}</>}
+        {activeTab === "reviews" && <>{reviews}</>}
         {activeTab === "photos" && <>{photos}</>}
         {activeTab === "articles" && <>{articles}</>}
       </div>

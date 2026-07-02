@@ -19,7 +19,7 @@ import {
   buildTagBrowseHref,
   profileDisplayTags,
 } from "@/lib/businessProfileSeo";
-import { formatBusinessAddress, getCountryName } from "@/lib/address";
+import { formatBusinessAddress, getCountryName, cleanLocationField, cleanBusinessDisplayName } from "@/lib/address";
 import { normalizeCountryCode } from "@/lib/country";
 import { getActiveCountry } from "@/lib/getActiveCountry";
 import { sanitizeText } from "@/lib/sanitizeText";
@@ -156,6 +156,9 @@ function isOwnerWrittenBusinessDescription(
   if (/listed on tellacity/i.test(t) && /category|under /i.test(t)) {
     return false;
   }
+  if (/\[unknown\]|\[null\]/i.test(t)) {
+    return false;
+  }
   return true;
 }
 
@@ -249,6 +252,53 @@ async function resolveBusinessRowBySlug(rawSlug: string) {
   return await fetchBySlug(nearestSlug);
 }
 
+function mapBusinessFromRow(row: BusinessRow | Record<string, unknown>): Business {
+  const address = cleanLocationField(String(row.address ?? ""));
+  const city = cleanLocationField(String(row.city ?? ""));
+  const countryCode = String(row.country_code ?? "").trim();
+  const email = String(row.email ?? "").trim();
+  const phone = String(row.phone ?? "").trim();
+  const logoUrlRaw = (String(row.logo_url ?? "").trim()) || null;
+  const reviewCount = Number(row.review_count ?? 0);
+  const averageRating = Number(row.average_rating ?? 0);
+
+  return {
+    id: String(row.id ?? ""),
+    name: cleanBusinessDisplayName(String(row.name ?? "Business")),
+    slug: String(row.slug ?? ""),
+    website: cleanDomain(String(row.website_display ?? row.website ?? "")),
+    logoUrl: normalizeLogoUrl(logoUrlRaw),
+    trustScore: row.trust_score != null ? Number(row.trust_score) : null,
+    reviewCount,
+    averageRating,
+    rating1Count: Number(row.rating_1_count ?? 0),
+    rating2Count: Number(row.rating_2_count ?? 0),
+    rating3Count: Number(row.rating_3_count ?? 0),
+    rating4Count: Number(row.rating_4_count ?? 0),
+    rating5Count: Number(row.rating_5_count ?? 0),
+    countryCode: countryCode || String(row.country_code ?? ""),
+    address,
+    city,
+    description: String(row.description ?? "").trim(),
+    categorySlug: String(row.category_slug ?? ""),
+    categoryGroupSlug: row.primary_group_slug
+      ? String(row.primary_group_slug)
+      : null,
+    categoryGroupName: row.primary_group_name
+      ? String(row.primary_group_name)
+      : null,
+    categoryName: row.category_name ? String(row.category_name) : null,
+    tags: mergeTagsForDisplay(
+      row.tags,
+      row.secondary_category_slugs,
+      (row.category_slug ?? null) as string | null,
+    ),
+    status: String(row.status ?? "active"),
+    email,
+    phone,
+  };
+}
+
 type BusinessClientProps = {
   initialBusiness?: BusinessRow | null;
   initialBusinessPhotos?: BusinessPhotoPublic[];
@@ -283,50 +333,7 @@ export default function BusinessClient({
   const searchParams = useSearchParams();
   const [business, setBusiness] = useState<Business | null>(() => {
     if (!initialBusiness || typeof initialBusiness !== "object") return null;
-    const row = initialBusiness;
-    const address = String(row.address ?? "").trim();
-    const city = String(row.city ?? "").trim();
-    const countryCode = String(row.country_code ?? "").trim();
-    const email = String(row.email ?? "").trim();
-    const phone = String(row.phone ?? "").trim();
-    const logoUrlRaw = (String(row.logo_url ?? "").trim()) || null;
-    const reviewCount = Number(row.review_count ?? 0);
-    const averageRating = Number(row.average_rating ?? 0);
-    return {
-      id: String(row.id ?? ""),
-      name: String(row.name ?? "Business"),
-      slug: String(row.slug ?? ""),
-      website: cleanDomain(String(row.website_display ?? row.website ?? "")),
-      logoUrl: normalizeLogoUrl(logoUrlRaw),
-      trustScore: row.trust_score != null ? Number(row.trust_score) : null,
-      reviewCount,
-      averageRating,
-      rating1Count: Number(row.rating_1_count ?? 0),
-      rating2Count: Number(row.rating_2_count ?? 0),
-      rating3Count: Number(row.rating_3_count ?? 0),
-      rating4Count: Number(row.rating_4_count ?? 0),
-      rating5Count: Number(row.rating_5_count ?? 0),
-      countryCode: countryCode || (String(row.country_code ?? "")),
-      address,
-      city: city || (String(row.city ?? "")),
-      description: String(row.description ?? "").trim(),
-      categorySlug: String(row.category_slug ?? ""),
-      categoryGroupSlug: row.primary_group_slug
-        ? String(row.primary_group_slug)
-        : null,
-      categoryGroupName: row.primary_group_name
-        ? String(row.primary_group_name)
-        : null,
-      categoryName: row.category_name ? String(row.category_name) : null,
-      tags: mergeTagsForDisplay(
-        row.tags,
-        row.secondary_category_slugs,
-        (row.category_slug ?? null) as string | null,
-      ),
-      status: String(row.status ?? "active"),
-      email,
-      phone,
-    };
+    return mapBusinessFromRow(initialBusiness);
   });
   const [reviews, setReviews] = useState<Review[]>(() =>
     ssrReviewSeed ? [...initialReviews!] : [],
@@ -548,52 +555,7 @@ export default function BusinessClient({
         return;
       }
 
-      const row = businessRow as Record<string, unknown>;
-      let address = (row.address ?? "").toString().trim();
-      let city = (row.city ?? "").toString().trim();
-      let countryCode = (row.country_code ?? "").toString().trim();
-      let email = (row.email ?? "").toString().trim();
-      let phone = (row.phone ?? "").toString().trim();
-      const logoUrlRaw: string | null = ((row.logo_url ?? "").toString().trim()) || null;
-      const reviewCount = Number(row.review_count ?? 0);
-      const averageRating = Number(row.average_rating ?? 0);
-
-      if (!isMounted) return;
-
-      setBusiness({
-        id: row.id as string,
-        name: (row.name ?? "Business") as string,
-        slug: (row.slug ?? "") as string,
-        website: cleanDomain(
-          (row.website_display ?? row.website ?? "").toString()
-        ),
-        logoUrl: normalizeLogoUrl(logoUrlRaw),
-        trustScore:
-          row.trust_score != null ? Number(row.trust_score) : null,
-        reviewCount,
-        averageRating,
-        rating1Count: Number(row.rating_1_count ?? 0),
-        rating2Count: Number(row.rating_2_count ?? 0),
-        rating3Count: Number(row.rating_3_count ?? 0),
-        rating4Count: Number(row.rating_4_count ?? 0),
-        rating5Count: Number(row.rating_5_count ?? 0),
-        countryCode: countryCode || ((row.country_code ?? "").toString()),
-        address,
-        city: city || ((row.city ?? "").toString()),
-        description: (row.description ?? "").toString().trim(),
-        categorySlug: (row.category_slug ?? "").toString(),
-        categoryGroupSlug: (row.primary_group_slug ?? null) as string | null,
-        categoryGroupName: (row.primary_group_name ?? null) as string | null,
-        categoryName: (row.category_name ?? null) as string | null,
-        tags: mergeTagsForDisplay(
-        row.tags,
-        row.secondary_category_slugs,
-        (row.category_slug ?? null) as string | null,
-      ),
-        status: (row.status ?? "active") as string,
-        email,
-        phone,
-      });
+      setBusiness(mapBusinessFromRow(businessRow as Record<string, unknown>));
       setIsLoadingBusiness(false);
     };
 
@@ -1186,16 +1148,18 @@ export default function BusinessClient({
     [business?.tags, business?.categorySlug],
   );
 
-  const profileIntro = useMemo(() => {
+  const profileTagline = useMemo(() => {
     if (!business?.name?.trim()) return "";
-    return buildBusinessProfileIntro({
+    const intro = buildBusinessProfileIntro({
       name: business.name,
       city: business.city,
       countryCode: business.countryCode,
       categoryLabel: categoryPublicLabel || null,
       tagSlugs: profileTagSlugs,
       reviewCount: derivedReviewCount,
-    });
+    }).trim();
+    if (intro) return intro;
+    return `Tellacity collects verified customer reviews to help people make informed decisions. Read real ${sanitizeText(business.name)} reviews or share your experience.`;
   }, [
     business?.name,
     business?.city,
@@ -1316,7 +1280,7 @@ export default function BusinessClient({
               rel="nofollow"
               className="biz-btn-claim inline-flex shrink-0 items-center self-start rounded-full px-3 py-1.5 text-xs font-semibold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00B4A6]/40"
             >
-              Claim this profile
+              Claim this Profile - Free
             </Link>
           ) : null}
         </div>
@@ -1414,6 +1378,11 @@ export default function BusinessClient({
                       ))}
                     </div>
                   ) : null}
+                  {profileTagline ? (
+                    <p className="biz-hero-tagline mt-3 max-w-2xl text-sm text-gray-600">
+                      {profileTagline}
+                    </p>
+                  ) : null}
                 </>
               )}
               <div className="mt-4 flex flex-wrap gap-3">
@@ -1453,15 +1422,6 @@ export default function BusinessClient({
               </div>
             </div>
           </div>
-          {business && profileIntro ? (
-            <p className="biz-hero-tagline mt-2 max-w-2xl text-sm text-gray-600">
-              {profileIntro}
-            </p>
-          ) : business ? (
-            <p className="biz-hero-tagline mt-2 max-w-2xl text-sm">
-              Tellacity collects verified customer reviews to help people make informed decisions. Read real {sanitizeText(business.name)} reviews or share your experience.
-            </p>
-          ) : null}
         </div>
         </div>
 

@@ -74,6 +74,8 @@ export type AdminBusinessRow = {
    * profile but are omitted from the homepage feed (`home_feed_v2`).
    */
   exclude_reviews_from_home_feed?: boolean | null;
+  /** Highest risk_status among this business's reviews (admin_list_businesses_v2). */
+  highest_review_risk?: string | null;
   created_at?: string | null;
 } & Record<string, unknown>;
 
@@ -94,6 +96,9 @@ export type AdminReviewRow = {
   /** Moderation: visible | hidden | landing_hidden */
   visibility?: string | null;
   is_flagged?: boolean | null;
+  risk_score?: number | null;
+  risk_status?: string | null;
+  moderation_reason?: string | null;
   /** True if at least one guidelines warning email was logged for this review */
   prior_guidelines_warning?: boolean | null;
   created_at?: string | null;

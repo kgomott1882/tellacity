@@ -19,6 +19,24 @@ export function getCountryName(code: string | null | undefined): string {
 
 const EMPTY_PLACEHOLDERS = ["[unknown]", "[null]", "unknown", "n/a", "na"];
 
+/** True when a stored location or label field is a DB placeholder, not real copy. */
+export function isPlaceholderLocation(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim().toLowerCase();
+  if (!t) return true;
+  return EMPTY_PLACEHOLDERS.some((p) => t === p.toLowerCase());
+}
+
+/** Strip placeholder tokens from address, city, and similar fields for public display. */
+export function cleanLocationField(value: string | null | undefined): string {
+  return treatAsEmpty((value ?? "").toString());
+}
+
+/** Public business name with placeholder fallbacks removed. */
+export function cleanBusinessDisplayName(value: string | null | undefined): string {
+  const cleaned = cleanLocationField(value);
+  return cleaned || "Business";
+}
+
 function treatAsEmpty(s: string): string {
   const t = (s ?? "").trim().toLowerCase();
   if (!t) return "";

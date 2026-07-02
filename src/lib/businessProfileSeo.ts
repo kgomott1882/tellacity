@@ -1,4 +1,4 @@
-import { getCountryName } from "@/lib/address";
+import { getCountryName, cleanLocationField } from "@/lib/address";
 import { normalizeCountryCode } from "@/lib/country";
 import { formatBusinessTagLabel } from "@/lib/businessTags";
 
@@ -54,7 +54,7 @@ export function buildBusinessProfileIntro(input: BusinessProfileIntroInput): str
   const name = String(input.name ?? "").trim();
   if (!name) return "";
 
-  const city = String(input.city ?? "").trim();
+  const city = cleanLocationField(input.city);
   const countryName = getCountryName(input.countryCode);
   const location =
     city && countryName ? `${city}, ${countryName}` : city || countryName || "";

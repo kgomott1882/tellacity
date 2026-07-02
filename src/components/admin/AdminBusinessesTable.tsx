@@ -85,6 +85,7 @@ function AdminModeBadge({
 
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminRiskBadge from "@/components/admin/AdminRiskBadge";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import type { AdminBusinessRow } from "@/lib/admin";
 import { COUNTRIES, adminCountryDisplay } from "@/lib/adminCountries";
@@ -165,6 +166,7 @@ export default function AdminBusinessesTable() {
   const [submissionFilter, setSubmissionFilter] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [riskFilter, setRiskFilter] = useState("");
   const [limit, setLimit] = useState(50);
   const [page, setPage] = useState(1);
 
@@ -589,6 +591,7 @@ export default function AdminBusinessesTable() {
     countryFilter,
     categoryFilter,
     adminActionPreset,
+    riskFilter,
   ]);
 
   const visibleIds = useMemo(
@@ -634,36 +637,32 @@ export default function AdminBusinessesTable() {
       setLoading(true);
       setListError(null);
       const supabase = supabaseBrowser();
-      const search_term = debouncedSearch.length > 0 ? debouncedSearch : null;
-      const status_filter = statusFilter.length > 0 ? statusFilter : null;
-      const submission_filter = submissionFilter.length > 0 ? submissionFilter : null;
-      const country_filter = countryFilter.length > 0 ? countryFilter : null;
-      const category_filter = categoryFilter.length > 0 ? categoryFilter : null;
-      const admin_action_filter =
-        adminActionPreset.length > 0 ? adminActionPreset : null;
+      // Empty strings (not null) so PostgREST always matches the full RPC signatures.
+      const search_term = debouncedSearch.trim() || "";
+      const status_filter = statusFilter.trim() || "";
+      const submission_filter = submissionFilter.trim() || "";
+      const country_filter = countryFilter.trim() || "";
+      const category_filter = categoryFilter.trim() || "";
+      const admin_action_filter = adminActionPreset.trim() || "";
+      const risk_filter = riskFilter.trim() || "";
       const offset_count = (page - 1) * limit;
 
+      const rpcBase = {
+        search_term,
+        status_filter,
+        submission_filter,
+        country_filter,
+        category_filter,
+        admin_action_filter,
+        risk_filter,
+      };
+
       try {
-        const [listRes, countRes] = await Promise.all([
-          supabase.rpc("admin_list_businesses_v2", {
-            search_term,
-            status_filter,
-            submission_filter,
-            country_filter,
-            category_filter,
-            admin_action_filter,
-            limit_count: limit,
-            offset_count,
-          }),
-          supabase.rpc("admin_count_businesses_v2", {
-            search_term,
-            status_filter,
-            submission_filter,
-            country_filter,
-            category_filter,
-            admin_action_filter,
-          }),
-        ]);
+        const listRes = await supabase.rpc("admin_list_businesses_v2", {
+          ...rpcBase,
+          limit_count: limit,
+          offset_count,
+        });
 
         if (cancelled) return;
 
@@ -671,15 +670,23 @@ export default function AdminBusinessesTable() {
           setListError(listRes.error.message);
           setRows([]);
           setTotalCount(0);
+          return;
+        }
+
+        const list = (Array.isArray(listRes.data) ? listRes.data : []) as AdminBusinessRow[];
+        setRows(list);
+        setListError(null);
+        setTotalCount(
+          list.length < limit ? (page - 1) * limit + list.length : page * limit + 1,
+        );
+
+        // Count is best-effort; do not block the table if it times out.
+        const countRes = await supabase.rpc("admin_count_businesses_v2", rpcBase);
+        if (cancelled) return;
+        if (!countRes.error) {
+          setTotalCount(parseRpcCount(countRes.data));
         } else {
-          const list = (Array.isArray(listRes.data) ? listRes.data : []) as AdminBusinessRow[];
-          setRows(list);
-          if (countRes.error) {
-            setListError(countRes.error.message);
-            setTotalCount((page - 1) * limit + list.length);
-          } else {
-            setTotalCount(parseRpcCount(countRes.data));
-          }
+          console.warn("[admin businesses] count RPC failed:", countRes.error.message);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -697,6 +704,7 @@ export default function AdminBusinessesTable() {
     countryFilter,
     categoryFilter,
     adminActionPreset,
+    riskFilter,
     limit,
     page,
     listRefreshToken,
@@ -747,6 +755,11 @@ export default function AdminBusinessesTable() {
 
   const handleCategoryChange = (v: string) => {
     setCategoryFilter(v);
+    setPage(1);
+  };
+
+  const handleRiskChange = (v: string) => {
+    setRiskFilter(v);
     setPage(1);
   };
 
@@ -914,6 +927,17 @@ export default function AdminBusinessesTable() {
               <option value="approved">Approved</option>
               <option value="suspended">Suspended</option>
             </select>
+            <select
+              value={riskFilter}
+              onChange={(e) => handleRiskChange(e.target.value)}
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+              title="Highest review risk filter"
+            >
+              <option value="">All risk levels</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
             <div className="flex items-center gap-1.5">
               <label
                 htmlFor="admin-biz-country-filter"
@@ -1045,6 +1069,7 @@ export default function AdminBusinessesTable() {
                   <th className="px-3 py-2 font-medium">Country</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Submission</th>
+                  <th className="px-3 py-2 font-medium">Risk</th>
                   <th className="px-3 py-2 font-medium">Category</th>
                   <th className="px-3 py-2 font-medium">Source</th>
                   <th className="px-3 py-2 font-medium">Created</th>
@@ -1054,13 +1079,13 @@ export default function AdminBusinessesTable() {
               <tbody className="divide-y divide-neutral-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Loading…
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-3 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-sm text-neutral-500">
                       Unable to load businesses.
                     </td>
                   </tr>
@@ -1176,6 +1201,9 @@ export default function AdminBusinessesTable() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
                           {row.submission_status?.trim() || "-"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-neutral-700">
+                          <AdminRiskBadge status={row.highest_review_risk} />
                         </td>
                         <td
                           className="max-w-[120px] truncate px-3 py-2 text-neutral-700"

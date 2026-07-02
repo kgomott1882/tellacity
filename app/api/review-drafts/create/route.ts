@@ -12,6 +12,8 @@ import {
   reviewInviteRowIsExpired,
   type InviteRowRecord,
 } from "@/lib/reviewInviteValidation";
+import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
+import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -189,6 +191,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invite expired" }, { status: 400 });
     }
 
+    const clientIp = getClientIpFromRequest(req);
+
     const reviewPayload = {
       business_id,
       rating: Math.round(ratingNum),
@@ -208,6 +212,7 @@ export async function POST(req: Request) {
       reference_number: null,
       user_id: null,
       is_flagged: false,
+      ip_address: clientIp,
     };
 
     const { data: insertedRow, error: insertReviewError } = await supabase
@@ -267,6 +272,7 @@ export async function POST(req: Request) {
         user_id?: string | null;
         rating: number;
       };
+      await applyReviewRiskAfterInsert(supabase, r.id);
       await logReviewReceivedActivity({
         businessId: r.business_id,
         userId: r.user_id ?? null,

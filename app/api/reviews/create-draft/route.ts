@@ -25,6 +25,8 @@ import {
   reviewInviteRowIsExpired,
   type InviteRowRecord,
 } from "@/lib/reviewInviteValidation";
+import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
+import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -411,6 +413,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
 
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const clientIp = getClientIpFromRequest(req);
 
   const suspendedGuest = await assertBusinessAcceptsPublicReviews(
     supabase,
@@ -514,6 +517,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           reference_number,
           invite_id: inviteId,
           is_flagged: false,
+          ip_address: clientIp,
           ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
         })
         .select("id")
@@ -555,6 +559,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         .eq("id", inviteId);
 
       if (review?.id) {
+        await applyReviewRiskAfterInsert(supabase, review.id);
         await logReviewReceivedActivity({
           businessId: business_id,
           userId: null,
@@ -686,6 +691,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
           receipt_url,
           reference_number,
           is_flagged: false,
+          ip_address: clientIp,
           user_id: isGoogleUser ? authUser?.id : null,
           ...(productPhotoIdResolved ? { product_photo_id: productPhotoIdResolved } : {}),
         })
@@ -713,6 +719,7 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
         return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
       }
 
+      await applyReviewRiskAfterInsert(supabase, inserted.id);
       await logReviewReceivedActivity({
         businessId: business_id,
         userId: authUser?.id ?? null,

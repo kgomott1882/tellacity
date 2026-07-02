@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import AdminActionMessage from "@/components/admin/AdminActionMessage";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminRiskBadge from "@/components/admin/AdminRiskBadge";
 import AdminTableShell from "@/components/admin/AdminTableShell";
 import { COUNTRIES } from "@/lib/adminCountries";
 import { createClient } from "@supabase/supabase-js";
@@ -12,6 +13,7 @@ type PageProps = {
   searchParams: Promise<{
     plan?: string;
     activity?: string;
+    risk?: string;
     country?: string;
     page?: string;
   }>;
@@ -28,11 +30,13 @@ type InsightRow = {
   last_activity: string | null;
   last_invite: string | null;
   last_review: string | null;
+  highest_review_risk: string | null;
 };
 
 const PLANS = ["free", "grow", "premium", "elite"] as const;
 
 type ActivityFilter = "all" | "active" | "at_risk" | "dead";
+type RiskFilter = "all" | "low" | "medium" | "high";
 
 function normalizePlan(raw: string | undefined): (typeof PLANS)[number] | "" {
   const v = raw?.trim().toLowerCase();
@@ -43,6 +47,12 @@ function normalizePlan(raw: string | undefined): (typeof PLANS)[number] | "" {
 function normalizeActivity(raw: string | undefined): ActivityFilter {
   const v = raw?.trim().toLowerCase();
   if (v === "active" || v === "at_risk" || v === "dead") return v;
+  return "all";
+}
+
+function normalizeRisk(raw: string | undefined): RiskFilter {
+  const v = raw?.trim().toLowerCase();
+  if (v === "low" || v === "medium" || v === "high") return v;
   return "all";
 }
 
@@ -94,6 +104,11 @@ function matchesActivityFilter(
   return true;
 }
 
+function matchesRiskFilter(row: InsightRow, filter: RiskFilter): boolean {
+  if (filter === "all") return true;
+  return (row.highest_review_risk ?? "").trim().toLowerCase() === filter;
+}
+
 function conversionRate(reviews: number, invites: number): string {
   if (invites <= 0) return "-";
   return `${((reviews / invites) * 100).toFixed(1)}%`;
@@ -104,6 +119,7 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const planFilter = normalizePlan(searchParams.plan);
   const activityFilter = normalizeActivity(searchParams.activity);
+  const riskFilter = normalizeRisk(searchParams.risk);
   const countryFilter = normalizeCountry(searchParams.country);
   const requestedPage = normalizePage(searchParams.page);
 
@@ -150,22 +166,26 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
       last_activity: (r.last_activity as string | null) ?? null,
       last_invite: (r.last_invite as string | null) ?? null,
       last_review: (r.last_review as string | null) ?? null,
+      highest_review_risk: (r.highest_review_risk as string | null) ?? null,
     };
   });
 
   const afterActivity = mapped.filter((row) => matchesActivityFilter(row, activityFilter, now));
-  const totalRows = afterActivity.length;
+  const afterRisk = afterActivity.filter((row) => matchesRiskFilter(row, riskFilter));
+  const totalRows = afterRisk.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
   const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = afterActivity.slice(pageStart, pageStart + PAGE_SIZE);
+  const pageRows = afterRisk.slice(pageStart, pageStart + PAGE_SIZE);
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
   const hasFilters =
-    Boolean(planFilter || countryFilter) || activityFilter !== "all";
+    Boolean(planFilter || countryFilter) ||
+    activityFilter !== "all" ||
+    riskFilter !== "all";
   const emptyMessage =
-    afterActivity.length === 0 && (mapped.length > 0 || hasFilters)
+    afterRisk.length === 0 && (mapped.length > 0 || hasFilters)
       ? "No businesses match your filters."
       : "No businesses found.";
 
@@ -199,6 +219,17 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
               <option value="active">Active (under 3 days)</option>
               <option value="at_risk">At risk (3–14 days)</option>
               <option value="dead">Dead (over 14 days)</option>
+            </select>
+
+            <select
+              name="risk"
+              defaultValue={riskFilter}
+              className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+            >
+              <option value="all">All risk levels</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
 
             <select
@@ -237,6 +268,7 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
                   <th className="px-3 py-2 font-medium">Total Reviews</th>
                   <th className="px-3 py-2 font-medium">Conversion</th>
                   <th className="px-3 py-2 font-medium">Activity</th>
+                  <th className="px-3 py-2 font-medium">Risk</th>
                   <th className="px-3 py-2 font-medium">Last Activity</th>
                   <th className="px-3 py-2 font-medium">Last Invite</th>
                   <th className="px-3 py-2 font-medium">Last Review</th>
@@ -274,6 +306,9 @@ export default async function AdminBusinessInsightsPage(props: PageProps) {
                         >
                           {status}
                         </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <AdminRiskBadge status={row.highest_review_risk} />
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                         {formatDate(row.last_activity)}

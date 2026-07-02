@@ -17,6 +17,9 @@ import BusinessDetailPhotos, {
 import BusinessDetailArticles, {
   type AdminArticleRow,
 } from "./BusinessDetailArticles";
+import BusinessDetailReviews, {
+  type AdminBusinessDetailReviewRow,
+} from "./BusinessDetailReviews";
 import {
   adminDetailActivateAction,
   adminDetailApproveAction,
@@ -217,13 +220,15 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
   let pendingPhotoCount = 0;
   let initialArticles: AdminArticleRow[] = [];
   let pendingArticleCount = 0;
+  let initialReviews: AdminBusinessDetailReviewRow[] = [];
+  let flaggedReviewCount = 0;
   if (business?.id) {
     try {
       const { supabaseUrl, serviceRoleKey } = getServerEnv();
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false },
       });
-      const [{ data: photoRows }, { data: articleRows }, { data: ownerLink }] =
+      const [{ data: photoRows }, { data: articleRows }, { data: ownerLink }, { data: reviewRows }] =
         await Promise.all([
         admin
           .from("business_photos")
@@ -245,6 +250,13 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
           .select("owner_user_id")
           .eq("business_id", business.id)
           .maybeSingle(),
+        admin
+          .from("reviews")
+          .select(
+            "id, rating, title, body, guest_name, guest_email, author_email, created_at, risk_score, risk_status, is_flagged, moderation_reason, visibility, invite_id, status",
+          )
+          .eq("business_id", business.id)
+          .order("created_at", { ascending: false }),
       ]);
       businessOwnerLinkId =
         ownerLink?.owner_user_id != null ? String(ownerLink.owner_user_id) : null;
@@ -257,6 +269,8 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
       pendingArticleCount = initialArticles.filter(
         (a) => a.status === "pending_review",
       ).length;
+      initialReviews = (reviewRows ?? []) as AdminBusinessDetailReviewRow[];
+      flaggedReviewCount = initialReviews.filter((r) => r.is_flagged === true).length;
     } catch (e) {
       console.error("[admin business detail] preload photos/articles", e);
     }
@@ -285,6 +299,19 @@ export default async function AdminBusinessDetailPage(props: PageProps) {
           <BusinessDetailTabs
             pendingPhotoCount={pendingPhotoCount}
             pendingArticleCount={pendingArticleCount}
+            flaggedReviewCount={flaggedReviewCount}
+            reviews={
+              business?.id ? (
+                <BusinessDetailReviews
+                  businessId={String(business.id)}
+                  reviews={initialReviews}
+                />
+              ) : (
+                <div className="text-sm text-neutral-500">
+                  Reviews unavailable for this record.
+                </div>
+              )
+            }
             photos={
               business?.id ? (
                 <BusinessDetailPhotos

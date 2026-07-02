@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
 import { REVIEWS_PUBLIC_VISIBILITY_OR } from "@/lib/reviewVisibility";
+import { cleanLocationField } from "@/lib/address";
 import RatingStars from "@/components/RatingStars";
 import { MapPin, Phone, Globe } from "lucide-react";
 
@@ -155,12 +156,12 @@ export default function LocationProfilePage({
   const fullAddress = useMemo(() => {
     if (!location) return "";
     const parts = [
-      location.address,
-      location.street_address_2,
-      location.city,
-      location.state_region,
-      location.postcode,
-      location.country_code,
+      cleanLocationField(location.address),
+      cleanLocationField(location.street_address_2),
+      cleanLocationField(location.city),
+      cleanLocationField(location.state_region),
+      cleanLocationField(location.postcode),
+      cleanLocationField(location.country_code),
     ].filter(Boolean);
     return parts.join(", ");
   }, [location]);
@@ -178,11 +179,13 @@ export default function LocationProfilePage({
       address: fullAddress
         ? {
             "@type": "PostalAddress",
-            streetAddress: [location.address, location.street_address_2].filter(Boolean).join(", "),
-            addressLocality: location.city ?? undefined,
-            addressRegion: location.state_region ?? undefined,
-            postalCode: location.postcode ?? undefined,
-            addressCountry: location.country_code ?? undefined,
+            streetAddress: [cleanLocationField(location.address), cleanLocationField(location.street_address_2)]
+              .filter(Boolean)
+              .join(", "),
+            addressLocality: cleanLocationField(location.city) || undefined,
+            addressRegion: cleanLocationField(location.state_region) || undefined,
+            postalCode: cleanLocationField(location.postcode) || undefined,
+            addressCountry: cleanLocationField(location.country_code) || undefined,
           }
         : undefined,
       telephone: location.phone ?? undefined,

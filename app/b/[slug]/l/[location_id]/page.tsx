@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import LocationProfilePage from "./LocationProfilePage";
+import { cleanLocationField } from "@/lib/address";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -97,12 +98,12 @@ export default async function LocationPage({
     "@type": "LocalBusiness",
     name: locData.name || bizData.name,
     url: `https://tellacity.com/b/${bizData.slug}/l/${location_id}`,
-    address: locData.address
+    address: cleanLocationField(locData.address)
       ? {
           "@type": "PostalAddress",
-          streetAddress: locData.address,
-          addressLocality: locData.city || undefined,
-          addressCountry: locData.country_code || undefined,
+          streetAddress: cleanLocationField(locData.address),
+          addressLocality: cleanLocationField(locData.city) || undefined,
+          addressCountry: cleanLocationField(locData.country_code) || undefined,
         }
       : undefined,
   };

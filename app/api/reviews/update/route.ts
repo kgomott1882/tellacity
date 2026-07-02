@@ -12,6 +12,8 @@ import {
   SAME_DOMAIN_REVIEW_ERROR_CODE,
   SAME_DOMAIN_REVIEW_MESSAGE,
 } from "@/lib/reviewBusinessSelfReview";
+import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
+import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
 
 type Body = {
   business_id?: string;
@@ -162,6 +164,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
+      const clientIp = getClientIpFromRequest(req);
+
       const { data: inserted, error: insertErr } = await supabase
         .from("reviews")
         .insert({
@@ -179,6 +183,7 @@ export async function POST(req: Request) {
           imported: false,
           is_flagged: false,
           user_id: user?.id ?? null,
+          ip_address: clientIp,
         })
         .select("id, business_id, user_id, rating")
         .single();
@@ -196,6 +201,7 @@ export async function POST(req: Request) {
           user_id: string | null;
           rating: number;
         };
+        await applyReviewRiskAfterInsert(supabase, ins.id);
         await logReviewReceivedActivity({
           businessId: ins.business_id,
           userId: ins.user_id,

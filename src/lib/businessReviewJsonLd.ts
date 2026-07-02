@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleanLocationField } from "@/lib/address";
 import {
   type BusinessProfileReview,
   BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
@@ -63,10 +64,10 @@ function buildPostalAddress(
     "address" | "city" | "postcode" | "countryCode"
   >,
 ): Record<string, unknown> | undefined {
-  const streetAddress = String(opts.address ?? "").trim();
-  const addressLocality = String(opts.city ?? "").trim();
-  const postalCode = String(opts.postcode ?? "").trim();
-  const addressCountry = String(opts.countryCode ?? "").trim().toUpperCase();
+  const streetAddress = cleanLocationField(opts.address);
+  const addressLocality = cleanLocationField(opts.city);
+  const postalCode = cleanLocationField(opts.postcode);
+  const addressCountry = cleanLocationField(opts.countryCode).toUpperCase();
 
   if (!streetAddress && !addressLocality && !postalCode && !addressCountry) {
     return undefined;

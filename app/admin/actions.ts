@@ -21,6 +21,23 @@ export type AdminReviewModerationResult =
     }
   | { ok: false; error: string };
 
+export async function adminMarkReviewRiskReviewedAction(
+  reviewId: string,
+): Promise<AdminReviewModerationResult> {
+  console.log("[admin] adminMarkReviewRiskReviewedAction", reviewId);
+  const supabase = await guard();
+  const { error } = await supabase
+    .from("reviews")
+    .update({ is_flagged: false })
+    .eq("id", reviewId);
+  if (error) {
+    return { ok: false, error: error.message ?? "Failed to mark review as reviewed" };
+  }
+  revalidatePath("/admin/reviews");
+  revalidatePath("/admin/businesses");
+  return { ok: true, reviewId, nextFlagged: false };
+}
+
 export async function adminUpdateReviewVisibilityAction(
   reviewId: string,
   newStatus: "visible" | "hidden" | "landing_hidden"

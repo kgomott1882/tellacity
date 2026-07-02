@@ -9,7 +9,7 @@ import {
 } from "@/lib/loadPublicBusinessPhotos";
 import { cleanSlugForRedirect } from "@/lib/businessSlug";
 import { isBusinessPubliclyActive } from "@/lib/businessPublicAccess";
-import { getCountryName } from "@/lib/address";
+import { getCountryName, cleanLocationField, cleanBusinessDisplayName } from "@/lib/address";
 import { buildBusinessProfileJsonLdScripts } from "@/lib/businessReviewJsonLd";
 import {
   BUSINESS_PROFILE_REVIEWS_JSON_LD_LIMIT,
@@ -123,19 +123,24 @@ export async function generateMetadata(
     };
   }
 
-  const name = String(business.name ?? "").trim() || slug;
+  const name = cleanBusinessDisplayName(String(business.name ?? "").trim() || slug);
   const canonicalSlug = pickCanonicalSlug(business);
   const profileIndexable =
     isCanonicalBusinessProfileUrl(normalized, canonicalSlug) &&
     isIndexableBusinessSlug(canonicalSlug);
   const countryCode = String(business.country_code ?? "").trim();
+  const cityLabel = cleanLocationField(business.city);
   const countryLabel =
     getCountryName(countryCode) ||
-    String(business.city ?? "").trim() ||
+    cityLabel ||
     countryCode ||
     "your region";
+  const locationPhrase =
+    countryLabel && countryLabel !== "your region"
+      ? ` in ${countryLabel}`
+      : "";
   const pageTitle = `${name} Reviews | Ratings, Photos & TrustScore | Tellacity`;
-  const pageDescription = `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, TrustScore, and real customer experiences on Tellacity.`;
+  const pageDescription = `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, TrustScore, and real customer experiences on Tellacity.`;
   const canonicalUrl = `https://tellacity.com/b/${canonicalSlug}`;
 
   return {
@@ -144,7 +149,7 @@ export async function generateMetadata(
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${name} Reviews | Tellacity`,
-      description: `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, and TrustScore on Tellacity.`,
+      description: `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, and TrustScore on Tellacity.`,
       url: canonicalUrl,
       siteName: "Tellacity",
       type: "website",
@@ -152,7 +157,7 @@ export async function generateMetadata(
     twitter: {
       card: "summary_large_image",
       title: `${name} Reviews | Tellacity`,
-      description: `Read verified customer reviews of ${name} in ${countryLabel}. See photos, category rankings, and TrustScore on Tellacity.`,
+      description: `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, and TrustScore on Tellacity.`,
     },
     robots: businessProfileRobots(profileIndexable),
   };
@@ -288,13 +293,13 @@ export default async function BusinessPage({
 
   const businessJsonLdScripts = await buildBusinessProfileJsonLdScripts(supabase, {
     businessId,
-    name: String((business as { name?: string | null }).name ?? ""),
+    name: cleanBusinessDisplayName((business as { name?: string | null }).name),
     url: `https://tellacity.com/b/${canonicalSlugForJsonLd}`,
     logoUrl: (business as { logo_url?: string | null }).logo_url,
     phone: (business as { phone?: string | null }).phone,
     email: (business as { email?: string | null }).email,
-    address: (business as { address?: string | null }).address,
-    city: (business as { city?: string | null }).city,
+    address: cleanLocationField((business as { address?: string | null }).address),
+    city: cleanLocationField((business as { city?: string | null }).city),
     postcode: (business as { postcode?: string | null }).postcode,
     countryCode: (business as { country_code?: string | null }).country_code,
     photos: initialBusinessPhotos.map((photo) => ({
