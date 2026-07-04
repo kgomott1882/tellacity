@@ -18,11 +18,7 @@ import {
   type BusinessProfileReview,
 } from "@/lib/businessProfileReviews";
 import { getPublishedVisibleReviewAggregates } from "@/lib/reviewAggregatesForBusiness";
-import {
-  businessProfileRobots,
-  isCanonicalBusinessProfileUrl,
-  isIndexableBusinessSlug,
-} from "@/lib/businessIndexability";
+import { businessProfileRobots } from "@/lib/businessIndexability";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -125,9 +121,6 @@ export async function generateMetadata(
 
   const name = cleanBusinessDisplayName(String(business.name ?? "").trim() || slug);
   const canonicalSlug = pickCanonicalSlug(business);
-  const profileIndexable =
-    isCanonicalBusinessProfileUrl(normalized, canonicalSlug) &&
-    isIndexableBusinessSlug(canonicalSlug);
   const countryCode = String(business.country_code ?? "").trim();
   const cityLabel = cleanLocationField(business.city);
   const countryLabel =
@@ -159,7 +152,7 @@ export async function generateMetadata(
       title: `${name} Reviews | Tellacity`,
       description: `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, and TrustScore on Tellacity.`,
     },
-    robots: businessProfileRobots(profileIndexable),
+    robots: businessProfileRobots(),
   };
 }
 

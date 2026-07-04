@@ -23,21 +23,7 @@ export function isIndexableBusinessSlug(slug: string | null | undefined): boolea
   return true;
 }
 
-/**
- * Discover-first: active public profiles are indexable regardless of reviews
- * or claim status. Alias slug URLs use noindex so Google consolidates on the
- * canonical profile URL (same pattern large directories use at scale).
- */
-export function businessProfileRobots(indexable: boolean) {
-  return indexable
-    ? ({ index: true, follow: true } as const)
-    : ({ index: false, follow: true } as const);
-}
-
-/** Only the canonical slug URL should be indexable; alias slugs consolidate via canonical. */
-export function isCanonicalBusinessProfileUrl(
-  requestedSlug: string,
-  canonicalSlug: string,
-): boolean {
-  return requestedSlug.trim().toLowerCase() === canonicalSlug.trim().toLowerCase();
+/** Stopgap: active public profile URLs stay indexable on their existing slug. */
+export function businessProfileRobots() {
+  return { index: true, follow: true } as const;
 }
