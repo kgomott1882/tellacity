@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
-import SuspendedBusinessPublicView from "@/components/public/SuspendedBusinessPublicView";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
 import {
   createPlanResolutionAdminClient,
@@ -98,20 +97,6 @@ export async function generateMetadata(
     }
   }
 
-  // Canonical-slug fallback: when the URL happens to be the brand-clean
-  // canonical (e.g. `/b/tadibrothers` while the row lives at
-  // `/b/tadibrothers-reseda`), resolve via `canonical_slug` so the page
-  // still serves 200 and emits a clean canonical tag.
-  if (!business) {
-    const { data: byCanonical } = await supabase
-      .from("businesses")
-      .select(BUSINESS_META_SELECT)
-      .eq("canonical_slug", normalized)
-      .eq("status", "active")
-      .maybeSingle();
-    business = byCanonical ?? null;
-  }
-
   if (!business) {
     return {
       title: `${slug} Reviews | Tellacity`,
@@ -200,28 +185,11 @@ export default async function BusinessPage({
     business &&
     !isBusinessPubliclyActive((business as { status?: string | null }).status)
   ) {
-    const nm = String((business as { name?: string | null }).name ?? "").trim();
-    return <SuspendedBusinessPublicView businessName={nm || undefined} />;
+    return notFound();
   }
 
   if (!business) {
-    // Canonical-slug fallback: `/b/<canonical_slug>` should ALSO serve 200
-    // so the canonical advertised in <head> resolves cleanly. We no longer
-    // 308 here because that contradicts the canonical tag (loop) and Google
-    // refuses to index either side. Both URLs return 200 with the same row
-    // data; the canonical tag tells Google which to index.
-    const { data: byCanonical } = await supabase
-      .from("businesses")
-      .select("*")
-      .eq("canonical_slug", cleanSlug)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (byCanonical) {
-      business = byCanonical;
-    } else {
-      return notFound();
-    }
+    return notFound();
   }
 
   const planAdmin = createPlanResolutionAdminClient();

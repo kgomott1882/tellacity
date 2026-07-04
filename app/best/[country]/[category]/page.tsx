@@ -66,14 +66,29 @@ function snapshotRating(row: BusinessRow): number {
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { country, category } = await props.params;
   const normalizedCountry = normalizeCountryParam(country);
+  const storageCountry = normalizedCountry
+    ? toStorageCountryCode(normalizedCountry)
+    : country.toUpperCase();
   const countryName = normalizedCountry
     ? COUNTRY_LABELS[normalizedCountry]
     : toLabel(country);
-  const categoryName = toLabel(category);
+  const categorySlug = category.trim().toLowerCase();
+  const categoryName = toLabel(categorySlug);
+  const supabase = createClient();
+  const { count: exactActiveCount } = await supabase
+    .from("businesses")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("category_slug", categorySlug)
+    .eq("country_code", storageCountry);
 
   return {
     title: `Best ${categoryName} Companies in ${countryName} | Tellacity`,
     description: `Discover the best ${categoryName} companies in ${countryName} based on customer reviews and ratings.`,
+    robots:
+      exactActiveCount === 0
+        ? { index: false, follow: true }
+        : { index: true, follow: true },
   };
 }
 

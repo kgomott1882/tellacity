@@ -12,7 +12,7 @@ import { createSupabaseServerClient as createClient } from "@/lib/supabase/serve
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+const BASE_ARTICLES_METADATA: Metadata = {
   title: "Articles | Tellacity",
   description:
     "Tellacity articles, business guides, and case studies, reviews, trust, consumer safety, platform updates, and stories from verified businesses.",
@@ -36,6 +36,32 @@ type PageProps = {
     businessCategory?: string;
   }>;
 };
+
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const businessCategorySlug =
+    searchParams.businessCategory?.trim().toLowerCase() || null;
+
+  if (!businessCategorySlug) {
+    return BASE_ARTICLES_METADATA;
+  }
+
+  const supabase = createClient();
+  const result = await fetchHubArticles(supabase, {
+    typeFilter: parseArticleHubTypeFilter(searchParams.type),
+    categoryFilter: parseArticleCategoryFilter(searchParams.category),
+    businessCategorySlug,
+    page: Math.max(1, Number(searchParams.page ?? "1") || 1),
+  });
+
+  return {
+    ...BASE_ARTICLES_METADATA,
+    robots:
+      result.totalCount === 0
+        ? { index: false, follow: true }
+        : BASE_ARTICLES_METADATA.robots,
+  };
+}
 
 export default async function ArticlesHubPage(props: PageProps) {
   const searchParams = await props.searchParams;

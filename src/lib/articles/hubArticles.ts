@@ -142,21 +142,6 @@ async function fetchPlatformHubArticles(
   return rows.map(mapPlatformRowToHubCard);
 }
 
-async function fetchActiveBusinessIdsByCategory(
-  supabase: SupabaseClient,
-  categorySlug: string,
-): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("businesses")
-    .select("id")
-    .eq("category_slug", categorySlug)
-    .eq("status", "active")
-    .limit(200);
-
-  if (error || !data) return [];
-  return data.map((row) => String((row as { id: string }).id));
-}
-
 async function fetchBusinessHubArticles(
   supabase: SupabaseClient,
   typeFilter: ArticleHubTypeFilter,
@@ -167,22 +152,21 @@ async function fetchBusinessHubArticles(
   if (categoryFilter !== "All" && !businessCategorySlug) return [];
 
   const normalizedCategory = businessCategorySlug?.trim().toLowerCase() || null;
-  let businessIds: string[] | undefined;
-  if (normalizedCategory) {
-    businessIds = await fetchActiveBusinessIdsByCategory(supabase, normalizedCategory);
-    if (businessIds.length === 0) return [];
-  }
 
   let query = supabase
     .from("articles")
     .select(
-      "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, canonical_slug, category_slug, status)",
+      normalizedCategory
+        ? "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses!inner(name, slug, canonical_slug, category_slug, status)"
+        : "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, canonical_slug, category_slug, status)",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false });
 
-  if (businessIds?.length) {
-    query = query.in("business_id", businessIds);
+  if (normalizedCategory) {
+    query = query
+      .eq("businesses.category_slug", normalizedCategory)
+      .eq("businesses.status", "active");
   }
 
   if (typeFilter === "case_study") {
