@@ -14,22 +14,12 @@ export async function generateMetadata(
   const slug = business_slug.trim().toLowerCase();
   const supabase = createClient();
 
-  let { data: row } = await supabase
+  const { data: row } = await supabase
     .from("businesses")
-    .select("name, slug, canonical_slug")
+    .select("name, slug")
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
-
-  if (!row) {
-    const { data: byCanonical } = await supabase
-      .from("businesses")
-      .select("name, slug, canonical_slug")
-      .eq("canonical_slug", slug)
-      .eq("status", "active")
-      .maybeSingle();
-    row = byCanonical ?? null;
-  }
 
   const baseRobots = WRITE_REVIEW_ROBOTS;
 
@@ -41,13 +31,9 @@ export async function generateMetadata(
   }
 
   const name = String((row as { name?: string | null }).name ?? "").trim();
-  const canonicalSlug =
-    String((row as { canonical_slug?: string | null }).canonical_slug ?? "")
-      .trim()
-      .toLowerCase() ||
-    String((row as { slug?: string | null }).slug ?? slug)
-      .trim()
-      .toLowerCase();
+  const publicSlug = String((row as { slug?: string | null }).slug ?? slug)
+    .trim()
+    .toLowerCase();
 
   return {
     title: name
@@ -58,7 +44,7 @@ export async function generateMetadata(
       : "Submit a verified customer review on Tellacity.",
     robots: baseRobots,
     alternates: {
-      canonical: `https://tellacity.com/b/${canonicalSlug}`,
+      canonical: `https://tellacity.com/b/${publicSlug}`,
     },
   };
 }

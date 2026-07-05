@@ -33,7 +33,7 @@ export async function GET(req: Request, ctx: RouteParams) {
   const { data: business, error: bizErr } = await access.db
     .from("businesses")
     .select(
-      "id, name, slug, canonical_slug, logo_url, website, category_slug, description, city, country_code, address",
+      "id, name, slug, logo_url, website, category_slug, description, city, country_code, address",
     )
     .eq("id", businessId)
     .maybeSingle();
@@ -49,7 +49,7 @@ export async function GET(req: Request, ctx: RouteParams) {
     .eq("business_id", businessId)
     .maybeSingle();
 
-  const profileSlug = String(business.canonical_slug ?? business.slug ?? "");
+  const profileSlug = String(business.slug ?? "");
 
   return NextResponse.json({
     business: {

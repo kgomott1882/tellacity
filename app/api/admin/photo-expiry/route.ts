@@ -46,7 +46,6 @@ type BusinessRow = {
   id: string;
   name: string | null;
   slug: string | null;
-  canonical_slug: string | null;
   owner_id: string | null;
 };
 
@@ -190,7 +189,7 @@ export async function GET() {
 
   const { data: bizRows, error: bizErr } = await admin
     .from("businesses")
-    .select("id, name, slug, canonical_slug, owner_id")
+    .select("id, name, slug, owner_id")
     .in("id", freeBusinessIds);
   if (bizErr) {
     console.error("[admin/photo-expiry] businesses", bizErr);
@@ -243,8 +242,7 @@ export async function GET() {
     const biz = businessById.get(photo.business_id) ?? null;
     const ownerId = biz?.owner_id ?? null;
     const ownerProfile = ownerId ? profileById.get(ownerId) ?? null : null;
-    const canonical =
-      (biz?.canonical_slug ?? "").trim() || (biz?.slug ?? "").trim() || null;
+    const publicSlug = (biz?.slug ?? "").trim() || null;
 
     const decoratedPhoto = {
       ...photo,
@@ -271,7 +269,7 @@ export async function GET() {
     groupedMap.set(photo.business_id, {
       businessId: photo.business_id,
       businessName: biz?.name ?? null,
-      businessSlug: canonical,
+      businessSlug: publicSlug,
       ownerId,
       ownerEmail: ownerProfile?.email?.trim() || null,
       ownerName:

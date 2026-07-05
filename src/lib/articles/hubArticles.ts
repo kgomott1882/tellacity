@@ -59,7 +59,6 @@ function mapDbRowToHubCard(row: DbArticleRow): HubArticleCard | null {
   const biz = (Array.isArray(bizRaw) ? bizRaw[0] : bizRaw) as {
     name: string | null;
     slug: string | null;
-    canonical_slug?: string | null;
     category_slug: string | null;
     status?: string | null;
   } | null;
@@ -68,7 +67,7 @@ function mapDbRowToHubCard(row: DbArticleRow): HubArticleCard | null {
   const bizStatus = String(biz.status ?? "active").trim().toLowerCase();
   if (bizStatus !== "active") return null;
 
-  const profileSlug = String(biz.canonical_slug ?? biz.slug ?? "").trim();
+  const profileSlug = String(biz.slug ?? "").trim();
   const contentType = row.content_type === "case_study" ? "case_study" : "business";
 
   return {
@@ -157,8 +156,8 @@ async function fetchBusinessHubArticles(
     .from("articles")
     .select(
       normalizedCategory
-        ? "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses!inner(name, slug, canonical_slug, category_slug, status)"
-        : "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, canonical_slug, category_slug, status)",
+        ? "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses!inner(name, slug, category_slug, status)"
+        : "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, category_slug, status)",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false });
@@ -270,7 +269,7 @@ async function fetchLatestBusinessArticles(
   const { data, error } = await supabase
     .from("articles")
     .select(
-      "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, canonical_slug, category_slug, status)",
+      "id, title, slug, excerpt, featured_image_url, published_at, content_type, businesses(name, slug, category_slug, status)",
     )
     .eq("status", "published")
     .order("published_at", { ascending: false })

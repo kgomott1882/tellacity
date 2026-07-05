@@ -50,8 +50,8 @@ as $$
       b.category_slug as category,
       b.name as publisher_name,
       case
-        when coalesce(nullif(trim(b.canonical_slug), ''), nullif(trim(b.slug), '')) is not null
-          then '/b/' || coalesce(nullif(trim(b.canonical_slug), ''), nullif(trim(b.slug), ''))
+        when nullif(trim(b.slug), '') is not null
+          then '/b/' || nullif(trim(b.slug), '')
         else null
       end as publisher_href
     from public.articles a

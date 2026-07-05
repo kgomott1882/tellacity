@@ -37,7 +37,6 @@ type BusinessRow = {
   id: string;
   name: string | null;
   slug: string | null;
-  canonical_slug: string | null;
   owner_id: string | null;
 };
 
@@ -122,7 +121,7 @@ export async function GET() {
   if (businessIds.length > 0) {
     const { data: bizRows, error: bizErr } = await admin
       .from("businesses")
-      .select("id, name, slug, canonical_slug, owner_id")
+      .select("id, name, slug, owner_id")
       .in("id", businessIds);
     if (bizErr) {
       console.error("[admin/photo-uploads] businesses", bizErr);
@@ -170,15 +169,12 @@ export async function GET() {
       continue;
     }
 
-    const canonical =
-      (biz?.canonical_slug ?? "").trim() ||
-      (biz?.slug ?? "").trim() ||
-      null;
+    const publicSlug = (biz?.slug ?? "").trim() || null;
 
     groupedMap.set(photo.business_id, {
       businessId: photo.business_id,
       businessName: biz?.name ?? null,
-      businessSlug: canonical,
+      businessSlug: publicSlug,
       ownerId,
       ownerEmail: ownerProfile?.email?.trim() || null,
       ownerName:

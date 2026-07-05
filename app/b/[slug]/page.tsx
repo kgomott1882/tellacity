@@ -25,26 +25,15 @@ export const dynamic = "force-dynamic";
 type BusinessMetaRow = {
   name?: string | null;
   slug?: string | null;
-  canonical_slug?: string | null;
   country_code?: string | null;
   city?: string | null;
 };
 
 const BUSINESS_META_SELECT =
-  "name, slug, canonical_slug, country_code, city";
+  "name, slug, country_code, city";
 
-/**
- * Resolve the canonical URL slug for a business row.
- *
- * SEO contract: every business has ONE canonical URL, regardless of how
- * many slug variants exist (city-suffixed, legacy concatenated, query
- * params, etc.). When `canonical_slug` is populated (the brand-clean
- * version), we always advertise `/b/<canonical_slug>` as the canonical.
- * Otherwise we fall back to the row's own slug.
- */
-function pickCanonicalSlug(row: BusinessMetaRow): string {
-  const canonical = String(row.canonical_slug ?? "").trim().toLowerCase();
-  if (canonical) return canonical;
+/** Public business profile URLs and canonical tags are always built from `businesses.slug`. */
+function pickPublicSlug(row: BusinessMetaRow): string {
   const slug = String(row.slug ?? "").trim().toLowerCase();
   return slug;
 }
@@ -105,7 +94,7 @@ export async function generateMetadata(
   }
 
   const name = cleanBusinessDisplayName(String(business.name ?? "").trim() || slug);
-  const canonicalSlug = pickCanonicalSlug(business);
+  const publicSlug = pickPublicSlug(business);
   const countryCode = String(business.country_code ?? "").trim();
   const cityLabel = cleanLocationField(business.city);
   const countryLabel =
@@ -119,7 +108,7 @@ export async function generateMetadata(
       : "";
   const pageTitle = `${name} Reviews | Ratings, Photos & TrustScore | Tellacity`;
   const pageDescription = `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, TrustScore, and real customer experiences on Tellacity.`;
-  const canonicalUrl = `https://tellacity.com/b/${canonicalSlug}`;
+  const canonicalUrl = `https://tellacity.com/b/${publicSlug}`;
 
   return {
     title: pageTitle,
@@ -247,15 +236,14 @@ export default async function BusinessPage({
     console.error("[business profile] initial reviews:", reviewErr);
   }
 
-  const canonicalSlugForJsonLd = pickCanonicalSlug({
+  const publicSlugForJsonLd = pickPublicSlug({
     slug: (business as { slug?: string | null }).slug ?? null,
-    canonical_slug: (business as { canonical_slug?: string | null }).canonical_slug ?? null,
   });
 
   const businessJsonLdScripts = await buildBusinessProfileJsonLdScripts(supabase, {
     businessId,
     name: cleanBusinessDisplayName((business as { name?: string | null }).name),
-    url: `https://tellacity.com/b/${canonicalSlugForJsonLd}`,
+    url: `https://tellacity.com/b/${publicSlugForJsonLd}`,
     logoUrl: (business as { logo_url?: string | null }).logo_url,
     phone: (business as { phone?: string | null }).phone,
     email: (business as { email?: string | null }).email,

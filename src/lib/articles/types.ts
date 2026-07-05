@@ -129,7 +129,6 @@ export type ArticleWithBusiness = ArticleRow & {
     id: string;
     name: string | null;
     slug: string | null;
-    canonical_slug?: string | null;
     logo_url?: string | null;
     website?: string | null;
     category_slug?: string | null;

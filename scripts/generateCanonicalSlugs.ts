@@ -1,4 +1,10 @@
 /**
+ * DEPRECATED: do not run against production.
+ *
+ * Superseded by the new country+city+suffix canonical_slug design. This old
+ * script generates name-only canonical_slug values and is retained only as
+ * historical reference until the replacement flow is shipped.
+ *
  * Backfill businesses.canonical_slug from business names (businessNameToSlug).
  * Only updates rows where canonical_slug IS NULL. Does not change `slug`.
  *

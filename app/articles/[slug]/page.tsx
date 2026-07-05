@@ -141,7 +141,7 @@ export default async function ArticleDetailPage(props: PageProps) {
   const { data: article } = await supabase
     .from("articles")
     .select(
-      "*, businesses(id, name, slug, canonical_slug, logo_url, website, category_slug, status, description, city, country_code, address)",
+      "*, businesses(id, name, slug, logo_url, website, category_slug, status, description, city, country_code, address)",
     )
     .eq("slug", normalized)
     .eq("status", "published")
@@ -155,8 +155,9 @@ export default async function ArticleDetailPage(props: PageProps) {
   const businessId = String(biz.id);
   const businessName = String(biz.name ?? "Business");
   const businessSlug = String(biz.slug ?? "");
-  const profileSlug = String(biz.canonical_slug ?? biz.slug ?? "");
-  const profileHref = `/b/${encodeURIComponent(profileSlug || businessSlug)}`;
+  const profileHref = businessSlug
+    ? `/b/${encodeURIComponent(businessSlug)}`
+    : null;
   const categorySlug = biz.category_slug ? String(biz.category_slug) : null;
 
   const [{ data: metrics }, relatedArticles] = await Promise.all([

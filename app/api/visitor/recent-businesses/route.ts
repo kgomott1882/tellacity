@@ -34,16 +34,13 @@ function snapshotFromBusinessRow(row: Record<string, unknown>): {
 }
 
 function mapBusinessRow(row: Record<string, unknown>): BusinessRow {
-  const canonical = String((row as { canonical_slug?: string }).canonical_slug ?? "")
-    .trim()
-    .toLowerCase();
   const slug = String((row as { slug?: string }).slug ?? "").trim().toLowerCase();
   const snap = snapshotFromBusinessRow(row);
 
   return {
     id: String((row as { id?: string }).id ?? ""),
     name: String((row as { name?: string }).name ?? "").trim(),
-    slug: canonical || slug,
+    slug,
     logo_url: (row as { logo_url?: string | null }).logo_url ?? null,
     website: (row as { website?: string | null }).website ?? null,
     trust_score: snap.trust > 0 ? snap.trust : null,
@@ -130,14 +127,10 @@ export async function GET(req: Request) {
     const { data, error } = await db
       .from("businesses")
       .select(
-        "id, name, slug, canonical_slug, logo_url, website, trust_score, average_rating, review_count, city, country_code",
+        "id, name, slug, logo_url, website, trust_score, average_rating, review_count, city, country_code",
       )
       .eq("status", "active")
-      .or(
-        slugs.map((s) => `slug.eq.${s}`).join(",") +
-          "," +
-          slugs.map((s) => `canonical_slug.eq.${s}`).join(","),
-      );
+      .in("slug", slugs);
 
     if (error) {
       console.error("[visitor/recent-businesses]", error.message);
@@ -149,11 +142,7 @@ export async function GET(req: Request) {
       const slug = String((row as { slug?: string }).slug ?? "")
         .trim()
         .toLowerCase();
-      const canonical = String((row as { canonical_slug?: string }).canonical_slug ?? "")
-        .trim()
-        .toLowerCase();
       if (slug) bySlug.set(slug, row as Record<string, unknown>);
-      if (canonical) bySlug.set(canonical, row as Record<string, unknown>);
     }
 
     const seenBusinessIds = new Set<string>();
