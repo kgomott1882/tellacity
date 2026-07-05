@@ -5,7 +5,7 @@ import { formatBusinessAddressLines } from "@/lib/address";
 
 type Props = {
   businessName: string;
-  businessProfileHref: string;
+  businessProfileHref: string | null;
   businessLogoUrl: string | null;
   description: string | null;
   categorySlug: string | null;
@@ -48,7 +48,7 @@ export default function ArticleAboutBusiness({
       </h2>
 
       <div className="mt-5 flex flex-col gap-5 sm:flex-row">
-        {businessLogoUrl ? (
+        {businessLogoUrl && businessProfileHref ? (
           <Link href={businessProfileHref} className="shrink-0 self-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -57,15 +57,28 @@ export default function ArticleAboutBusiness({
               className="h-20 w-20 rounded-xl border border-gray-100 bg-white object-contain p-1"
             />
           </Link>
+        ) : businessLogoUrl ? (
+          <div className="shrink-0 self-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={businessLogoUrl}
+              alt=""
+              className="h-20 w-20 rounded-xl border border-gray-100 bg-white object-contain p-1"
+            />
+          </div>
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <Link
-            href={businessProfileHref}
-            className="text-xl font-semibold text-[#0E0E0E] hover:text-[#124541]"
-          >
-            {businessName}
-          </Link>
+          {businessProfileHref ? (
+            <Link
+              href={businessProfileHref}
+              className="text-xl font-semibold text-[#0E0E0E] hover:text-[#124541]"
+            >
+              {businessName}
+            </Link>
+          ) : (
+            <p className="text-xl font-semibold text-[#0E0E0E]">{businessName}</p>
+          )}
 
           {trimmedDescription ? (
             <p className="mt-3 text-sm leading-relaxed text-[#404040]">{trimmedDescription}</p>
@@ -107,12 +120,14 @@ export default function ArticleAboutBusiness({
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <Link
-          href={businessProfileHref}
-          className="inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#189786]"
-        >
-          View business profile
-        </Link>
+        {businessProfileHref ? (
+          <Link
+            href={businessProfileHref}
+            className="inline-flex items-center justify-center rounded-full bg-[#1FAF9E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#189786]"
+          >
+            View business profile
+          </Link>
+        ) : null}
         {websiteUrl ? (
           <a
             href={websiteUrl}
@@ -123,12 +138,14 @@ export default function ArticleAboutBusiness({
             Visit website
           </a>
         ) : null}
-        <Link
-          href={businessProfileHref}
-          className="inline-flex items-center justify-center rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-[#0E0E0E] hover:bg-gray-50"
-        >
-          Read reviews
-        </Link>
+        {businessProfileHref ? (
+          <Link
+            href={businessProfileHref}
+            className="inline-flex items-center justify-center rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-[#0E0E0E] hover:bg-gray-50"
+          >
+            Read reviews
+          </Link>
+        ) : null}
       </div>
     </section>
   );

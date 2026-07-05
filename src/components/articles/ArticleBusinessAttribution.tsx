@@ -8,7 +8,7 @@ import { formatBusinessTagLabel } from "@/lib/businessTags";
 
 type Props = {
   businessName: string;
-  businessProfileHref: string;
+  businessProfileHref: string | null;
   businessLogoUrl: string | null;
   categorySlug: string | null;
   publishedAt: string | null;
@@ -76,7 +76,7 @@ export default function ArticleBusinessAttribution({
           </p>
 
           <div className="mt-4 flex items-start gap-4">
-            {businessLogoUrl ? (
+            {businessLogoUrl && businessProfileHref ? (
               <Link href={businessProfileHref} className="shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -85,6 +85,15 @@ export default function ArticleBusinessAttribution({
                   className="h-14 w-14 rounded-xl border border-gray-100 bg-white object-contain p-1"
                 />
               </Link>
+            ) : businessLogoUrl ? (
+              <div className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={businessLogoUrl}
+                  alt=""
+                  className="h-14 w-14 rounded-xl border border-gray-100 bg-white object-contain p-1"
+                />
+              </div>
             ) : (
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-[#F5F3EF] text-sm font-semibold text-[#707070]"
@@ -95,12 +104,18 @@ export default function ArticleBusinessAttribution({
             )}
 
             <div className="min-w-0 flex-1">
-              <Link
-                href={businessProfileHref}
-                className="text-xl font-semibold leading-tight text-[#0E0E0E] hover:text-[#124541]"
-              >
-                {businessName}
-              </Link>
+              {businessProfileHref ? (
+                <Link
+                  href={businessProfileHref}
+                  className="text-xl font-semibold leading-tight text-[#0E0E0E] hover:text-[#124541]"
+                >
+                  {businessName}
+                </Link>
+              ) : (
+                <p className="text-xl font-semibold leading-tight text-[#0E0E0E]">
+                  {businessName}
+                </p>
+              )}
               {categorySlug ? (
                 <p className="mt-1 text-sm text-[#707070]">
                   {formatBusinessTagLabel(categorySlug)}

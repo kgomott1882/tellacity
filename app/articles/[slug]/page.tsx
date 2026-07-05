@@ -224,7 +224,7 @@ export default async function ArticleDetailPage(props: PageProps) {
           <p className="mt-3 text-sm text-[#707070]">
             {publishedDateLabel ? publishedDateLabel : null}
             {publishedDateLabel && businessName ? " · " : null}
-            {businessName ? (
+            {profileHref ? (
               <Link href={profileHref} className="font-medium text-[#1FAF9E] hover:underline">
                 {businessName}
               </Link>
