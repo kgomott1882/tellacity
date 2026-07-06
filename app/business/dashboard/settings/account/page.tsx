@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { dashboardApiGet } from "@/lib/dashboardApiFetch";
+import { dashboardApiGet, dashboardApiPost } from "@/lib/dashboardApiFetch";
 import { authRedirectTo } from "@/lib/getBaseUrl";
 import { setPendingRecoveryEmail } from "@/lib/pendingRecoveryEmail";
 import PageLoadingOverlay from "../../_components/PageLoadingOverlay";
@@ -39,8 +40,10 @@ function normalizeLanguage(v: string | undefined | null): string {
 }
 
 export default function AccountPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [email, setEmail] = useState("");
@@ -119,10 +122,27 @@ export default function AccountPage() {
   const handleDeleteAccount = async () => {
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
+      setMessage(null);
       return;
     }
-    setMessage({ type: "error", text: "Account deletion must be done via support or your backend." });
-    setShowDeleteConfirm(false);
+
+    setDeleting(true);
+    setMessage(null);
+    try {
+      await dashboardApiPost<{ ok: boolean }>("/api/dashboard/account/delete", {
+        confirm: true,
+      });
+      await supabaseBrowser().auth.signOut();
+      router.replace("/business/login?account_deleted=1");
+    } catch (e) {
+      setMessage({
+        type: "error",
+        text: e instanceof Error ? e.message : "Could not delete your account.",
+      });
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) return <PageLoadingOverlay />;
@@ -227,21 +247,29 @@ export default function AccountPage() {
       {/* Delete account */}
       <div className="mt-10 border-t border-gray-200 pt-8">
         <h2 className="text-lg font-semibold text-[#0E0E0E]">Delete account</h2>
-        <p className="mt-2 text-sm text-gray-600">You&apos;ll lose access to Tellacity Business and will no longer receive notifications.</p>
+        <p className="mt-2 text-sm text-gray-600">
+          Permanently delete your Tellacity Business account. Any business listings you own,
+          their reviews, and dashboard data will be removed. This cannot be undone.
+        </p>
         <div className="mt-4 flex items-center gap-3">
           <button
             type="button"
-            onClick={handleDeleteAccount}
-            disabled={saving}
+            onClick={() => void handleDeleteAccount()}
+            disabled={saving || deleting}
             className={`rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${showDeleteConfirm ? "bg-red-600 hover:bg-red-700" : "bg-red-500 hover:bg-red-600"}`}
           >
-            {showDeleteConfirm ? "Confirm delete my account" : "Delete my account"}
+            {deleting
+              ? "Deleting…"
+              : showDeleteConfirm
+                ? "Confirm delete my account"
+                : "Delete my account"}
           </button>
           {showDeleteConfirm && (
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(false)}
-              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              disabled={deleting}
+              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Cancel
             </button>
