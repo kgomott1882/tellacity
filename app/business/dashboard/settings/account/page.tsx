@@ -46,6 +46,8 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
+  const [deleteSuccessEmailSent, setDeleteSuccessEmailSent] = useState(false);
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [form, setForm] = useState({ name: "", country: "South Africa", language: "English (United States)" });
@@ -129,11 +131,15 @@ export default function AccountPage() {
     setDeleting(true);
     setMessage(null);
     try {
-      await dashboardApiPost<{ ok: boolean }>("/api/dashboard/account/delete", {
+      const result = await dashboardApiPost<{
+        ok: boolean;
+        confirmationEmailSent?: boolean;
+      }>("/api/dashboard/account/delete", {
         confirm: true,
       });
-      await supabaseBrowser().auth.signOut();
-      router.replace("/business/login?account_deleted=1");
+      setDeleteSuccessEmailSent(result.confirmationEmailSent === true);
+      setShowDeleteConfirm(false);
+      setShowDeleteSuccessModal(true);
     } catch (e) {
       setMessage({
         type: "error",
@@ -143,6 +149,12 @@ export default function AccountPage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleDeleteSuccessAck = async () => {
+    setShowDeleteSuccessModal(false);
+    await supabaseBrowser().auth.signOut();
+    router.replace("/business/login?account_deleted=1");
   };
 
   if (loading) return <PageLoadingOverlay />;
@@ -276,6 +288,45 @@ export default function AccountPage() {
           )}
         </div>
       </div>
+
+      {showDeleteSuccessModal ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="account-deleted-title"
+          >
+            <h2 id="account-deleted-title" className="text-lg font-semibold text-[#0E0E0E]">
+              Account deleted
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Your user account and business listing have been successfully deleted.
+            </p>
+            {deleteSuccessEmailSent ? (
+              <p className="mt-2 text-sm text-gray-600">
+                A confirmation email has been sent to{" "}
+                <span className="font-medium text-[#0E0E0E]">{email}</span>.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-gray-600">
+                We could not send a confirmation email right now, but your account and listings
+                were removed.
+              </p>
+            )}
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleDeleteSuccessAck()}
+                className="rounded-lg bg-[#124541] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f3a35]"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

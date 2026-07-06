@@ -26,7 +26,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await ownerDeleteBusinessAccount(user.id);
+    const md = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const ownerName =
+      (typeof md.display_name === "string" ? md.display_name.trim() : "") ||
+      (typeof md.full_name === "string" ? md.full_name.trim() : "") ||
+      undefined;
+
+    const result = await ownerDeleteBusinessAccount({
+      ownerUserId: user.id,
+      email: user.email ?? "",
+      ownerName,
+    });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
@@ -34,6 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       deletedBusinessIds: result.deletedBusinessIds,
+      confirmationEmailSent: result.confirmationEmailSent,
     });
   } catch (e) {
     console.error("[dashboard/account/delete]", e);
