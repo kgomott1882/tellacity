@@ -71,7 +71,7 @@ export default function AdminManualBusinessModal({ open, onClose }: Props) {
   );
 
   const countryOptions = useMemo(() => {
-    const codes = new Set(COUNTRIES.map((c) => c.code));
+    const codes = new Set<string>(COUNTRIES.map((c) => c.code));
     if (countryCode && !codes.has(countryCode)) {
       return [{ code: countryCode, label: countryCode }, ...COUNTRIES];
     }
