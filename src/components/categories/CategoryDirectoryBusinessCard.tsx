@@ -15,7 +15,10 @@ import {
   formatDisplayLocationLines,
 } from "@/lib/address";
 import { sanitizeText } from "@/lib/sanitizeText";
-import type { CategoryBusinessRow } from "@/lib/categoryListingQueries";
+import {
+  businessHasPublishedReviewsForRanking,
+  type CategoryBusinessRow,
+} from "@/lib/categoryListingQueries";
 
 type BusinessRow = CategoryBusinessRow;
 
@@ -103,6 +106,8 @@ export default function CategoryDirectoryBusinessCard({
   if (!isValidSlug(safeSlug)) return null;
 
   const reviewCount = Number(business.review_count ?? 0) || 0;
+  const showRankBadge =
+    rankBadge != null && businessHasPublishedReviewsForRanking(business);
   const ratingValue = snapshotRpcRating(business).trust;
   const locationLines = (() => {
     const lines = formatBusinessAddressLines(
@@ -135,7 +140,7 @@ export default function CategoryDirectoryBusinessCard({
 
   return (
     <article className="cat-dir-biz-card">
-      {rankBadge ? (
+      {showRankBadge ? (
         <span
           className={`cat-dir-rank-badge cat-dir-rank-badge--${rankBadge}`}
         >

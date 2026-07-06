@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  compareCategoryDirectoryRanking,
+  computeCategoryDirectoryRankBadges,
   fetchAndApplyLiveReviewMetrics,
   fetchRecentlyReviewedForCategory,
   type CategoryBusinessRow,
@@ -411,18 +413,19 @@ export default function CategoryClient({
         return (a.name || "").localeCompare(b.name || "");
       });
     } else {
-      list.sort((a, b) => {
-        const ar = Number(a.trust_score ?? 0) || 0;
-        const br = Number(b.trust_score ?? 0) || 0;
-        if (br !== ar) return br - ar;
-        const ac = Number(a.review_count ?? 0) || 0;
-        const bc = Number(b.review_count ?? 0) || 0;
-        if (bc !== ac) return bc - ac;
-        return (a.name || "").localeCompare(b.name || "");
-      });
+      list.sort(compareCategoryDirectoryRanking);
     }
     return list;
   }, [businessesList, currentSort]);
+
+  const categoryDirectoryRankBadges = useMemo(
+    () =>
+      computeCategoryDirectoryRankBadges(sortedBusinessesList, {
+        sort: currentSort,
+        pageIndex: effectivePageIndex,
+      }),
+    [sortedBusinessesList, currentSort, effectivePageIndex],
+  );
 
   const listingTotalPages = useMemo(() => {
     const fromCount = Math.ceil((Number(computedCount) || 0) / PAGE_SIZE);
@@ -1076,9 +1079,8 @@ export default function CategoryClient({
 
             {sortedBusinessesList.length > 0 &&
               sortedBusinessesList.map((business, index) => {
-                const globalRank = effectivePageIndex * PAGE_SIZE + index + 1;
                 const rankBadge =
-                  globalRank === 1 ? 1 : globalRank === 2 ? 2 : globalRank === 3 ? 3 : null;
+                  categoryDirectoryRankBadges.get(String(business.id)) ?? null;
                 return (
                   <StaggerFadeUp
                     key={business.id}

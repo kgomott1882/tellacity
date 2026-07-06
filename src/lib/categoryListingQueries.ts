@@ -97,6 +97,57 @@ function snapshotRpcRating(row: CategoryBusinessRow): {
   return { trust, count: Number(row.review_count ?? 0) || 0 };
 }
 
+/** Published public reviews (same signal as `business_review_metrics_v.review_count`). */
+export function businessHasPublishedReviewsForRanking(
+  row: Pick<CategoryBusinessRow, "review_count">,
+): boolean {
+  return (Number(row.review_count ?? 0) || 0) > 0;
+}
+
+/** Default category directory ranking: reviewed listings first, then TrustScore. */
+export function compareCategoryDirectoryRanking(
+  a: CategoryBusinessRow,
+  b: CategoryBusinessRow,
+): number {
+  const aReviewed = businessHasPublishedReviewsForRanking(a);
+  const bReviewed = businessHasPublishedReviewsForRanking(b);
+  if (aReviewed !== bReviewed) return aReviewed ? -1 : 1;
+
+  const ar = Number(a.trust_score ?? 0) || 0;
+  const br = Number(b.trust_score ?? 0) || 0;
+  if (br !== ar) return br - ar;
+
+  const ac = Number(a.review_count ?? 0) || 0;
+  const bc = Number(b.review_count ?? 0) || 0;
+  if (bc !== ac) return bc - ac;
+
+  return (a.name || "").localeCompare(b.name || "");
+}
+
+export type CategoryDirectorySort = "rating" | "reviews" | "recent";
+
+/**
+ * Top-3 medal badges: default TrustScore ranking on page 1 only, and only for
+ * businesses with at least one published public review.
+ */
+export function computeCategoryDirectoryRankBadges(
+  businesses: CategoryBusinessRow[],
+  options: { sort: CategoryDirectorySort; pageIndex: number },
+): Map<string, 1 | 2 | 3> {
+  const map = new Map<string, 1 | 2 | 3>();
+  if (options.sort !== "rating" || options.pageIndex !== 0) return map;
+
+  let reviewedRank = 0;
+  for (const business of businesses) {
+    if (!businessHasPublishedReviewsForRanking(business)) continue;
+    reviewedRank += 1;
+    if (reviewedRank <= 3 && business.id) {
+      map.set(String(business.id), reviewedRank as 1 | 2 | 3);
+    }
+  }
+  return map;
+}
+
 export async function fetchCategoryRowsWithFallback(
   supabase: SupabaseClient,
   categorySlug: string,
@@ -155,6 +206,7 @@ export async function fetchCategoryRowsWithFallback(
   if (typeof minRating === "number") {
     rows = rows.filter((r) => (Number(r.trust_score ?? 0) || 0) >= minRating);
   }
+  rows.sort(compareCategoryDirectoryRanking);
   for (const row of rows) {
     row.tags = mergeTagsForDisplay(
       row.tags,
