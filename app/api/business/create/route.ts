@@ -11,6 +11,7 @@ import { allocateUniqueBusinessSlug } from "@/lib/businessSlug";
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 function normalizeWebsiteInput(website: string): string {
   let domain = website.trim().toLowerCase();
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
     }
 
     const sessionEmail = user.email.trim().toLowerCase();
+    const blocked = await rejectIfEmailBlocked(sessionEmail);
+    if (blocked) return blocked;
+
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const website = typeof body.website === "string" ? body.website.trim() : "";

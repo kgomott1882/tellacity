@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getServerEnv } from "@/lib/serverEnv";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -61,6 +62,9 @@ export async function POST(req: Request) {
     if (!toEmail.includes("@")) {
       return NextResponse.json({ error: "Invalid draft" }, { status: 400 });
     }
+
+    const blocked = await rejectIfEmailBlocked(toEmail, supabase);
+    if (blocked) return blocked;
 
     await supabase.from("review_otps").delete().eq("draft_id", draftId);
 

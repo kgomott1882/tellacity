@@ -14,6 +14,7 @@ import {
 } from "@/lib/reviewInviteValidation";
 import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
 import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -114,6 +115,9 @@ export async function POST(req: Request) {
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const blocked = await rejectIfEmailBlocked(guest_email, supabase);
+    if (blocked) return blocked;
 
     const suspendedBlock = await assertBusinessAcceptsPublicReviews(
       supabase,

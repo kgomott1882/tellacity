@@ -8,6 +8,7 @@ import { normalizeWebsiteDomain } from "@/lib/normalizeWebsiteDomain";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sessionEmailDomainMatchesBusinessWebsite } from "@/lib/businessDomainVerification";
 import { sendBusinessDomainVerificationOtp } from "@/lib/sendBusinessDomainVerificationOtp";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 type ExistingRow = {
   id: string;
@@ -32,6 +33,9 @@ export async function POST(req: Request) {
     }
 
     const sessionEmail = user.email.trim().toLowerCase();
+    const blocked = await rejectIfEmailBlocked(sessionEmail);
+    if (blocked) return blocked;
+
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
     const name = typeof body.name === "string" ? body.name.trim() : "";

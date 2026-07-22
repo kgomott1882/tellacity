@@ -19,6 +19,7 @@ import {
   markSignupGrowTrialPending,
   maybeProvisionSignupGrowTrial,
 } from "@/lib/signupGrowTrial";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 type VerificationRow = {
   id: string;
@@ -79,6 +80,10 @@ export async function POST(req: Request) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonError("invalid_email", "Please enter a valid email address", 400);
     }
+
+    const blocked = await rejectIfEmailBlocked(email);
+    if (blocked) return blocked;
+
     if (!/^\d{6}$/.test(code)) {
       return jsonError("invalid_code", "Enter the 6-digit verification code", 400);
     }

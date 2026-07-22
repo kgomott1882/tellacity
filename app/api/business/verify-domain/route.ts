@@ -11,6 +11,7 @@ import {
   verifyDomainFinishWithServiceRole,
 } from "@/lib/verifyDomainFinishServer";
 import { finishSignupGrowTrialIfRequested } from "@/lib/signupGrowTrial";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 type RpcResult = {
   ok?: boolean;
@@ -109,6 +110,9 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+
+    const blocked = await rejectIfEmailBlocked(user.email);
+    if (blocked) return blocked;
 
     const body = (await req.json().catch(() => ({}))) as {
       businessId?: string;

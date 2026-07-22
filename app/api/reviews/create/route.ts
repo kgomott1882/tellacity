@@ -19,6 +19,7 @@ import {
 } from "@/lib/reviewBusinessSelfReview";
 import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
 import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
+import { rejectIfEmailBlocked, rejectIfGuestNameBlocked } from "@/lib/blockedEmails";
 
 function reviewerDisplayNameFromAuthUser(user: User): string {
   const meta = user.user_metadata ?? {};
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
 
     const userEmail = (user.email ?? "").trim().toLowerCase();
     if (userEmail) {
+      const blocked = await rejectIfEmailBlocked(userEmail, supabase);
+      if (blocked) return blocked;
+
       const domainCtx = await fetchBusinessDomainContext(supabase, business_id);
       if (
         isReviewerBlockedAsBusinessDomain({
@@ -144,6 +148,9 @@ export async function POST(req: Request) {
     const rating = Math.round(ratingNum);
     const guest_name = reviewerDisplayNameFromAuthUser(user);
 
+    const blockedName = await rejectIfGuestNameBlocked(guest_name, supabase);
+    if (blockedName) return blockedName;
+
     let productPhotoIdResolved: string | null = null;
     if (rawProductPhotoId !== undefined && rawProductPhotoId !== null) {
       const rawPid =
@@ -187,6 +194,8 @@ export async function POST(req: Request) {
         business_id,
         user_id: user.id,
         guest_name,
+        guest_email: userEmail || null,
+        author_email: userEmail || null,
         rating,
         title,
         body,

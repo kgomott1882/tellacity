@@ -8,6 +8,7 @@ import { BUSINESS_SIGNUP_DOMAIN_MISMATCH_MESSAGE } from "@/lib/businessSignupDom
 import { normalizeBusinessDomain } from "@/lib/normalizeBusinessDomain";
 import { getServerEnv } from "@/lib/serverEnv";
 import { isAuthEmailAlreadyRegistered } from "@/lib/signupIdentitySync";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
@@ -43,6 +44,9 @@ export async function POST(req: Request) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "invalid_email" }, { status: 400 });
     }
+
+    const blocked = await rejectIfEmailBlocked(email);
+    if (blocked) return blocked;
 
     const website = typeof body.website === "string" ? body.website.trim() : "";
     const companyName =

@@ -20,6 +20,7 @@ import {
 } from "@/lib/reviewBusinessSelfReview";
 import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
 import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 type VerifyBody = {
   draft_id?: string;
@@ -282,6 +283,9 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    const blockedVerify = await rejectIfEmailBlocked(guestEmail, supabaseAdmin);
+    if (blockedVerify) return blockedVerify;
 
     const domainCtxVerify = await fetchBusinessDomainContext(
       supabaseAdmin,

@@ -231,6 +231,47 @@ export default function AdminReviewsClient({
     setWarningModalReview(review);
   };
 
+  const handleBlockEmail = async (review: AdminReviewTableRow) => {
+    const email = review.reviewer_email?.trim();
+    if (!email || email === "-") {
+      alert("No reviewer email on file for this review.");
+      return;
+    }
+    const ok = window.confirm(
+      `Permanently block ${email}?\n\nThis deletes ALL reviews from this email across Tellacity and blocks them from writing reviews or creating/claiming businesses.`,
+    );
+    if (!ok) return;
+    const key = `${review.id}:block`;
+    setPendingActionKey(key);
+    try {
+      const res = await fetch("/api/admin/blocked-emails", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          reason: "Blocked from admin reviews (spam/abuse)",
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deletedReviews?: number;
+      };
+      if (!res.ok) {
+        alert(data.error || "Failed to block email.");
+        return;
+      }
+      alert(
+        `Blocked ${email}. Deleted ${data.deletedReviews ?? 0} review(s).`,
+      );
+      await router.refresh();
+    } catch {
+      alert("Failed to block email.");
+    } finally {
+      setPendingActionKey(null);
+    }
+  };
+
   const handleSetVisibility = async (
     review: AdminReviewTableRow,
     newStatus: AdminReviewTableRow["visibility"]
@@ -508,7 +549,9 @@ export default function AdminReviewsClient({
                     const flagPending = pendingActionKey === `${review.id}:flag`;
                     const warnPending = pendingActionKey === `${review.id}:warn`;
                     const delPending = pendingActionKey === `${review.id}:delete`;
-                    const rowBusy = visPending || flagPending || warnPending || delPending;
+                    const blockPending = pendingActionKey === `${review.id}:block`;
+                    const rowBusy =
+                      visPending || flagPending || warnPending || delPending || blockPending;
                     return (
                       <tr key={review.id || `r-${i}`} className="bg-white align-top">
                         <td className="max-w-[140px] px-3 py-2 font-medium text-neutral-900">
@@ -609,6 +652,15 @@ export default function AdminReviewsClient({
                               className="rounded-md border border-sky-600 bg-white px-2 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-50 disabled:opacity-50"
                             >
                               {warnPending ? "…" : "Warning"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowBusy}
+                              title="Permanently block this email and delete all their reviews"
+                              onClick={() => void handleBlockEmail(review)}
+                              className="rounded-md border border-red-700 bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                            >
+                              {blockPending ? "…" : "Block email"}
                             </button>
                             <button
                               type="button"

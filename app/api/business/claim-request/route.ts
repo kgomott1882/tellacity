@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getServerEnv } from "@/lib/serverEnv";
 import { createSupabaseServerCookies } from "@/lib/supabase/serverCookies";
 import { sessionEmailDomainMatchesBusinessWebsite } from "@/lib/businessDomainVerification";
+import { rejectIfEmailBlocked } from "@/lib/blockedEmails";
 
 /**
  * Validates that the signed-in user may start domain OTP for claiming an existing listing.
@@ -32,6 +33,9 @@ export async function POST(req: Request) {
     if (!businessId) {
       return NextResponse.json({ error: "missing_business_id" }, { status: 400 });
     }
+
+    const blocked = await rejectIfEmailBlocked(sessionEmail);
+    if (blocked) return blocked;
 
     const { supabaseUrl, serviceRoleKey } = getServerEnv();
     const admin = createClient(supabaseUrl, serviceRoleKey, {

@@ -20,6 +20,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { href: "/admin/users", label: "All Users" },
   { href: "/admin/articles", label: "Articles", badgeKey: "articles" },
   { href: "/admin/blogs-and-articles", label: "Blogs and Articles" },
+  { href: "/admin/blocked-emails", label: "Blocked Emails" },
   { href: "/admin/customers", label: "Business Customers" },
   { href: "/admin/business-insights", label: "Business Insights" },
   { href: "/admin/businesses", label: "Businesses" },

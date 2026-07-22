@@ -27,6 +27,7 @@ import {
 } from "@/lib/reviewInviteValidation";
 import { applyReviewRiskAfterInsert } from "@/lib/reviews/applyReviewRisk";
 import { getClientIpFromRequest } from "@/lib/reviews/requestIp";
+import { rejectIfEmailBlocked, rejectIfGuestNameBlocked } from "@/lib/blockedEmails";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "");
 
@@ -170,6 +171,9 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid invite" }, { status: 400 });
   }
 
+  const blockedInvite = await rejectIfEmailBlocked(invEmail, supabase);
+  if (blockedInvite) return blockedInvite;
+
   if (invite.review_submitted_at) {
     return NextResponse.json(
       { error: "This invite has already been used." },
@@ -231,6 +235,9 @@ async function inviteOtpDraft(req: Request, body: Body): Promise<NextResponse> {
     guestNameFromBody ||
     (invEmail.includes("@") ? invEmail.split("@")[0] ?? "" : "").trim() ||
     "Customer";
+
+  const blockedInviteName = await rejectIfGuestNameBlocked(guestNameForDraft, supabase);
+  if (blockedInviteName) return blockedInviteName;
 
   const { data: existingDraft } = await supabase
     .from("review_drafts")
@@ -414,6 +421,12 @@ async function guestPublicDraft(req: Request, body: Body): Promise<NextResponse>
   const { supabaseUrl, serviceRoleKey } = getServerEnv();
   const supabase = createClient(supabaseUrl, serviceRoleKey);
   const clientIp = getClientIpFromRequest(req);
+
+  const blockedGuest = await rejectIfEmailBlocked(effectiveEmail, supabase);
+  if (blockedGuest) return blockedGuest;
+
+  const blockedName = await rejectIfGuestNameBlocked(guest_name_raw, supabase);
+  if (blockedName) return blockedName;
 
   const suspendedGuest = await assertBusinessAcceptsPublicReviews(
     supabase,
