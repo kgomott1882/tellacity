@@ -4,7 +4,16 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Search, X, ExternalLink } from "lucide-react";
 import { useBusinessContext } from "../../_context/BusinessContext";
 import { supabaseBrowser } from "@/lib/supabaseBrowser";
-import { normalizeBusinessTags } from "@/lib/businessTags";
+import {
+  formatBusinessTagLabel,
+  normalizeBusinessTags,
+  toBusinessTagSlug,
+} from "@/lib/businessTags";
+import {
+  BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+  userFacingErrorMessage,
+} from "@/lib/userFacingError";
+import DashboardAlertModal from "@/components/dashboard/DashboardAlertModal";
 
 type SubItem = { label: string; slug: string };
 type CategoryOption = {
@@ -27,6 +36,7 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null);
   const [primaryCategory, setPrimaryCategory] = useState<CategoryItem | null>(null);
   const [secondaryCategories, setSecondaryCategories] = useState<CategoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,13 +61,19 @@ export default function CategoriesPage() {
   const maxSecondary = 5;
 
   const MAX_TAGS = 10;
-  const MAX_LENGTH = 20;
+  const MAX_LENGTH = 40;
 
   function addTag(value: string) {
-    const cleaned = value.trim().toLowerCase();
+    const cleaned = toBusinessTagSlug(value);
 
     if (!cleaned) return;
-    if (cleaned.length > MAX_LENGTH) return;
+    if (cleaned.length > MAX_LENGTH) {
+      setAlertModal({
+        title: "Keyword too long",
+        message: `Keep keywords to ${MAX_LENGTH} characters or fewer.`,
+      });
+      return;
+    }
 
     setTags((prev) => {
       if (prev.includes(cleaned)) return prev;
@@ -395,7 +411,12 @@ export default function CategoriesPage() {
         .eq("id", businessId);
 
       if (error) {
-        setMessage({ type: "error", text: error.message });
+        const text = userFacingErrorMessage(
+          error.message,
+          "We couldn’t save your categories. Please try again.",
+        );
+        setMessage({ type: "error", text });
+        setAlertModal({ title: "Couldn’t save categories", message: text });
         return;
       }
 
@@ -412,12 +433,15 @@ export default function CategoriesPage() {
         /* ignore */
       }
       if (!tagRes.ok) {
+        const text = userFacingErrorMessage(
+          tagData.error,
+          BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+        );
         setMessage({
           type: "error",
-          text:
-            tagData.error ??
-            "Categories saved, but keywords could not be saved. Try again.",
+          text,
         });
+        setAlertModal({ title: "Couldn’t save keywords", message: text });
         return;
       }
       if (Array.isArray(tagData.tags)) {
@@ -774,9 +798,9 @@ export default function CategoriesPage() {
                     type="button"
                     onClick={() => addTag(inputValue)}
                     disabled={
-                      !inputValue.trim() ||
+                      !toBusinessTagSlug(inputValue) ||
                       tags.length >= MAX_TAGS ||
-                      inputValue.trim().length > MAX_LENGTH
+                      toBusinessTagSlug(inputValue).length > MAX_LENGTH
                     }
                     className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
                   >
@@ -785,7 +809,8 @@ export default function CategoriesPage() {
                 </div>
 
                 <p className="mt-2 text-sm text-gray-500">
-                  Add up to 10 keywords. Press Enter or click + Add.
+                  Add up to 10 keywords. Letters and numbers only — symbols like &amp; are
+                  converted automatically. Press Enter or click + Add.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -794,7 +819,7 @@ export default function CategoriesPage() {
                       key={tag}
                       className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
                     >
-                      {tag}
+                      {formatBusinessTagLabel(tag)}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
@@ -829,6 +854,13 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
+
+      <DashboardAlertModal
+        open={!!alertModal}
+        title={alertModal?.title}
+        message={alertModal?.message ?? ""}
+        onClose={() => setAlertModal(null)}
+      />
     </>
   );
 }

@@ -13,7 +13,14 @@ const INTERNAL_ERROR_PATTERNS = [
   "duplicate key",
   "foreign key",
   "null value in column",
+  "check constraint",
+  "violates check",
+  "new row for relation",
+  "relation \"",
 ];
+
+const TAGS_CONSTRAINT_FALLBACK =
+  "Some keywords aren’t valid. Use short phrases with letters and numbers only (for example: merge-pdf or video-editing). Avoid symbols like &.";
 
 /**
  * Map errors to safe copy for dashboard UI — never surface raw SQL / Postgres text.
@@ -35,6 +42,14 @@ export function userFacingErrorMessage(
   if (!msg) return fallback;
 
   const lowered = msg.toLowerCase();
+
+  if (
+    lowered.includes("businesses_tags_valid_chk") ||
+    (lowered.includes("tags") && lowered.includes("check constraint"))
+  ) {
+    return TAGS_CONSTRAINT_FALLBACK;
+  }
+
   if (
     INTERNAL_ERROR_PATTERNS.some((p) => lowered.includes(p)) ||
     msg.length > 140
@@ -44,3 +59,5 @@ export function userFacingErrorMessage(
 
   return msg;
 }
+
+export const BUSINESS_TAGS_SAVE_ERROR_FALLBACK = TAGS_CONSTRAINT_FALLBACK;

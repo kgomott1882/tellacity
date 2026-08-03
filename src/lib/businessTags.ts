@@ -105,17 +105,30 @@ export function formatBusinessTagLabel(tagSlug: string): string {
     .join(" ");
 }
 
+/**
+ * Match DB `businesses_tags_valid_chk`: lowercase kebab-case, letters/digits/hyphens only.
+ * e.g. "Merge & Compress PDF" → "merge-compress-pdf"
+ */
+export function toBusinessTagSlug(raw: string): string {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /** Slug-style secondary categories when `tags` is empty (deduped, lowercased). */
 export function tagsFromSecondarySlugs(
   secondary: unknown,
   primarySlug: string | null | undefined,
 ): string[] {
   if (!Array.isArray(secondary)) return [];
-  const p = (primarySlug ?? "").trim().toLowerCase();
+  const p = toBusinessTagSlug(primarySlug ?? "");
   const seen = new Set<string>();
   const out: string[] = [];
   for (const item of secondary) {
-    const t = typeof item === "string" ? item.trim().toLowerCase() : "";
+    const t = typeof item === "string" ? toBusinessTagSlug(item) : "";
     if (!t || t === p || seen.has(t)) continue;
     seen.add(t);
     out.push(t);
@@ -141,10 +154,18 @@ export function normalizeBusinessTags(tags: unknown): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const t of raw) {
-    const k = t.trim().toLowerCase();
+    const k = toBusinessTagSlug(t);
     if (!k || seen.has(k)) continue;
     seen.add(k);
     out.push(k);
   }
   return out;
+}
+
+/** Cap + slugify for writes that must satisfy businesses_tags_valid_chk. */
+export function sanitizeBusinessTagsForSave(
+  tags: unknown,
+  max = 10,
+): string[] {
+  return normalizeBusinessTags(tags).slice(0, Math.max(0, max));
 }

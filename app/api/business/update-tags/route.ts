@@ -3,6 +3,11 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { sanitizeBusinessTagsForSave } from "@/lib/businessTags";
+import {
+  BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+  userFacingErrorMessage,
+} from "@/lib/userFacingError";
 
 export async function POST(req: Request) {
   try {
@@ -54,24 +59,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
+    const cleaned = sanitizeBusinessTagsForSave(tags, 10);
+
     if (tags.length > 10) {
-      return NextResponse.json({ error: "Max 10 tags allowed" }, { status: 400 });
+      return NextResponse.json(
+        { error: "You can add up to 10 keywords." },
+        { status: 400 },
+      );
     }
 
     const { data, error } = await supabase
       .from("businesses")
-      .update({ tags })
+      .update({ tags: cleaned })
       .eq("id", businessId)
       .eq("owner_id", user.id)
       .select("tags")
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: userFacingErrorMessage(
+            error.message,
+            BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+          ),
+        },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json({ tags: data.tags });
   } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "We couldn’t save your keywords. Please try again." },
+      { status: 500 },
+    );
   }
 }

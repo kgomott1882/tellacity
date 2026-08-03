@@ -3,17 +3,20 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { dashboardApiPost } from "@/lib/dashboardApiFetch";
-import { formatBusinessTagLabel, normalizeBusinessTags } from "@/lib/businessTags";
+import {
+  formatBusinessTagLabel,
+  normalizeBusinessTags,
+  toBusinessTagSlug,
+} from "@/lib/businessTags";
+import {
+  BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+  userFacingErrorMessage,
+} from "@/lib/userFacingError";
 
 const MAX_TAGS = 10;
 
 function inputToTagSlug(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return toBusinessTagSlug(raw);
 }
 
 export type BusinessTagsInputProps = {
@@ -79,8 +82,10 @@ export default function BusinessTagsInput({
       setTags(next);
       setMessage({ type: "success", text: "Tags saved." });
     } catch (e) {
-      const text =
-        e instanceof Error ? e.message : "Could not save tags. Try again.";
+      const text = userFacingErrorMessage(
+        e instanceof Error ? e.message : e,
+        BUSINESS_TAGS_SAVE_ERROR_FALLBACK,
+      );
       setMessage({ type: "error", text });
     } finally {
       setLoading(false);
