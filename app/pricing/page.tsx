@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { PricingPageContent } from "@/components/pricing/PricingPageContent";
 import { fetchTellacityPlatformReviewSchema } from "@/lib/fetchTellacityPlatformReviewSchema";
 import {
@@ -56,7 +57,9 @@ export default async function PricingPage() {
           __html: JSON.stringify(pricingSoftwareJsonLd),
         }}
       />
-      <PricingPageContent variant="public" />
+      <Suspense fallback={null}>
+        <PricingPageContent variant="public" />
+      </Suspense>
     </>
   );
 }

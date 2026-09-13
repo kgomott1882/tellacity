@@ -59,7 +59,9 @@ export default function RootLayout({
         <ConsentModeBootstrap />
         <script dangerouslySetInnerHTML={{ __html: abortErrorHandlerScript }} />
         <AbortErrorHandler />
-        <CountrySync />
+        <Suspense fallback={null}>
+          <CountrySync />
+        </Suspense>
         <Suspense fallback={null}>
           <ConditionalNavbar />
         </Suspense>

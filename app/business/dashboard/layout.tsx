@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import DashboardShell from "./_components/DashboardShell";
 
 export const metadata = {
@@ -12,5 +13,9 @@ export default function BusinessDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <Suspense fallback={null}>
+      <DashboardShell>{children}</DashboardShell>
+    </Suspense>
+  );
 }

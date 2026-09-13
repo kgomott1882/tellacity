@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import BusinessClient from "@/components/business/BusinessClient";
 import type { BusinessPhotoPublic } from "@/lib/businessPhotosDisplay";
@@ -276,15 +277,17 @@ export default async function BusinessPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(script) }}
         />
       ))}
-      <BusinessClient
-        initialBusiness={business}
-        initialBusinessPhotos={initialBusinessPhotos}
-        initialIsClaimed={initialIsClaimed}
-        initialPublishedArticles={initialPublishedArticles}
-        initialReviews={initialReviews}
-        initialTotalReviewCount={initialTotalReviewCount}
-        initialPublishedReviewAggregates={initialPublishedReviewAggregates}
-      />
+      <Suspense fallback={null}>
+        <BusinessClient
+          initialBusiness={business}
+          initialBusinessPhotos={initialBusinessPhotos}
+          initialIsClaimed={initialIsClaimed}
+          initialPublishedArticles={initialPublishedArticles}
+          initialReviews={initialReviews}
+          initialTotalReviewCount={initialTotalReviewCount}
+          initialPublishedReviewAggregates={initialPublishedReviewAggregates}
+        />
+      </Suspense>
     </>
   );
 

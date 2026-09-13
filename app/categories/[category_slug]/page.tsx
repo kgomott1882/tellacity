@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@supabase/supabase-js";
 import CategoryClient from "./CategoryClient";
 import { normalizeCountryCode } from "@/lib/country";
@@ -440,18 +441,20 @@ export default async function Page(props: PageProps) {
             </div>
           </section>
 
-          <CategoryClient
-          key={`${safeCategorySlug}-${countryCode}`}
-          categorySlug={safeCategorySlug}
-          initialCountryCode={countryCode}
-          initialCategoryName={categoryName}
-          initialCategoryGroupName={categoryGroupName}
-          initialCategoryGroupSlug={categoryGroupSlug}
-          businesses={businesses}
-          companyCount={companyCount}
-          hasNextPage={hasNextPage}
-          popularTags={popularTags}
-        />
+          <Suspense fallback={null}>
+            <CategoryClient
+              key={`${safeCategorySlug}-${countryCode}`}
+              categorySlug={safeCategorySlug}
+              initialCountryCode={countryCode}
+              initialCategoryName={categoryName}
+              initialCategoryGroupName={categoryGroupName}
+              initialCategoryGroupSlug={categoryGroupSlug}
+              businesses={businesses}
+              companyCount={companyCount}
+              hasNextPage={hasNextPage}
+              popularTags={popularTags}
+            />
+          </Suspense>
         </div>
       </>
     );
