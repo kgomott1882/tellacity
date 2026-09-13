@@ -20,17 +20,22 @@ import { getPublishedVisibleReviewAggregates } from "@/lib/reviewAggregatesForBu
 import { businessProfileRobots } from "@/lib/businessIndexability";
 import { createSupabaseServerClient as createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
+/** ISR: refresh at least hourly; also busted on claim / edit / new review. */
+export const revalidate = 3600;
 
 type BusinessMetaRow = {
   name?: string | null;
   slug?: string | null;
   country_code?: string | null;
   city?: string | null;
+  owner_id?: string | null;
+  is_claimed?: boolean | null;
+  review_count?: number | null;
+  description?: string | null;
 };
 
 const BUSINESS_META_SELECT =
-  "name, slug, country_code, city";
+  "name, slug, country_code, city, owner_id, is_claimed, review_count, description";
 
 /** Public business profile URLs and canonical tags are always built from `businesses.slug`. */
 function pickPublicSlug(row: BusinessMetaRow): string {
@@ -126,7 +131,7 @@ export async function generateMetadata(
       title: `${name} Reviews | Tellacity`,
       description: `Read verified customer reviews of ${name}${locationPhrase}. See photos, category rankings, and TrustScore on Tellacity.`,
     },
-    robots: businessProfileRobots(),
+    robots: businessProfileRobots(business),
   };
 }
 

@@ -12,8 +12,11 @@ import MarketingScripts from "@/components/marketing/MarketingScripts";
 import VisitTracker from "@/components/common/VisitTracker";
 import CountrySync from "@/components/common/CountrySync";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+/**
+ * Do not force-dynamic the root layout — that opts the entire tree out of ISR.
+ * Routes that need fresh data set `dynamic = "force-dynamic"` locally
+ * (search, dashboards, APIs, etc.). Business profiles use `revalidate = 3600`.
+ */
 
 export const metadata = {
   metadataBase: new URL("https://tellacity.com"),

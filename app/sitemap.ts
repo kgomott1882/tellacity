@@ -1,10 +1,17 @@
 export const dynamic = "force-static";
+export const revalidate = 3600;
 
 import { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { getAllTellacityArticles } from "@/lib/articles/tellacityArticles";
 import { buildTagHubSitemapEntries } from "@/lib/tagSitemapEntries";
-const PAGE_SIZE = 1000;
+import {
+  businessSitemapShardCount,
+  countSitemapEligibleBusinesses,
+} from "@/lib/businessSitemap";
+import { BUSINESS_SITEMAP_PAGE_SIZE } from "@/lib/businessIndexability";
+
+const PAGE_SIZE = BUSINESS_SITEMAP_PAGE_SIZE;
 const SUPPORTED_BEST_COUNTRIES = new Set([
   "US",
   "GB",
@@ -17,15 +24,11 @@ const SUPPORTED_BEST_COUNTRIES = new Set([
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient();
-  const { count } = await supabase
-    .from("businesses")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "active");
-
-  const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
+  const eligibleCount = await countSitemapEligibleBusinesses(supabase);
+  const totalPages = businessSitemapShardCount(eligibleCount);
   const sitemaps: MetadataRoute.Sitemap = [];
 
-  // Paginated business profile sitemaps (discover-first: includes unclaimed listings).
+  // Paginated business profile sitemaps (SEO-quality gate only).
   for (let i = 1; i <= totalPages; i++) {
     sitemaps.push({
       url: `https://tellacity.com/business-sitemaps/${i}.xml`,

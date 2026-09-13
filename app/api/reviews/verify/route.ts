@@ -474,6 +474,15 @@ export async function POST(req: Request) {
     await supabase.from("review_otps").delete().eq("draft_id", draftId);
     await supabase.from("review_drafts").delete().eq("id", draftId);
 
+    try {
+      const { revalidateBusinessProfileById } = await import(
+        "@/lib/revalidateBusinessProfile"
+      );
+      await revalidateBusinessProfileById(supabaseAdmin, d.business_id);
+    } catch (e) {
+      console.warn("[reviews/verify] revalidate profile:", e);
+    }
+
     return NextResponse.json({
       success: true,
       review_id: publishedReviewId,

@@ -254,6 +254,14 @@ export async function POST(req: Request) {
         reviewId: r.id,
         rating: r.rating,
       });
+      try {
+        const { revalidateBusinessProfileById } = await import(
+          "@/lib/revalidateBusinessProfile"
+        );
+        await revalidateBusinessProfileById(supabase, String(r.business_id));
+      } catch (e) {
+        console.warn("[reviews/create] revalidate profile:", e);
+      }
     }
 
     return NextResponse.json({ success: true });

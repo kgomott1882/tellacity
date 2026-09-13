@@ -304,6 +304,14 @@ export async function POST(req: Request) {
         if (isSignupGrowTrialPlan(payload.plan)) {
           await maybeProvisionSignupGrowTrial(resolved.id, supabaseAdmin);
         }
+        try {
+          const { revalidateBusinessProfileById } = await import(
+            "@/lib/revalidateBusinessProfile"
+          );
+          await revalidateBusinessProfileById(supabaseAdmin, resolved.id);
+        } catch (e) {
+          console.warn("[signup verify] revalidate profile:", e);
+        }
       } else if (finish.error === "already_claimed") {
         outcome = "already_claimed";
       } else {

@@ -161,6 +161,14 @@ export async function POST(req: Request) {
         if (updateExistingErr) {
           return NextResponse.json({ error: "update_failed" }, { status: 500 });
         }
+        try {
+          const { revalidateBusinessProfileById } = await import(
+            "@/lib/revalidateBusinessProfile"
+          );
+          await revalidateBusinessProfileById(supabase, business_id);
+        } catch (e) {
+          console.warn("[reviews/update] revalidate profile:", e);
+        }
         return NextResponse.json({ success: true });
       }
 
@@ -190,6 +198,14 @@ export async function POST(req: Request) {
       if (insertErr) {
         const insertCode = (insertErr as { code?: string }).code;
         if (insertCode === "23505") {
+          try {
+            const { revalidateBusinessProfileById } = await import(
+              "@/lib/revalidateBusinessProfile"
+            );
+            await revalidateBusinessProfileById(supabase, business_id);
+          } catch {
+            /* ignore */
+          }
           return NextResponse.json({ success: true });
         }
         return NextResponse.json({ error: "update_failed" }, { status: 500 });
@@ -208,6 +224,14 @@ export async function POST(req: Request) {
           reviewId: ins.id,
           rating: ins.rating,
         });
+        try {
+          const { revalidateBusinessProfileById } = await import(
+            "@/lib/revalidateBusinessProfile"
+          );
+          await revalidateBusinessProfileById(supabase, ins.business_id);
+        } catch (e) {
+          console.warn("[reviews/update] revalidate profile:", e);
+        }
       }
       return NextResponse.json({ success: true });
     }
@@ -256,6 +280,15 @@ export async function POST(req: Request) {
         { error: updateError.message || "update_failed" },
         { status: 500 },
       );
+    }
+
+    try {
+      const { revalidateBusinessProfileById } = await import(
+        "@/lib/revalidateBusinessProfile"
+      );
+      await revalidateBusinessProfileById(supabase, business_id);
+    } catch (e) {
+      console.warn("[reviews/update] revalidate profile:", e);
     }
 
     return NextResponse.json({ success: true });

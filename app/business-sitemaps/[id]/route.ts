@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { isIndexableBusinessSlug } from "@/lib/businessIndexability";
+import {
+  BUSINESS_SITEMAP_PAGE_SIZE,
+} from "@/lib/businessIndexability";
+import { listSitemapEligibleBusinessesPage } from "@/lib/businessSitemap";
 
 export const runtime = "edge";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
-
-const PAGE_SIZE = 1000;
+export const revalidate = 3600;
 
 export async function GET(
-  request: Request,
+  _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const params = await context.params;
@@ -23,35 +19,19 @@ export async function GET(
       return buildEmptySitemap();
     }
 
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    const rows = await listSitemapEligibleBusinessesPage(
+      page,
+      BUSINESS_SITEMAP_PAGE_SIZE,
+    );
 
-    const { data, error } = await supabase
-      .from("businesses")
-      .select("slug, updated_at")
-      .eq("status", "active")
-      .order("id", { ascending: true })
-      .range(from, to);
-
-    if (error) {
-      console.error("Sitemap query error:", error);
-      return buildEmptySitemap();
-    }
-
-    const urls = (data || [])
+    const urls = rows
       .map((b) => {
-        const chosen = String((b as { slug?: string | null }).slug ?? "")
-          .trim()
-          .toLowerCase();
-        if (!isIndexableBusinessSlug(chosen)) return null;
-        const updatedAt = (b as { updated_at?: string | null }).updated_at;
         return `
   <url>
-    <loc>https://tellacity.com/b/${encodeURIComponent(chosen)}</loc>
-    <lastmod>${new Date(updatedAt || Date.now()).toISOString()}</lastmod>
+    <loc>https://tellacity.com/b/${encodeURIComponent(b.slug)}</loc>
+    <lastmod>${new Date(b.updated_at || Date.now()).toISOString()}</lastmod>
   </url>`;
       })
-      .filter(Boolean)
       .join("");
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -62,6 +42,7 @@ ${urls}
     return new NextResponse(xml, {
       headers: {
         "Content-Type": "application/xml",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
       },
     });
   } catch (err) {

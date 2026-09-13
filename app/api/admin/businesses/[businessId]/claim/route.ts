@@ -66,6 +66,15 @@ export async function POST(req: Request, ctx: RouteParams) {
     isNewAccount: ownerResolved.created,
   });
 
+  try {
+    const { revalidateBusinessProfileById } = await import(
+      "@/lib/revalidateBusinessProfile"
+    );
+    await revalidateBusinessProfileById(auth.admin, businessId);
+  } catch (e) {
+    console.warn("[admin claim] revalidate profile:", e);
+  }
+
   return NextResponse.json({
     ok: true,
     businessId,

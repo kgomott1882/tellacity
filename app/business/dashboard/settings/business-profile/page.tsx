@@ -275,6 +275,14 @@ export default function BusinessProfilePage() {
     }
     setMessage({ type: "success", text: "Saved." });
     setRefreshKey((k) => k + 1);
+    void fetch("/api/business/revalidate-profile", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId }),
+    }).catch(() => {
+      /* best-effort ISR bust */
+    });
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
